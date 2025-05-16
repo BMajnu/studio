@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { ChatMessage, MessageRole, ChatMessageContentPart } from '@/lib/types';
@@ -30,6 +31,22 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
     case 'code':
       return <CopyToClipboard key={index} textToCopy={part.code || ''} title={part.title} language={part.language} />;
     case 'list':
+      // Check if this list is for suggested replies and render each item separately
+      if (part.title && (part.title.toLowerCase().includes('suggested') || part.title.toLowerCase().includes('translations'))) {
+        return (
+          <div key={index} className="my-2">
+            {part.title && <h4 className="font-semibold mb-1">{part.title}</h4>}
+            {part.items && part.items.map((item, itemIndex) => (
+              <CopyableText 
+                key={`${index}-item-${itemIndex}`} 
+                text={item} 
+                title={`${part.title && part.title.startsWith('Suggested') ? 'Reply' : 'Translation'} ${itemIndex + 1}`} 
+              />
+            ))}
+          </div>
+        );
+      }
+      // Default list rendering
       return (
         <div key={index} className="my-2">
           {part.title && <h4 className="font-semibold mb-1">{part.title}</h4>}
@@ -108,3 +125,4 @@ export function ChatMessageDisplay({ message }: ChatMessageProps) {
     </div>
   );
 }
+
