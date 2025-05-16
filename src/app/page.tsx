@@ -1,7 +1,8 @@
+
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Paperclip, Send, CornerDownLeft, Loader2 } from 'lucide-react';
+import { Paperclip, Send, CornerDownLeft, Loader2, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
