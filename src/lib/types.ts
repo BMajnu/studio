@@ -1,3 +1,4 @@
+
 export interface UserProfile {
   userId: string; // For future use with auth
   name: string;
@@ -26,6 +27,14 @@ export interface ChatMessageContentPart {
   english?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; // For translation groups
   bengali?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; // For translation groups
 }
+
+export interface AttachedFile {
+  name: string;
+  type: string;
+  size: number;
+  dataUri?: string; // For images
+  textContent?: string; // For text files
+}
 export interface ChatMessage {
   id: string;
   role: MessageRole;
@@ -34,26 +43,38 @@ export interface ChatMessage {
   isLoading?: boolean;
   isError?: boolean;
   profileUsed?: Partial<UserProfile>; // To show which profile was active for this AI message
+  attachedFiles?: AttachedFile[]; // Files attached with this specific message (primarily for user messages)
 }
 
 // AI Flow input/output types (re-exporting or extending if needed)
-// For now, directly use from src/ai/flows
-// import type { ProcessClientMessageInput, ProcessClientMessageOutput } from '@/ai/flows/process-client-message';
-// import type { GeneratePlatformMessagesInput, GeneratePlatformMessagesOutput } from '@/ai/flows/generate-platform-messages';
-// import type { SuggestClientRepliesInput, SuggestClientRepliesOutput } from '@/ai/flows/suggest-client-replies';
-
 export interface ProcessedClientMessageOutput {
   analysis?: string;
   simplifiedRequest?: string;
   stepByStepApproach?: string;
-  bengaliTranslation?: string; // This is a single string in the AI output
-                               // but might be better structured if possible.
-                               // For now, matching the flow.
+  bengaliTranslation?: string;
   englishReplies?: string[];
   bengaliReplies?: string[];
 }
 
 export interface PlatformMessagesOutput {
-  deliveryOrRevisionMessages: { message: string, type: string }[]; // type will be 'delivery' or 'revision'
-  followUpMessages: { message: string, type: string }[]; // type will be 'follow-up'
+  deliveryOrRevisionMessages: { message: string, type: string }[];
+  followUpMessages: { message: string, type: string }[];
+}
+
+// Chat History Types
+export interface ChatSessionMetadata {
+  id: string;
+  name: string;
+  lastMessageTimestamp: number;
+  preview: string; // First few words of the first user message or last message
+  messageCount: number;
+}
+
+export interface ChatSession {
+  id: string;
+  name: string;
+  messages: ChatMessage[];
+  createdAt: number; // Timestamp
+  updatedAt: number; // Timestamp
+  userId: string; // Associate with a user
 }

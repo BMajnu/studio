@@ -1,26 +1,40 @@
 
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { Paperclip, Send, CornerDownLeft, Loader2, Bot } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { Paperclip, Send, Loader2, BotMessageSquare as BotIcon, Menu, XIcon } from 'lucide-react'; // Renamed Bot to BotIcon
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChatMessageDisplay } from '@/components/chat/chat-message';
 import { ActionButtonsPanel, type ActionType } from '@/components/chat/action-buttons';
+import { HistoryPanel } from '@/components/chat/history-panel';
 import { useToast } from '@/hooks/use-toast';
 import { useUserProfile } from '@/lib/hooks/use-user-profile';
-import type { ChatMessage, UserProfile, ChatMessageContentPart, ProcessedClientMessageOutput, PlatformMessagesOutput } from '@/lib/types';
+import { useChatHistory } from '@/lib/hooks/use-chat-history';
+import type { ChatMessage, UserProfile, ChatMessageContentPart, ProcessedClientMessageOutput, PlatformMessagesOutput, AttachedFile, ChatSession } from '@/lib/types';
 import { processClientMessage, type ProcessClientMessageOutput, type ProcessClientMessageInput } from '@/ai/flows/process-client-message';
 import { suggestClientReplies, type SuggestClientRepliesOutput, type SuggestClientRepliesInput } from '@/ai/flows/suggest-client-replies';
 import { generatePlatformMessages, type GeneratePlatformMessagesOutput, type GeneratePlatformMessagesInput } from '@/ai/flows/generate-platform-messages';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile'; // For responsive history panel
+
+// Helper to get textual content from ChatMessageContentPart[] or string
+const getMessageText = (content: string | ChatMessageContentPart[]): string => {
+  if (typeof content === 'string') return content;
+  const textPart = content.find(p => p.type === 'text');
+  return textPart?.text || '';
+};
+
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [currentAttachedFilesData, setCurrentAttachedFilesData] = useState<AttachedFile[]>([]);
+
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { profile, isLoading: profileLoading } = useUserProfile();
@@ -31,15 +45,61 @@ export default function ChatPage() {
   const [modalActionType, setModalActionType] = useState<ActionType | null>(null);
   const [modalNotes, setModalNotes] = useState('');
 
+  const { 
+    historyMetadata, 
+    isLoading: historyLoading, 
+    getSession, 
+    saveSession, 
+    deleteSession, 
+    createNewSession,
+    loadHistoryIndex 
+  } = useChatHistory(profile?.userId);
+  
+  const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
+  const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
+  const isMobile = useIsMobile();
 
+  // Initialize or load session
+  useEffect(() => {
+    if (!profileLoading && profile?.userId) { // Ensure profile is loaded before history
+      const activeSession = createNewSession();
+      setCurrentSession(activeSession);
+      setMessages(activeSession.messages);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileLoading, profile?.userId]); // Create new session only when profile is ready
+
+  // Auto-scroll chat
   useEffect(() => {
     if (chatAreaRef.current) {
       chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
     }
   }, [messages]);
 
-  const addMessage = useCallback((role: 'user' | 'assistant' | 'system', content: string | ChatMessageContentPart[], isLoading?: boolean, isError?: boolean) => {
-    setMessages(prev => [...prev, { id: Date.now().toString(), role, content, timestamp: Date.now(), isLoading, isError }]);
+  // Auto-save session (debounced or on significant changes)
+  useEffect(() => {
+    if (currentSession && messages.length > 0) {
+      const updatedSession = { ...currentSession, messages, updatedAt: Date.now() };
+      // Debounce save or save on specific triggers to avoid too frequent localStorage writes
+      const saveTimeout = setTimeout(() => {
+        saveSession(updatedSession, currentSession.name === "New Chat" && messages.length <=2);
+      }, 1000); // Save 1 second after last message change
+      return () => clearTimeout(saveTimeout);
+    }
+  }, [messages, currentSession, saveSession]);
+
+
+  const addMessage = useCallback((role: 'user' | 'assistant' | 'system', content: string | ChatMessageContentPart[], currentAttachments?: AttachedFile[], isLoading?: boolean, isError?: boolean) => {
+    const newMessage: ChatMessage = { 
+      id: Date.now().toString(), 
+      role, 
+      content, 
+      timestamp: Date.now(), 
+      isLoading, 
+      isError,
+      attachedFiles: role === 'user' ? currentAttachments : undefined,
+    };
+    setMessages(prev => [...prev, newMessage]);
   }, []);
 
   const updateLastMessage = useCallback((content: string | ChatMessageContentPart[], isLoading: boolean = false, isError: boolean = false) => {
@@ -48,28 +108,99 @@ export default function ChatPage() {
     ));
   }, []);
 
+  const handleNewChat = () => {
+    const newSession = createNewSession();
+    setCurrentSession(newSession);
+    setMessages(newSession.messages);
+    setInputMessage('');
+    setSelectedFiles([]);
+    setCurrentAttachedFilesData([]);
+    if (isMobile) setIsHistoryPanelOpen(false);
+  };
+
+  const handleSelectSession = (sessionId: string) => {
+    const selected = getSession(sessionId);
+    if (selected) {
+      setCurrentSession(selected);
+      setMessages(selected.messages);
+    }
+    if (isMobile) setIsHistoryPanelOpen(false);
+  };
+
+  const handleDeleteSession = (sessionId: string) => {
+    deleteSession(sessionId);
+    if (currentSession?.id === sessionId) {
+      handleNewChat(); // Switch to a new chat if the active one is deleted
+    }
+  };
+  
+  const readFileAsDataURL = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const readFileAsText = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsText(file);
+    });
+  };
+
+  const processFilesForAI = async (files: File[]): Promise<AttachedFile[]> => {
+    const processedFiles: AttachedFile[] = [];
+    for (const file of files) {
+      const basicInfo: AttachedFile = { name: file.name, type: file.type, size: file.size };
+      if (file.type.startsWith('image/')) {
+        try {
+          basicInfo.dataUri = await readFileAsDataURL(file);
+        } catch (e) { console.error("Error reading image file:", e); }
+      } else if (file.type === 'text/plain' || file.type === 'text/markdown' || file.type === 'application/json') {
+        try {
+          basicInfo.textContent = await readFileAsText(file);
+        } catch (e) { console.error("Error reading text file:", e); }
+      }
+      // For PDFs and other types, only name, type, size are included for now.
+      processedFiles.push(basicInfo);
+    }
+    return processedFiles;
+  };
 
   const handleSendMessage = async (messageText: string = inputMessage, actionType: ActionType = 'processMessage', notes?: string) => {
     const currentMessageText = messageText.trim();
-    if (!currentMessageText && actionType !== 'generateDelivery' && actionType !== 'generateRevision') return;
+    if (!currentMessageText && actionType !== 'generateDelivery' && actionType !== 'generateRevision' && selectedFiles.length === 0) return;
     if (!profile) {
       toast({ title: "Profile not loaded", description: "Please wait for your profile to load or set it up in Settings.", variant: "destructive" });
       return;
     }
+    if (!currentSession) {
+        toast({ title: "Session not initialized", description: "Please wait or try creating a new chat.", variant: "destructive" });
+        return;
+    }
 
-    addMessage('user', currentMessageText || `Triggered: ${actionType}`);
-    addMessage('assistant', 'Processing...', true);
+    const filesToSendWithThisMessage = [...currentAttachedFilesData];
+
+    addMessage('user', currentMessageText || `Triggered: ${actionType}`, filesToSendWithThisMessage);
+    addMessage('assistant', 'Processing...', [], true); // AI message never has user attachments
     setIsLoading(true);
     setInputMessage('');
-    setSelectedFiles([]);
+    setSelectedFiles([]); // Clear UI selection
+    setCurrentAttachedFilesData([]); // Clear processed data for next message
     if (fileInputRef.current) fileInputRef.current.value = '';
-
 
     try {
       let aiResponseContent: ChatMessageContentPart[] = [];
+      const baseInput = { userName: profile.name, communicationStyleNotes: profile.communicationStyleNotes || '' };
+      const filesForFlow = filesToSendWithThisMessage.map(f => ({ name: f.name, type: f.type, dataUri: f.dataUri, textContent: f.textContent }));
+
 
       if (actionType === 'processMessage') {
-        const processInput: ProcessClientMessageInput = { clientMessage: currentMessageText, userName: profile.name, communicationStyleNotes: profile.communicationStyleNotes || '' };
+        const processInput: ProcessClientMessageInput = { ...baseInput, clientMessage: currentMessageText, attachedFiles: filesForFlow };
         const processed = await processClientMessage(processInput);
         
         const repliesInput: SuggestClientRepliesInput = { clientMessage: currentMessageText, userName: profile.name, professionalTitle: profile.professionalTitle, communicationStyleNotes: profile.communicationStyleNotes, services: profile.services };
@@ -78,30 +209,19 @@ export default function ChatPage() {
         aiResponseContent.push({
           type: 'translation_group',
           title: 'Client Request Analysis & Plan',
-          english: {
-            analysis: processed.analysis,
-            simplifiedRequest: processed.simplifiedRequest,
-            stepByStepApproach: processed.stepByStepApproach,
-          },
-          bengali: { // Assuming bengaliTranslation is a single string containing all parts. We need to parse it or ask AI to structure it.
-                     // For now, let's put the whole string under analysis. This needs refinement based on actual AI output.
-            analysis: processed.bengaliTranslation 
-          }
+          english: { analysis: processed.analysis, simplifiedRequest: processed.simplifiedRequest, stepByStepApproach: processed.stepByStepApproach },
+          bengali: { analysis: processed.bengaliTranslation }
         });
         if (replies.englishReplies && replies.englishReplies.length > 0) {
           aiResponseContent.push({ type: 'list', title: 'Suggested English Replies', items: replies.englishReplies });
         }
       } else if (actionType === 'analyzePlan') {
-        const processInput: ProcessClientMessageInput = { clientMessage: currentMessageText, userName: profile.name, communicationStyleNotes: profile.communicationStyleNotes || '' };
+        const processInput: ProcessClientMessageInput = { ...baseInput, clientMessage: currentMessageText, attachedFiles: filesForFlow };
         const processed = await processClientMessage(processInput);
         aiResponseContent.push({
           type: 'translation_group',
           title: 'Client Request Analysis & Plan',
-          english: {
-            analysis: processed.analysis,
-            simplifiedRequest: processed.simplifiedRequest,
-            stepByStepApproach: processed.stepByStepApproach,
-          },
+          english: { analysis: processed.analysis, simplifiedRequest: processed.simplifiedRequest, stepByStepApproach: processed.stepByStepApproach },
           bengali: { analysis: processed.bengaliTranslation }
         });
       } else if (actionType === 'suggestReplies') {
@@ -115,13 +235,13 @@ export default function ChatPage() {
       } else if (actionType === 'suggestRepliesTranslated') {
         const repliesInput: SuggestClientRepliesInput = { clientMessage: currentMessageText, userName: profile.name, professionalTitle: profile.professionalTitle, communicationStyleNotes: profile.communicationStyleNotes, services: profile.services };
         const replies = await suggestClientReplies(repliesInput);
-         if (replies.englishReplies && replies.englishReplies.length > 0) {
+        if (replies.englishReplies && replies.englishReplies.length > 0) {
           aiResponseContent.push({ type: 'list', title: 'Suggested English Replies', items: replies.englishReplies });
         }
         if (replies.bengaliTranslations && replies.bengaliTranslations.length > 0) {
           aiResponseContent.push({ type: 'list', title: 'Bengali Translations', items: replies.bengaliTranslations });
         }
-         if (aiResponseContent.length === 0) {
+        if (aiResponseContent.length === 0) {
           aiResponseContent.push({type: 'text', text: "No replies or translations generated."});
         }
       } else if (actionType === 'generateDelivery' || actionType === 'generateRevision') {
@@ -146,7 +266,7 @@ export default function ChatPage() {
         if (followUpMessages.length > 0) {
            aiResponseContent.push({ type: 'list', title: 'Follow-up Messages', items: followUpMessages.map(m => m.message) });
         }
-         if (aiResponseContent.length === 0) {
+        if (aiResponseContent.length === 0) {
           aiResponseContent.push({type: 'text', text: "No platform messages generated."});
         }
       }
@@ -180,50 +300,135 @@ export default function ChatPage() {
     setModalActionType(null);
   };
 
+  const handleFileSelectAndProcess = async (newFiles: File[]) => {
+    setSelectedFiles(prev => [...prev, ...newFiles].slice(0, 5)); // Limit to 5 files for now
+    const processed = await processFilesForAI(newFiles);
+    setCurrentAttachedFilesData(prev => [...prev, ...processed].slice(0, 5));
+  };
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
-      setSelectedFiles(Array.from(event.target.files));
+      handleFileSelectAndProcess(Array.from(event.target.files));
     }
   };
+
+  const clearSelectedFiles = () => {
+    setSelectedFiles([]);
+    setCurrentAttachedFilesData([]);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
-      if (!isLoading && inputMessage.trim()) {
+      if (!isLoading && (inputMessage.trim() || selectedFiles.length >0)) {
         handleSendMessage(inputMessage, 'processMessage');
       }
     }
   };
 
-  if (profileLoading) {
-    return <div className="flex items-center justify-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary" /> <p className="ml-4 text-lg">Loading Profile...</p></div>;
+  // Drag and Drop
+  const [isDragging, setIsDragging] = useState(false);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
+
+  const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    // Check if the mouse truly left the dropzone or entered a child element
+    if (dropZoneRef.current && !dropZoneRef.current.contains(event.relatedTarget as Node)) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback(async (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(false);
+    if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+      await handleFileSelectAndProcess(Array.from(event.dataTransfer.files));
+      event.dataTransfer.clearData();
+    }
+  }, []);
+
+
+  if (profileLoading || !currentSession) {
+    return <div className="flex items-center justify-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary" /> <p className="ml-4 text-lg">Loading DesAInR...</p></div>;
   }
 
   return (
-    <div className="flex h-[calc(100vh-var(--header-height,0px))]"> {/* Adjust for potential header in AppLayout */}
-      <div className="flex-1 flex flex-col bg-background overflow-hidden">
+    <div className="flex h-[calc(100vh-var(--header-height,0px))]">
+      {/* History Panel - Conditional rendering for mobile */}
+      {isMobile && isHistoryPanelOpen && (
+        <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setIsHistoryPanelOpen(false)}>
+          <div className="absolute left-0 top-0 h-full w-4/5 max-w-xs bg-background shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <HistoryPanel
+              sessions={historyMetadata}
+              activeSessionId={currentSession?.id || null}
+              onSelectSession={handleSelectSession}
+              onNewChat={handleNewChat}
+              onDeleteSession={handleDeleteSession}
+              isLoading={historyLoading}
+            />
+          </div>
+        </div>
+      )}
+      {!isMobile && (
+        <div className="w-[280px] shrink-0 md:block hidden">
+          <HistoryPanel
+            sessions={historyMetadata}
+            activeSessionId={currentSession?.id || null}
+            onSelectSession={handleSelectSession}
+            onNewChat={handleNewChat}
+            onDeleteSession={handleDeleteSession}
+            isLoading={historyLoading}
+          />
+        </div>
+      )}
+
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col bg-background overflow-hidden" ref={dropZoneRef} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+        {isMobile && (
+          <div className="p-2 border-b flex items-center">
+            <Button variant="ghost" size="icon" onClick={() => setIsHistoryPanelOpen(prev => !prev)}>
+              {isHistoryPanelOpen ? <XIcon className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
+            <h2 className="ml-2 font-semibold text-lg truncate">{currentSession?.name || "Chat"}</h2>
+          </div>
+        )}
         <ScrollArea className="flex-1 p-1 md:p-4" ref={chatAreaRef}>
           <div className="space-y-2">
             {messages.map((msg) => (
               <ChatMessageDisplay key={msg.id} message={msg} />
             ))}
-             {messages.length === 0 && (
+             {messages.length === 0 && !isLoading && (
                 <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                    <Bot className="w-16 h-16 text-primary mb-4" />
+                    <BotIcon className="w-16 h-16 text-primary mb-4" />
                     <h2 className="text-2xl font-semibold mb-2">Welcome to DesAInR!</h2>
                     <p className="text-muted-foreground max-w-md">
-                        I'm your AI-powered design assistant. Type a client message below, then use the action buttons on the right to get started.
+                        Type a client message, or drag & drop files below. Then use the action buttons on the right to get started.
                     </p>
                 </div>
             )}
           </div>
         </ScrollArea>
 
-        <div className="border-t p-4 bg-background">
+        {isDragging && (
+          <div className="absolute inset-x-4 bottom-[160px] md:bottom-[150px] top-4 border-4 border-dashed border-primary bg-primary/10 rounded-lg flex items-center justify-center pointer-events-none">
+            <p className="text-primary font-semibold text-lg">Drop files here</p>
+          </div>
+        )}
+
+        <div className={cn("border-t p-4 bg-background", isDragging && "opacity-50")}>
           {selectedFiles.length > 0 && (
             <div className="mb-2 text-xs text-muted-foreground">
               Selected files: {selectedFiles.map(f => f.name).join(', ')}
-              <Button variant="link" size="sm" className="ml-2 h-auto p-0" onClick={() => {setSelectedFiles([]); if(fileInputRef.current) fileInputRef.current.value = '';}}>Clear</Button>
+              <Button variant="link" size="sm" className="ml-2 h-auto p-0" onClick={clearSelectedFiles}>Clear</Button>
             </div>
           )}
           <div className="flex items-start gap-2">
@@ -231,20 +436,19 @@ export default function ChatPage() {
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type your client's message or your query here..."
+              placeholder="Type your client's message or your query here... (or drag & drop files)"
               className="flex-1 resize-none min-h-[60px] max-h-[150px] rounded-lg shadow-sm focus-visible:ring-2 focus-visible:ring-primary"
               rows={Math.max(1, Math.min(5, inputMessage.split('\n').length))}
             />
             <div className="flex flex-col gap-2">
               <Button
                 onClick={() => handleSendMessage(inputMessage, 'processMessage')}
-                disabled={isLoading || !inputMessage.trim()}
+                disabled={isLoading || (!inputMessage.trim() && selectedFiles.length === 0)}
                 className="h-[60px] w-[60px] rounded-lg shadow-sm bg-primary hover:bg-primary/90"
                 aria-label="Send message"
               >
                 {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
               </Button>
-             
             </div>
           </div>
            <div className="flex items-center mt-2">
@@ -255,7 +459,7 @@ export default function ChatPage() {
                 className="text-muted-foreground hover:text-primary"
                 aria-label="Attach files"
               >
-                <Paperclip className="h-4 w-4 mr-2" /> Attach Files (display only)
+                <Paperclip className="h-4 w-4 mr-2" /> Attach Files
               </Button>
                <input
                 type="file"
@@ -263,14 +467,17 @@ export default function ChatPage() {
                 multiple
                 onChange={handleFileChange}
                 className="hidden"
+                accept="image/*,application/pdf,.txt,.md,.json" // Specify acceptable file types
               />
            </div>
         </div>
       </div>
-      <div className="w-full md:w-[320px] lg:w-[380px] hidden md:block shrink-0">
+      {/* Action Buttons Panel */}
+      <div className="w-full md:w-[320px] lg:w-[380px] shrink-0 hidden md:block">
         <ActionButtonsPanel onAction={handleAction} isLoading={isLoading} currentUserMessage={inputMessage} profile={profile} />
       </div>
 
+      {/* Notes Modal */}
       <Dialog open={showNotesModal} onOpenChange={setShowNotesModal}>
         <DialogContent>
           <DialogHeader>

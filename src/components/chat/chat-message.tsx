@@ -1,13 +1,14 @@
 
 'use client';
 
-import type { ChatMessage, MessageRole, ChatMessageContentPart } from '@/lib/types';
+import type { ChatMessage, MessageRole, ChatMessageContentPart, AttachedFile } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Bot, User, AlertTriangle } from 'lucide-react';
+import { Bot, User, AlertTriangle, Paperclip, FileText, Image as ImageIcon } from 'lucide-react';
 import { CopyToClipboard, CopyableText, CopyableList } from '@/components/copy-to-clipboard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import Image from 'next/image';
 
 interface ChatMessageProps {
   message: ChatMessage;
@@ -16,11 +17,35 @@ interface ChatMessageProps {
 function MessageAvatar({ role }: { role: MessageRole }) {
   return (
     <Avatar className="h-8 w-8 self-start">
-      <AvatarImage src={role === 'assistant' ? '/bot-avatar.png' : '/user-avatar.png'} alt={role} data-ai-hint={role === 'assistant' ? 'robot face' : 'person silhouette'} />
+      {/* Placeholder images used here, actual avatars can be configured */}
+      <AvatarImage 
+        src={role === 'assistant' ? `https://placehold.co/40x40.png?text=AI` : `https://placehold.co/40x40.png?text=U`} 
+        alt={role} 
+        data-ai-hint={role === 'assistant' ? 'robot face' : 'person silhouette'}
+      />
       <AvatarFallback>
         {role === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
       </AvatarFallback>
     </Avatar>
+  );
+}
+
+function AttachedFileDisplay({ file }: { file: AttachedFile }) {
+  return (
+    <div className="mt-1 p-2 border rounded-md bg-background/50 text-xs flex items-center gap-2">
+      {file.type.startsWith('image/') && file.dataUri ? (
+        <>
+          <ImageIcon className="h-4 w-4 text-muted-foreground" />
+          <Image src={file.dataUri} alt={file.name} width={32} height={32} className="rounded-sm object-cover"/>
+        </>
+      ) : file.type.startsWith('text/') ? (
+        <FileText className="h-4 w-4 text-muted-foreground" />
+      ) : (
+        <Paperclip className="h-4 w-4 text-muted-foreground" />
+      )}
+      <span className="truncate" title={file.name}>{file.name}</span>
+      <span className="text-muted-foreground/80">({(file.size / 1024).toFixed(1)} KB)</span>
+    </div>
   );
 }
 
@@ -31,7 +56,6 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
     case 'code':
       return <CopyToClipboard key={index} textToCopy={part.code || ''} title={part.title} language={part.language} />;
     case 'list':
-      // Check if this list is for suggested replies and render each item separately
       if (part.title && (part.title.toLowerCase().includes('suggested') || part.title.toLowerCase().includes('translations'))) {
         return (
           <div key={index} className="my-2">
@@ -46,7 +70,6 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
           </div>
         );
       }
-      // Default list rendering
       return (
         <div key={index} className="my-2">
           {part.title && <h4 className="font-semibold mb-1">{part.title}</h4>}
@@ -117,12 +140,13 @@ export function ChatMessageDisplay({ message }: ChatMessageProps) {
         ) : (
           message.content.map((part, index) => <RenderContentPart part={part} index={index} key={`${message.id}-part-${index}`}/>)
         )}
-        {/* <p className="text-xs text-muted-foreground self-end mt-1">
-          {new Date(message.timestamp).toLocaleTimeString()}
-        </p> */}
+        {message.attachedFiles && message.attachedFiles.length > 0 && (
+          <div className="mt-2 space-y-1">
+            {message.attachedFiles.map(file => <AttachedFileDisplay key={file.name} file={file} />)}
+          </div>
+        )}
       </div>
       {isUser && <MessageAvatar role={message.role} />}
     </div>
   );
 }
-
