@@ -25,31 +25,54 @@ import { DEFAULT_USER_ID } from '@/lib/constants';
 // Helper to get textual content from ChatMessageContentPart[] or string
 const getMessageText = (content: string | ChatMessageContentPart[]): string => {
   if (typeof content === 'string') return content;
-  const textPart = content.find(p => p.type === 'text');
-  if (textPart?.text) return textPart.text;
-  
-  // Fallback for code blocks if no direct text part
-  const codePart = content.find(p => p.type === 'code');
-  if (codePart?.code) return `Code: ${codePart.code.substring(0, 50)}...`;
+  if (!Array.isArray(content)) return '[Invalid Message Content]';
 
-  // Fallback for lists
-  const listPart = content.find(p => p.type === 'list');
-  if (listPart?.items && listPart.items.length > 0) return `List: ${listPart.items[0].substring(0,50)}...`;
-  
-  // Fallback for translation groups
-  const translationPart = content.find(p => p.type === 'translation_group');
-  if (translationPart?.english?.simplifiedRequest) return `Analysis: ${translationPart.english.simplifiedRequest.substring(0,50)}...`;
-  if (translationPart?.english?.analysis) return `Analysis: ${translationPart.english.analysis.substring(0,50)}...`;
-
-  return '[Non-textual content or complex structure]';
+  let fullText = '';
+  content.forEach(part => {
+    if (part.title) {
+      fullText += `### ${part.title}\n`;
+    }
+    switch (part.type) {
+      case 'text':
+        fullText += `${part.text || ''}\n`;
+        break;
+      case 'code':
+        fullText += `\`\`\`${part.language || ''}\n${part.code || ''}\n\`\`\`\n`;
+        break;
+      case 'list':
+        if (part.items && part.items.length > 0) {
+          fullText += part.items.map((item, index) => `${index + 1}. ${item}`).join('\n') + '\n';
+        }
+        break;
+      case 'translation_group':
+        if (part.english) {
+          if (part.english.analysis) fullText += `English Analysis:\n${part.english.analysis}\n`;
+          if (part.english.simplifiedRequest) fullText += `English Simplified Request:\n${part.english.simplifiedRequest}\n`;
+          if (part.english.stepByStepApproach) fullText += `English Step-by-Step Approach:\n${part.english.stepByStepApproach}\n`;
+        }
+        if (part.bengali) {
+          // Assuming bengali part.analysis contains the full structured bengali text
+          if (part.bengali.analysis) fullText += `Bengali Translation:\n${part.bengali.analysis}\n`;
+          else if (part.bengali.simplifiedRequest) fullText += `Bengali Simplified Request:\n${part.bengali.simplifiedRequest}\n`; // Fallback if structure is different
+          else if (part.bengali.stepByStepApproach) fullText += `Bengali Step-by-Step Approach:\n${part.bengali.stepByStepApproach}\n`; // Fallback
+        }
+        break;
+      default:
+        fullText += '[Unsupported Content Part]\n';
+    }
+    fullText += '\n'; // Add a separator between parts
+  });
+  return fullText.trim();
 };
+
 
 // Prefix for storing the last active session ID in localStorage
 const LAST_ACTIVE_SESSION_ID_KEY_PREFIX = 'desainr_last_active_session_id_';
 
 // Helper function to generate robust message IDs
 const generateRobustMessageId = (): string => {
-  return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+  // More robust ID: prefix + timestamp + longer random string
+  return `msg-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 };
 
 // Function to ensure messages have unique and correctly formatted IDs
@@ -60,7 +83,8 @@ const baseEnsureMessagesHaveUniqueIds = (messagesToProcess: ChatMessage[]): Chat
   const seenIds = new Set<string>();
   return messagesToProcess.map(msg => {
     let newId = msg.id;
-    if (typeof newId !== 'string' || !newId.startsWith('msg-') || seenIds.has(newId) || !isNaN(Number(newId))) {
+    // Check if ID is problematic (e.g., just a number, already seen, or not starting with 'msg-')
+    if (typeof newId !== 'string' || !newId.startsWith('msg-') || seenIds.has(newId) || !isNaN(Number(newId.replace('msg-','').split('-')[0]))) {
       let candidateId = generateRobustMessageId();
       while (seenIds.has(candidateId)) {
         candidateId = generateRobustMessageId();
@@ -108,22 +132,22 @@ export default function ChatPage() {
 
   const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
   const isMobile = useIsMobile();
-  const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
+  const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false); // Default to false
 
   const ensureMessagesHaveUniqueIds = useCallback(baseEnsureMessagesHaveUniqueIds, []);
   
   useEffect(() => {
     // Set initial state based on screen size only after client-side hydration
     if (isMobile !== undefined) { 
-        setIsHistoryPanelOpen(!isMobile);
+        setIsHistoryPanelOpen(!isMobile); // Open on desktop, closed on mobile
     }
   }, [isMobile]);
 
 
   // Initialize or load session
   useEffect(() => {
-    if (!profileLoading && profile) { 
-      const currentUserId = profile.userId || DEFAULT_USER_ID;
+    if (!profileLoading && profile && userIdForHistory !== DEFAULT_USER_ID) { // Ensure userId is resolved
+      const currentUserId = userIdForHistory;
       const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + currentUserId;
       const lastActiveSessionId = localStorage.getItem(lastActiveSessionIdKey);
       let sessionToLoad: ChatSession | null = null;
@@ -141,13 +165,17 @@ export default function ChatPage() {
         const newSession = createNewSession();
         setCurrentSession(newSession);
         setMessages(newSession.messages); 
-        if (newSession.id) { // Ensure newSession.id is valid before setting
+        if (newSession.id) { 
           localStorage.setItem(lastActiveSessionIdKey, newSession.id);
         }
       }
+    } else if (!profileLoading && !profile) { // Handle case where profile is explicitly null (e.g. failed to load)
+        const newSession = createNewSession(); // Create with default user
+        setCurrentSession(newSession);
+        setMessages(newSession.messages);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileLoading, profile, getSession, createNewSession]);
+  }, [profileLoading, profile, getSession, createNewSession, userIdForHistory]); // Added userIdForHistory
 
 
   // Auto-scroll chat
@@ -159,8 +187,9 @@ export default function ChatPage() {
 
   // Auto-save session
   useEffect(() => {
-    if (currentSession && (messages.length > 0 || currentSession.messages.length > 0) ) { 
+    if (currentSession && (messages.length > 0 || currentSession.messages.length > 0) && userIdForHistory !== DEFAULT_USER_ID ) { 
       const isNewChatName = currentSession.name === "New Chat";
+      // Only attempt name generation if it's a new chat and has 1 or 2 messages (user + initial AI reply)
       const shouldAttemptNameGeneration = isNewChatName && messages.length > 0 && messages.length <= 2;
 
       const updatedSession = { ...currentSession, messages, updatedAt: Date.now() };
@@ -171,6 +200,8 @@ export default function ChatPage() {
              setCurrentSession(prevCurrentSession => {
                 if (!prevCurrentSession || !savedSession) return savedSession; 
                 
+                // Check if relevant parts of the session actually changed before updating state
+                // to prevent unnecessary re-renders.
                 let changesMade = false;
                 const newCurrentSessionState = { ...prevCurrentSession };
 
@@ -178,6 +209,8 @@ export default function ChatPage() {
                     newCurrentSessionState.name = savedSession.name;
                     changesMade = true;
                 }
+                // For messages, a deep compare is too expensive. A length check or reference check is okay here
+                // as saveSession should return a new object if messages changed.
                 if (savedSession.messages !== newCurrentSessionState.messages) { 
                     newCurrentSessionState.messages = savedSession.messages;
                     changesMade = true;
@@ -194,7 +227,7 @@ export default function ChatPage() {
       }, 1000);
       return () => clearTimeout(saveTimeout);
     }
-  }, [messages, currentSession, saveSession]);
+  }, [messages, currentSession, saveSession, userIdForHistory]); // Added userIdForHistory
 
 
   const addMessage = useCallback((role: 'user' | 'assistant' | 'system', content: string | ChatMessageContentPart[], currentAttachments?: AttachedFile[], isLoadingParam?: boolean, isErrorParam?: boolean) => {
@@ -211,9 +244,12 @@ export default function ChatPage() {
   }, []);
 
   const updateLastMessage = useCallback((content: string | ChatMessageContentPart[], isLoadingParam: boolean = false, isErrorParam: boolean = false) => {
-    setMessages(prev => prev.map((msg, index) =>
-      index === prev.length - 1 ? { ...msg, content, isLoading: isLoadingParam, isError: isErrorParam, timestamp: Date.now() } : msg
-    ));
+    setMessages(prev => {
+      if (prev.length === 0) return prev; // Should not happen if addMessage was called first
+      return prev.map((msg, index) =>
+        index === prev.length - 1 ? { ...msg, content, isLoading: isLoadingParam, isError: isErrorParam, timestamp: Date.now() } : msg
+      );
+    });
   }, []);
 
   const handleNewChat = useCallback(() => {
@@ -225,7 +261,7 @@ export default function ChatPage() {
     setCurrentAttachedFilesData([]);
     const currentUserId = profile?.userId || DEFAULT_USER_ID;
     const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + currentUserId;
-    if (newSession.id) { // Ensure newSession.id is valid
+    if (newSession.id) { 
       localStorage.setItem(lastActiveSessionIdKey, newSession.id);
     }
     if (isMobile) setIsHistoryPanelOpen(false);
@@ -292,7 +328,8 @@ export default function ChatPage() {
     const currentMessageText = messageText.trim();
     const canSendMessage = currentMessageText || currentAttachedFilesData.length > 0 || actionType === 'generateDelivery' || actionType === 'generateRevision';
     
-    if (!canSendMessage) return;
+    if (!canSendMessage && (actionType !== 'generateDelivery' && actionType !== 'generateRevision')) return;
+
 
     if (!profile) {
       toast({ title: "Profile not loaded", description: "Please wait for your profile to load or set it up in Settings.", variant: "destructive" });
@@ -305,7 +342,7 @@ export default function ChatPage() {
 
     const filesToSendWithThisMessage = [...currentAttachedFilesData];
 
-    addMessage('user', currentMessageText || `Triggered: ${actionType}`, filesToSendWithThisMessage);
+    addMessage('user', currentMessageText || `Triggered action: ${actionType}`, filesToSendWithThisMessage);
     addMessage('assistant', 'Processing...', [], true);
     setIsLoading(true);
     setInputMessage('');
@@ -318,12 +355,15 @@ export default function ChatPage() {
       const baseInput = { userName: profile.name, communicationStyleNotes: profile.communicationStyleNotes || '' };
       const filesForFlow = filesToSendWithThisMessage.map(f => ({ name: f.name, type: f.type, dataUri: f.dataUri, textContent: f.textContent }));
       
-      const chatHistoryForAI = messages
-        .slice(0, messages.length - 2) // Exclude current user message and AI 'Processing...' message
+      // Get history, excluding current user message and AI 'Processing...' placeholder
+      // Make sure messages is up-to-date before slicing for history
+      const currentMessagesForHistory = messages;
+      const chatHistoryForAI = currentMessagesForHistory
+        .slice(0, -1) // Exclude the "Processing..." message we just added
         .slice(-5) // Take the last 5 relevant messages (user/assistant turns)
         .map(msg => ({
-          role: msg.role as 'user' | 'assistant', // Cast as Genkit flow expects specific enum
-          text: getMessageText(msg.content)
+          role: msg.role as 'user' | 'assistant', 
+          text: getMessageText(msg.content) // Use the enhanced getMessageText
         }))
         .filter(msg => msg.text.trim() !== '' && (msg.role === 'user' || msg.role === 'assistant'));
 
@@ -374,8 +414,6 @@ export default function ChatPage() {
           aiResponseContent.push({type: 'text', text: "No replies or translations generated."});
         }
       } else if (actionType === 'generateDelivery' || actionType === 'generateRevision') {
-        // Note: Chat history is not typically passed for generating standardized platform messages,
-        // as these are more template-based. If context IS needed, it should be added to GeneratePlatformMessagesInput.
         const platformInput: GeneratePlatformMessagesInput = {
           name: profile.name,
           professionalTitle: profile.professionalTitle || '',
@@ -418,13 +456,15 @@ export default function ChatPage() {
       setModalActionType(action);
       setShowNotesModal(true);
     } else {
-      handleSendMessage(inputMessage, action);
+      // Ensure inputMessage is passed correctly, especially if it's empty and action doesn't rely on it.
+      handleSendMessage(inputMessage || '', action);
     }
   };
 
   const submitModalNotes = () => {
     if (modalActionType) {
-      handleSendMessage(inputMessage, modalActionType, modalNotes);
+      // Pass current inputMessage (even if empty) along with notes
+      handleSendMessage(inputMessage || '', modalActionType, modalNotes);
     }
     setShowNotesModal(false);
     setModalNotes('');
@@ -485,7 +525,8 @@ export default function ChatPage() {
       await handleFileSelectAndProcess(Array.from(event.dataTransfer.files));
       event.dataTransfer.clearData();
     }
-  }, [ensureMessagesHaveUniqueIds]); 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ensureMessagesHaveUniqueIds]); // ensureMessagesHaveUniqueIds is stable due to its own useCallback
 
 
   if (profileLoading || !currentSession) { 
@@ -515,7 +556,7 @@ export default function ChatPage() {
             isHistoryPanelOpen ? "w-[280px] border-r" : "w-0 border-r-0 opacity-0"
           )}
         >
-          {isHistoryPanelOpen && (
+          {isHistoryPanelOpen && ( /* Only render if open to avoid issues with collapsed state */
             <HistoryPanel
               sessions={historyMetadata}
               activeSessionId={currentSession?.id || null}
@@ -530,7 +571,7 @@ export default function ChatPage() {
 
       <div className="flex-1 flex flex-col bg-background overflow-hidden" ref={dropZoneRef} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
         {/* Header for toggle and chat name - always visible */}
-        <div className="p-2 border-b flex items-center justify-between">
+        <div className="p-2 border-b flex items-center justify-between sticky top-0 bg-background z-10">
           <div className="flex items-center">
             <Button variant="ghost" size="icon" onClick={() => setIsHistoryPanelOpen(prev => !prev)} aria-label="Toggle history panel">
               {isMobile ? (
@@ -539,9 +580,8 @@ export default function ChatPage() {
                 isHistoryPanelOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />
               )}
             </Button>
-            <h2 className="ml-2 font-semibold text-lg truncate">{currentSession?.name || "Chat"}</h2>
+            <h2 className="ml-2 font-semibold text-lg truncate" title={currentSession?.name || "Chat"}>{currentSession?.name || "Chat"}</h2>
           </div>
-          {/* Placeholder for potential future header actions on the right */}
         </div>
 
         <ScrollArea className="flex-1 p-1 md:p-4" ref={chatAreaRef}>
@@ -562,7 +602,7 @@ export default function ChatPage() {
         </ScrollArea>
 
         {isDragging && (
-          <div className="absolute inset-x-4 bottom-[160px] md:bottom-[150px] top-16 md:top-12 border-4 border-dashed border-primary bg-primary/10 rounded-lg flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-x-4 bottom-[160px] md:bottom-[150px] top-16 md:top-[calc(var(--header-height)_+_0.5rem)] border-4 border-dashed border-primary bg-primary/10 rounded-lg flex items-center justify-center pointer-events-none">
             <p className="text-primary font-semibold text-lg">Drop files here</p>
           </div>
         )}
@@ -648,3 +688,4 @@ export default function ChatPage() {
     </div>
   );
 }
+
