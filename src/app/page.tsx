@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Paperclip, Loader2, BotIcon, Menu, XIcon } from 'lucide-react';
+import { Paperclip, Loader2, BotIcon, Menu, XIcon, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -34,7 +34,6 @@ const LAST_ACTIVE_SESSION_ID_KEY_PREFIX = 'desainr_last_active_session_id_';
 
 // Helper function to generate robust message IDs
 const generateRobustMessageId = (): string => {
-  // Using a longer random string and a prefix
   return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 };
 
@@ -46,10 +45,8 @@ const baseEnsureMessagesHaveUniqueIds = (messagesToProcess: ChatMessage[]): Chat
   const seenIds = new Set<string>();
   return messagesToProcess.map(msg => {
     let newId = msg.id;
-    // Check if ID is missing, not a string, in old format (doesn't start with 'msg-'), or already seen in this batch
     if (typeof newId !== 'string' || !newId.startsWith('msg-') || seenIds.has(newId) || !isNaN(Number(newId))) {
       let candidateId = generateRobustMessageId();
-      // Ensure the newly generated ID is also unique within this batch
       while (seenIds.has(candidateId)) {
         candidateId = generateRobustMessageId();
       }
@@ -64,8 +61,8 @@ const baseEnsureMessagesHaveUniqueIds = (messagesToProcess: ChatMessage[]): Chat
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]); // Tracks files selected in input, cleared on send
-  const [currentAttachedFilesData, setCurrentAttachedFilesData] = useState<AttachedFile[]>([]); // Data for files to be sent with next message
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [currentAttachedFilesData, setCurrentAttachedFilesData] = useState<AttachedFile[]>([]);
 
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -95,10 +92,18 @@ export default function ChatPage() {
   } = useChatHistory(userIdForHistory);
 
   const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
-  const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
   const isMobile = useIsMobile();
+  const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
 
   const ensureMessagesHaveUniqueIds = useCallback(baseEnsureMessagesHaveUniqueIds, []);
+  
+  useEffect(() => {
+    // Set initial state based on screen size only after client-side hydration
+    if (isMobile !== undefined) { 
+        setIsHistoryPanelOpen(!isMobile);
+    }
+  }, [isMobile]);
+
 
   // Initialize or load session
   useEffect(() => {
@@ -121,11 +126,13 @@ export default function ChatPage() {
         const newSession = createNewSession();
         setCurrentSession(newSession);
         setMessages(newSession.messages); 
-        localStorage.setItem(lastActiveSessionIdKey, newSession.id);
+        if (newSession.id) { // Ensure newSession.id is valid before setting
+          localStorage.setItem(lastActiveSessionIdKey, newSession.id);
+        }
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileLoading, profile, getSession, createNewSession, ensureMessagesHaveUniqueIds]);
+  }, [profileLoading, profile, getSession, createNewSession]);
 
 
   // Auto-scroll chat
@@ -203,7 +210,9 @@ export default function ChatPage() {
     setCurrentAttachedFilesData([]);
     const currentUserId = profile?.userId || DEFAULT_USER_ID;
     const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + currentUserId;
-    localStorage.setItem(lastActiveSessionIdKey, newSession.id);
+    if (newSession.id) { // Ensure newSession.id is valid
+      localStorage.setItem(lastActiveSessionIdKey, newSession.id);
+    }
     if (isMobile) setIsHistoryPanelOpen(false);
   }, [createNewSession, profile, isMobile]);
 
@@ -383,14 +392,12 @@ export default function ChatPage() {
       setModalActionType(action);
       setShowNotesModal(true);
     } else {
-      // All other actions will now use the current inputMessage and attached files
       handleSendMessage(inputMessage, action);
     }
   };
 
   const submitModalNotes = () => {
     if (modalActionType) {
-      // Pass modalNotes along with current inputMessage for delivery/revision
       handleSendMessage(inputMessage, modalActionType, modalNotes);
     }
     setShowNotesModal(false);
@@ -421,7 +428,6 @@ export default function ChatPage() {
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
-      // Default action on Enter is 'processMessage'
       if (!isLoading && (inputMessage.trim() || currentAttachedFilesData.length > 0)) {
         handleSendMessage(inputMessage, 'processMessage');
       }
@@ -453,8 +459,7 @@ export default function ChatPage() {
       await handleFileSelectAndProcess(Array.from(event.dataTransfer.files));
       event.dataTransfer.clearData();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ensureMessagesHaveUniqueIds]); 
+  }, [ensureMessagesHaveUniqueIds]); // Added ensureMessagesHaveUniqueIds, though not directly used in this specific callback
 
 
   if (profileLoading || !currentSession) { 
@@ -478,27 +483,41 @@ export default function ChatPage() {
         </div>
       )}
       {!isMobile && (
-        <div className="w-[280px] shrink-0 md:block hidden border-r">
-          <HistoryPanel
-            sessions={historyMetadata}
-            activeSessionId={currentSession?.id || null}
-            onSelectSession={handleSelectSession}
-            onNewChat={handleNewChat}
-            onDeleteSession={handleDeleteSession}
-            isLoading={historyLoading}
-          />
+        <div
+          className={cn(
+            "bg-background shrink-0 transition-all duration-300 ease-in-out overflow-hidden",
+            isHistoryPanelOpen ? "w-[280px] border-r" : "w-0 border-r-0 opacity-0"
+          )}
+        >
+          {isHistoryPanelOpen && (
+            <HistoryPanel
+              sessions={historyMetadata}
+              activeSessionId={currentSession?.id || null}
+              onSelectSession={handleSelectSession}
+              onNewChat={handleNewChat}
+              onDeleteSession={handleDeleteSession}
+              isLoading={historyLoading}
+            />
+          )}
         </div>
       )}
 
       <div className="flex-1 flex flex-col bg-background overflow-hidden" ref={dropZoneRef} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
-        {isMobile && (
-          <div className="p-2 border-b flex items-center">
-            <Button variant="ghost" size="icon" onClick={() => setIsHistoryPanelOpen(prev => !prev)}>
-              {isHistoryPanelOpen ? <XIcon className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        {/* Header for toggle and chat name - always visible */}
+        <div className="p-2 border-b flex items-center justify-between">
+          <div className="flex items-center">
+            <Button variant="ghost" size="icon" onClick={() => setIsHistoryPanelOpen(prev => !prev)} aria-label="Toggle history panel">
+              {isMobile ? (
+                isHistoryPanelOpen ? <XIcon className="h-5 w-5" /> : <Menu className="h-5 w-5" />
+              ) : (
+                isHistoryPanelOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />
+              )}
             </Button>
             <h2 className="ml-2 font-semibold text-lg truncate">{currentSession?.name || "Chat"}</h2>
           </div>
-        )}
+          {/* Placeholder for potential future header actions on the right */}
+        </div>
+
         <ScrollArea className="flex-1 p-1 md:p-4" ref={chatAreaRef}>
           <div className="space-y-2">
             {messages.map((msg) => (
@@ -517,7 +536,8 @@ export default function ChatPage() {
         </ScrollArea>
 
         {isDragging && (
-          <div className="absolute inset-x-4 bottom-[160px] md:bottom-[150px] top-4 border-4 border-dashed border-primary bg-primary/10 rounded-lg flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-x-4 bottom-[160px] md:bottom-[150px] top-16 md:top-4 border-4 border-dashed border-primary bg-primary/10 rounded-lg flex items-center justify-center pointer-events-none">
+            {/* Adjusted top value for drag overlay */}
             <p className="text-primary font-semibold text-lg">Drop files here</p>
           </div>
         )}
@@ -603,3 +623,4 @@ export default function ChatPage() {
     </div>
   );
 }
+
