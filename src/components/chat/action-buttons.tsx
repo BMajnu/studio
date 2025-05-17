@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -9,9 +8,8 @@ import { cn } from '@/lib/utils';
 
 export type ActionType = 
   | 'processMessage'
-  | 'analyzePlan'
-  | 'suggestReplies'
-  // | 'suggestRepliesTranslated' // Removed as per request
+  // | 'analyzePlan' // Removed
+  // | 'suggestReplies' // Removed
   | 'generateDelivery'
   | 'generateRevision';
 
@@ -25,8 +23,8 @@ interface ActionButton {
 
 const actionButtonsConfig: ActionButton[] = [
   { id: 'processMessage', label: 'Process Client Message', shortLabel: 'Process', icon: BotMessageSquare, description: 'Full analysis, plan, Bengali translation, and English reply suggestions.' },
-  { id: 'analyzePlan', label: 'Analyze & Plan Request', shortLabel: 'Plan', icon: Edit3, description: 'Detailed analysis, simplification, steps, and Bengali translation.' },
-  { id: 'suggestReplies', label: 'Suggest Client Replies', shortLabel: 'Replies', icon: MessageSquareText, description: 'Two English reply suggestions tailored to your style.' },
+  // { id: 'analyzePlan', label: 'Analyze & Plan Request', shortLabel: 'Plan', icon: Edit3, description: 'Detailed analysis, simplification, steps, and Bengali translation.' },
+  // { id: 'suggestReplies', label: 'Suggest Client Replies', shortLabel: 'Replies', icon: MessageSquareText, description: 'Two English reply suggestions tailored to your style.' },
   { id: 'generateDelivery', label: 'Generate Delivery Message', shortLabel: 'Delivery', icon: Plane, description: 'Platform-ready delivery messages and follow-ups.' },
   { id: 'generateRevision', label: 'Generate Revision Message', shortLabel: 'Revision', icon: RotateCcw, description: 'Platform-ready revision messages and follow-ups.' },
 ];
@@ -34,19 +32,19 @@ const actionButtonsConfig: ActionButton[] = [
 interface ActionButtonsPanelProps {
   onAction: (action: ActionType) => void;
   isLoading: boolean;
-  currentUserMessage: string; // Still needed for passing to onAction, but not for disabling
+  currentUserMessage: string; 
   profile: UserProfile | null;
-  currentAttachedFilesDataLength: number; // Still needed for passing, but not for disabling
+  currentAttachedFilesDataLength: number; 
 }
 
 export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, profile, currentAttachedFilesDataLength }: ActionButtonsPanelProps) {
   
   const isActionDisabled = (actionId: ActionType) => {
-    // Buttons are only disabled if loading or profile is missing.
-    // Other conditions related to currentUserMessage or currentAttachedFilesDataLength are removed.
     if (isLoading || !profile) {
       return true;
     }
+    // All buttons are active regardless of currentUserMessage or currentAttachedFilesDataLength,
+    // unless loading or profile is missing.
     return false;
   };
 
@@ -65,7 +63,7 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
                 size="sm" 
                 onClick={() => onAction(btn.id)}
                 disabled={isActionDisabled(btn.id)}
-                className="px-2.5 py-1.5 md:px-3 md:py-2 h-auto"
+                className="px-2.5 py-1.5 md:px-3 md:py-2 h-auto" // Adjusted padding
               >
                 <btn.icon className="h-4 w-4 mr-1 md:mr-1.5" />
                 <span className="text-xs md:text-sm">{btn.shortLabel || btn.label}</span>
