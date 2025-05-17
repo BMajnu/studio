@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 
 export type ActionType = 
   | 'processMessage'
-  | 'analyzeRequirements' // Added new action type
+  | 'analyzeRequirements' 
   | 'generateDelivery'
   | 'generateRevision';
 
@@ -22,7 +22,7 @@ interface ActionButton {
 }
 
 const actionButtonsConfig: ActionButton[] = [
-  { id: 'processMessage', label: 'Process Client Message', shortLabel: 'Process', icon: BotMessageSquare, description: 'Full analysis, plan, Bengali translation, and English reply suggestions.' },
+  { id: 'processMessage', label: 'Process Client Message', shortLabel: 'Chat', icon: BotMessageSquare, description: 'Full analysis, plan, Bengali translation, and English reply suggestions.' },
   { id: 'analyzeRequirements', label: 'Analyze Requirements', shortLabel: 'Requirements', icon: ListChecks, description: 'Detailed analysis of requirements, prioritization, Bangla translation, and design message.' },
   { id: 'generateDelivery', label: 'Generate Delivery Message', shortLabel: 'Delivery', icon: Plane, description: 'Platform-ready delivery messages and follow-ups.' },
   { id: 'generateRevision', label: 'Generate Revision Message', shortLabel: 'Revision', icon: RotateCcw, description: 'Platform-ready revision messages and follow-ups.' },
@@ -38,7 +38,7 @@ interface ActionButtonsPanelProps {
 
 export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, profile, currentAttachedFilesDataLength }: ActionButtonsPanelProps) {
   
-  const isActionDisabled = (actionId: ActionType) => {
+  const isActionDisabled = (_actionId: ActionType) => {
     if (isLoading || !profile) {
       return true;
     }
