@@ -11,7 +11,7 @@ export type ActionType =
   | 'processMessage'
   | 'analyzePlan'
   | 'suggestReplies'
-  | 'suggestRepliesTranslated'
+  // | 'suggestRepliesTranslated' // Removed as per request
   | 'generateDelivery'
   | 'generateRevision';
 
@@ -20,15 +20,16 @@ interface ActionButton {
   label: string;
   icon: React.ElementType;
   description: string;
+  shortLabel?: string; // For display on the button itself
 }
 
 const actionButtonsConfig: ActionButton[] = [
-  { id: 'processMessage', label: 'Process Client Message', icon: BotMessageSquare, description: 'Full analysis, plan, Bengali translation, and English reply suggestions.' },
-  { id: 'analyzePlan', label: 'Analyze & Plan Request', icon: Edit3, description: 'Detailed analysis, simplification, steps, and Bengali translation.' },
-  { id: 'suggestReplies', label: 'Suggest Client Replies', icon: MessageSquareText, description: 'Two English reply suggestions tailored to your style.' },
-  { id: 'suggestRepliesTranslated', label: 'Suggest Replies (Translated)', icon: MessageSquareText, description: 'Two English replies with Bengali translations.' },
-  { id: 'generateDelivery', label: 'Generate Delivery Message', icon: Plane, description: 'Platform-ready delivery messages and follow-ups.' },
-  { id: 'generateRevision', label: 'Generate Revision Message', icon: RotateCcw, description: 'Platform-ready revision messages and follow-ups.' },
+  { id: 'processMessage', label: 'Process Client Message', shortLabel: 'Process', icon: BotMessageSquare, description: 'Full analysis, plan, Bengali translation, and English reply suggestions.' },
+  { id: 'analyzePlan', label: 'Analyze & Plan Request', shortLabel: 'Plan', icon: Edit3, description: 'Detailed analysis, simplification, steps, and Bengali translation.' },
+  { id: 'suggestReplies', label: 'Suggest Client Replies', shortLabel: 'Replies', icon: MessageSquareText, description: 'Two English reply suggestions tailored to your style.' },
+  // { id: 'suggestRepliesTranslated', label: 'Suggest Replies (Translated)', shortLabel: 'Replies (BN)', icon: MessageSquareText, description: 'Two English replies with Bengali translations.' },
+  { id: 'generateDelivery', label: 'Generate Delivery Message', shortLabel: 'Delivery', icon: Plane, description: 'Platform-ready delivery messages and follow-ups.' },
+  { id: 'generateRevision', label: 'Generate Revision Message', shortLabel: 'Revision', icon: RotateCcw, description: 'Platform-ready revision messages and follow-ups.' },
 ];
 
 interface ActionButtonsPanelProps {
@@ -36,20 +37,21 @@ interface ActionButtonsPanelProps {
   isLoading: boolean;
   currentUserMessage: string;
   profile: UserProfile | null;
-  currentAttachedFilesDataLength: number; // Kept for potential future use, but not primary for disable logic now
+  currentAttachedFilesDataLength: number;
 }
 
 export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, profile, currentAttachedFilesDataLength }: ActionButtonsPanelProps) {
   
-  const isActionDisabled = (_actionId: ActionType) => { // actionId parameter is kept for consistency, but not used in the new logic
+  const isActionDisabled = (actionId: ActionType) => {
     if (isLoading || !profile) {
       return true;
     }
     // All buttons are disabled if the current user message input is empty.
+    // This also covers the case where currentAttachedFilesDataLength is 0,
+    // as per the new requirement: buttons active only if the box has anything.
     if (!currentUserMessage.trim()) {
       return true;
     }
-    // If message box has text, buttons are enabled (unless isLoading or !profile)
     return false;
   };
 
@@ -65,13 +67,13 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
             <TooltipTrigger asChild>
               <Button
                 variant="outline"
-                size="icon" 
+                size="sm" // Adjusted size to better fit label + icon
                 onClick={() => onAction(btn.id)}
                 disabled={isActionDisabled(btn.id)}
-                className="p-2 h-9 w-9 md:h-10 md:w-10" 
+                className="px-2.5 py-1.5 md:px-3 md:py-2 h-auto" // Custom padding for better fit
               >
-                <btn.icon className="h-4 w-4 md:h-5 md:w-5" />
-                <span className="sr-only">{btn.label}</span>
+                <btn.icon className="h-4 w-4 mr-1 md:mr-1.5" />
+                <span className="text-xs md:text-sm">{btn.shortLabel || btn.label}</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent side="top" align="center">
@@ -84,4 +86,3 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
     </div>
   );
 }
-
