@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Paperclip, Send, Loader2, BotMessageSquare as BotIcon, Menu, XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,20 +12,51 @@ import { HistoryPanel } from '@/components/chat/history-panel';
 import { useToast } from '@/hooks/use-toast';
 import { useUserProfile } from '@/lib/hooks/use-user-profile';
 import { useChatHistory } from '@/lib/hooks/use-chat-history';
-import type { ChatMessage, UserProfile, ChatMessageContentPart, ProcessedClientMessageOutput, PlatformMessagesOutput, AttachedFile, ChatSession } from '@/lib/types';
+import type { ChatMessage, UserProfile, ChatMessageContentPart, AttachedFile, ChatSession } from '@/lib/types';
 import { processClientMessage, type ProcessClientMessageOutput, type ProcessClientMessageInput } from '@/ai/flows/process-client-message';
 import { suggestClientReplies, type SuggestClientRepliesOutput, type SuggestClientRepliesInput } from '@/ai/flows/suggest-client-replies';
 import { generatePlatformMessages, type GeneratePlatformMessagesOutput, type GeneratePlatformMessagesInput } from '@/ai/flows/generate-platform-messages';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { useIsMobile } from '@/hooks/use-mobile'; // For responsive history panel
+import { useIsMobile } from '@/hooks/use-mobile';
+import { DEFAULT_USER_ID } from '@/lib/constants';
 
 // Helper to get textual content from ChatMessageContentPart[] or string
 const getMessageText = (content: string | ChatMessageContentPart[]): string => {
   if (typeof content === 'string') return content;
   const textPart = content.find(p => p.type === 'text');
   return textPart?.text || '';
+};
+
+// Prefix for storing the last active session ID in localStorage
+const LAST_ACTIVE_SESSION_ID_KEY_PREFIX = 'desainr_last_active_session_id_';
+
+// Helper function to generate robust message IDs
+const generateRobustMessageId = (): string => {
+  return `msg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+};
+
+// Function to ensure messages have unique and correctly formatted IDs
+const ensureMessagesHaveUniqueIds = (messagesToProcess: ChatMessage[]): ChatMessage[] => {
+  if (!Array.isArray(messagesToProcess) || messagesToProcess.length === 0) {
+    return [];
+  }
+  const seenIds = new Set<string>();
+  return messagesToProcess.map(msg => {
+    let newId = msg.id;
+    // Check if ID is missing, not a string, in old format (doesn't start with 'msg-'), or already seen in this batch
+    if (typeof newId !== 'string' || !newId.startsWith('msg-') || seenIds.has(newId)) {
+      let candidateId = generateRobustMessageId();
+      // Ensure the newly generated ID is also unique within this batch
+      while (seenIds.has(candidateId)) {
+        candidateId = generateRobustMessageId();
+      }
+      newId = candidateId;
+    }
+    seenIds.add(newId);
+    return { ...msg, id: newId };
+  });
 };
 
 
@@ -45,29 +76,46 @@ export default function ChatPage() {
   const [modalActionType, setModalActionType] = useState<ActionType | null>(null);
   const [modalNotes, setModalNotes] = useState('');
 
-  const { 
-    historyMetadata, 
-    isLoading: historyLoading, 
-    getSession, 
-    saveSession, 
-    deleteSession, 
+  const {
+    historyMetadata,
+    isLoading: historyLoading,
+    getSession,
+    saveSession,
+    deleteSession,
     createNewSession,
-    loadHistoryIndex 
-  } = useChatHistory(profile?.userId);
-  
+  } = useChatHistory(profile?.userId || DEFAULT_USER_ID);
+
   const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
   const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
   const isMobile = useIsMobile();
 
   // Initialize or load session
   useEffect(() => {
-    if (!profileLoading && profile?.userId) { // Ensure profile is loaded before history
-      const activeSession = createNewSession();
-      setCurrentSession(activeSession);
-      setMessages(activeSession.messages);
+    if (!profileLoading && profile) { // Ensure profile is loaded
+      const currentUserId = profile.userId || DEFAULT_USER_ID;
+      const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + currentUserId;
+      const lastActiveSessionId = localStorage.getItem(lastActiveSessionIdKey);
+      let sessionToLoad: ChatSession | null = null;
+
+      if (lastActiveSessionId) {
+        sessionToLoad = getSession(lastActiveSessionId);
+      }
+
+      if (sessionToLoad) {
+        const migratedMessages = ensureMessagesHaveUniqueIds(sessionToLoad.messages);
+        const updatedSession = { ...sessionToLoad, messages: migratedMessages };
+        setCurrentSession(updatedSession);
+        setMessages(updatedSession.messages);
+      } else {
+        const newSession = createNewSession();
+        setCurrentSession(newSession);
+        setMessages(newSession.messages); // Initially empty
+        localStorage.setItem(lastActiveSessionIdKey, newSession.id);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileLoading, profile?.userId]); // Create new session only when profile is ready
+  }, [profileLoading, profile, getSession, createNewSession]);
+
 
   // Auto-scroll chat
   useEffect(() => {
@@ -76,37 +124,45 @@ export default function ChatPage() {
     }
   }, [messages]);
 
-  // Auto-save session (debounced or on significant changes)
+  // Auto-save session
   useEffect(() => {
-    if (currentSession && messages.length > 0) {
+    if (currentSession && (messages.length > 0 || currentSession.messages.length > 0) ) { // Save even if messages becomes empty to update name/timestamp
+      const isNewChatName = currentSession.name === "New Chat";
+      const shouldAttemptNameGeneration = isNewChatName && messages.length > 0 && messages.length <= 2;
+
       const updatedSession = { ...currentSession, messages, updatedAt: Date.now() };
-      // Debounce save or save on specific triggers to avoid too frequent localStorage writes
+
       const saveTimeout = setTimeout(() => {
-        saveSession(updatedSession, currentSession.name === "New Chat" && messages.length <=2);
-      }, 1000); // Save 1 second after last message change
+        saveSession(updatedSession, shouldAttemptNameGeneration).then(savedSession => {
+          // If the name was updated by saveSession, update the currentSession state
+          if (savedSession.name !== currentSession.name) {
+            setCurrentSession(prev => prev ? {...prev, name: savedSession.name} : savedSession);
+          }
+        });
+      }, 1000);
       return () => clearTimeout(saveTimeout);
     }
   }, [messages, currentSession, saveSession]);
 
 
-  const addMessage = useCallback((role: 'user' | 'assistant' | 'system', content: string | ChatMessageContentPart[], currentAttachments?: AttachedFile[], isLoading?: boolean, isError?: boolean) => {
-    const newMessage: ChatMessage = { 
-      id: `msg-${Date.now()}-${Math.random().toString(36).slice(2)}`, 
-      role, 
-      content, 
-      timestamp: Date.now(), 
-      isLoading, 
-      isError,
+  const addMessage = useCallback((role: 'user' | 'assistant' | 'system', content: string | ChatMessageContentPart[], currentAttachments?: AttachedFile[], isLoadingParam?: boolean, isErrorParam?: boolean) => {
+    const newMessage: ChatMessage = {
+      id: generateRobustMessageId(),
+      role,
+      content,
+      timestamp: Date.now(),
+      isLoading: isLoadingParam,
+      isError: isErrorParam,
       attachedFiles: role === 'user' ? currentAttachments : undefined,
     };
     setMessages(prev => [...prev, newMessage]);
-  }, []);
+  }, [setMessages]);
 
-  const updateLastMessage = useCallback((content: string | ChatMessageContentPart[], isLoading: boolean = false, isError: boolean = false) => {
-    setMessages(prev => prev.map((msg, index) => 
-      index === prev.length - 1 ? { ...msg, content, isLoading, isError, timestamp: Date.now() } : msg
+  const updateLastMessage = useCallback((content: string | ChatMessageContentPart[], isLoadingParam: boolean = false, isErrorParam: boolean = false) => {
+    setMessages(prev => prev.map((msg, index) =>
+      index === prev.length - 1 ? { ...msg, content, isLoading: isLoadingParam, isError: isErrorParam, timestamp: Date.now() } : msg
     ));
-  }, []);
+  }, [setMessages]);
 
   const handleNewChat = () => {
     const newSession = createNewSession();
@@ -115,14 +171,23 @@ export default function ChatPage() {
     setInputMessage('');
     setSelectedFiles([]);
     setCurrentAttachedFilesData([]);
+    if (profile?.userId) {
+      const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + (profile.userId || DEFAULT_USER_ID);
+      localStorage.setItem(lastActiveSessionIdKey, newSession.id);
+    }
     if (isMobile) setIsHistoryPanelOpen(false);
   };
 
   const handleSelectSession = (sessionId: string) => {
     const selected = getSession(sessionId);
     if (selected) {
-      setCurrentSession(selected);
-      setMessages(selected.messages);
+      const migratedMessages = ensureMessagesHaveUniqueIds(selected.messages);
+      const updatedSession = { ...selected, messages: migratedMessages };
+      setCurrentSession(updatedSession);
+      setMessages(updatedSession.messages);
+      const currentUserId = profile?.userId || DEFAULT_USER_ID;
+      const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + currentUserId;
+      localStorage.setItem(lastActiveSessionIdKey, sessionId);
     }
     if (isMobile) setIsHistoryPanelOpen(false);
   };
@@ -130,10 +195,10 @@ export default function ChatPage() {
   const handleDeleteSession = (sessionId: string) => {
     deleteSession(sessionId);
     if (currentSession?.id === sessionId) {
-      handleNewChat(); // Switch to a new chat if the active one is deleted
+      handleNewChat();
     }
   };
-  
+
   const readFileAsDataURL = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -165,7 +230,6 @@ export default function ChatPage() {
           basicInfo.textContent = await readFileAsText(file);
         } catch (e) { console.error("Error reading text file:", e); }
       }
-      // For PDFs and other types, only name, type, size are included for now.
       processedFiles.push(basicInfo);
     }
     return processedFiles;
@@ -186,11 +250,11 @@ export default function ChatPage() {
     const filesToSendWithThisMessage = [...currentAttachedFilesData];
 
     addMessage('user', currentMessageText || `Triggered: ${actionType}`, filesToSendWithThisMessage);
-    addMessage('assistant', 'Processing...', [], true); // AI message never has user attachments
+    addMessage('assistant', 'Processing...', [], true);
     setIsLoading(true);
     setInputMessage('');
-    setSelectedFiles([]); // Clear UI selection
-    setCurrentAttachedFilesData([]); // Clear processed data for next message
+    setSelectedFiles([]);
+    setCurrentAttachedFilesData([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
 
     try {
@@ -202,7 +266,7 @@ export default function ChatPage() {
       if (actionType === 'processMessage') {
         const processInput: ProcessClientMessageInput = { ...baseInput, clientMessage: currentMessageText, attachedFiles: filesForFlow };
         const processed = await processClientMessage(processInput);
-        
+
         const repliesInput: SuggestClientRepliesInput = { clientMessage: currentMessageText, userName: profile.name, professionalTitle: profile.professionalTitle, communicationStyleNotes: profile.communicationStyleNotes, services: profile.services };
         const replies = await suggestClientReplies(repliesInput);
 
@@ -270,18 +334,18 @@ export default function ChatPage() {
           aiResponseContent.push({type: 'text', text: "No platform messages generated."});
         }
       }
-      
+
       updateLastMessage(aiResponseContent.length > 0 ? aiResponseContent : [{type: 'text', text: "Done."}]);
 
     } catch (error) {
       console.error("Error processing AI request:", error);
       toast({ title: "AI Error", description: (error as Error).message || "Failed to get response from AI.", variant: "destructive" });
-      updateLastMessage("Sorry, I couldn't process that.", false, true);
+      updateLastMessage([{type: 'text', text: "Sorry, I couldn't process that."}], false, true);
     } finally {
       setIsLoading(false);
     }
   };
-  
+
   const handleAction = (action: ActionType) => {
     if (action === 'generateDelivery' || action === 'generateRevision') {
       setModalActionType(action);
@@ -301,7 +365,7 @@ export default function ChatPage() {
   };
 
   const handleFileSelectAndProcess = async (newFiles: File[]) => {
-    setSelectedFiles(prev => [...prev, ...newFiles].slice(0, 5)); // Limit to 5 files for now
+    setSelectedFiles(prev => [...prev, ...newFiles].slice(0, 5));
     const processed = await processFilesForAI(newFiles);
     setCurrentAttachedFilesData(prev => [...prev, ...processed].slice(0, 5));
   };
@@ -327,7 +391,6 @@ export default function ChatPage() {
     }
   };
 
-  // Drag and Drop
   const [isDragging, setIsDragging] = useState(false);
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
@@ -340,7 +403,6 @@ export default function ChatPage() {
   const handleDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    // Check if the mouse truly left the dropzone or entered a child element
     if (dropZoneRef.current && !dropZoneRef.current.contains(event.relatedTarget as Node)) {
       setIsDragging(false);
     }
@@ -354,7 +416,8 @@ export default function ChatPage() {
       await handleFileSelectAndProcess(Array.from(event.dataTransfer.files));
       event.dataTransfer.clearData();
     }
-  }, [handleFileSelectAndProcess]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ setCurrentAttachedFilesData, setSelectedFiles]);
 
 
   if (profileLoading || !currentSession) {
@@ -363,7 +426,6 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-[calc(100vh-var(--header-height,0px))]">
-      {/* History Panel - Conditional rendering for mobile */}
       {isMobile && isHistoryPanelOpen && (
         <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setIsHistoryPanelOpen(false)}>
           <div className="absolute left-0 top-0 h-full w-4/5 max-w-xs bg-background shadow-xl" onClick={(e) => e.stopPropagation()}>
@@ -391,7 +453,6 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* Main Chat Area */}
       <div className="flex-1 flex flex-col bg-background overflow-hidden" ref={dropZoneRef} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
         {isMobile && (
           <div className="p-2 border-b flex items-center">
@@ -467,17 +528,15 @@ export default function ChatPage() {
                 multiple
                 onChange={handleFileChange}
                 className="hidden"
-                accept="image/*,application/pdf,.txt,.md,.json" // Specify acceptable file types
+                accept="image/*,application/pdf,.txt,.md,.json"
               />
            </div>
         </div>
       </div>
-      {/* Action Buttons Panel */}
       <div className="w-full md:w-[320px] lg:w-[380px] shrink-0 hidden md:block">
         <ActionButtonsPanel onAction={handleAction} isLoading={isLoading} currentUserMessage={inputMessage} profile={profile} />
       </div>
 
-      {/* Notes Modal */}
       <Dialog open={showNotesModal} onOpenChange={setShowNotesModal}>
         <DialogContent>
           <DialogHeader>
@@ -509,5 +568,3 @@ export default function ChatPage() {
     </div>
   );
 }
-
-      
