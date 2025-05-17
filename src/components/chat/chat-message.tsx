@@ -64,7 +64,7 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
               <CopyableText 
                 key={`${index}-item-${itemIndex}`} 
                 text={item} 
-                title={`${part.title && part.title.startsWith('Suggested') ? 'Reply' : 'Translation'} ${itemIndex + 1}`} 
+                title={`${part.title && part.title.startsWith('Suggest') ? 'Reply' : 'Translation'} ${itemIndex + 1}`} 
               />
             ))}
           </div>
@@ -112,7 +112,7 @@ export function ChatMessageDisplay({ message }: ChatMessageProps) {
     return (
       <div className={`flex items-start gap-3 p-4 ${isUser ? 'justify-end' : ''}`}>
         {!isUser && <MessageAvatar role="assistant" />}
-        <div className={`flex flex-col gap-1 rounded-lg p-3 max-w-[85%] md:max-w-[70%] shadow-sm ${isAssistant ? 'bg-secondary text-secondary-foreground' : 'bg-primary text-primary-foreground'}`}>
+        <div className={`flex flex-col gap-1 rounded-lg p-3 shadow-sm ${isAssistant ? 'bg-secondary text-secondary-foreground' : 'bg-primary text-primary-foreground'}`}>
           <Skeleton className="h-4 w-32 mb-1" />
           <Skeleton className="h-3 w-24" />
         </div>
@@ -125,7 +125,7 @@ export function ChatMessageDisplay({ message }: ChatMessageProps) {
     <div className={`flex items-start gap-3 p-4 ${isUser ? 'justify-end' : ''}`}>
       {!isUser && <MessageAvatar role={message.role} />}
       <div
-        className={`flex flex-col gap-1.5 rounded-lg p-3 max-w-[85%] md:max-w-[70%] shadow-sm text-sm
+        className={`flex flex-col gap-1.5 rounded-lg p-3 shadow-sm text-sm
           ${isAssistant ? 'bg-muted/80 text-foreground' : 'bg-primary text-primary-foreground'}
           ${message.isError ? 'border-destructive border' : ''}`}
       >
@@ -150,3 +150,4 @@ export function ChatMessageDisplay({ message }: ChatMessageProps) {
     </div>
   );
 }
+
