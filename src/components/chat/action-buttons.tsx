@@ -2,7 +2,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { BotMessageSquare, Plane, RotateCcw, ListChecks } from 'lucide-react'; // Added ListChecks
+import { BotMessageSquare, Plane, RotateCcw, ListChecks, ClipboardList } from 'lucide-react'; // Added ListChecks, ClipboardList
 import type { UserProfile } from '@/lib/types';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from '@/lib/utils';
@@ -11,7 +11,8 @@ export type ActionType =
   | 'processMessage'
   | 'analyzeRequirements' 
   | 'generateDelivery'
-  | 'generateRevision';
+  | 'generateRevision'
+  | 'generateBrief'; // Added new action type
 
 interface ActionButton {
   id: ActionType;
@@ -24,6 +25,7 @@ interface ActionButton {
 const actionButtonsConfig: ActionButton[] = [
   { id: 'processMessage', label: 'Process Client Message', shortLabel: 'Chat', icon: BotMessageSquare, description: 'Full analysis, plan, Bengali translation, and English reply suggestions.' },
   { id: 'analyzeRequirements', label: 'Analyze Requirements', shortLabel: 'Requirements', icon: ListChecks, description: 'Detailed analysis of requirements, prioritization, Bangla translation, and design message.' },
+  { id: 'generateBrief', label: 'Generate Project Brief', shortLabel: 'Brief', icon: ClipboardList, description: 'Generate a concise project brief from the conversation.' },
   { id: 'generateDelivery', label: 'Generate Delivery Message', shortLabel: 'Delivery', icon: Plane, description: 'Platform-ready delivery messages and follow-ups.' },
   { id: 'generateRevision', label: 'Generate Revision Message', shortLabel: 'Revision', icon: RotateCcw, description: 'Platform-ready revision messages and follow-ups.' },
 ];

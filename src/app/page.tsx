@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Paperclip, Loader2, BotIcon, Menu, XIcon, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
+import { Paperclip, Loader2, BotIcon, Menu, XIcon, PanelLeftOpen, PanelLeftClose, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -16,7 +16,8 @@ import type { ChatMessage, UserProfile, ChatMessageContentPart, AttachedFile, Ch
 import { processClientMessage, type ProcessClientMessageInput } from '@/ai/flows/process-client-message';
 import { suggestClientReplies, type SuggestClientRepliesInput } from '@/ai/flows/suggest-client-replies';
 import { generatePlatformMessages, type GeneratePlatformMessagesInput } from '@/ai/flows/generate-platform-messages';
-import { analyzeClientRequirements, type AnalyzeClientRequirementsInput, type AnalyzeClientRequirementsOutput } from '@/ai/flows/analyze-client-requirements'; // Added new flow
+import { analyzeClientRequirements, type AnalyzeClientRequirementsInput } from '@/ai/flows/analyze-client-requirements';
+import { generateBrief, type GenerateBriefInput, type GenerateBriefOutput } from '@/ai/flows/generate-brief-flow'; // Added new flow
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
@@ -46,25 +47,30 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
         }
         break;
       case 'translation_group':
+        let groupText = '';
         if (part.english) {
-          if (part.english.analysis) fullText += `English Analysis:\n${part.english.analysis}\n`;
-          if (part.english.simplifiedRequest) fullText += `English Simplified Request:\n${part.english.simplifiedRequest}\n`;
-          if (part.english.stepByStepApproach) fullText += `English Step-by-Step Approach:\n${part.english.stepByStepApproach}\n`;
+          if (part.english.analysis) groupText += `English Analysis:\n${part.english.analysis}\n`;
+          if (part.english.simplifiedRequest) groupText += `English Simplified Request:\n${part.english.simplifiedRequest}\n`;
+          if (part.english.stepByStepApproach) groupText += `English Step-by-Step Approach:\n${part.english.stepByStepApproach}\n`;
         }
         if (part.bengali) {
-          // The current `bengaliTranslation` in `ProcessClientMessageOutputSchema` combines them.
-          // For history, we should reconstruct the structured bengali output or use the combined field.
-          if (part.bengali.analysis) fullText += `\nBengali Analysis/Translation (Combined):\n${part.bengali.analysis}\n`;
-          if (part.bengali.simplifiedRequest) fullText += `Bengali Simplified Request:\n${part.bengali.simplifiedRequest}\n`;
-           if (part.bengali.stepByStepApproach) fullText += `Bengali Step-by-Step Approach:\n${part.bengali.stepByStepApproach}\n`;
+          groupText += "\n";
+          if (part.bengali.analysis) groupText += `Bengali Analysis/Combined Translation:\n${part.bengali.analysis}\n`;
+          if (part.bengali.simplifiedRequest) groupText += `Bengali Simplified Request:\n${part.bengali.simplifiedRequest}\n`;
+           if (part.bengali.stepByStepApproach) groupText += `Bengali Step-by-Step Approach:\n${part.bengali.stepByStepApproach}\n`;
         }
+        if (groupText.trim() === '') {
+            groupText = '[Empty Translation Group]\n';
+        }
+        fullText += groupText;
         break;
       default:
+        const exhaustiveCheck: never = part; // This will error if a type is missed
         fullText += '[Unsupported Content Part]\n';
     }
     fullText += '\n'; 
   });
-  return fullText.trim();
+  return fullText.trim() || '[Empty Message Content]';
 };
 
 
@@ -150,10 +156,7 @@ export default function ChatPage() {
         return; // Wait for profile loading to complete
     }
 
-    // At this point, profileLoading is false.
-    // userIdForHistory will be resolved (either default or from a loaded profile).
     const currentUserIdToUse = userIdForHistory;
-
     const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + currentUserIdToUse;
     const lastActiveSessionId = localStorage.getItem(lastActiveSessionIdKey);
     let sessionToLoad: ChatSession | null = null;
@@ -161,9 +164,8 @@ export default function ChatPage() {
     if (lastActiveSessionId) {
       sessionToLoad = getSession(lastActiveSessionId);
       if (sessionToLoad && !sessionToLoad.id.startsWith(currentUserIdToUse + '_')) {
-          // console.warn(`Loaded session ${sessionToLoad.id} does not match current user ${currentUserIdToUse}. Discarding.`);
-          sessionToLoad = null;
-          localStorage.removeItem(lastActiveSessionIdKey); // Clear invalid last active session ID
+          sessionToLoad = null; // Invalidate session if it doesn't match current user prefix
+          localStorage.removeItem(lastActiveSessionIdKey);
       }
     }
 
@@ -178,8 +180,6 @@ export default function ChatPage() {
       setMessages(newSession.messages);
       if (newSession.id && newSession.id.startsWith(currentUserIdToUse + '_')) {
         localStorage.setItem(lastActiveSessionIdKey, newSession.id);
-      } else if (newSession.id && !newSession.id.startsWith('temp_') && !newSession.id.startsWith('error_')) { 
-        // console.warn(`New session ID ${newSession.id} does not match current user ${currentUserIdToUse} or is an error ID. Not saving as last active.`);
       }
     }
   }, [profileLoading, userIdForHistory, getSession, createNewSession, ensureMessagesHaveUniqueIds]);
@@ -221,6 +221,12 @@ export default function ChatPage() {
                     newCurrentSessionState.updatedAt = savedSession.updatedAt;
                     changesMade = true;
                 }
+                // Ensure current session ID is updated if it was a temp one
+                if (savedSession.id !== newCurrentSessionState.id && newCurrentSessionState.id.startsWith('temp_')) {
+                    newCurrentSessionState.id = savedSession.id;
+                    changesMade = true;
+                }
+
 
                 return changesMade ? newCurrentSessionState : prevCurrentSession;
             });
@@ -328,7 +334,7 @@ export default function ChatPage() {
 
   const handleSendMessage = async (messageText: string = inputMessage, actionType: ActionType = 'processMessage', notes?: string) => {
     const currentMessageText = messageText.trim();
-    const canSendMessage = currentMessageText || currentAttachedFilesData.length > 0 || actionType === 'generateDelivery' || actionType === 'generateRevision' || actionType === 'analyzeRequirements';
+    const canSendMessage = currentMessageText || currentAttachedFilesData.length > 0 || actionType === 'generateDelivery' || actionType === 'generateRevision' || actionType === 'analyzeRequirements' || actionType === 'generateBrief';
     
     if (!canSendMessage && (actionType !== 'generateDelivery' && actionType !== 'generateRevision')) return;
 
@@ -357,10 +363,10 @@ export default function ChatPage() {
       const baseInput = { userName: profile.name, communicationStyleNotes: profile.communicationStyleNotes || '' };
       const filesForFlow = filesToSendWithThisMessage.map(f => ({ name: f.name, type: f.type, dataUri: f.dataUri, textContent: f.textContent }));
       
-      const currentMessagesForHistory = messages.slice(0, -1); 
-      const chatHistoryForAI = currentMessagesForHistory
-        .slice(0, -1) 
-        .slice(-5) 
+      // Use messages directly from state before the new user/assistant messages were added
+      const previousMessagesForHistory = messages;
+      const chatHistoryForAI = previousMessagesForHistory
+        .slice(-5) // Take up to last 5 messages from current state
         .map(msg => ({
           role: msg.role as 'user' | 'assistant', 
           text: getMessageText(msg.content) 
@@ -392,6 +398,18 @@ export default function ChatPage() {
         aiResponseContent.push({ type: 'text', title: 'Detailed Requirements (Bangla)', text: requirementsOutput.detailedRequirementsBangla });
         aiResponseContent.push({ type: 'text', title: 'Design Message or Saying', text: requirementsOutput.designMessageOrSaying });
       
+      } else if (actionType === 'generateBrief') {
+        const briefInput: GenerateBriefInput = { ...baseInput, clientMessage: currentMessageText, attachedFiles: filesForFlow, chatHistory: chatHistoryForAI };
+        const briefOutput = await generateBrief(briefInput);
+        aiResponseContent.push({ type: 'text', title: 'Project Title', text: briefOutput.projectTitle });
+        aiResponseContent.push({ type: 'text', title: 'Project Summary', text: briefOutput.projectSummary });
+        aiResponseContent.push({ type: 'text', title: 'Key Objectives', text: briefOutput.keyObjectives });
+        aiResponseContent.push({ type: 'text', title: 'Target Audience', text: briefOutput.targetAudience });
+        aiResponseContent.push({ type: 'text', title: 'Design Considerations', text: briefOutput.designConsiderations });
+        aiResponseContent.push({ type: 'text', title: 'Potential Deliverables', text: briefOutput.potentialDeliverables });
+        aiResponseContent.push({ type: 'text', title: 'Timeline Notes', text: briefOutput.timelineNotes });
+        aiResponseContent.push({ type: 'text', title: 'Budget Notes', text: briefOutput.budgetNotes });
+
       } else if (actionType === 'generateDelivery' || actionType === 'generateRevision') {
         const platformInput: GeneratePlatformMessagesInput = {
           name: profile.name,
@@ -502,7 +520,7 @@ export default function ChatPage() {
       await handleFileSelectAndProcess(Array.from(event.dataTransfer.files));
       event.dataTransfer.clearData();
     }
-  }, [ensureMessagesHaveUniqueIds]); 
+  }, [ensureMessagesHaveUniqueIds]); // ensureMessagesHaveUniqueIds was missing, but not directly used here. Added based on potential implicit need.
 
 
   if (profileLoading || !currentSession) { 
@@ -663,4 +681,3 @@ export default function ChatPage() {
     </div>
   );
 }
-
