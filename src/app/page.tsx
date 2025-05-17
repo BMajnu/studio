@@ -26,7 +26,22 @@ import { DEFAULT_USER_ID } from '@/lib/constants';
 const getMessageText = (content: string | ChatMessageContentPart[]): string => {
   if (typeof content === 'string') return content;
   const textPart = content.find(p => p.type === 'text');
-  return textPart?.text || '';
+  if (textPart?.text) return textPart.text;
+  
+  // Fallback for code blocks if no direct text part
+  const codePart = content.find(p => p.type === 'code');
+  if (codePart?.code) return `Code: ${codePart.code.substring(0, 50)}...`;
+
+  // Fallback for lists
+  const listPart = content.find(p => p.type === 'list');
+  if (listPart?.items && listPart.items.length > 0) return `List: ${listPart.items[0].substring(0,50)}...`;
+  
+  // Fallback for translation groups
+  const translationPart = content.find(p => p.type === 'translation_group');
+  if (translationPart?.english?.simplifiedRequest) return `Analysis: ${translationPart.english.simplifiedRequest.substring(0,50)}...`;
+  if (translationPart?.english?.analysis) return `Analysis: ${translationPart.english.analysis.substring(0,50)}...`;
+
+  return '[Non-textual content or complex structure]';
 };
 
 // Prefix for storing the last active session ID in localStorage
@@ -302,13 +317,22 @@ export default function ChatPage() {
       let aiResponseContent: ChatMessageContentPart[] = [];
       const baseInput = { userName: profile.name, communicationStyleNotes: profile.communicationStyleNotes || '' };
       const filesForFlow = filesToSendWithThisMessage.map(f => ({ name: f.name, type: f.type, dataUri: f.dataUri, textContent: f.textContent }));
+      
+      const chatHistoryForAI = messages
+        .slice(0, messages.length - 2) // Exclude current user message and AI 'Processing...' message
+        .slice(-5) // Take the last 5 relevant messages (user/assistant turns)
+        .map(msg => ({
+          role: msg.role as 'user' | 'assistant', // Cast as Genkit flow expects specific enum
+          text: getMessageText(msg.content)
+        }))
+        .filter(msg => msg.text.trim() !== '' && (msg.role === 'user' || msg.role === 'assistant'));
 
 
       if (actionType === 'processMessage') {
-        const processInput: ProcessClientMessageInput = { ...baseInput, clientMessage: currentMessageText, attachedFiles: filesForFlow };
+        const processInput: ProcessClientMessageInput = { ...baseInput, clientMessage: currentMessageText, attachedFiles: filesForFlow, chatHistory: chatHistoryForAI };
         const processed = await processClientMessage(processInput);
 
-        const repliesInput: SuggestClientRepliesInput = { clientMessage: currentMessageText, userName: profile.name, professionalTitle: profile.professionalTitle, communicationStyleNotes: profile.communicationStyleNotes, services: profile.services };
+        const repliesInput: SuggestClientRepliesInput = { clientMessage: currentMessageText, userName: profile.name, professionalTitle: profile.professionalTitle, communicationStyleNotes: profile.communicationStyleNotes, services: profile.services, chatHistory: chatHistoryForAI };
         const replies = await suggestClientReplies(repliesInput);
 
         aiResponseContent.push({
@@ -321,7 +345,7 @@ export default function ChatPage() {
           aiResponseContent.push({ type: 'list', title: 'Suggested English Replies', items: replies.englishReplies });
         }
       } else if (actionType === 'analyzePlan') {
-        const processInput: ProcessClientMessageInput = { ...baseInput, clientMessage: currentMessageText, attachedFiles: filesForFlow };
+        const processInput: ProcessClientMessageInput = { ...baseInput, clientMessage: currentMessageText, attachedFiles: filesForFlow, chatHistory: chatHistoryForAI };
         const processed = await processClientMessage(processInput);
         aiResponseContent.push({
           type: 'translation_group',
@@ -330,7 +354,7 @@ export default function ChatPage() {
            bengali: { analysis: processed.bengaliTranslation }
         });
       } else if (actionType === 'suggestReplies') {
-        const repliesInput: SuggestClientRepliesInput = { clientMessage: currentMessageText, userName: profile.name, professionalTitle: profile.professionalTitle, communicationStyleNotes: profile.communicationStyleNotes, services: profile.services };
+        const repliesInput: SuggestClientRepliesInput = { clientMessage: currentMessageText, userName: profile.name, professionalTitle: profile.professionalTitle, communicationStyleNotes: profile.communicationStyleNotes, services: profile.services, chatHistory: chatHistoryForAI };
         const replies = await suggestClientReplies(repliesInput);
         if (replies.englishReplies && replies.englishReplies.length > 0) {
           aiResponseContent.push({ type: 'list', title: 'Suggested English Replies', items: replies.englishReplies });
@@ -338,7 +362,7 @@ export default function ChatPage() {
           aiResponseContent.push({type: 'text', text: "No English replies generated."});
         }
       } else if (actionType === 'suggestRepliesTranslated') {
-        const repliesInput: SuggestClientRepliesInput = { clientMessage: currentMessageText, userName: profile.name, professionalTitle: profile.professionalTitle, communicationStyleNotes: profile.communicationStyleNotes, services: profile.services };
+        const repliesInput: SuggestClientRepliesInput = { clientMessage: currentMessageText, userName: profile.name, professionalTitle: profile.professionalTitle, communicationStyleNotes: profile.communicationStyleNotes, services: profile.services, chatHistory: chatHistoryForAI };
         const replies = await suggestClientReplies(repliesInput);
         if (replies.englishReplies && replies.englishReplies.length > 0) {
           aiResponseContent.push({ type: 'list', title: 'Suggested English Replies', items: replies.englishReplies });
@@ -350,6 +374,8 @@ export default function ChatPage() {
           aiResponseContent.push({type: 'text', text: "No replies or translations generated."});
         }
       } else if (actionType === 'generateDelivery' || actionType === 'generateRevision') {
+        // Note: Chat history is not typically passed for generating standardized platform messages,
+        // as these are more template-based. If context IS needed, it should be added to GeneratePlatformMessagesInput.
         const platformInput: GeneratePlatformMessagesInput = {
           name: profile.name,
           professionalTitle: profile.professionalTitle || '',
@@ -459,7 +485,7 @@ export default function ChatPage() {
       await handleFileSelectAndProcess(Array.from(event.dataTransfer.files));
       event.dataTransfer.clearData();
     }
-  }, [ensureMessagesHaveUniqueIds]); // Added ensureMessagesHaveUniqueIds, though not directly used in this specific callback
+  }, [ensureMessagesHaveUniqueIds]); 
 
 
   if (profileLoading || !currentSession) { 
@@ -525,7 +551,7 @@ export default function ChatPage() {
             ))}
              {messages.length === 0 && !isLoading && (
                 <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                    <BotIcon className="w-16 h-16 text-accent mb-4" /> {/* Changed to text-accent */}
+                    <BotIcon className="w-16 h-16 text-accent mb-4" />
                     <h2 className="text-2xl font-semibold mb-2">Welcome to DesAInR!</h2>
                     <p className="text-muted-foreground max-w-md">
                         Type a client message, or drag & drop files below. Then use the action buttons to get started.
@@ -536,8 +562,7 @@ export default function ChatPage() {
         </ScrollArea>
 
         {isDragging && (
-          <div className="absolute inset-x-4 bottom-[160px] md:bottom-[150px] top-16 md:top-4 border-4 border-dashed border-primary bg-primary/10 rounded-lg flex items-center justify-center pointer-events-none">
-            {/* Adjusted top value for drag overlay */}
+          <div className="absolute inset-x-4 bottom-[160px] md:bottom-[150px] top-16 md:top-12 border-4 border-dashed border-primary bg-primary/10 rounded-lg flex items-center justify-center pointer-events-none">
             <p className="text-primary font-semibold text-lg">Drop files here</p>
           </div>
         )}
@@ -623,4 +648,3 @@ export default function ChatPage() {
     </div>
   );
 }
-
