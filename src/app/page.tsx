@@ -91,7 +91,7 @@ export default function ChatPage() {
 
   const addMessage = useCallback((role: 'user' | 'assistant' | 'system', content: string | ChatMessageContentPart[], currentAttachments?: AttachedFile[], isLoading?: boolean, isError?: boolean) => {
     const newMessage: ChatMessage = { 
-      id: `${Date.now().toString()}-${Math.random().toString(36).substring(2, 9)}`, 
+      id: `msg-${Date.now()}-${Math.random().toString(36).slice(2)}`, 
       role, 
       content, 
       timestamp: Date.now(), 
@@ -509,3 +509,5 @@ export default function ChatPage() {
     </div>
   );
 }
+
+      
