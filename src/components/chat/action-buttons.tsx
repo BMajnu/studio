@@ -1,9 +1,10 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { BotMessageSquare, Edit3, MessageSquareText, Plane, RotateCcw, HelpCircle } from 'lucide-react';
-import { FeaturesGuideModal } from '@/components/features-guide-modal';
+import { BotMessageSquare, Edit3, MessageSquareText, Plane, RotateCcw } from 'lucide-react';
+// Removed FeaturesGuideModal and HelpCircle import
 import type { UserProfile } from '@/lib/types';
 
 export type ActionType = 
@@ -61,15 +62,7 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
               </div>
             </Button>
           ))}
-           <div className="pt-2">
-            <FeaturesGuideModal
-                triggerButton={
-                    <Button variant="ghost" className="w-full justify-start">
-                        <HelpCircle className="mr-3 h-5 w-5 flex-shrink-0" /> App Features Guide
-                    </Button>
-                }
-            />
-           </div>
+           {/* Removed FeaturesGuideModal trigger from here */}
         </div>
       </ScrollArea>
     </div>

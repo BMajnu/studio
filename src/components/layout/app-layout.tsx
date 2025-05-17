@@ -3,15 +3,24 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Settings, Menu } from 'lucide-react';
+import { Home, Settings, Menu, HelpCircle } from 'lucide-react'; // Added HelpCircle
 import { DesAInRLogo } from '@/components/icons/logo';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import React from 'react';
+import { FeaturesGuideModal } from '@/components/features-guide-modal'; // Added FeaturesGuideModal import
 
-const navItems = [
+interface NavItem {
+  href?: string;
+  label: string;
+  icon: React.ElementType;
+  isModalTrigger?: boolean;
+}
+
+const navItems: NavItem[] = [
   { href: '/', label: 'Chat', icon: Home },
   { href: '/profile', label: 'Profile', icon: Settings },
+  { label: 'Features Guide', icon: HelpCircle, isModalTrigger: true }, // Added Features Guide item
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -27,16 +36,33 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
         {/* Desktop Nav Items */}
         <nav className="hidden md:flex items-center space-x-1">
-          {navItems.map((item) => (
-            <Link key={item.label} href={item.href} passHref legacyBehavior>
-              <Button 
-                variant={pathname === item.href ? "secondary" : "ghost"}
-                className="font-medium"
-              >
-                <item.icon className="h-5 w-5 mr-2" /> {item.label}
-              </Button>
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            if (item.isModalTrigger) {
+              return (
+                <FeaturesGuideModal
+                  key={item.label}
+                  triggerButton={
+                    <Button 
+                      variant="ghost"
+                      className="font-medium"
+                    >
+                      <item.icon className="h-5 w-5 mr-2" /> {item.label}
+                    </Button>
+                  }
+                />
+              );
+            }
+            return (
+              <Link key={item.label} href={item.href!} passHref legacyBehavior>
+                <Button 
+                  variant={pathname === item.href ? "secondary" : "ghost"}
+                  className="font-medium"
+                >
+                  <item.icon className="h-5 w-5 mr-2" /> {item.label}
+                </Button>
+              </Link>
+            );
+          })}
         </nav>
 
         {/* Mobile Nav Toggle & Sheet */}
@@ -55,18 +81,37 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                  </Link>
               </div>
               <nav className="flex flex-col space-y-2">
-                {navItems.map((item) => (
-                  <SheetClose asChild key={item.label}>
-                    <Link href={item.href} passHref legacyBehavior>
-                        <Button 
-                            variant={pathname === item.href ? "secondary" : "ghost"} 
-                            className="w-full justify-start text-base py-3 h-auto"
-                        >
-                        <item.icon className="h-5 w-5 mr-3" /> {item.label}
-                        </Button>
-                    </Link>
-                  </SheetClose>
-                ))}
+                {navItems.map((item) => {
+                  if (item.isModalTrigger) {
+                    return (
+                      <FeaturesGuideModal
+                        key={item.label}
+                        triggerButton={
+                          <SheetClose asChild>
+                            <Button 
+                                variant="ghost"
+                                className="w-full justify-start text-base py-3 h-auto"
+                            >
+                            <item.icon className="h-5 w-5 mr-3" /> {item.label}
+                            </Button>
+                          </SheetClose>
+                        }
+                      />
+                    );
+                  }
+                  return (
+                    <SheetClose asChild key={item.label}>
+                      <Link href={item.href!} passHref legacyBehavior>
+                          <Button 
+                              variant={pathname === item.href ? "secondary" : "ghost"} 
+                              className="w-full justify-start text-base py-3 h-auto"
+                          >
+                          <item.icon className="h-5 w-5 mr-3" /> {item.label}
+                          </Button>
+                      </Link>
+                    </SheetClose>
+                  );
+                })}
               </nav>
             </SheetContent>
           </Sheet>
