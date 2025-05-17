@@ -3,12 +3,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Settings, Menu, HelpCircle } from 'lucide-react'; // Added HelpCircle
+import { Home, Settings, Menu, HelpCircle } from 'lucide-react';
 import { DesAInRLogo } from '@/components/icons/logo';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import React from 'react';
-import { FeaturesGuideModal } from '@/components/features-guide-modal'; // Added FeaturesGuideModal import
+import { FeaturesGuideModal } from '@/components/features-guide-modal';
 
 interface NavItem {
   href?: string;
@@ -20,7 +20,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: '/', label: 'Chat', icon: Home },
   { href: '/profile', label: 'Profile', icon: Settings },
-  { label: 'Features Guide', icon: HelpCircle, isModalTrigger: true }, // Added Features Guide item
+  { label: 'Features Guide', icon: HelpCircle, isModalTrigger: true },
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -55,7 +55,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             return (
               <Link key={item.label} href={item.href!} passHref legacyBehavior>
                 <Button 
-                  variant={pathname === item.href ? "secondary" : "ghost"}
+                  variant={pathname === item.href ? "default" : "ghost"} /* Use "default" for primary background */
                   className="font-medium"
                 >
                   <item.icon className="h-5 w-5 mr-2" /> {item.label}
@@ -103,7 +103,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     <SheetClose asChild key={item.label}>
                       <Link href={item.href!} passHref legacyBehavior>
                           <Button 
-                              variant={pathname === item.href ? "secondary" : "ghost"} 
+                              variant={pathname === item.href ? "default" : "ghost"} /* Use "default" for primary background */
                               className="w-full justify-start text-base py-3 h-auto"
                           >
                           <item.icon className="h-5 w-5 mr-3" /> {item.label}

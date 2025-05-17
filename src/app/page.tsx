@@ -525,7 +525,7 @@ export default function ChatPage() {
             ))}
              {messages.length === 0 && !isLoading && (
                 <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                    <BotIcon className="w-16 h-16 text-primary mb-4" />
+                    <BotIcon className="w-16 h-16 text-accent mb-4" /> {/* Changed to text-accent */}
                     <h2 className="text-2xl font-semibold mb-2">Welcome to DesAInR!</h2>
                     <p className="text-muted-foreground max-w-md">
                         Type a client message, or drag & drop files below. Then use the action buttons to get started.

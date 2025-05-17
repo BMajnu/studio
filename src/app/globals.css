@@ -8,20 +8,20 @@ body {
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 0 0% 100%; /* Light background */
+    --foreground: 222.2 84% 4.9%; /* Dark text for light background */
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
     --primary: 221 89% 60%; /* Saturated Blue from proposal */
-    --primary-foreground: 210 40% 98%;
+    --primary-foreground: 210 40% 98%; /* White/very light text for primary */
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
     --accent: 265 79% 70%; /* Purple from proposal */
-    --accent-foreground: 210 40% 98%;
+    --accent-foreground: 210 40% 98%; /* White/very light text for accent */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 214.3 31.8% 91.4%;
@@ -34,51 +34,52 @@ body {
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
 
-    /* Sidebar variables (can be adjusted if needed, defaults are fine for dark theme) */
-    --sidebar-background: 220 26% 10%; /* Slightly lighter than main dark bg */
-    --sidebar-foreground: 210 40% 90%;
+    /* Sidebar variables for light theme (can be same as main if sidebar isn't distinct) */
+    --sidebar-background: 0 0% 98%; /* Slightly off-white for light sidebar */
+    --sidebar-foreground: 222.2 84% 4.9%;
     --sidebar-primary: 221 89% 60%;
     --sidebar-primary-foreground: 210 40% 98%;
     --sidebar-accent: 265 79% 70%;
     --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 220 26% 15%;
+    --sidebar-border: 214.3 31.8% 90%;
     --sidebar-ring: 221 89% 60%;
   }
 
   .dark {
     --background: 220 26% 12%; /* Dark Navy Blue #1A202C */
     --foreground: 215 20% 90%; /* Light color for text on dark bg */
-    --card: 220 26% 15%; /* Slightly lighter than main dark bg */
+    --card: 220 26% 15%; /* Slightly lighter than main dark bg for cards */
     --card-foreground: 215 20% 90%;
-    --popover: 220 26% 12%;
+    --popover: 220 26% 10%; /* Darker for popovers */
     --popover-foreground: 215 20% 90%;
     --primary: 221 89% 60%; /* Saturated Blue #4285F4 */
-    --primary-foreground: 210 40% 98%;
-    --secondary: 220 26% 20%;
+    --primary-foreground: 210 40% 98%; /* White/very light text for primary */
+    --secondary: 220 26% 20%; /* Darker secondary */
     --secondary-foreground: 210 40% 98%;
     --muted: 220 26% 20%;
-    --muted-foreground: 215 20% 65%;
+    --muted-foreground: 215 20% 65%; /* Lighter muted text */
     --accent: 265 79% 70%; /* Purple #A275ED */
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --accent-foreground: 210 40% 98%; /* White/very light text for accent */
+    --destructive: 0 72.2% 50.6%; /* Adjusted destructive for dark */
     --destructive-foreground: 0 0% 98%;
-    --border: 220 26% 20%;
-    --input: 220 26% 20%;
+    --border: 220 26% 25%; /* Slightly more visible border */
+    --input: 220 26% 18%; /* Darker input fields */
     --ring: 221 89% 60%; /* Primary for ring */
     
-    --chart-1: 221 89% 60%;
-    --chart-2: 265 79% 70%;
-    --chart-3: 173 58% 39%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --chart-1: 221 89% 60%; /* Saturated Blue */
+    --chart-2: 265 79% 70%; /* Purple */
+    --chart-3: 173 58% 45%; /* Teal/Green (example) */
+    --chart-4: 30 90% 60%;  /* Orange (example) */
+    --chart-5: 330 80% 65%; /* Pink (example) */
 
-    --sidebar-background: 220 26% 10%;
+    /* Sidebar variables for dark theme */
+    --sidebar-background: 220 26% 10%; /* Slightly darker than main dark bg for sidebar */
     --sidebar-foreground: 210 40% 90%;
     --sidebar-primary: 221 89% 60%;
     --sidebar-primary-foreground: 210 40% 98%;
     --sidebar-accent: 265 79% 70%;
     --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 220 26% 15%;
+    --sidebar-border: 220 26% 18%; /* Slightly more visible sidebar border */
     --sidebar-ring: 221 89% 60%;
   }
 }
