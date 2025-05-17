@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Paperclip, Send, Loader2, BotMessageSquare as BotIcon, Menu, XIcon } from 'lucide-react';
+import { Paperclip, Send, Loader2, BotIcon, Menu, XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -63,8 +63,8 @@ const baseEnsureMessagesHaveUniqueIds = (messagesToProcess: ChatMessage[]): Chat
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [currentAttachedFilesData, setCurrentAttachedFilesData] = useState<AttachedFile[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]); // Tracks files selected in input, cleared on send
+  const [currentAttachedFilesData, setCurrentAttachedFilesData] = useState<AttachedFile[]>([]); // Data for files to be sent with next message
 
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -80,7 +80,6 @@ export default function ChatPage() {
     if (!profileLoading && profile) {
       return profile.userId || DEFAULT_USER_ID;
     }
-    // Return a consistent ID during loading phase or if profile is not yet available
     return DEFAULT_USER_ID;
   }, [profileLoading, profile]);
 
@@ -125,7 +124,7 @@ export default function ChatPage() {
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileLoading, profile, getSession, createNewSession, ensureMessagesHaveUniqueIds]);
+  }, [profileLoading, profile, getSession, createNewSession]); // ensureMessagesHaveUniqueIds is memoized via useCallback
 
 
   // Auto-scroll chat
@@ -147,15 +146,26 @@ export default function ChatPage() {
         saveSession(updatedSession, shouldAttemptNameGeneration).then(savedSession => {
           if (savedSession) {
              setCurrentSession(prevCurrentSession => {
-                if (!prevCurrentSession) return savedSession; // Should ideally not happen if guarded by currentSession check
-                if (savedSession.name !== prevCurrentSession.name) {
-                    return { ...prevCurrentSession, name: savedSession.name, messages: savedSession.messages, updatedAt: savedSession.updatedAt };
+                if (!prevCurrentSession || !savedSession) return savedSession; // Should ideally not happen if guarded by currentSession check
+                
+                // Smart update: only change what's necessary to avoid re-renders
+                let changesMade = false;
+                const newCurrentSessionState = { ...prevCurrentSession };
+
+                if (savedSession.name !== newCurrentSessionState.name) {
+                    newCurrentSessionState.name = savedSession.name;
+                    changesMade = true;
                 }
-                // If only messages or updatedAt changed, reflect that
-                if (savedSession.messages !== prevCurrentSession.messages || savedSession.updatedAt !== prevCurrentSession.updatedAt) {
-                    return { ...prevCurrentSession, messages: savedSession.messages, updatedAt: savedSession.updatedAt };
+                if (savedSession.messages !== newCurrentSessionState.messages) { // This might always be true if messages is a new array. Consider deep compare or length check.
+                    newCurrentSessionState.messages = savedSession.messages;
+                    changesMade = true;
                 }
-                return prevCurrentSession;
+                 if (savedSession.updatedAt !== newCurrentSessionState.updatedAt) {
+                    newCurrentSessionState.updatedAt = savedSession.updatedAt;
+                    changesMade = true;
+                }
+
+                return changesMade ? newCurrentSessionState : prevCurrentSession;
             });
           }
         });
@@ -249,6 +259,7 @@ export default function ChatPage() {
           basicInfo.textContent = await readFileAsText(file);
         } catch (e) { console.error("Error reading text file:", e); }
       }
+      // For other files (like PDF), only name, type, size are included. AI flow handles this.
       processedFiles.push(basicInfo);
     }
     return processedFiles;
@@ -256,7 +267,11 @@ export default function ChatPage() {
 
   const handleSendMessage = async (messageText: string = inputMessage, actionType: ActionType = 'processMessage', notes?: string) => {
     const currentMessageText = messageText.trim();
-    if (!currentMessageText && actionType !== 'generateDelivery' && actionType !== 'generateRevision' && selectedFiles.length === 0) return;
+    // Allow sending if message has text OR files are attached OR it's a delivery/revision action (which might rely on modal notes)
+    const canSendMessage = currentMessageText || currentAttachedFilesData.length > 0 || actionType === 'generateDelivery' || actionType === 'generateRevision';
+    
+    if (!canSendMessage) return;
+
     if (!profile) {
       toast({ title: "Profile not loaded", description: "Please wait for your profile to load or set it up in Settings.", variant: "destructive" });
       return;
@@ -272,8 +287,8 @@ export default function ChatPage() {
     addMessage('assistant', 'Processing...', [], true);
     setIsLoading(true);
     setInputMessage('');
-    setSelectedFiles([]);
-    setCurrentAttachedFilesData([]);
+    setSelectedFiles([]); // Clear files selected via input, as they are now in currentAttachedFilesData for this send
+    setCurrentAttachedFilesData([]); // Clear data for next message
     if (fileInputRef.current) fileInputRef.current.value = '';
 
     try {
@@ -383,9 +398,11 @@ export default function ChatPage() {
   };
 
   const handleFileSelectAndProcess = async (newFiles: File[]) => {
-    setSelectedFiles(prev => [...prev, ...newFiles].slice(0, 5)); // Allow up to 5 files
-    const processed = await processFilesForAI(newFiles);
-    setCurrentAttachedFilesData(prev => [...prev, ...processed].slice(0, 5));
+    const combinedFiles = [...selectedFiles, ...newFiles].slice(0, 5); // Keep track of File objects
+    setSelectedFiles(combinedFiles);
+    
+    const processedNewFiles = await processFilesForAI(newFiles); // Process only newly added
+    setCurrentAttachedFilesData(prev => [...prev, ...processedNewFiles].slice(0,5)); // Add to existing attachable data
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -403,7 +420,7 @@ export default function ChatPage() {
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
-      if (!isLoading && (inputMessage.trim() || selectedFiles.length >0)) {
+      if (!isLoading && (inputMessage.trim() || currentAttachedFilesData.length >0)) {
         handleSendMessage(inputMessage, 'processMessage');
       }
     }
@@ -435,10 +452,10 @@ export default function ChatPage() {
       event.dataTransfer.clearData();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setCurrentAttachedFilesData, setSelectedFiles]); // processFilesForAI is not stable if not memoized, but its core (readFileAsDataURL/Text) is stable
+  }, []); // Dependencies processFilesForAI, setSelectedFiles, setCurrentAttachedFilesData are stable or memoized
 
 
-  if (profileLoading || !currentSession) { // Added !currentSession check
+  if (profileLoading || !currentSession) { 
     return <div className="flex items-center justify-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary" /> <p className="ml-4 text-lg">Loading DesAInR...</p></div>;
   }
 
@@ -459,7 +476,7 @@ export default function ChatPage() {
         </div>
       )}
       {!isMobile && (
-        <div className="w-[280px] shrink-0 md:block hidden">
+        <div className="w-[280px] shrink-0 md:block hidden border-r">
           <HistoryPanel
             sessions={historyMetadata}
             activeSessionId={currentSession?.id || null}
@@ -490,7 +507,7 @@ export default function ChatPage() {
                     <BotIcon className="w-16 h-16 text-primary mb-4" />
                     <h2 className="text-2xl font-semibold mb-2">Welcome to DesAInR!</h2>
                     <p className="text-muted-foreground max-w-md">
-                        Type a client message, or drag & drop files below. Then use the action buttons on the right to get started.
+                        Type a client message, or drag & drop files below. Then use the action buttons to get started.
                     </p>
                 </div>
             )}
@@ -503,11 +520,13 @@ export default function ChatPage() {
           </div>
         )}
 
-        <div className={cn("border-t p-4 bg-background", isDragging && "opacity-50")}>
-          {selectedFiles.length > 0 && (
-            <div className="mb-2 text-xs text-muted-foreground">
-              Selected files: {selectedFiles.map(f => f.name).join(', ')}
-              <Button variant="link" size="sm" className="ml-2 h-auto p-0" onClick={clearSelectedFiles}>Clear</Button>
+        <div className={cn("border-t p-2 md:p-4 bg-background", isDragging && "opacity-50")}>
+          <ActionButtonsPanel onAction={handleAction} isLoading={isLoading} currentUserMessage={inputMessage} profile={profile} />
+          
+          {currentAttachedFilesData.length > 0 && (
+            <div className="mt-1 mb-2 text-xs text-muted-foreground">
+              Attached: {currentAttachedFilesData.map(f => f.name).join(', ')}
+              <Button variant="link" size="xs" className="ml-2 h-auto p-0 text-primary hover:text-primary/80" onClick={clearSelectedFiles}>Clear</Button>
             </div>
           )}
           <div className="flex items-start gap-2">
@@ -522,7 +541,7 @@ export default function ChatPage() {
             <div className="flex flex-col gap-2">
               <Button
                 onClick={() => handleSendMessage(inputMessage, 'processMessage')}
-                disabled={isLoading || (!inputMessage.trim() && selectedFiles.length === 0)}
+                disabled={isLoading || (!inputMessage.trim() && currentAttachedFilesData.length === 0)}
                 className="h-[60px] w-[60px] rounded-lg shadow-sm bg-primary hover:bg-primary/90"
                 aria-label="Send message"
               >
@@ -546,14 +565,12 @@ export default function ChatPage() {
                 multiple
                 onChange={handleFileChange}
                 className="hidden"
-                accept="image/*,application/pdf,.txt,.md,.json" // Accept more types
+                accept="image/*,application/pdf,.txt,.md,.json" 
               />
            </div>
         </div>
       </div>
-      <div className="w-full md:w-[320px] lg:w-[380px] shrink-0 hidden md:block">
-        <ActionButtonsPanel onAction={handleAction} isLoading={isLoading} currentUserMessage={inputMessage} profile={profile} />
-      </div>
+      {/* ActionButtonsPanel moved above textarea */}
 
       <Dialog open={showNotesModal} onOpenChange={setShowNotesModal}>
         <DialogContent>
@@ -586,5 +603,3 @@ export default function ChatPage() {
     </div>
   );
 }
-
-    

@@ -2,10 +2,10 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { BotMessageSquare, Edit3, MessageSquareText, Plane, RotateCcw } from 'lucide-react';
-// Removed FeaturesGuideModal and HelpCircle import
 import type { UserProfile } from '@/lib/types';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from '@/lib/utils';
 
 export type ActionType = 
   | 'processMessage'
@@ -38,33 +38,45 @@ interface ActionButtonsPanelProps {
   profile: UserProfile | null;
 }
 
-export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, profile }: ActionButtonsPanelProps) {
-  const isDisabled = isLoading || !currentUserMessage.trim() || !profile;
+export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, profile}: ActionButtonsPanelProps) {
+  // For "Generate Delivery/Revision", message might not be needed if notes are provided via modal
+  const isGeneralActionDisabled = (actionId: ActionType) => {
+    if (actionId === 'generateDelivery' || actionId === 'generateRevision') {
+      return isLoading || !profile; // Only disable if loading or no profile
+    }
+    // For other actions, disable if loading, no profile, or no message
+    return isLoading || !profile || !currentUserMessage.trim();
+  };
 
   return (
-    <div className="h-full flex flex-col border-l bg-card/30 p-1 md:p-4">
-      <h3 className="text-lg font-semibold mb-4 px-2 md:px-0">Actions</h3>
-      <ScrollArea className="flex-grow">
-        <div className="space-y-3 pr-2">
-          {actionButtonsConfig.map((btn) => (
-            <Button
-              key={btn.id}
-              variant="outline"
-              className="w-full justify-start text-left h-auto py-2.5"
-              onClick={() => onAction(btn.id)}
-              disabled={isDisabled && btn.id !== 'processMessage'} // processMessage can be default if no text is typed
-              title={btn.description}
-            >
-              <btn.icon className="mr-3 h-5 w-5 flex-shrink-0" />
-              <div className="flex flex-col">
-                <span className="font-medium leading-tight">{btn.label}</span>
-                <span className="text-xs text-muted-foreground hidden md:block">{btn.description}</span>
-              </div>
-            </Button>
-          ))}
-           {/* Removed FeaturesGuideModal trigger from here */}
-        </div>
-      </ScrollArea>
+    <div className={cn(
+        "flex flex-wrap items-center gap-1.5 py-2 mb-2 md:gap-2",
+        (!profile || isLoading) && "opacity-60 pointer-events-none" // General disabled state for the whole panel
+      )}
+    >
+      {actionButtonsConfig.map((btn) => (
+        <TooltipProvider key={btn.id} delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon" 
+                onClick={() => onAction(btn.id)}
+                disabled={isGeneralActionDisabled(btn.id)} // Individual button disabled state
+                className="p-2 h-9 w-9 md:h-10 md:w-10"
+              >
+                <btn.icon className="h-4 w-4 md:h-5 md:w-5" />
+                <span className="sr-only">{btn.label}</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" align="center">
+              <p className="font-semibold">{btn.label}</p>
+              <p className="text-xs text-muted-foreground max-w-xs">{btn.description}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ))}
     </div>
   );
 }
+
