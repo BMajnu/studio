@@ -32,26 +32,36 @@ const actionButtonsConfig: ActionButton[] = [
 ];
 
 interface ActionButtonsPanelProps {
-  onAction: (action: ActionType, notes?: string) => void;
+  onAction: (action: ActionType) => void; // Notes are handled by modal in parent now
   isLoading: boolean;
   currentUserMessage: string;
   profile: UserProfile | null;
+  currentAttachedFilesDataLength: number;
 }
 
-export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, profile}: ActionButtonsPanelProps) {
-  // For "Generate Delivery/Revision", message might not be needed if notes are provided via modal
-  const isGeneralActionDisabled = (actionId: ActionType) => {
-    if (actionId === 'generateDelivery' || actionId === 'generateRevision') {
-      return isLoading || !profile; // Only disable if loading or no profile
+export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, profile, currentAttachedFilesDataLength }: ActionButtonsPanelProps) {
+  
+  const isActionDisabled = (actionId: ActionType) => {
+    if (isLoading || !profile) {
+      return true;
     }
-    // For other actions, disable if loading, no profile, or no message
-    return isLoading || !profile || !currentUserMessage.trim();
+    // These actions can proceed even without a message, as they primarily rely on modal notes or profile data.
+    if (actionId === 'generateDelivery' || actionId === 'generateRevision') {
+      return false; 
+    }
+    // For other actions, disable if no message text AND no files are attached.
+    if (!currentUserMessage.trim() && currentAttachedFilesDataLength === 0) {
+      return true;
+    }
+    return false;
   };
 
   return (
     <div className={cn(
-        "flex flex-wrap items-center gap-1.5 py-2 mb-2 md:gap-2",
-        (!profile || isLoading) && "opacity-60 pointer-events-none" // General disabled state for the whole panel
+        "flex flex-wrap items-center justify-end gap-1.5 md:gap-2", // justify-end aligns buttons to the right
+        // General disabled state for the whole panel (e.g. during loading or if profile missing)
+        // Individual buttons will also check their specific conditions
+        (!profile || isLoading) && "opacity-60 pointer-events-none" 
       )}
     >
       {actionButtonsConfig.map((btn) => (
@@ -62,8 +72,8 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
                 variant="outline"
                 size="icon" 
                 onClick={() => onAction(btn.id)}
-                disabled={isGeneralActionDisabled(btn.id)} // Individual button disabled state
-                className="p-2 h-9 w-9 md:h-10 md:w-10"
+                disabled={isActionDisabled(btn.id)}
+                className="p-2 h-9 w-9 md:h-10 md:w-10" // Standard icon button sizes
               >
                 <btn.icon className="h-4 w-4 md:h-5 md:w-5" />
                 <span className="sr-only">{btn.label}</span>
@@ -79,4 +89,3 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
     </div>
   );
 }
-

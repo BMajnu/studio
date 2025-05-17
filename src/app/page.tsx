@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Paperclip, Send, Loader2, BotIcon, Menu, XIcon } from 'lucide-react';
+import { Paperclip, Loader2, BotIcon, Menu, XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -34,7 +34,8 @@ const LAST_ACTIVE_SESSION_ID_KEY_PREFIX = 'desainr_last_active_session_id_';
 
 // Helper function to generate robust message IDs
 const generateRobustMessageId = (): string => {
-  return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  // Using a longer random string and a prefix
+  return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 };
 
 // Function to ensure messages have unique and correctly formatted IDs
@@ -124,7 +125,7 @@ export default function ChatPage() {
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileLoading, profile, getSession, createNewSession]); // ensureMessagesHaveUniqueIds is memoized via useCallback
+  }, [profileLoading, profile, getSession, createNewSession, ensureMessagesHaveUniqueIds]);
 
 
   // Auto-scroll chat
@@ -146,9 +147,8 @@ export default function ChatPage() {
         saveSession(updatedSession, shouldAttemptNameGeneration).then(savedSession => {
           if (savedSession) {
              setCurrentSession(prevCurrentSession => {
-                if (!prevCurrentSession || !savedSession) return savedSession; // Should ideally not happen if guarded by currentSession check
+                if (!prevCurrentSession || !savedSession) return savedSession; 
                 
-                // Smart update: only change what's necessary to avoid re-renders
                 let changesMade = false;
                 const newCurrentSessionState = { ...prevCurrentSession };
 
@@ -156,7 +156,7 @@ export default function ChatPage() {
                     newCurrentSessionState.name = savedSession.name;
                     changesMade = true;
                 }
-                if (savedSession.messages !== newCurrentSessionState.messages) { // This might always be true if messages is a new array. Consider deep compare or length check.
+                if (savedSession.messages !== newCurrentSessionState.messages) { 
                     newCurrentSessionState.messages = savedSession.messages;
                     changesMade = true;
                 }
@@ -259,7 +259,6 @@ export default function ChatPage() {
           basicInfo.textContent = await readFileAsText(file);
         } catch (e) { console.error("Error reading text file:", e); }
       }
-      // For other files (like PDF), only name, type, size are included. AI flow handles this.
       processedFiles.push(basicInfo);
     }
     return processedFiles;
@@ -267,7 +266,6 @@ export default function ChatPage() {
 
   const handleSendMessage = async (messageText: string = inputMessage, actionType: ActionType = 'processMessage', notes?: string) => {
     const currentMessageText = messageText.trim();
-    // Allow sending if message has text OR files are attached OR it's a delivery/revision action (which might rely on modal notes)
     const canSendMessage = currentMessageText || currentAttachedFilesData.length > 0 || actionType === 'generateDelivery' || actionType === 'generateRevision';
     
     if (!canSendMessage) return;
@@ -287,8 +285,8 @@ export default function ChatPage() {
     addMessage('assistant', 'Processing...', [], true);
     setIsLoading(true);
     setInputMessage('');
-    setSelectedFiles([]); // Clear files selected via input, as they are now in currentAttachedFilesData for this send
-    setCurrentAttachedFilesData([]); // Clear data for next message
+    setSelectedFiles([]); 
+    setCurrentAttachedFilesData([]); 
     if (fileInputRef.current) fileInputRef.current.value = '';
 
     try {
@@ -319,7 +317,8 @@ export default function ChatPage() {
         aiResponseContent.push({
           type: 'translation_group',
           title: 'Client Request Analysis & Plan',
-          english: { analysis: processed.analysis, simplifiedRequest: processed.stepByStepApproach },
+          english: { analysis: processed.analysis, simplifiedRequest: processed.simplifiedRequest, stepByStepApproach: processed.stepByStepApproach },
+           bengali: { analysis: processed.bengaliTranslation }
         });
       } else if (actionType === 'suggestReplies') {
         const repliesInput: SuggestClientRepliesInput = { clientMessage: currentMessageText, userName: profile.name, professionalTitle: profile.professionalTitle, communicationStyleNotes: profile.communicationStyleNotes, services: profile.services };
@@ -384,12 +383,14 @@ export default function ChatPage() {
       setModalActionType(action);
       setShowNotesModal(true);
     } else {
+      // All other actions will now use the current inputMessage and attached files
       handleSendMessage(inputMessage, action);
     }
   };
 
   const submitModalNotes = () => {
     if (modalActionType) {
+      // Pass modalNotes along with current inputMessage for delivery/revision
       handleSendMessage(inputMessage, modalActionType, modalNotes);
     }
     setShowNotesModal(false);
@@ -398,11 +399,11 @@ export default function ChatPage() {
   };
 
   const handleFileSelectAndProcess = async (newFiles: File[]) => {
-    const combinedFiles = [...selectedFiles, ...newFiles].slice(0, 5); // Keep track of File objects
+    const combinedFiles = [...selectedFiles, ...newFiles].slice(0, 5); 
     setSelectedFiles(combinedFiles);
     
-    const processedNewFiles = await processFilesForAI(newFiles); // Process only newly added
-    setCurrentAttachedFilesData(prev => [...prev, ...processedNewFiles].slice(0,5)); // Add to existing attachable data
+    const processedNewFiles = await processFilesForAI(newFiles); 
+    setCurrentAttachedFilesData(prev => [...prev, ...processedNewFiles].slice(0,5)); 
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -420,7 +421,8 @@ export default function ChatPage() {
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
-      if (!isLoading && (inputMessage.trim() || currentAttachedFilesData.length >0)) {
+      // Default action on Enter is 'processMessage'
+      if (!isLoading && (inputMessage.trim() || currentAttachedFilesData.length > 0)) {
         handleSendMessage(inputMessage, 'processMessage');
       }
     }
@@ -452,7 +454,7 @@ export default function ChatPage() {
       event.dataTransfer.clearData();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Dependencies processFilesForAI, setSelectedFiles, setCurrentAttachedFilesData are stable or memoized
+  }, [ensureMessagesHaveUniqueIds]); 
 
 
   if (profileLoading || !currentSession) { 
@@ -521,15 +523,13 @@ export default function ChatPage() {
         )}
 
         <div className={cn("border-t p-2 md:p-4 bg-background", isDragging && "opacity-50")}>
-          <ActionButtonsPanel onAction={handleAction} isLoading={isLoading} currentUserMessage={inputMessage} profile={profile} />
-          
           {currentAttachedFilesData.length > 0 && (
             <div className="mt-1 mb-2 text-xs text-muted-foreground">
               Attached: {currentAttachedFilesData.map(f => f.name).join(', ')}
               <Button variant="link" size="xs" className="ml-2 h-auto p-0 text-primary hover:text-primary/80" onClick={clearSelectedFiles}>Clear</Button>
             </div>
           )}
-          <div className="flex items-start gap-2">
+          <div className="flex items-end gap-2">
             <Textarea
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
@@ -538,39 +538,39 @@ export default function ChatPage() {
               className="flex-1 resize-none min-h-[60px] max-h-[150px] rounded-lg shadow-sm focus-visible:ring-2 focus-visible:ring-primary"
               rows={Math.max(1, Math.min(5, inputMessage.split('\n').length))}
             />
-            <div className="flex flex-col gap-2">
-              <Button
-                onClick={() => handleSendMessage(inputMessage, 'processMessage')}
-                disabled={isLoading || (!inputMessage.trim() && currentAttachedFilesData.length === 0)}
-                className="h-[60px] w-[60px] rounded-lg shadow-sm bg-primary hover:bg-primary/90"
-                aria-label="Send message"
-              >
-                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-              </Button>
-            </div>
           </div>
-           <div className="flex items-center mt-2">
-             <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-                className="text-muted-foreground hover:text-primary"
-                aria-label="Attach files"
-              >
-                <Paperclip className="h-4 w-4 mr-2" /> Attach Files
-              </Button>
-               <input
-                type="file"
-                ref={fileInputRef}
-                multiple
-                onChange={handleFileChange}
-                className="hidden"
-                accept="image/*,application/pdf,.txt,.md,.json" 
-              />
+           <div className="flex items-center justify-between mt-2">
+             <div>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-muted-foreground hover:text-primary"
+                    aria-label="Attach files"
+                >
+                    <Paperclip className="h-4 w-4 mr-2" /> Attach Files
+                </Button>
+                <input
+                    type="file"
+                    ref={fileInputRef}
+                    multiple
+                    onChange={handleFileChange}
+                    className="hidden"
+                    accept="image/*,application/pdf,.txt,.md,.json" 
+                />
+             </div>
+             <div>
+                <ActionButtonsPanel
+                    onAction={handleAction}
+                    isLoading={isLoading}
+                    currentUserMessage={inputMessage}
+                    profile={profile}
+                    currentAttachedFilesDataLength={currentAttachedFilesData.length}
+                />
+             </div>
            </div>
         </div>
       </div>
-      {/* ActionButtonsPanel moved above textarea */}
 
       <Dialog open={showNotesModal} onOpenChange={setShowNotesModal}>
         <DialogContent>
