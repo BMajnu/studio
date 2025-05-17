@@ -5,7 +5,8 @@
 import type { ChatSessionMetadata } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { PlusCircle, Trash2, MessageSquare, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { PlusCircle, Trash2, MessageSquare, Loader2, Search, XIcon } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import {
   AlertDialog,
@@ -18,6 +19,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import React, { useState, useMemo } from 'react';
+import { cn } from '@/lib/utils';
 
 interface HistoryPanelProps {
   sessions: ChatSessionMetadata[];
@@ -36,6 +39,20 @@ export function HistoryPanel({
   onDeleteSession,
   isLoading,
 }: HistoryPanelProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const displayedSessions = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return sessions;
+    }
+    const lowerCaseQuery = searchQuery.toLowerCase();
+    return sessions.filter(
+      (session) =>
+        session.name.toLowerCase().includes(lowerCaseQuery) ||
+        session.preview.toLowerCase().includes(lowerCaseQuery)
+    );
+  }, [sessions, searchQuery]);
+
   return (
     <div className="h-full flex flex-col border-r bg-background/70 backdrop-blur-sm">
       <div className="p-4 flex justify-between items-center border-b">
@@ -44,34 +61,60 @@ export function HistoryPanel({
           <PlusCircle className="h-5 w-5" />
         </Button>
       </div>
+      <div className="p-2 border-b">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search history..."
+            className="w-full rounded-lg bg-background pl-8 pr-8 h-9" // Added pr-8 for clear button
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              onClick={() => setSearchQuery('')}
+            >
+              <XIcon className="h-4 w-4" />
+              <span className="sr-only">Clear search</span>
+            </Button>
+          )}
+        </div>
+      </div>
       {isLoading && (
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       )}
-      {!isLoading && sessions.length === 0 && (
+      {!isLoading && displayedSessions.length === 0 && (
         <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
           <MessageSquare className="h-12 w-12 text-muted-foreground mb-3" />
-          <p className="text-sm text-muted-foreground">No chat history yet.</p>
-          <p className="text-xs text-muted-foreground">Start a new chat to see it here.</p>
+          <p className="text-sm text-muted-foreground">
+            {searchQuery ? 'No sessions match your search.' : 'No chat history yet.'}
+          </p>
+          {!searchQuery && <p className="text-xs text-muted-foreground">Start a new chat to see it here.</p>}
         </div>
       )}
-      {!isLoading && sessions.length > 0 && (
+      {!isLoading && displayedSessions.length > 0 && (
         <ScrollArea className="flex-1">
           <div className="p-2 space-y-1">
-            {sessions.map((session) => (
+            {displayedSessions.map((session) => (
               <div
                 key={session.id}
-                className={`group flex items-center justify-between p-2.5 rounded-md cursor-pointer hover:bg-accent/80 transition-colors
-                  ${session.id === activeSessionId ? 'bg-accent text-accent-foreground' : 'text-foreground'}`}
+                className={cn(`group flex items-center justify-between p-2.5 rounded-md cursor-pointer hover:bg-accent/80 transition-colors`,
+                  session.id === activeSessionId ? 'bg-accent text-accent-foreground' : 'text-foreground hover:bg-accent/10'
+                )}
                 onClick={() => onSelectSession(session.id)}
               >
                 <div className="flex-1 overflow-hidden">
                   <p className="text-sm font-medium truncate" title={session.name}>{session.name}</p>
-                  <p className="text-xs text-muted-foreground truncate" title={session.preview}>
+                  <p className={cn("text-xs truncate", session.id === activeSessionId ? "text-accent-foreground/80" : "text-muted-foreground" )} title={session.preview}>
                     {session.messageCount} msg - {session.preview}
                   </p>
-                  <p className="text-xs text-muted-foreground/70">
+                  <p className={cn("text-xs", session.id === activeSessionId ? "text-accent-foreground/70" : "text-muted-foreground/70")}>
                     {formatDistanceToNow(new Date(session.lastMessageTimestamp), { addSuffix: true })}
                   </p>
                 </div>
@@ -80,7 +123,9 @@ export function HistoryPanel({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                      className={cn("h-7 w-7 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity hover:text-destructive",
+                        session.id === activeSessionId ? "text-accent-foreground/70 hover:text-destructive" : "text-muted-foreground"
+                      )}
                       onClick={(e) => e.stopPropagation()} // Prevent session selection
                       title="Delete chat"
                     >
