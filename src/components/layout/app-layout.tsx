@@ -18,7 +18,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { href: '/', label: 'Chat', icon: Home },
+  { href: '/', label: 'Home', icon: Home },
   { href: '/profile', label: 'Profile', icon: Settings },
   { label: 'Features Guide', icon: HelpCircle, isModalTrigger: true },
 ];
