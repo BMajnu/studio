@@ -44,7 +44,7 @@ function AttachedFileDisplay({ file }: { file: AttachedFile }) {
         <Paperclip className="h-4 w-4 text-muted-foreground" />
       )}
       <span className="truncate" title={file.name}>{file.name}</span>
-      <span className="text-muted-foreground/80">({(file.size / 1024).toFixed(1)} KB)</span>
+      <span className="text-muted-foreground/80">({file.size && (file.size / 1024).toFixed(1)} KB)</span>
     </div>
   );
 }
@@ -52,6 +52,10 @@ function AttachedFileDisplay({ file }: { file: AttachedFile }) {
 function RenderContentPart({ part, index }: { part: ChatMessageContentPart; index: number }) {
   switch (part.type) {
     case 'text':
+      if (part.title) {
+        // For structured text output like "Requirements" analysis parts
+        return <CopyableText key={index} text={part.text} title={part.title} />;
+      }
       return <p key={index} className="whitespace-pre-wrap">{part.text}</p>;
     case 'code':
       return <CopyToClipboard key={index} textToCopy={part.code || ''} title={part.title} language={part.language} />;
@@ -59,7 +63,7 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
       if (part.title && (part.title.toLowerCase().includes('suggested') || part.title.toLowerCase().includes('translations'))) {
         return (
           <div key={index} className="my-2">
-            {part.title && <h4 className="font-semibold mb-1">{part.title}</h4>}
+            {part.title && <h4 className="font-semibold mb-1 text-base">{part.title}</h4>}
             {part.items && part.items.map((item, itemIndex) => (
               <CopyableText 
                 key={`${index}-item-${itemIndex}`} 
@@ -72,7 +76,7 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
       }
       return (
         <div key={index} className="my-2">
-          {part.title && <h4 className="font-semibold mb-1">{part.title}</h4>}
+          {part.title && <h4 className="font-semibold mb-1 text-base">{part.title}</h4>}
           <CopyableList items={part.items} title={part.title ? undefined : 'List'} />
         </div>
       );
@@ -92,9 +96,9 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
               <Separator className="my-3" />
             }
 
-            {part.bengali?.analysis && <CopyableText title=" বিশ্লেষণ (Bengali)" text={part.bengali.analysis} />}
-            {part.bengali?.simplifiedRequest && <CopyableText title="সরলীকৃত অনুরোধ (Bengali)" text={part.bengali.simplifiedRequest} />}
-            {part.bengali?.stepByStepApproach && <CopyableText title="ধাপে ধাপে পদ্ধতি (Bengali)" text={part.bengali.stepByStepApproach} />}
+            {part.bengali?.analysis && <CopyableText title=" বিশ্লেষণ (Bengali Analysis)" text={part.bengali.analysis} />}
+            {part.bengali?.simplifiedRequest && <CopyableText title="সরলীকৃত অনুরোধ (Bengali Simplified Request)" text={part.bengali.simplifiedRequest} />}
+            {part.bengali?.stepByStepApproach && <CopyableText title="ধাপে ধাপে পদ্ধতি (Bengali Step-by-Step)" text={part.bengali.stepByStepApproach} />}
           </CardContent>
         </Card>
       );
@@ -110,7 +114,7 @@ export function ChatMessageDisplay({ message }: ChatMessageProps) {
 
   if (message.isLoading) {
     return (
-      <div className={`flex items-start gap-3 p-4 ${isUser ? 'justify-end' : ''}`}>
+      <div className={`flex items-start gap-3 p-3 md:p-4 ${isUser ? 'justify-end' : ''}`}>
         {!isUser && <MessageAvatar role="assistant" />}
         <div className={`flex flex-col gap-1 rounded-lg p-3 shadow-sm ${isAssistant ? 'bg-secondary text-secondary-foreground' : 'bg-primary text-primary-foreground'}`}>
           <Skeleton className="h-4 w-32 mb-1" />
@@ -122,10 +126,10 @@ export function ChatMessageDisplay({ message }: ChatMessageProps) {
   }
   
   return (
-    <div className={`flex items-start gap-3 p-4 ${isUser ? 'justify-end' : ''}`}>
+    <div className={`flex items-start gap-3 p-3 md:p-4 ${isUser ? 'justify-end' : ''}`}>
       {!isUser && <MessageAvatar role={message.role} />}
       <div
-        className={`flex flex-col gap-1.5 rounded-lg p-3 shadow-sm text-sm
+        className={`flex flex-col gap-1.5 rounded-lg p-3 shadow-sm text-sm w-full
           ${isAssistant ? 'bg-muted/80 text-foreground' : 'bg-primary text-primary-foreground'}
           ${message.isError ? 'border-destructive border' : ''}`}
       >
@@ -142,7 +146,7 @@ export function ChatMessageDisplay({ message }: ChatMessageProps) {
         )}
         {message.attachedFiles && message.attachedFiles.length > 0 && (
           <div className="mt-2 space-y-1">
-            {message.attachedFiles.map(file => <AttachedFileDisplay key={file.name} file={file} />)}
+            {message.attachedFiles.map(file => <AttachedFileDisplay key={file.name+file.size} file={file} />)}
           </div>
         )}
       </div>
