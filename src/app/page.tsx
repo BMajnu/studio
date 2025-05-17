@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Paperclip, Send, Loader2, BotMessageSquare as BotIcon, Menu, XIcon } from 'lucide-react'; // Renamed Bot to BotIcon
+import { Paperclip, Send, Loader2, BotMessageSquare as BotIcon, Menu, XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -91,7 +91,7 @@ export default function ChatPage() {
 
   const addMessage = useCallback((role: 'user' | 'assistant' | 'system', content: string | ChatMessageContentPart[], currentAttachments?: AttachedFile[], isLoading?: boolean, isError?: boolean) => {
     const newMessage: ChatMessage = { 
-      id: Date.now().toString(), 
+      id: `${Date.now().toString()}-${Math.random().toString(36).substring(2, 9)}`, 
       role, 
       content, 
       timestamp: Date.now(), 
@@ -354,7 +354,7 @@ export default function ChatPage() {
       await handleFileSelectAndProcess(Array.from(event.dataTransfer.files));
       event.dataTransfer.clearData();
     }
-  }, []);
+  }, [handleFileSelectAndProcess]);
 
 
   if (profileLoading || !currentSession) {
