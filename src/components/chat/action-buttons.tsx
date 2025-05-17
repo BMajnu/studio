@@ -1,15 +1,15 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { BotMessageSquare, Edit3, MessageSquareText, Plane, RotateCcw } from 'lucide-react';
+import { BotMessageSquare, Plane, RotateCcw, ListChecks } from 'lucide-react'; // Added ListChecks
 import type { UserProfile } from '@/lib/types';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from '@/lib/utils';
 
 export type ActionType = 
   | 'processMessage'
-  // | 'analyzePlan' // Removed
-  // | 'suggestReplies' // Removed
+  | 'analyzeRequirements' // Added new action type
   | 'generateDelivery'
   | 'generateRevision';
 
@@ -18,13 +18,12 @@ interface ActionButton {
   label: string;
   icon: React.ElementType;
   description: string;
-  shortLabel?: string; // For display on the button itself
+  shortLabel?: string; 
 }
 
 const actionButtonsConfig: ActionButton[] = [
   { id: 'processMessage', label: 'Process Client Message', shortLabel: 'Process', icon: BotMessageSquare, description: 'Full analysis, plan, Bengali translation, and English reply suggestions.' },
-  // { id: 'analyzePlan', label: 'Analyze & Plan Request', shortLabel: 'Plan', icon: Edit3, description: 'Detailed analysis, simplification, steps, and Bengali translation.' },
-  // { id: 'suggestReplies', label: 'Suggest Client Replies', shortLabel: 'Replies', icon: MessageSquareText, description: 'Two English reply suggestions tailored to your style.' },
+  { id: 'analyzeRequirements', label: 'Analyze Requirements', shortLabel: 'Requirements', icon: ListChecks, description: 'Detailed analysis of requirements, prioritization, Bangla translation, and design message.' },
   { id: 'generateDelivery', label: 'Generate Delivery Message', shortLabel: 'Delivery', icon: Plane, description: 'Platform-ready delivery messages and follow-ups.' },
   { id: 'generateRevision', label: 'Generate Revision Message', shortLabel: 'Revision', icon: RotateCcw, description: 'Platform-ready revision messages and follow-ups.' },
 ];
@@ -63,7 +62,7 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
                 size="sm" 
                 onClick={() => onAction(btn.id)}
                 disabled={isActionDisabled(btn.id)}
-                className="px-2.5 py-1.5 md:px-3 md:py-2 h-auto" // Adjusted padding
+                className="px-2.5 py-1.5 md:px-3 md:py-2 h-auto" 
               >
                 <btn.icon className="h-4 w-4 mr-1 md:mr-1.5" />
                 <span className="text-xs md:text-sm">{btn.shortLabel || btn.label}</span>

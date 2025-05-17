@@ -16,6 +16,7 @@ import type { ChatMessage, UserProfile, ChatMessageContentPart, AttachedFile, Ch
 import { processClientMessage, type ProcessClientMessageInput } from '@/ai/flows/process-client-message';
 import { suggestClientReplies, type SuggestClientRepliesInput } from '@/ai/flows/suggest-client-replies';
 import { generatePlatformMessages, type GeneratePlatformMessagesInput } from '@/ai/flows/generate-platform-messages';
+import { analyzeClientRequirements, type AnalyzeClientRequirementsInput, type AnalyzeClientRequirementsOutput } from '@/ai/flows/analyze-client-requirements'; // Added new flow
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
@@ -51,23 +52,17 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
           if (part.english.stepByStepApproach) fullText += `English Step-by-Step Approach:\n${part.english.stepByStepApproach}\n`;
         }
         if (part.bengali) {
-          // Assuming bengali part.analysis contains the full structured bengali text
-          // For history, we need to reconstruct the structured bengali output.
           // The current `bengaliTranslation` in `ProcessClientMessageOutputSchema` combines them.
-          // Let's assume for now `part.bengali.analysis` holds the combined translation if it's from history.
-          // If it's structured like `part.english`, we should list them.
-          if (part.bengali.analysis) fullText += `Bengali Translation (Combined):\n${part.bengali.analysis}\n`;
-          else if (part.bengali.simplifiedRequest && part.bengali.stepByStepApproach) { // Check if it might be structured
-             if (part.bengali.analysis) fullText += `\nBengali Analysis:\n${part.bengali.analysis}\n`;
-             if (part.bengali.simplifiedRequest) fullText += `Bengali Simplified Request:\n${part.bengali.simplifiedRequest}\n`;
-             if (part.bengali.stepByStepApproach) fullText += `Bengali Step-by-Step Approach:\n${part.bengali.stepByStepApproach}\n`;
-          }
+          // For history, we should reconstruct the structured bengali output or use the combined field.
+          if (part.bengali.analysis) fullText += `\nBengali Analysis/Translation (Combined):\n${part.bengali.analysis}\n`;
+          if (part.bengali.simplifiedRequest) fullText += `Bengali Simplified Request:\n${part.bengali.simplifiedRequest}\n`;
+           if (part.bengali.stepByStepApproach) fullText += `Bengali Step-by-Step Approach:\n${part.bengali.stepByStepApproach}\n`;
         }
         break;
       default:
         fullText += '[Unsupported Content Part]\n';
     }
-    fullText += '\n'; // Add a separator between parts
+    fullText += '\n'; 
   });
   return fullText.trim();
 };
@@ -166,7 +161,7 @@ export default function ChatPage() {
     if (lastActiveSessionId) {
       sessionToLoad = getSession(lastActiveSessionId);
       if (sessionToLoad && !sessionToLoad.id.startsWith(currentUserIdToUse + '_')) {
-          console.warn(`Loaded session ${sessionToLoad.id} does not match current user ${currentUserIdToUse}. Discarding.`);
+          // console.warn(`Loaded session ${sessionToLoad.id} does not match current user ${currentUserIdToUse}. Discarding.`);
           sessionToLoad = null;
           localStorage.removeItem(lastActiveSessionIdKey); // Clear invalid last active session ID
       }
@@ -183,8 +178,8 @@ export default function ChatPage() {
       setMessages(newSession.messages);
       if (newSession.id && newSession.id.startsWith(currentUserIdToUse + '_')) {
         localStorage.setItem(lastActiveSessionIdKey, newSession.id);
-      } else if (newSession.id && !newSession.id.startsWith('temp_') && !newSession.id.startsWith('error_')) { // Don't save if it's a fallback ID
-        console.warn(`New session ID ${newSession.id} does not match current user ${currentUserIdToUse} or is an error ID. Not saving as last active.`);
+      } else if (newSession.id && !newSession.id.startsWith('temp_') && !newSession.id.startsWith('error_')) { 
+        // console.warn(`New session ID ${newSession.id} does not match current user ${currentUserIdToUse} or is an error ID. Not saving as last active.`);
       }
     }
   }, [profileLoading, userIdForHistory, getSession, createNewSession, ensureMessagesHaveUniqueIds]);
@@ -266,7 +261,7 @@ export default function ChatPage() {
     setInputMessage('');
     setSelectedFiles([]);
     setCurrentAttachedFilesData([]);
-    const currentUserId = userIdForHistory; // Use the memoized value
+    const currentUserId = userIdForHistory; 
     const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + currentUserId;
     if (newSession.id && newSession.id.startsWith(currentUserId + '_')) { 
       localStorage.setItem(lastActiveSessionIdKey, newSession.id);
@@ -281,7 +276,7 @@ export default function ChatPage() {
       const updatedSession = { ...selected, messages: migratedMessages };
       setCurrentSession(updatedSession);
       setMessages(updatedSession.messages);
-      const currentUserId = userIdForHistory; // Use the memoized value
+      const currentUserId = userIdForHistory; 
       const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + currentUserId;
       localStorage.setItem(lastActiveSessionIdKey, sessionId);
     }
@@ -333,7 +328,7 @@ export default function ChatPage() {
 
   const handleSendMessage = async (messageText: string = inputMessage, actionType: ActionType = 'processMessage', notes?: string) => {
     const currentMessageText = messageText.trim();
-    const canSendMessage = currentMessageText || currentAttachedFilesData.length > 0 || actionType === 'generateDelivery' || actionType === 'generateRevision';
+    const canSendMessage = currentMessageText || currentAttachedFilesData.length > 0 || actionType === 'generateDelivery' || actionType === 'generateRevision' || actionType === 'analyzeRequirements';
     
     if (!canSendMessage && (actionType !== 'generateDelivery' && actionType !== 'generateRevision')) return;
 
@@ -362,9 +357,9 @@ export default function ChatPage() {
       const baseInput = { userName: profile.name, communicationStyleNotes: profile.communicationStyleNotes || '' };
       const filesForFlow = filesToSendWithThisMessage.map(f => ({ name: f.name, type: f.type, dataUri: f.dataUri, textContent: f.textContent }));
       
-      const currentMessagesForHistory = messages.slice(0, -1); // Exclude user message just added
+      const currentMessagesForHistory = messages.slice(0, -1); 
       const chatHistoryForAI = currentMessagesForHistory
-        .slice(0, -1) // Exclude the "Processing..." message we just added to messages state
+        .slice(0, -1) 
         .slice(-5) 
         .map(msg => ({
           role: msg.role as 'user' | 'assistant', 
@@ -389,35 +384,14 @@ export default function ChatPage() {
         if (replies.englishReplies && replies.englishReplies.length > 0) {
           aiResponseContent.push({ type: 'list', title: 'Suggested English Replies', items: replies.englishReplies });
         }
-      } else if (actionType === 'analyzePlan') {
-        const processInput: ProcessClientMessageInput = { ...baseInput, clientMessage: currentMessageText, attachedFiles: filesForFlow, chatHistory: chatHistoryForAI };
-        const processed = await processClientMessage(processInput);
-        aiResponseContent.push({
-          type: 'translation_group',
-          title: 'Client Request Analysis & Plan',
-          english: { analysis: processed.analysis, simplifiedRequest: processed.simplifiedRequest, stepByStepApproach: processed.stepByStepApproach },
-           bengali: { analysis: processed.bengaliTranslation }
-        });
-      } else if (actionType === 'suggestReplies') {
-        const repliesInput: SuggestClientRepliesInput = { clientMessage: currentMessageText, userName: profile.name, professionalTitle: profile.professionalTitle, communicationStyleNotes: profile.communicationStyleNotes, services: profile.services, chatHistory: chatHistoryForAI };
-        const replies = await suggestClientReplies(repliesInput);
-        if (replies.englishReplies && replies.englishReplies.length > 0) {
-          aiResponseContent.push({ type: 'list', title: 'Suggested English Replies', items: replies.englishReplies });
-        } else {
-          aiResponseContent.push({type: 'text', text: "No English replies generated."});
-        }
-      } else if (actionType === 'suggestRepliesTranslated') {
-        const repliesInput: SuggestClientRepliesInput = { clientMessage: currentMessageText, userName: profile.name, professionalTitle: profile.professionalTitle, communicationStyleNotes: profile.communicationStyleNotes, services: profile.services, chatHistory: chatHistoryForAI };
-        const replies = await suggestClientReplies(repliesInput);
-        if (replies.englishReplies && replies.englishReplies.length > 0) {
-          aiResponseContent.push({ type: 'list', title: 'Suggested English Replies', items: replies.englishReplies });
-        }
-        if (replies.bengaliTranslations && replies.bengaliTranslations.length > 0) {
-          aiResponseContent.push({ type: 'list', title: 'Bengali Translations', items: replies.bengaliTranslations });
-        }
-        if (aiResponseContent.length === 0) {
-          aiResponseContent.push({type: 'text', text: "No replies or translations generated."});
-        }
+      } else if (actionType === 'analyzeRequirements') {
+        const requirementsInput: AnalyzeClientRequirementsInput = { ...baseInput, clientMessage: currentMessageText, attachedFiles: filesForFlow, chatHistory: chatHistoryForAI };
+        const requirementsOutput = await analyzeClientRequirements(requirementsInput);
+        aiResponseContent.push({ type: 'text', title: 'Main Requirements Analysis', text: requirementsOutput.mainRequirementsAnalysis });
+        aiResponseContent.push({ type: 'text', title: 'Detailed Requirements (English)', text: requirementsOutput.detailedRequirementsEnglish });
+        aiResponseContent.push({ type: 'text', title: 'Detailed Requirements (Bangla)', text: requirementsOutput.detailedRequirementsBangla });
+        aiResponseContent.push({ type: 'text', title: 'Design Message or Saying', text: requirementsOutput.designMessageOrSaying });
+      
       } else if (actionType === 'generateDelivery' || actionType === 'generateRevision') {
         const platformInput: GeneratePlatformMessagesInput = {
           name: profile.name,
