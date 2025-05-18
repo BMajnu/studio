@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { ChatSession, ChatSessionMetadata, ChatMessage } from '@/lib/types';
-import { DEFAULT_USER_ID } from '@/lib/constants';
+import { DEFAULT_USER_ID, DEFAULT_MODEL_ID } from '@/lib/constants';
 import { generateChatName, type GenerateChatNameInput } from '@/ai/flows/generate-chat-name-flow';
 
 const CHAT_HISTORY_INDEX_KEY = 'desainr_chat_history_index';
@@ -60,15 +60,15 @@ export function useChatHistory(userId: string = DEFAULT_USER_ID) {
     }
   }, []);
 
-  const saveSession = useCallback(async (session: ChatSession, isNewSession: boolean = false): Promise<ChatSession> => {
+  const saveSession = useCallback(async (session: ChatSession, attemptNameGeneration: boolean = false, modelIdForNameGeneration?: string): Promise<ChatSession> => {
     if (!userId || !session || !session.id.startsWith(userId + '_')) {
-        // console.warn("Attempted to save session without valid userId or for a different user.");
-        return session; // Or handle error appropriately
+        return session; 
     }
     try {
       let sessionToSave = { ...session };
       sessionToSave.updatedAt = Date.now();
-      if (isNewSession && sessionToSave.messages.length > 0 && sessionToSave.name === "New Chat") {
+
+      if (attemptNameGeneration && sessionToSave.messages.length > 0 && sessionToSave.name === "New Chat") {
         const firstUserMsg = sessionToSave.messages.find(m => m.role === 'user');
         const firstAssistantMsg = sessionToSave.messages.find(m => m.role === 'assistant');
         
@@ -77,6 +77,7 @@ export function useChatHistory(userId: string = DEFAULT_USER_ID) {
             const nameInput: GenerateChatNameInput = {
               firstUserMessage: getMessageTextPreview(firstUserMsg) || "Chat conversation",
               firstAssistantMessage: getMessageTextPreview(firstAssistantMsg),
+              modelId: modelIdForNameGeneration || DEFAULT_MODEL_ID,
             };
             const nameOutput = await generateChatName(nameInput);
             if (nameOutput.chatName) {
@@ -84,10 +85,14 @@ export function useChatHistory(userId: string = DEFAULT_USER_ID) {
             }
           } catch (nameGenError) {
             console.error("Failed to generate chat name:", nameGenError);
+            // Fallback name if AI generation fails and name is still default
             if (sessionToSave.name === "New Chat") {
                  sessionToSave.name = `Chat ${new Date(sessionToSave.createdAt).toLocaleString()}`;
             }
           }
+        } else if (sessionToSave.name === "New Chat") {
+            // If no user message but still need a name
+            sessionToSave.name = `Chat ${new Date(sessionToSave.createdAt).toLocaleString()}`;
         }
       }
 
@@ -112,7 +117,6 @@ export function useChatHistory(userId: string = DEFAULT_USER_ID) {
         }
         const sortedUserHistory = updatedUserHistory.sort((a,b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
         
-        // Update global index carefully
         const globalIndexStr = localStorage.getItem(CHAT_HISTORY_INDEX_KEY);
         const globalIndex = globalIndexStr ? JSON.parse(globalIndexStr) : [];
         const otherUserHistories = globalIndex.filter((meta: ChatSessionMetadata) => !meta.id.startsWith(userId + '_'));
@@ -134,7 +138,6 @@ export function useChatHistory(userId: string = DEFAULT_USER_ID) {
       localStorage.removeItem(`${CHAT_SESSION_PREFIX}${sessionId}`);
       setHistoryMetadata(prev => {
         const updatedUserHistory = prev.filter(meta => meta.id !== sessionId && meta.id.startsWith(userId + '_'));
-         // Update global index carefully
         const globalIndexStr = localStorage.getItem(CHAT_HISTORY_INDEX_KEY);
         const globalIndex = globalIndexStr ? JSON.parse(globalIndexStr) : [];
         const otherUserHistories = globalIndex.filter((meta: ChatSessionMetadata) => !meta.id.startsWith(userId + '_'));
@@ -147,13 +150,9 @@ export function useChatHistory(userId: string = DEFAULT_USER_ID) {
     }
   }, [userId, setHistoryMetadata]);
 
-  const createNewSession = useCallback((initialMessages: ChatMessage[] = []): ChatSession => {
+  const createNewSession = useCallback((initialMessages: ChatMessage[] = [], modelIdForNameGeneration?: string): ChatSession => {
     if (!userId) {
-        // This case should be handled by the calling component,
-        // ensuring userId is available before calling createNewSession.
-        // For now, let's create a session with a temporary ID or throw an error.
         console.error("createNewSession called without a userId.");
-        // Fallback to a temporary ID to prevent crashes, but this session won't be correctly associated.
         const tempId = `temp_${Date.now()}`;
          return {
           id: tempId,
@@ -174,11 +173,9 @@ export function useChatHistory(userId: string = DEFAULT_USER_ID) {
       updatedAt: now,
       userId: userId,
     };
-    saveSession(newSession, true); 
+    saveSession(newSession, true, modelIdForNameGeneration || DEFAULT_MODEL_ID); 
     return newSession;
   }, [userId, saveSession]);
 
   return { historyMetadata, isLoading, getSession, saveSession, deleteSession, createNewSession, loadHistoryIndex };
 }
-
-    
