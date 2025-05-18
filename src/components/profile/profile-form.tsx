@@ -20,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { UserProfile } from "@/lib/types";
 import { DEFAULT_USER_PROFILE, AVAILABLE_MODELS, DEFAULT_MODEL_ID } from "@/lib/constants";
 import { PlusCircle, Trash2 } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
+// import { ScrollArea } from "@/components/ui/scroll-area"; // Removed
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const profileFormSchema = z.object({
@@ -32,7 +32,7 @@ const profileFormSchema = z.object({
   services: z.array(z.string().min(1, {message: "Service cannot be empty."}).max(100)).optional(),
   fiverrUsername: z.string().max(50).optional(),
   geminiApiKey: z.string().max(100).optional(), // Not actively used by flows, but stored
-  selectedGenkitModelId: z.string().optional(), // New field for model selection
+  selectedGenkitModelId: z.string().optional(),
   customSellerFeedbackTemplate: z.string().max(1000).optional(),
   customClientFeedbackResponseTemplate: z.string().max(1000).optional(),
   rawPersonalStatement: z.string().max(2000).optional(),
@@ -73,7 +73,7 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
 
   function onSubmit(data: ProfileFormValues) {
     const processedData: UserProfile = {
-      ...initialProfile, // Preserve userId, createdAt
+      ...initialProfile,
       ...data,
       yearsOfExperience: data.yearsOfExperience ? Number(data.yearsOfExperience) : undefined,
       services: data.services || [],
@@ -89,234 +89,234 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-      <ScrollArea className="h-[calc(100vh-200px)] pr-6"> 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Name *</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., B. Majnu" {...field} />
-                </FormControl>
-                <FormDescription>Your professional name.</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="professionalTitle"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Professional Title</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., Professional Graphics Designer" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-           <FormField
-            control={form.control}
-            name="yearsOfExperience"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Years of Experience</FormLabel>
-                <FormControl>
-                  <Input type="number" placeholder="e.g., 6" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="portfolioLink"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Portfolio Link</FormLabel>
-                <FormControl>
-                  <Input type="url" placeholder="e.g., https://fiverr.com/majnu786" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-       
-        <FormField
-          control={form.control}
-          name="communicationStyleNotes"
-          render={({ field }) => (
-            <FormItem className="mt-6">
-              <FormLabel>Communication Style Notes</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Keywords/description for AI tone, e.g., 'friendly, reliable, professional'"
-                  className="resize-none"
-                  {...field}
-                />
-              </FormControl>
-              <FormDescription>Help AI understand your preferred tone.</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="mt-6 space-y-4">
-          <FormLabel>Services Offered</FormLabel>
-          {fields.map((field, index) => (
+        {/* ScrollArea removed from here. The CardContent or Page will handle scrolling if needed. */}
+        <div className="space-y-6 pr-1"> {/* Added pr-1 to mimic some spacing if ScrollArea had scrollbar */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FormField
               control={form.control}
-              key={field.id}
-              name={`services.${index}`}
-              render={({ field: itemField }) => (
+              name="name"
+              render={({ field }) => (
                 <FormItem>
-                  <div className="flex items-center gap-2">
-                    <FormControl>
-                      <Input placeholder="e.g., 🎽 T-Shirt Designs" {...itemField} />
-                    </FormControl>
-                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} aria-label="Remove service">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <FormLabel>Name *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., B. Majnu" {...field} />
+                  </FormControl>
+                  <FormDescription>Your professional name.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
-          ))}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => append("")}
-          >
-            <PlusCircle className="mr-2 h-4 w-4" /> Add Service
-          </Button>
-          <FormDescription>List the services you offer. Emojis are welcome!</FormDescription>
-        </div>
-        
-        <FormField
-          control={form.control}
-          name="rawPersonalStatement"
-          render={({ field }) => (
-            <FormItem className="mt-6">
-              <FormLabel>Raw Personal Statement</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Your detailed professional introduction and experience for the AI to adapt."
-                  className="resize-none h-40"
-                  {...field}
-                />
-              </FormControl>
-              <FormDescription>Provide your full professional bio here. The AI will adapt parts of this for client introductions based on their specific request.</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+            <FormField
+              control={form.control}
+              name="professionalTitle"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Professional Title</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Professional Graphics Designer" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <FormField
+              control={form.control}
+              name="yearsOfExperience"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Years of Experience</FormLabel>
+                  <FormControl>
+                    <Input type="number" placeholder="e.g., 6" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="portfolioLink"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Portfolio Link</FormLabel>
+                  <FormControl>
+                    <Input type="url" placeholder="e.g., https://fiverr.com/majnu786" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+         
           <FormField
             control={form.control}
-            name="fiverrUsername"
+            name="communicationStyleNotes"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Fiverr Username</FormLabel>
+                <FormLabel>Communication Style Notes</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., majnu786" {...field} />
+                  <Textarea
+                    placeholder="Keywords/description for AI tone, e.g., 'friendly, reliable, professional'"
+                    className="resize-none"
+                    {...field}
+                  />
                 </FormControl>
+                <FormDescription>Help AI understand your preferred tone.</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
+
+          <div className="space-y-4">
+            <FormLabel>Services Offered</FormLabel>
+            {fields.map((field, index) => (
+              <FormField
+                control={form.control}
+                key={field.id}
+                name={`services.${index}`}
+                render={({ field: itemField }) => (
+                  <FormItem>
+                    <div className="flex items-center gap-2">
+                      <FormControl>
+                        <Input placeholder="e.g., 🎽 T-Shirt Designs" {...itemField} />
+                      </FormControl>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} aria-label="Remove service">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => append("")}
+            >
+              <PlusCircle className="mr-2 h-4 w-4" /> Add Service
+            </Button>
+            <FormDescription>List the services you offer. Emojis are welcome!</FormDescription>
+          </div>
+          
           <FormField
             control={form.control}
-            name="geminiApiKey"
+            name="rawPersonalStatement"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Gemini API Key (Optional)</FormLabel>
+                <FormLabel>Raw Personal Statement</FormLabel>
                 <FormControl>
-                  <Input type="password" placeholder="Enter your Gemini API Key" {...field} />
+                  <Textarea
+                    placeholder="Your detailed professional introduction and experience for the AI to adapt."
+                    className="resize-none h-40"
+                    {...field}
+                  />
                 </FormControl>
+                <FormDescription>Provide your full professional bio here. The AI will adapt parts of this for client introductions based on their specific request.</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormField
+              control={form.control}
+              name="fiverrUsername"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Fiverr Username</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., majnu786" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="geminiApiKey"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Gemini API Key (Optional)</FormLabel>
+                  <FormControl>
+                    <Input type="password" placeholder="Enter your Gemini API Key" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    Your API key is stored locally. If the app uses a server-level key, this may not be needed.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          
+          <FormField
+            control={form.control}
+            name="selectedGenkitModelId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Preferred AI Model</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value || DEFAULT_MODEL_ID}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select an AI model" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {AVAILABLE_MODELS.map(model => (
+                      <SelectItem key={model.id} value={model.id}>
+                        {model.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormDescription>
-                  Your API key is stored locally. If the app uses a server-level key, this may not be needed.
+                  Choose the AI model for generating responses. "Flash" is faster, "Pro" may be more capable.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
-        </div>
-        
-        <FormField
-          control={form.control}
-          name="selectedGenkitModelId"
-          render={({ field }) => (
-            <FormItem className="mt-6">
-              <FormLabel>Preferred AI Model</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value || DEFAULT_MODEL_ID}>
+
+          <FormField
+            control={form.control}
+            name="customSellerFeedbackTemplate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Custom Seller Feedback Template</FormLabel>
                 <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select an AI model" />
-                  </SelectTrigger>
+                  <Textarea
+                    placeholder="e.g., Great client, outstanding experience..."
+                    className="resize-none h-24"
+                    {...field}
+                  />
                 </FormControl>
-                <SelectContent>
-                  {AVAILABLE_MODELS.map(model => (
-                    <SelectItem key={model.id} value={model.id}>
-                      {model.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormDescription>
-                Choose the AI model for generating responses. "Flash" is faster, "Pro" may be more capable.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-        <FormField
-          control={form.control}
-          name="customSellerFeedbackTemplate"
-          render={({ field }) => (
-            <FormItem className="mt-6">
-              <FormLabel>Custom Seller Feedback Template</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="e.g., Great client, outstanding experience..."
-                  className="resize-none h-24"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="customClientFeedbackResponseTemplate"
-          render={({ field }) => (
-            <FormItem className="mt-6">
-              <FormLabel>Custom Client Feedback Response Template</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="e.g., Thanks for your great feedback..."
-                  className="resize-none h-24"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        </ScrollArea>
-
+          <FormField
+            control={form.control}
+            name="customClientFeedbackResponseTemplate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Custom Client Feedback Response Template</FormLabel>
+                <FormControl>
+                  <Textarea
+                    placeholder="e.g., Thanks for your great feedback..."
+                    className="resize-none h-24"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
         <Button type="submit" className="mt-8">Save Profile</Button>
       </form>
     </Form>
