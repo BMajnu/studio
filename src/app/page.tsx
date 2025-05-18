@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Paperclip, Loader2, BotIcon, Menu, XIcon, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw } from 'lucide-react';
+import { Paperclip, Loader2, BotIcon, Menu, XIcon, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw, PlusCircle } from 'lucide-react'; // Added PlusCircle
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -45,12 +45,10 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
         fullText += `${part.text || ''}\n`;
         break;
       case 'code':
-        // For 'code' type, include the title if it exists, then the code itself.
         if (part.title) fullText += `### ${part.title}\n`;
         fullText += `\`\`\`${part.language || ''}\n${part.code || ''}\n\`\`\`\n`;
         break;
       case 'list':
-        // For 'list' type, include the title if it exists, then format the list items.
         if (part.title) {
              fullText += `### ${part.title}\n`;
         }
@@ -61,7 +59,6 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
         }
         break;
       case 'translation_group':
-        // For 'translation_group', include the main title, then each sub-part with its own heading.
         if (part.title) fullText += `### ${part.title}\n`;
         if (part.english) {
           if (part.english.analysis) fullText += `English Analysis:\n${part.english.analysis}\n\n`;
@@ -69,29 +66,26 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
           if (part.english.stepByStepApproach) fullText += `English Step-by-Step Approach:\n${part.english.stepByStepApproach}\n\n`;
         }
         if (part.bengali) {
-          fullText += "\n"; // Add a separator if both English and Bengali parts exist
-          // Assuming bengali.analysis might contain the full combined translation as per previous logic
+          fullText += "\n"; 
           if (part.bengali.analysis) fullText += `Bengali Analysis/Combined Translation:\n${part.bengali.analysis}\n\n`;
           if (part.bengali.simplifiedRequest) fullText += `Bengali Simplified Request:\n${part.bengali.simplifiedRequest}\n\n`;
           if (part.bengali.stepByStepApproach) fullText += `Bengali Step-by-Step Approach:\n${part.bengali.stepByStepApproach}\n\n`;
         }
-        // Fallback if no content was added under the title
         if (fullText.trim() === (part.title ? `### ${part.title}` : '')) {
             fullText += `[Empty Translation Group${part.title ? ` for "${part.title}"` : ''}]\n`;
         }
         break;
       default:
-        // Attempt to get text from unknown parts if possible, otherwise mark as unsupported.
-        let unknownText = (part as any).text || (part as any).code || (part as any).message; // Common fields
+        let unknownText = (part as any).text || (part as any).code || (part as any).message; 
         if (typeof unknownText === 'string') {
           fullText += `${unknownText}\n`;
         } else {
            fullText += `[Unsupported Content Part: ${(part as any).type} ${part.title ? `for "${part.title}"` : ''}]\n`;
         }
     }
-    fullText += '\n'; // Add a newline after each part for better separation in the history log
+    fullText += '\n'; 
   });
-  return fullText.trim() || '[Empty Message Content Parts]'; // Return trimmed full text or a placeholder
+  return fullText.trim() || '[Empty Message Content Parts]'; 
 };
 
 
@@ -108,7 +102,6 @@ const baseEnsureMessagesHaveUniqueIds = (messagesToProcess: ChatMessage[]): Chat
   const seenIds = new Set<string>();
   return messagesToProcess.map(msg => {
     let newId = msg.id;
-    // Check if ID is missing, not a string, not starting with 'msg-', or is a simple timestamp (potential collision)
     if (typeof newId !== 'string' || !newId.startsWith('msg-') || seenIds.has(newId) || !isNaN(Number(newId.replace('msg-','').split('-')[0]))) {
       let candidateId = generateRobustMessageId();
       while (seenIds.has(candidateId)) {
@@ -159,7 +152,7 @@ export default function ChatPage() {
   const isMobile = useIsMobile();
   const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
 
-  const currentApiKeyIndexRef = useRef(0); // For API key cycling
+  const currentApiKeyIndexRef = useRef(0); 
 
   const ensureMessagesHaveUniqueIds = useCallback(baseEnsureMessagesHaveUniqueIds, []);
 
@@ -171,24 +164,23 @@ export default function ChatPage() {
 
 
   useEffect(() => {
-    if (profileLoading) { // Wait for profile loading to complete
+    if (profileLoading) { 
         return;
     }
 
-    const currentUserIdToUse = userIdForHistory; // This will be resolved once profileLoading is false
+    const currentUserIdToUse = userIdForHistory; 
     const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + currentUserIdToUse;
     let lastActiveSessionId = localStorage.getItem(lastActiveSessionIdKey);
     let sessionToLoad: ChatSession | null = null;
 
     if (lastActiveSessionId) {
-      // Validate that the lastActiveSessionId belongs to the current user context
       if (!lastActiveSessionId.startsWith(currentUserIdToUse + '_')) {
           console.warn(`Last active session ID ${lastActiveSessionId} does not belong to current user ${currentUserIdToUse}. Clearing.`);
           localStorage.removeItem(lastActiveSessionIdKey);
-          lastActiveSessionId = null; // Invalidate it
+          lastActiveSessionId = null; 
       } else {
         sessionToLoad = getSession(lastActiveSessionId);
-        if (!sessionToLoad) { // If session data is missing for a valid ID, clear it
+        if (!sessionToLoad) { 
              console.warn(`Could not load session data for ID ${lastActiveSessionId}. Clearing.`);
              localStorage.removeItem(lastActiveSessionIdKey);
              lastActiveSessionId = null;
@@ -202,12 +194,11 @@ export default function ChatPage() {
       setCurrentSession(updatedSession);
       setMessages(updatedSession.messages);
     } else {
-      // Create a new session if no valid last session was loaded
-      const userApiKeyForNameGen = (profile?.geminiApiKeys && profile.geminiApiKeys.length > 0) ? profile.geminiApiKeys[0] : undefined;
+      const userApiKeyForNameGen = (profile?.geminiApiKeys && profile.geminiApiKeys.length > 0 && profile.geminiApiKeys[0]) ? profile.geminiApiKeys[0] : undefined;
       const newSession = createNewSession([], profile?.selectedGenkitModelId || DEFAULT_MODEL_ID, userApiKeyForNameGen);
       setCurrentSession(newSession);
       setMessages(newSession.messages);
-      if (newSession.id && newSession.id.startsWith(currentUserIdToUse + '_')) { // Ensure new session ID is also user-specific
+      if (newSession.id && newSession.id.startsWith(currentUserIdToUse + '_')) { 
         localStorage.setItem(lastActiveSessionIdKey, newSession.id);
       }
     }
@@ -240,7 +231,6 @@ export default function ChatPage() {
                 if (savedSession.name !== newCurrentSessionState.name) { newCurrentSessionState.name = savedSession.name; changesMade = true; }
                 if (JSON.stringify(savedSession.messages) !== JSON.stringify(newCurrentSessionState.messages)) { newCurrentSessionState.messages = savedSession.messages; changesMade = true; }
                 if (savedSession.updatedAt !== newCurrentSessionState.updatedAt) { newCurrentSessionState.updatedAt = savedSession.updatedAt; changesMade = true; }
-                // Ensure ID updates if it was a temporary one
                 if (savedSession.id !== newCurrentSessionState.id && newCurrentSessionState.id.startsWith('temp_')) { newCurrentSessionState.id = savedSession.id; changesMade = true; }
                 return changesMade ? newCurrentSessionState : prevCurrentSession;
             });
@@ -293,7 +283,7 @@ export default function ChatPage() {
     setInputMessage('');
     setSelectedFiles([]);
     setCurrentAttachedFilesData([]);
-    currentApiKeyIndexRef.current = 0; // Reset API key index for new chat
+    currentApiKeyIndexRef.current = 0; 
     const currentUserId = userIdForHistory;
     const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + currentUserId;
     if (newSession.id && newSession.id.startsWith(currentUserId + '_')) {
@@ -309,7 +299,7 @@ export default function ChatPage() {
       const updatedSession = { ...selected, messages: migratedMessages };
       setCurrentSession(updatedSession);
       setMessages(updatedSession.messages);
-      currentApiKeyIndexRef.current = 0; // Reset API key index when switching session
+      currentApiKeyIndexRef.current = 0; 
       const currentUserId = userIdForHistory;
       const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + currentUserId;
       localStorage.setItem(lastActiveSessionIdKey, sessionId);
@@ -364,8 +354,8 @@ export default function ChatPage() {
     messageTextParam: string,
     actionTypeParam: ActionType,
     notesParam?: string,
-    attachedFilesDataParam?: AttachedFile[], // Used for regeneration
-    isRegenerationCall: boolean = false // Flag for regeneration
+    attachedFilesDataParam?: AttachedFile[], 
+    isRegenerationCall: boolean = false 
   ) => {
     
     if (profileLoading) {
@@ -382,17 +372,16 @@ export default function ChatPage() {
     }
 
     if (!isRegenerationCall) {
-        currentApiKeyIndexRef.current = 0; // Reset API key index for new user actions
+        currentApiKeyIndexRef.current = 0; 
     }
     
-    const userProfile = profile; // Known to be non-null here
-    const availableUserApiKeys = userProfile.geminiApiKeys?.filter(key => key.trim() !== '') || [];
+    const userProfile = profile; 
+    const availableUserApiKeys = userProfile.geminiApiKeys?.filter(key => key && key.trim() !== '') || [];
     let apiKeyToUseThisTurn: string | undefined;
 
     if (currentApiKeyIndexRef.current < availableUserApiKeys.length) {
         apiKeyToUseThisTurn = availableUserApiKeys[currentApiKeyIndexRef.current];
     } else {
-        // If all user keys have been tried (or no user keys), flows will use global GOOGLE_API_KEY if set
         apiKeyToUseThisTurn = undefined; 
     }
 
@@ -415,13 +404,13 @@ export default function ChatPage() {
         actionType: currentActionType,
         messageText: currentMessageText, 
         notes: currentNotes,
-        attachedFilesData: filesToSendWithThisMessage, // Pass the processed files
+        attachedFilesData: filesToSendWithThisMessage, 
     };
 
     if (!attachedFilesDataParam) { 
         addMessage('user', userMessageContent, filesToSendWithThisMessage);
     }
-    addMessage('assistant', 'Processing...', [], true); 
+    addMessage('assistant', 'Processing...', [], true, false, requestParamsForRegeneration); 
 
     setIsLoading(true);
     if (!attachedFilesDataParam) { 
@@ -578,7 +567,9 @@ export default function ChatPage() {
       }
 
       updateLastMessage(aiResponseContent.length > 0 ? aiResponseContent : [{type: 'text', text: "Done."}], false, false, requestParamsForRegeneration);
-      currentApiKeyIndexRef.current = 0; // Reset on successful call for the *next* new action
+      if (!isRegenerationCall) { // Reset API key index only on successful new calls
+        currentApiKeyIndexRef.current = 0; 
+      }
 
     } catch (error: any) {
       console.error("Error processing AI request:", error);
@@ -587,25 +578,20 @@ export default function ChatPage() {
 
       if (isRateLimitError) {
         if (availableUserApiKeys.length > 0 && currentApiKeyIndexRef.current < availableUserApiKeys.length - 1) {
-          // More user keys to try
-          currentApiKeyIndexRef.current++; // Advance index for next "Regenerate" attempt
+          currentApiKeyIndexRef.current++; 
           errorMessageContent = `The current API key may have hit a rate limit. You can try regenerating to use the next key (${currentApiKeyIndexRef.current + 1}/${availableUserApiKeys.length}).`;
-          toast({ title: "Rate Limit Possible", description: `Key ${currentApiKeyIndexRef.current} might be limited. Regenerate to try key ${currentApiKeyIndexRef.current + 1}.`, variant: "default" });
-        } else if (availableUserApiKeys.length > 0 && currentApiKeyIndexRef.current >= availableUserApiKeys.length - 1) {
-          // All user keys tried
+          toast({ title: "Rate Limit Possible", description: `Key ${currentApiKeyIndexRef.current} (attempted) might be limited. Regenerate to try key ${currentApiKeyIndexRef.current + 1}.`, variant: "default" });
+        } else if (availableUserApiKeys.length > 0 && currentApiKeyIndexRef.current >= availableUserApiKeys.length - 1 && !isRegenerationCall) {
           errorMessageContent = "All your configured API keys may have hit rate limits. Please check your quotas or try again later.";
           toast({ title: "All API Keys Tried", description: "Rate limits might have been hit on all your API keys.", variant: "destructive" });
-        } else if (!process.env.GOOGLE_API_KEY){
-          // No user keys, and no global key (this case should ideally be caught by flow's internal check)
-           errorMessageContent = "No API key available. Please configure one in your profile or set a global key.";
-           toast({ title: "API Key Error", description: "No API key available.", variant: "destructive" });
+        } else if (!apiKeyToUseThisTurn && !process.env.GOOGLE_API_KEY){ // Checks if neither user key was attempted (because none exist or all tried) NOR global key is set
+           errorMessageContent = "No API key available. Please configure one in your profile or set a global GOOGLE_API_KEY in your environment.";
+           toast({ title: "API Key Error", description: "No API key available for AI features.", variant: "destructive" });
         } else {
-            // No user keys, but global key exists and failed (or other rate limit scenario)
             errorMessageContent = "The API request was rate-limited. Please try again later or check your API key quotas.";
             toast({ title: "Rate Limit Hit", description: error.message || "The request was rate-limited.", variant: "destructive" });
         }
       } else {
-        // Non-rate-limit error
         toast({ title: "AI Error", description: error.message || "Failed to get response from AI.", variant: "destructive" });
       }
       updateLastMessage([{ type: 'text', text: errorMessageContent }], false, true, requestParamsForRegeneration);
@@ -619,16 +605,14 @@ export default function ChatPage() {
         toast({ title: "Cannot Regenerate", description: "Original request details are missing.", variant: "destructive" });
         return;
     }
-    // Call handleSendMessage, passing the original details and marking it as a regeneration call
-    // The currentApiKeyIndexRef will be used by handleSendMessage as is (not reset)
     handleSendMessage(
         originalRequestDetails.messageText,
         originalRequestDetails.actionType,
         originalRequestDetails.notes,
-        originalRequestDetails.attachedFilesData, // Pass the stored files
-        true // Mark as regeneration call
+        originalRequestDetails.attachedFilesData, 
+        true 
     );
-  }, [profileLoading, profile, currentSession]); // Ensure dependencies are correct
+  }, [profileLoading, profile, currentSession, handleSendMessage]); 
 
   const handleAction = (action: ActionType) => {
     if (action === 'generateDeliveryTemplates' || action === 'generateRevision') {
@@ -649,19 +633,19 @@ export default function ChatPage() {
   };
 
   const handleFileSelectAndProcess = async (newFiles: File[]) => {
-    const combinedFiles = [...selectedFiles, ...newFiles].slice(0, 5); // Limit to 5 files
+    const combinedFiles = [...selectedFiles, ...newFiles].slice(0, 5); 
     setSelectedFiles(combinedFiles);
 
     const processedNewFiles = await processFilesForAI(newFiles);
     setCurrentAttachedFilesData(prev =>
         [...prev, ...processedNewFiles]
-        .reduce((acc, current) => { // Simple deduplication by name & size
+        .reduce((acc, current) => { 
             if (!acc.find(item => item.name === current.name && item.size === current.size)) {
                 acc.push(current);
             }
             return acc;
         }, [] as AttachedFile[])
-        .slice(0,5) // Ensure final list is also limited
+        .slice(0,5) 
     );
   };
 
@@ -698,7 +682,6 @@ export default function ChatPage() {
   const handleDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    // Check if leaving to outside the window or a child element
     if (dropZoneRef.current && !dropZoneRef.current.contains(event.relatedTarget as Node)) {
       setIsDragging(false);
     }
@@ -712,7 +695,7 @@ export default function ChatPage() {
       await handleFileSelectAndProcess(Array.from(event.dataTransfer.files));
       event.dataTransfer.clearData();
     }
-  }, [handleFileSelectAndProcess]); // Ensure correct dependencies
+  }, [handleFileSelectAndProcess]); 
 
 
   if (profileLoading || !currentSession) {
@@ -744,7 +727,7 @@ export default function ChatPage() {
             isHistoryPanelOpen ? "w-[280px] border-r" : "w-0 border-r-0 opacity-0"
           )}
         >
-          {isHistoryPanelOpen && ( // Only render HistoryPanel when it's supposed to be open
+          {isHistoryPanelOpen && ( 
             <HistoryPanel
               sessions={historyMetadata}
               activeSessionId={currentSession?.id || null}
@@ -769,6 +752,10 @@ export default function ChatPage() {
             </Button>
             <h2 className="ml-2 font-semibold text-lg truncate" title={currentSession?.name || "Chat"}>{currentSession?.name || "Chat"}</h2>
           </div>
+          <Button variant="outline" size="sm" onClick={handleNewChat} className="ml-auto hover:bg-primary/10 hover:text-primary transition-colors">
+            <PlusCircle className="h-4 w-4 mr-2" />
+            New Chat
+          </Button>
         </div>
 
         <ScrollArea className="flex-1 p-1 md:p-4" ref={chatAreaRef}>
@@ -828,7 +815,7 @@ export default function ChatPage() {
                     multiple
                     onChange={handleFileChange}
                     className="hidden"
-                    accept="image/*,application/pdf,.txt,.md,.json" // Added .json
+                    accept="image/*,application/pdf,.txt,.md,.json" 
                 />
              </div>
              <div className="flex-1 flex justify-end">
