@@ -18,7 +18,6 @@ interface ChatMessageProps {
 function MessageAvatar({ role }: { role: MessageRole }) {
   return (
     <Avatar className="h-8 w-8 self-start shrink-0">
-      {/* Placeholder images used here, actual avatars can be configured */}
       <AvatarImage 
         src={role === 'assistant' ? `https://placehold.co/40x40.png?text=AI` : `https://placehold.co/40x40.png?text=U`} 
         alt={role} 
@@ -45,31 +44,33 @@ function AttachedFileDisplay({ file }: { file: AttachedFile }) {
         <Paperclip className="h-4 w-4 text-muted-foreground" />
       )}
       <span className="truncate" title={file.name}>{file.name}</span>
-      <span className="text-muted-foreground/80">({file.size && (file.size / 1024).toFixed(1)} KB)</span>
+      {file.size && <span className="text-muted-foreground/80">({(file.size / 1024).toFixed(1)} KB)</span>}
     </div>
   );
 }
 
 function RenderContentPart({ part, index }: { part: ChatMessageContentPart; index: number }) {
+  const animationDelay = `${index * 50}ms`;
+  const commonClasses = "my-2 animate-slideUpSlightly";
+
   switch (part.type) {
     case 'text':
       if (part.title) {
-        // For structured text output like "Requirements" analysis parts
-        return <CopyableText key={index} text={part.text} title={part.title} className="my-2 animate-slideUpSlightly" style={{ animationDelay: `${index * 50}ms` }} />;
+        return <CopyableText key={index} text={part.text} title={part.title} className={cn(commonClasses)} style={{ animationDelay }} />;
       }
-      return <p key={index} className="whitespace-pre-wrap">{part.text}</p>;
+      return <p key={index} className="whitespace-pre-wrap">{part.text}</p>; // Simple text doesn't need animation if it's part of a larger animated block.
     case 'code':
-      return <CopyToClipboard key={index} textToCopy={part.code || ''} title={part.title} language={part.language} className="my-2 animate-slideUpSlightly" style={{ animationDelay: `${index * 50}ms` }} />;
+      return <CopyToClipboard key={index} textToCopy={part.code || ''} title={part.title} language={part.language} className={cn(commonClasses)} style={{ animationDelay }} />;
     case 'list':
-      if (part.title && (part.title.toLowerCase().includes('suggested') || part.title.toLowerCase().includes('translations'))) {
+      if (part.title && (part.title.toLowerCase().includes('suggested') || part.title.toLowerCase().includes('translations') || part.title.toLowerCase().includes('inspiration'))) {
         return (
-          <div key={index} className="my-2 animate-slideUpSlightly" style={{ animationDelay: `${index * 50}ms` }}>
+          <div key={index} className={cn(commonClasses)} style={{ animationDelay }}>
             {part.title && <h4 className="font-semibold mb-1 text-base">{part.title}</h4>}
             {part.items && part.items.map((item, itemIndex) => (
               <CopyableText 
                 key={`${index}-item-${itemIndex}`} 
                 text={item} 
-                title={`${part.title && part.title.startsWith('Suggest') ? 'Reply' : 'Translation'} ${itemIndex + 1}`} 
+                title={`${part.title && (part.title.startsWith('Suggest') || part.title.startsWith('Simulated')) ? 'Item' : 'Translation'} ${itemIndex + 1}`} 
                 className="my-1"
               />
             ))}
@@ -77,14 +78,14 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
         );
       }
       return (
-        <div key={index} className="my-2 animate-slideUpSlightly" style={{ animationDelay: `${index * 50}ms` }}>
+        <div key={index} className={cn(commonClasses)} style={{ animationDelay }}>
           {part.title && <h4 className="font-semibold mb-1 text-base">{part.title}</h4>}
           <CopyableList items={part.items} title={part.title ? undefined : 'List'} className="my-1"/>
         </div>
       );
     case 'translation_group':
       return (
-        <Card key={index} className="my-4 bg-background/30 animate-slideUpSlightly" style={{ animationDelay: `${index * 50}ms` }}>
+        <Card key={index} className={cn("my-4 bg-background/30", commonClasses)} style={{ animationDelay }}>
           <CardHeader>
             <CardTitle className="text-lg">{part.title || 'Analysis & Plan'}</CardTitle>
           </CardHeader>
@@ -98,7 +99,7 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
               <Separator className="my-3" />
             }
 
-            {part.bengali?.analysis && <CopyableText title=" বিশ্লেষণ (Bengali Analysis)" text={part.bengali.analysis} />}
+            {part.bengali?.analysis && <CopyableText title=" বিশ্লেষণ (Bengali Analysis/Combined)" text={part.bengali.analysis} />}
             {part.bengali?.simplifiedRequest && <CopyableText title="সরলীকৃত অনুরোধ (Bengali Simplified Request)" text={part.bengali.simplifiedRequest} />}
             {part.bengali?.stepByStepApproach && <CopyableText title="ধাপে ধাপে পদ্ধতি (Bengali Step-by-Step)" text={part.bengali.stepByStepApproach} />}
           </CardContent>
@@ -129,15 +130,16 @@ export function ChatMessageDisplay({ message }: ChatMessageProps) {
   
   return (
     <div className={cn(
-        `flex items-start gap-3 p-3 md:p-4 animate-slideUpSlightly`, 
+        `flex items-start gap-3 p-3 md:p-4 animate-slideUpSlightly`, // Ensure animation class is here
         isUser ? 'justify-end' : ''
       )}
     >
       {!isUser && <MessageAvatar role={message.role} />}
       <div
-        className={`flex flex-col gap-1.5 rounded-lg p-3 shadow-md text-sm w-full
+        className={cn(`flex flex-col gap-1.5 rounded-lg p-3 shadow-md text-sm w-full
           ${isAssistant ? 'bg-card text-card-foreground' : 'bg-primary text-primary-foreground'}
-          ${message.isError ? 'border-destructive border-2' : 'border-transparent'}`}
+          ${message.isError ? 'border-destructive border-2' : 'border-transparent'}`
+        )}
       >
         {message.isError && (
           <div className="flex items-center gap-2 text-destructive mb-2">
@@ -152,7 +154,7 @@ export function ChatMessageDisplay({ message }: ChatMessageProps) {
         )}
         {message.attachedFiles && message.attachedFiles.length > 0 && (
           <div className="mt-2 space-y-1">
-            {message.attachedFiles.map(file => <AttachedFileDisplay key={file.name+file.size} file={file} />)}
+            {message.attachedFiles.map(file => <AttachedFileDisplay key={`${file.name}-${file.size}`} file={file} />)}
           </div>
         )}
       </div>

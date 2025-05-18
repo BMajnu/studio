@@ -52,7 +52,7 @@ body {
     --background-end-hsl: 220 26% 16%;   /* Slightly Lighter Navy Blue */
     --background: var(--background-start-hsl); /* Fallback */
     --foreground: 215 20% 90%; /* Light color for text on dark bg */
-    --card: 220 26% 15%; /* Slightly lighter than main dark bg for cards */
+    --card: 220 26% 16%; /* Slightly lighter than main dark bg for cards - MODIFIED for more contrast */
     --card-foreground: 215 20% 90%;
     --popover: 220 26% 10%; /* Darker for popovers */
     --popover-foreground: 215 20% 90%;
