@@ -3,18 +3,18 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Settings, Menu, HelpCircle, Sun, Moon, LogOut, LogIn, UserPlus } from 'lucide-react';
+import { Home, Settings, Menu, HelpCircle, Sun, Moon, LogOut, LogIn, UserPlus, XIcon } from 'lucide-react'; // Added XIcon
 import { DesAInRLogo } from '@/components/icons/logo';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetClose, SheetHeader, SheetTitle } from '@/components/ui/sheet'; // Added SheetHeader, SheetTitle
 import React, { useState, useEffect } from 'react';
 import { FeaturesGuideModal } from '@/components/features-guide-modal';
 import { useAuth } from '@/contexts/auth-context';
 import {
   Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+  DialogContent as ModalContent, // Renamed to avoid conflict
+  DialogHeader as ModalHeader,   // Renamed to avoid conflict
+  DialogTitle as ModalTitle,     // Renamed to avoid conflict
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { LoginForm } from '@/components/auth/login-form';
@@ -25,11 +25,11 @@ interface NavItem {
   label: string;
   icon: React.ElementType;
   isModalTrigger?: boolean;
-  requiresAuth?: boolean; // New property
-  hideWhenAuth?: boolean; // New property
-  action?: () => void; // For logout or opening modals
-  isDialogTrigger?: boolean; // To denote it's a dialog trigger
-  dialogContent?: React.ReactNode; // Content for the dialog
+  requiresAuth?: boolean;
+  hideWhenAuth?: boolean;
+  action?: () => void;
+  isDialogTrigger?: boolean;
+  dialogContent?: React.ReactNode;
   dialogTitle?: string;
 }
 
@@ -116,12 +116,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <DialogTrigger asChild>
              <Button {...commonButtonProps}>{buttonContent}</Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>{item.dialogTitle}</DialogTitle>
-            </DialogHeader>
+          <ModalContent className="sm:max-w-md">
+            <ModalHeader>
+              <ModalTitle>{item.dialogTitle}</ModalTitle>
+            </ModalHeader>
             {item.dialogContent}
-          </DialogContent>
+          </ModalContent>
         </Dialog>
       );
     }
@@ -152,7 +152,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </Link>
 
         <div className="flex items-center">
-          {user && <span className="text-sm text-muted-foreground mr-4 hidden md:inline">Welcome, {user.email}</span>}
+          {user && <span className="text-sm text-muted-foreground mr-4 hidden md:inline">Welcome, {user.email?.split('@')[0]}</span>}
           <nav className="hidden md:flex items-center space-x-1">
             {navItems.map(item => renderNavItem(item, false))}
           </nav>
@@ -171,20 +171,23 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="ml-1">
-                  <Menu className="h-6 w-6" />
+                  {isMobileSheetOpen ? <XIcon className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
                   <span className="sr-only">Toggle Menu</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-72 bg-background p-4">
-                <div className="mb-6 border-b pb-4">
+              <SheetContent side="left" className="w-72 bg-background p-0"> {/* Adjusted padding for full-width header */}
+                <SheetHeader className="p-4 border-b">
+                  <SheetTitle className="sr-only">Main Menu</SheetTitle> {/* Screen-reader only title */}
                    <Link href="/" onClick={() => setIsMobileSheetOpen(false)} className="flex items-center gap-2">
                       <DesAInRLogo />
                    </Link>
+                </SheetHeader>
+                <div className="p-4"> {/* Added padding for content area */}
+                  {user && <div className="text-sm text-muted-foreground mb-4 px-2">Welcome, {user.email?.split('@')[0]}</div>}
+                  <nav className="flex flex-col space-y-2">
+                    {navItems.map(item => renderNavItem(item, true))}
+                  </nav>
                 </div>
-                {user && <div className="text-sm text-muted-foreground mb-4 px-2">Welcome, {user.email}</div>}
-                <nav className="flex flex-col space-y-2">
-                  {navItems.map(item => renderNavItem(item, true))}
-                </nav>
               </SheetContent>
             </Sheet>
           </div>
