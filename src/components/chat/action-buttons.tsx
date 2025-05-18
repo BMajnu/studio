@@ -45,7 +45,7 @@ export type AnyActionConfig = ActionButtonConfig | DropdownActionConfig;
 
 
 const actionButtonsConfig: AnyActionConfig[] = [
-  { id: 'processMessage', label: 'Process Client Message', shortLabel: 'Chat', icon: BotMessageSquare, description: 'Full analysis, plan, Bengali translation, and English reply suggestions based on conversation.', isPrimaryAction: true },
+  { id: 'processMessage', label: 'Process Client Message', shortLabel: 'Chat', icon: BotMessageSquare, description: 'Full analysis, plan, Bengali translation.', isPrimaryAction: true },
   { id: 'analyzeRequirements', label: 'Analyze Requirements', shortLabel: 'Requirements', icon: ListChecks, description: 'Detailed analysis of requirements, prioritization, Bangla translation, and design message.', isPrimaryAction: true },
   { id: 'generateEngagementPack', label: 'Generate Engagement Pack', shortLabel: 'Brief', icon: ClipboardList, description: 'Generates a personalized intro, job reply, budget/timeline/software ideas, and clarifying questions.', isPrimaryAction: true },
   {
@@ -87,9 +87,11 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
     if (isLoading || !profile) {
       return true;
     }
+    // Specific logic for 'checkMadeDesigns'
     if (actionId === 'checkMadeDesigns' && currentAttachedFilesDataLength === 0) {
       return true;
     }
+    // Other buttons are generally active unless globally disabled (isLoading/no profile)
     return false; 
   };
 
@@ -100,10 +102,12 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
       )}
     >
       {actionButtonsConfig.map((actionConfig) => {
+        const baseButtonClasses = "px-2.5 py-1.5 md:px-3 md:py-2 h-auto transition-all duration-150 ease-in-out hover:scale-105 active:scale-95 focus-visible:ring-primary";
+        
         if ('isPrimaryAction' in actionConfig && actionConfig.isPrimaryAction) {
           const btn = actionConfig as ActionButtonConfig;
           return (
-            <TooltipProvider key={btn.id} delayDuration={300}>
+            <TooltipProvider key={btn.id} delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -111,13 +115,13 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
                     size="sm" 
                     onClick={() => onAction(btn.id)}
                     disabled={isActionDisabled(btn.id)} 
-                    className="px-2.5 py-1.5 md:px-3 md:py-2 h-auto" 
+                    className={baseButtonClasses}
                   >
-                    <btn.icon className="h-4 w-4 mr-1 md:mr-1.5" />
-                    <span className="text-xs md:text-sm">{btn.shortLabel}</span>
+                    <btn.icon className="h-4 w-4 mr-1 md:mr-1.5 shrink-0" />
+                    <span className="text-xs md:text-sm whitespace-nowrap">{btn.shortLabel}</span>
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="top" align="center">
+                <TooltipContent side="top" align="center" className="bg-popover text-popover-foreground shadow-lg rounded-md p-2">
                   <p className="font-semibold">{btn.label}</p>
                   <p className="text-xs text-muted-foreground max-w-xs">{btn.description}</p>
                    {btn.id === 'checkMadeDesigns' && currentAttachedFilesDataLength === 0 && (
@@ -131,7 +135,7 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
           const dropdown = actionConfig as DropdownActionConfig;
           return (
             <DropdownMenu key={dropdown.id}>
-              <TooltipProvider delayDuration={300}>
+              <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                      <DropdownMenuTrigger asChild>
@@ -139,28 +143,28 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
                             variant="outline"
                             size="sm"
                             disabled={isLoading || !profile} 
-                            className="px-2.5 py-1.5 md:px-3 md:py-2 h-auto"
+                            className={baseButtonClasses}
                         >
-                            <dropdown.icon className="h-4 w-4 mr-1 md:mr-1.5" />
-                            <span className="text-xs md:text-sm">{dropdown.shortLabel}</span>
+                            <dropdown.icon className="h-4 w-4 mr-1 md:mr-1.5 shrink-0" />
+                            <span className="text-xs md:text-sm whitespace-nowrap">{dropdown.shortLabel}</span>
                         </Button>
                      </DropdownMenuTrigger>
                   </TooltipTrigger>
-                  <TooltipContent side="top" align="center">
+                  <TooltipContent side="top" align="center" className="bg-popover text-popover-foreground shadow-lg rounded-md p-2">
                     <p className="font-semibold">{dropdown.label}</p>
                     <p className="text-xs text-muted-foreground max-w-xs">{dropdown.description}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              <DropdownMenuContent align="end" className="bg-background border-border shadow-lg">
+              <DropdownMenuContent align="end" className="bg-popover border-border shadow-xl rounded-md">
                 {dropdown.subActions.map(subAction => (
                   <DropdownMenuItem
                     key={subAction.id}
                     onClick={() => onAction(subAction.id)}
                     disabled={isActionDisabled(subAction.id)} 
-                    className="text-sm cursor-pointer hover:bg-accent focus:bg-accent"
+                    className="text-sm cursor-pointer hover:bg-accent focus:bg-accent data-[disabled]:opacity-50 data-[disabled]:pointer-events-none"
                   >
-                    <subAction.icon className="h-4 w-4 mr-2" />
+                    <subAction.icon className="h-4 w-4 mr-2 shrink-0" />
                     {subAction.label}
                   </DropdownMenuItem>
                 ))}

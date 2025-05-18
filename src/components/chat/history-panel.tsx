@@ -54,10 +54,10 @@ export function HistoryPanel({
   }, [sessions, searchQuery]);
 
   return (
-    <div className="h-full flex flex-col border-r bg-background/70 backdrop-blur-sm">
+    <div className="h-full flex flex-col border-r bg-background/70 backdrop-blur-sm shadow-lg">
       <div className="p-4 flex justify-between items-center border-b">
         <h3 className="text-lg font-semibold">Chat History</h3>
-        <Button variant="ghost" size="icon" onClick={onNewChat} title="New Chat">
+        <Button variant="ghost" size="icon" onClick={onNewChat} title="New Chat" className="hover:bg-primary/10 hover:text-primary transition-colors">
           <PlusCircle className="h-5 w-5" />
         </Button>
       </div>
@@ -67,7 +67,7 @@ export function HistoryPanel({
           <Input
             type="search"
             placeholder="Search history..."
-            className="w-full rounded-lg bg-background pl-8 pr-8 h-9" // Added pr-8 for clear button
+            className="w-full rounded-lg bg-background pl-8 pr-8 h-9 focus-visible:ring-primary"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -90,7 +90,7 @@ export function HistoryPanel({
         </div>
       )}
       {!isLoading && displayedSessions.length === 0 && (
-        <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
+        <div className="flex-1 flex flex-col items-center justify-center text-center p-4 animate-fadeIn">
           <MessageSquare className="h-12 w-12 text-muted-foreground mb-3" />
           <p className="text-sm text-muted-foreground">
             {searchQuery ? 'No sessions match your search.' : 'No chat history yet.'}
@@ -101,12 +101,14 @@ export function HistoryPanel({
       {!isLoading && displayedSessions.length > 0 && (
         <ScrollArea className="flex-1">
           <div className="p-2 space-y-1">
-            {displayedSessions.map((session) => (
+            {displayedSessions.map((session, index) => (
               <div
                 key={session.id}
-                className={cn(`group flex items-center justify-between p-2.5 rounded-md cursor-pointer hover:bg-accent/80 transition-colors`,
-                  session.id === activeSessionId ? 'bg-accent text-accent-foreground' : 'text-foreground hover:bg-accent/10'
+                className={cn(
+                  `group flex items-center justify-between p-2.5 rounded-md cursor-pointer transition-all duration-200 ease-in-out animate-slideUpSlightly hover:shadow-lg hover:-translate-y-0.5`,
+                  session.id === activeSessionId ? 'bg-accent text-accent-foreground shadow-md' : 'text-foreground hover:bg-accent/10'
                 )}
+                style={{ animationDelay: `${index * 30}ms` }}
                 onClick={() => onSelectSession(session.id)}
               >
                 <div className="flex-1 overflow-hidden">
@@ -123,7 +125,7 @@ export function HistoryPanel({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className={cn("h-7 w-7 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity hover:text-destructive",
+                      className={cn("h-7 w-7 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity hover:text-destructive hover:bg-destructive/10",
                         session.id === activeSessionId ? "text-accent-foreground/70 hover:text-destructive" : "text-muted-foreground"
                       )}
                       onClick={(e) => e.stopPropagation()} // Prevent session selection

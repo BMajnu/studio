@@ -15,6 +15,8 @@ export default {
       },
   		colors: {
   			background: 'hsl(var(--background))',
+        'background-start': 'hsl(var(--background-start-hsl))', // For gradient
+        'background-end': 'hsl(var(--background-end-hsl))',     // For gradient
   			foreground: 'hsl(var(--foreground))',
   			card: {
   				DEFAULT: 'hsl(var(--card))',
@@ -86,11 +88,21 @@ export default {
   				to: {
   					height: '0'
   				}
-  			}
+  			},
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        slideUpSlightly: {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        }
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
+  			'accordion-up': 'accordion-up 0.2s ease-out',
+        'fadeIn': 'fadeIn 0.5s ease-out forwards',
+        'slideUpSlightly': 'slideUpSlightly 0.5s ease-out forwards',
   		}
   	}
   },

@@ -12,7 +12,7 @@ import { FeaturesGuideModal } from '@/components/features-guide-modal';
 import { useAuth } from '@/contexts/auth-context';
 import {
   Dialog,
-  DialogContent as ModalContent, // Renamed to avoid conflict
+  DialogContent as ModalContent, 
   DialogHeader as ModalHeader,
   DialogTitle as ModalTitle,
   DialogTrigger as ModalDialogTrigger,
@@ -24,14 +24,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LoginForm } from '@/components/auth/login-form';
-import { APP_FEATURES_GUIDE, APP_FEATURES_GUIDE_BN } from "@/lib/constants"; // Import Bengali guide
+import { APP_FEATURES_GUIDE, APP_FEATURES_GUIDE_BN } from "@/lib/constants";
 
 interface NavItem {
   href?: string;
   label: string | { en: string; bn: string };
   icon: React.ElementType;
   isModalTrigger?: boolean;
-  modalContent?: string; // For passing guide content
   requiresAuth?: boolean;
   hideWhenAuth?: boolean;
   action?: () => void;
@@ -41,7 +40,7 @@ interface NavItem {
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [effectiveTheme, setEffectiveTheme] = useState<'light' | 'dark'>('dark');
+  const [effectiveTheme, setEffectiveTheme] = useState<'light' | 'dark'>('light'); // Default to light
   const [currentLanguage, setCurrentLanguage] = useState<'en' | 'bn'>('en');
   const { user, signOut, loading: authLoading } = useAuth();
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
@@ -55,7 +54,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const navItems: NavItem[] = [
     { href: '/', label: { en: 'Home', bn: 'হোম' }, icon: Home },
     { href: '/profile', label: { en: 'Profile', bn: 'প্রোফাইল' }, icon: Settings, requiresAuth: true },
-    { label: { en: 'Features Guide', bn: 'ফিচার গাইড' }, icon: HelpCircle, isModalTrigger: true }, // modalContent will be set dynamically
+    { label: { en: 'Features Guide', bn: 'ফিচার গাইড' }, icon: HelpCircle, isModalTrigger: true },
     {
       label: { en: 'Login', bn: 'লগইন করুন' },
       icon: LogIn,
@@ -70,7 +69,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const storedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
     const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const initialTheme = storedTheme || (systemPrefersDark ? 'dark' : 'light');
+    // Default to 'light' if no stored theme and system doesn't prefer dark.
+    const initialTheme = storedTheme || (systemPrefersDark ? 'dark' : 'light'); 
     
     setEffectiveTheme(initialTheme);
     if (initialTheme === 'dark') {
@@ -85,7 +85,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     const storedLanguage = localStorage.getItem('desainr_language') as 'en' | 'bn' | null;
     if (storedLanguage) {
       setCurrentLanguage(storedLanguage);
-      console.log(`Language loaded from localStorage: ${storedLanguage}`);
     }
   }, []);
 
@@ -105,9 +104,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const changeLanguage = (lang: 'en' | 'bn') => {
     setCurrentLanguage(lang);
     localStorage.setItem('desainr_language', lang);
-    console.log(`Language changed to: ${lang}. Some UI text might change. Full UI translation requires an i18n library.`);
-    // Forcing a re-render if necessary, though state change should handle it
-    // This is a bit of a hack, better handled by i18n library state management
+    // Force re-render for mobile sheet text if open
     if (isMobileSheetOpen) {
       setIsMobileSheetOpen(false);
       setTimeout(() => setIsMobileSheetOpen(true), 0);
@@ -115,7 +112,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   };
   
   const renderNavItem = (item: NavItem, isMobile: boolean = false) => {
-    if (item.requiresAuth && !user) return null;
+    if (item.requiresAuth && !user && !authLoading) return null; // Hide if auth required and no user (and auth not loading)
+    if (item.requiresAuth && authLoading) return null; // Optionally hide auth-required items while auth is loading
     if (item.hideWhenAuth && user) return null;
 
     const itemLabel = getLabel(item.label);
@@ -124,10 +122,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
     const commonButtonProps = {
       variant: (item.href && pathname === item.href) ? "default" : "ghost" as "default" | "ghost",
-      className: isMobile ? "w-full justify-start text-base py-3 h-auto" : "font-medium",
+      className: `font-medium transition-all duration-200 ease-in-out hover:text-primary ${isMobile ? "w-full justify-start text-base py-3 h-auto" : "hover:bg-primary/10"}`,
       onClick: () => {
         if (item.action) item.action();
-        // Close sheet for simple links or actions, but not for modal/dialog triggers
         if (isMobile && item.href && !item.isDialogTrigger && !item.isModalTrigger) {
           setIsMobileSheetOpen(false);
         }
@@ -144,7 +141,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
        const TriggerButton = <Button {...commonButtonProps}>{buttonContent}</Button>;
       return (
          <FeaturesGuideModal
-            key={itemLabel} // Use itemLabel for key as it's unique per language too
+            key={itemLabel}
             triggerButton={TriggerButton}
             guideContent={guideTextToShow}
          />
@@ -190,7 +187,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       );
     }
 
-    // For simple action buttons (like Logout)
      const ActionButtonComponent = <Button {...commonButtonProps}>{buttonContent}</Button>;
      if (isMobile) {
          return <SheetClose asChild key={itemLabel}>{ActionButtonComponent}</SheetClose>;
@@ -201,11 +197,17 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const welcomeMessageText = currentLanguage === 'bn' 
     ? `স্বাগতম, ${user?.displayName || user?.email?.split('@')[0] || 'অতিথি'}` 
     : `Welcome, ${user?.displayName || user?.email?.split('@')[0] || 'Guest'}`;
+  
+  const srMainMenu = currentLanguage === 'bn' ? 'প্রধান মেনু' : 'Main Menu';
+  const srToggleMenu = currentLanguage === 'bn' ? 'মেনু টগল করুন' : 'Toggle Menu';
+  const srChangeLanguage = currentLanguage === 'bn' ? 'ভাষা পরিবর্তন করুন' : 'Change language';
+  const srToggleTheme = currentLanguage === 'bn' ? 'থিম পরিবর্তন করুন' : 'Toggle theme';
+
 
   return (
     <div className="flex min-h-screen flex-col" style={{ "--header-height": "4rem" } as React.CSSProperties}>
-      <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b bg-background/80 px-4 backdrop-blur-md shrink-0">
-        <Link href="/" className="flex items-center gap-2">
+      <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b bg-background/80 px-4 backdrop-blur-md shrink-0 shadow-sm">
+        <Link href="/" className="flex items-center gap-2 transition-transform duration-200 ease-in-out hover:opacity-80 hover:scale-105">
           <DesAInRLogo />
         </Link>
 
@@ -217,7 +219,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="ml-2" aria-label={currentLanguage === 'bn' ? 'ভাষা পরিবর্তন করুন' : 'Change language'}>
+              <Button variant="ghost" size="icon" className="ml-2 transition-colors hover:bg-primary/10" aria-label={srChangeLanguage}>
                 <Languages className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>
@@ -235,8 +237,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             variant="ghost"
             size="icon"
             onClick={toggleTheme}
-            aria-label={currentLanguage === 'bn' ? 'থিম পরিবর্তন করুন' : "Toggle theme"}
-            className="ml-1" 
+            aria-label={srToggleTheme}
+            className="ml-1 transition-colors hover:bg-primary/10" 
           >
             {effectiveTheme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
@@ -246,12 +248,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="ml-1">
                   {isMobileSheetOpen ? <XIcon className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-                  <span className="sr-only">Toggle Menu</span>
+                  <span className="sr-only">{srToggleMenu}</span>
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-72 bg-background p-0">
                 <SheetHeader className="p-4 border-b">
-                   <SheetTitle className="sr-only">{currentLanguage === 'bn' ? 'প্রধান মেনু' : 'Main Menu'}</SheetTitle>
+                   <SheetTitle className="sr-only">{srMainMenu}</SheetTitle>
                    <Link href="/" onClick={() => setIsMobileSheetOpen(false)} className="flex items-center gap-2">
                       <DesAInRLogo />
                    </Link>

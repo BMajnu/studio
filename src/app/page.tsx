@@ -14,7 +14,6 @@ import { useUserProfile } from '@/lib/hooks/use-user-profile';
 import { useChatHistory } from '@/lib/hooks/use-chat-history';
 import type { ChatMessage, UserProfile, ChatMessageContentPart, AttachedFile, ChatSession } from '@/lib/types';
 import { processClientMessage, type ProcessClientMessageInput } from '@/ai/flows/process-client-message';
-// import { suggestClientReplies, type SuggestClientRepliesInput } from '@/ai/flows/suggest-client-replies'; // No longer directly used by a button
 import { generatePlatformMessages, type GeneratePlatformMessagesInput } from '@/ai/flows/generate-platform-messages';
 import { analyzeClientRequirements, type AnalyzeClientRequirementsInput } from '@/ai/flows/analyze-client-requirements';
 import { generateEngagementPack, type GenerateEngagementPackInput } from '@/ai/flows/generate-engagement-pack-flow';
@@ -31,7 +30,7 @@ import { DEFAULT_USER_ID, DEFAULT_MODEL_ID } from '@/lib/constants';
 // Helper to get textual content from ChatMessageContentPart[] or string
 const getMessageText = (content: string | ChatMessageContentPart[]): string => {
   if (typeof content === 'string') return content;
-  if (!Array.isArray(content) || content.length === 0) return '[Empty or Invalid Message Content]';
+  if (!Array.isArray(content) || content.length === 0) return '[Empty Message Content]';
 
   let fullText = '';
   content.forEach(part => {
@@ -74,7 +73,13 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
         }
         break;
       default:
-        fullText += `[Unsupported Content Part: ${(part as any).type} ${part.title ? `for "${part.title}"` : ''}]\n`;
+        // For unknown parts, try to extract text if possible, or provide a generic indicator
+        let unknownText = (part as any).text || (part as any).code || (part as any).message;
+        if (typeof unknownText === 'string') {
+          fullText += `${unknownText}\n`;
+        } else {
+           fullText += `[Unsupported Content Part: ${(part as any).type} ${part.title ? `for "${part.title}"` : ''}]\n`;
+        }
     }
     fullText += '\n'; 
   });
@@ -148,7 +153,7 @@ export default function ChatPage() {
   const ensureMessagesHaveUniqueIds = useCallback(baseEnsureMessagesHaveUniqueIds, []);
 
   useEffect(() => {
-    if (isMobile !== undefined) {
+    if (isMobile !== undefined) { // Only set once isMobile is determined
         setIsHistoryPanelOpen(!isMobile);
     }
   }, [isMobile]);
@@ -172,6 +177,7 @@ export default function ChatPage() {
       } else {
         sessionToLoad = getSession(lastActiveSessionId);
         if (!sessionToLoad) {
+             console.warn(`Could not load session ${lastActiveSessionId}. Removing from last active.`);
              localStorage.removeItem(lastActiveSessionIdKey);
              lastActiveSessionId = null;
         }
@@ -375,12 +381,12 @@ export default function ChatPage() {
       };
       const filesForFlow = filesToSendWithThisMessage.map(f => ({ name: f.name, type: f.type, dataUri: f.dataUri, textContent: f.textContent }));
 
-      const previousMessagesForHistory = messages;
-      const chatHistoryForAI = previousMessagesForHistory
-        .slice(-10) // Get last 10 messages for context
+      // Get a richer text summary for history
+      const chatHistoryForAI = messages
+        .slice(-10) 
         .map(msg => ({
           role: msg.role as 'user' | 'assistant',
-          text: getMessageText(msg.content)
+          text: getMessageText(msg.content) // Use our enhanced getMessageText
         }))
         .filter(msg => msg.text.trim() !== '' && (msg.role === 'user' || msg.role === 'assistant'));
 
@@ -388,18 +394,12 @@ export default function ChatPage() {
       if (actionType === 'processMessage') {
         const processInput: ProcessClientMessageInput = { ...baseInput, clientMessage: currentMessageText, attachedFiles: filesForFlow, chatHistory: chatHistoryForAI };
         const processed = await processClientMessage(processInput);
-        // const repliesInput: SuggestClientRepliesInput = { ...baseInput, clientMessage: currentMessageText, professionalTitle: profile.professionalTitle, services: profile.services, chatHistory: chatHistoryForAI };
-        // const replies = await suggestClientReplies(repliesInput); // Not directly used by a button anymore
-
         aiResponseContent.push({
           type: 'translation_group',
           title: 'Client Request Analysis & Plan',
           english: { analysis: processed.analysis, simplifiedRequest: processed.simplifiedRequest, stepByStepApproach: processed.stepByStepApproach },
           bengali: { analysis: processed.bengaliTranslation }
         });
-        // if (replies.englishReplies && replies.englishReplies.length > 0) {
-        //   aiResponseContent.push({ type: 'list', title: 'Suggested English Replies', items: replies.englishReplies });
-        // }
       } else if (actionType === 'analyzeRequirements') {
         const requirementsInput: AnalyzeClientRequirementsInput = { ...baseInput, clientMessage: currentMessageText, attachedFiles: filesForFlow, chatHistory: chatHistoryForAI };
         const requirementsOutput = await analyzeClientRequirements(requirementsInput);
@@ -506,7 +506,7 @@ export default function ChatPage() {
         const platformMessagesOutput = await generatePlatformMessages(platformInput);
         
         if (platformMessagesOutput.messages && platformMessagesOutput.messages.length > 0) {
-          platformMessagesOutput.messages.forEach(m => {
+           platformMessagesOutput.messages.forEach(m => {
             const messageTitle = m.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
             aiResponseContent.push({ type: 'code', title: messageTitle, code: m.message });
           });
@@ -619,7 +619,7 @@ export default function ChatPage() {
     <div className="flex h-[calc(100vh-var(--header-height,0px))]">
       {isMobile && isHistoryPanelOpen && (
         <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setIsHistoryPanelOpen(false)}>
-          <div className="absolute left-0 top-0 h-full w-4/5 max-w-xs bg-background shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="absolute left-0 top-0 h-full w-4/5 max-w-xs bg-background shadow-xl animate-fadeIn" onClick={(e) => e.stopPropagation()}>
             <HistoryPanel
               sessions={historyMetadata}
               activeSessionId={currentSession?.id || null}
@@ -651,10 +651,10 @@ export default function ChatPage() {
         </div>
       )}
 
-      <div className="flex-1 flex flex-col bg-background overflow-hidden" ref={dropZoneRef} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
-        <div className="p-2 border-b flex items-center justify-between sticky top-0 bg-background z-10">
+      <div className="flex-1 flex flex-col bg-transparent overflow-hidden" ref={dropZoneRef} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+        <div className="p-2 border-b flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-sm z-10 shadow-sm">
           <div className="flex items-center">
-            <Button variant="ghost" size="icon" onClick={() => setIsHistoryPanelOpen(prev => !prev)} aria-label="Toggle history panel">
+            <Button variant="ghost" size="icon" onClick={() => setIsHistoryPanelOpen(prev => !prev)} aria-label="Toggle history panel" className="hover:bg-primary/10">
               {isMobile ? (
                 isHistoryPanelOpen ? <XIcon className="h-5 w-5" /> : <Menu className="h-5 w-5" />
               ) : (
@@ -671,7 +671,7 @@ export default function ChatPage() {
               <ChatMessageDisplay key={msg.id} message={msg} />
             ))}
              {messages.length === 0 && !isLoading && (
-                <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                <div className="flex flex-col items-center justify-center h-full text-center p-8 animate-fadeIn">
                     <BotIcon className="w-16 h-16 text-accent mb-4" />
                     <h2 className="text-2xl font-semibold mb-2">Welcome to DesAInR!</h2>
                     <p className="text-muted-foreground max-w-md">
@@ -683,14 +683,14 @@ export default function ChatPage() {
         </ScrollArea>
 
         {isDragging && (
-          <div className="absolute inset-x-4 bottom-[160px] md:bottom-[150px] top-16 md:top-[calc(var(--header-height)_+_0.5rem)] border-4 border-dashed border-primary bg-primary/10 rounded-lg flex items-center justify-center pointer-events-none z-20">
+          <div className="absolute inset-x-4 bottom-[160px] md:bottom-[150px] top-16 md:top-[calc(var(--header-height)_+_0.5rem)] border-4 border-dashed border-primary bg-primary/10 rounded-lg flex items-center justify-center pointer-events-none z-20 animate-fadeIn">
             <p className="text-primary font-semibold text-lg">Drop files here</p>
           </div>
         )}
 
-        <div className={cn("border-t p-2 md:p-4 bg-background", isDragging && "opacity-50")}>
+        <div className={cn("border-t p-2 md:p-4 bg-background/80 backdrop-blur-sm shadow-t-lg", isDragging && "opacity-50")}>
           {currentAttachedFilesData.length > 0 && (
-            <div className="mt-1 mb-2 text-xs text-muted-foreground">
+            <div className="mt-1 mb-2 text-xs text-muted-foreground animate-fadeIn">
               Attached: {currentAttachedFilesData.map(f => f.name).join(', ')}
               <Button variant="link" size="xs" className="ml-2 h-auto p-0 text-primary hover:text-primary/80" onClick={clearSelectedFiles}>Clear</Button>
             </div>
@@ -701,7 +701,7 @@ export default function ChatPage() {
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Type your client's message or your query here... (or drag & drop files)"
-              className="flex-1 resize-none min-h-[60px] max-h-[150px] rounded-lg shadow-sm focus-visible:ring-2 focus-visible:ring-primary"
+              className="flex-1 resize-none min-h-[60px] max-h-[150px] rounded-lg shadow-sm focus-visible:ring-2 focus-visible:ring-primary bg-background"
               rows={Math.max(1, Math.min(5, inputMessage.split('\n').length))}
             />
           </div>
@@ -711,7 +711,7 @@ export default function ChatPage() {
                     variant="ghost"
                     size="sm"
                     onClick={() => fileInputRef.current?.click()}
-                    className="text-muted-foreground hover:text-primary"
+                    className="text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                     aria-label="Attach files"
                 >
                     <Paperclip className="h-4 w-4 mr-2" /> Attach Files
@@ -725,7 +725,7 @@ export default function ChatPage() {
                     accept="image/*,application/pdf,.txt,.md,.json" 
                 />
              </div>
-             <div>
+             <div className="flex-shrink-0">
                 <ActionButtonsPanel
                     onAction={handleAction}
                     isLoading={isLoading}
@@ -739,7 +739,7 @@ export default function ChatPage() {
       </div>
 
       <Dialog open={showNotesModal} onOpenChange={setShowNotesModal}>
-        <DialogContent>
+        <DialogContent className="animate-fadeIn">
           <DialogHeader>
             <DialogTitle>Additional Notes for {modalActionType === 'generateDeliveryTemplates' ? 'Delivery' : 'Revision'}</DialogTitle>
             <DialogDescription>
@@ -755,7 +755,7 @@ export default function ChatPage() {
                 id="notes"
                 value={modalNotes}
                 onChange={(e) => setModalNotes(e.target.value)}
-                className="col-span-3 h-32 resize-none"
+                className="col-span-3 h-32 resize-none bg-background"
                 placeholder={modalActionType === 'generateDeliveryTemplates' ? "e.g., All final files attached, 2 concepts included..." : "e.g., Client requested color changes, updated logo attached..."}
               />
             </div>
@@ -769,4 +769,3 @@ export default function ChatPage() {
     </div>
   );
 }
-

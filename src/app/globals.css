@@ -8,19 +8,21 @@ body {
 
 @layer base {
   :root {
-    --background: 0 0% 100%; /* Light background */
+    --background-start-hsl: 0 0% 100%; /* Pure White */
+    --background-end-hsl: 240 10% 96%; /* Very Light Blue/Gray */
+    --background: var(--background-start-hsl); /* Fallback for no gradient support */
     --foreground: 222.2 84% 4.9%; /* Dark text for light background */
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221 89% 60%; /* Saturated Blue from proposal */
+    --primary: 221 89% 60%; /* Saturated Blue #4285F4 */
     --primary-foreground: 210 40% 98%; /* White/very light text for primary */
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 265 79% 70%; /* Purple from proposal */
+    --accent: 265 79% 70%; /* Purple #A275ED */
     --accent-foreground: 210 40% 98%; /* White/very light text for accent */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
@@ -46,7 +48,9 @@ body {
   }
 
   .dark {
-    --background: 220 26% 12%; /* Dark Navy Blue #1A202C */
+    --background-start-hsl: 220 26% 12%; /* Dark Navy Blue #1A202C */
+    --background-end-hsl: 220 26% 16%;   /* Slightly Lighter Navy Blue */
+    --background: var(--background-start-hsl); /* Fallback */
     --foreground: 215 20% 90%; /* Light color for text on dark bg */
     --card: 220 26% 15%; /* Slightly lighter than main dark bg for cards */
     --card-foreground: 215 20% 90%;
@@ -90,6 +94,7 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+    background-image: linear-gradient(to bottom, hsl(var(--background-start-hsl)), hsl(var(--background-end-hsl)));
     min-height: 100vh;
   }
 }
@@ -109,4 +114,23 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-primary/70;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUpSlightly {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.animate-slideUpSlightly {
+  animation: slideUpSlightly 0.5s ease-out forwards;
 }

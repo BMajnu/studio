@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import Image from 'next/image';
+import { cn } from '@/lib/utils';
 
 interface ChatMessageProps {
   message: ChatMessage;
@@ -16,7 +17,7 @@ interface ChatMessageProps {
 
 function MessageAvatar({ role }: { role: MessageRole }) {
   return (
-    <Avatar className="h-8 w-8 self-start">
+    <Avatar className="h-8 w-8 self-start shrink-0">
       {/* Placeholder images used here, actual avatars can be configured */}
       <AvatarImage 
         src={role === 'assistant' ? `https://placehold.co/40x40.png?text=AI` : `https://placehold.co/40x40.png?text=U`} 
@@ -32,7 +33,7 @@ function MessageAvatar({ role }: { role: MessageRole }) {
 
 function AttachedFileDisplay({ file }: { file: AttachedFile }) {
   return (
-    <div className="mt-1 p-2 border rounded-md bg-background/50 text-xs flex items-center gap-2">
+    <div className="mt-1 p-2 border rounded-md bg-background/50 text-xs flex items-center gap-2 hover:shadow-md transition-shadow">
       {file.type.startsWith('image/') && file.dataUri ? (
         <>
           <ImageIcon className="h-4 w-4 text-muted-foreground" />
@@ -54,35 +55,36 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
     case 'text':
       if (part.title) {
         // For structured text output like "Requirements" analysis parts
-        return <CopyableText key={index} text={part.text} title={part.title} />;
+        return <CopyableText key={index} text={part.text} title={part.title} className="my-2 animate-slideUpSlightly" style={{ animationDelay: `${index * 50}ms` }} />;
       }
       return <p key={index} className="whitespace-pre-wrap">{part.text}</p>;
     case 'code':
-      return <CopyToClipboard key={index} textToCopy={part.code || ''} title={part.title} language={part.language} />;
+      return <CopyToClipboard key={index} textToCopy={part.code || ''} title={part.title} language={part.language} className="my-2 animate-slideUpSlightly" style={{ animationDelay: `${index * 50}ms` }} />;
     case 'list':
       if (part.title && (part.title.toLowerCase().includes('suggested') || part.title.toLowerCase().includes('translations'))) {
         return (
-          <div key={index} className="my-2">
+          <div key={index} className="my-2 animate-slideUpSlightly" style={{ animationDelay: `${index * 50}ms` }}>
             {part.title && <h4 className="font-semibold mb-1 text-base">{part.title}</h4>}
             {part.items && part.items.map((item, itemIndex) => (
               <CopyableText 
                 key={`${index}-item-${itemIndex}`} 
                 text={item} 
                 title={`${part.title && part.title.startsWith('Suggest') ? 'Reply' : 'Translation'} ${itemIndex + 1}`} 
+                className="my-1"
               />
             ))}
           </div>
         );
       }
       return (
-        <div key={index} className="my-2">
+        <div key={index} className="my-2 animate-slideUpSlightly" style={{ animationDelay: `${index * 50}ms` }}>
           {part.title && <h4 className="font-semibold mb-1 text-base">{part.title}</h4>}
-          <CopyableList items={part.items} title={part.title ? undefined : 'List'} />
+          <CopyableList items={part.items} title={part.title ? undefined : 'List'} className="my-1"/>
         </div>
       );
     case 'translation_group':
       return (
-        <Card key={index} className="my-4 bg-background/30">
+        <Card key={index} className="my-4 bg-background/30 animate-slideUpSlightly" style={{ animationDelay: `${index * 50}ms` }}>
           <CardHeader>
             <CardTitle className="text-lg">{part.title || 'Analysis & Plan'}</CardTitle>
           </CardHeader>
@@ -126,12 +128,16 @@ export function ChatMessageDisplay({ message }: ChatMessageProps) {
   }
   
   return (
-    <div className={`flex items-start gap-3 p-3 md:p-4 ${isUser ? 'justify-end' : ''}`}>
+    <div className={cn(
+        `flex items-start gap-3 p-3 md:p-4 animate-slideUpSlightly`, 
+        isUser ? 'justify-end' : ''
+      )}
+    >
       {!isUser && <MessageAvatar role={message.role} />}
       <div
-        className={`flex flex-col gap-1.5 rounded-lg p-3 shadow-sm text-sm w-full
-          ${isAssistant ? 'bg-muted/80 text-foreground' : 'bg-primary text-primary-foreground'}
-          ${message.isError ? 'border-destructive border' : ''}`}
+        className={`flex flex-col gap-1.5 rounded-lg p-3 shadow-md text-sm w-full
+          ${isAssistant ? 'bg-card text-card-foreground' : 'bg-primary text-primary-foreground'}
+          ${message.isError ? 'border-destructive border-2' : 'border-transparent'}`}
       >
         {message.isError && (
           <div className="flex items-center gap-2 text-destructive mb-2">
@@ -154,4 +160,3 @@ export function ChatMessageDisplay({ message }: ChatMessageProps) {
     </div>
   );
 }
-
