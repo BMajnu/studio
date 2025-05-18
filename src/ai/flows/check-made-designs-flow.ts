@@ -12,18 +12,8 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
-
-const AttachedFileSchema = z.object({
-  name: z.string().describe("Name of the file"),
-  type: z.string().describe("MIME type of the file"),
-  dataUri: z.string().optional().describe("Base64 data URI for image files. Use {{media url=<dataUri>}} to reference in prompt."),
-  textContent: z.string().optional().describe("Text content for text files (e.g., .txt, .md).")
-});
-
-const ChatHistoryMessageSchema = z.object({
-  role: z.enum(['user', 'assistant']),
-  text: z.string(),
-});
+import { genkit } from 'genkit';
+import { googleAI } from '@genkit-ai/googleai';
 
 // Schema for the flow's input
 const CheckMadeDesignsFlowInputSchema = z.object({
@@ -31,8 +21,9 @@ const CheckMadeDesignsFlowInputSchema = z.object({
   designToCheckDataUri: z.string().describe("A data URI of the design image to be checked. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
   userName: z.string().describe('The name of the user (designer).'),
   communicationStyleNotes: z.string().describe('The communication style notes of the user.'),
-  chatHistory: z.array(ChatHistoryMessageSchema).optional().describe("Conversation history for additional context about the design requirements."),
+  chatHistory: z.array(z.object({ role: z.enum(['user', 'assistant']), text: z.string() })).optional().describe("Conversation history for additional context about the design requirements."),
   modelId: z.string().optional().describe('The Genkit model ID to use for this request.'),
+  userApiKey: z.string().optional().describe('User-provided Gemini API key.'),
 });
 export type CheckMadeDesignsInput = z.infer<typeof CheckMadeDesignsFlowInputSchema>;
 
@@ -42,7 +33,7 @@ const CheckMadeDesignsPromptInputSchema = z.object({
   designToCheckDataUri: z.string().describe("The design image to be checked."),
   userName: z.string().describe('The name of the user (designer).'),
   communicationStyleNotes: z.string().describe('The communication style notes of the user.'),
-  chatHistory: z.array(ChatHistoryMessageSchema).optional().describe("Conversation history."),
+  chatHistory: z.array(z.object({ role: z.enum(['user', 'assistant']), text: z.string() })).optional().describe("Conversation history."),
 });
 
 const MistakeAnalysisSchema = z.object({
@@ -61,15 +52,31 @@ const CheckMadeDesignsOutputSchema = z.object({
 });
 export type CheckMadeDesignsOutput = z.infer<typeof CheckMadeDesignsOutputSchema>;
 
-export async function checkMadeDesigns(input: CheckMadeDesignsInput): Promise<CheckMadeDesignsOutput> {
-  return checkMadeDesignsFlow(input);
-}
+export async function checkMadeDesigns(flowInput: CheckMadeDesignsInput): Promise<CheckMadeDesignsOutput> {
+  const { userApiKey, modelId, clientPromptOrDescription, designToCheckDataUri, userName, communicationStyleNotes, chatHistory } = flowInput;
+  const actualPromptInputData = { clientPromptOrDescription, designToCheckDataUri, userName, communicationStyleNotes, chatHistory };
+  const modelToUse = modelId || DEFAULT_MODEL_ID;
+  const flowName = 'checkMadeDesigns';
 
-const prompt = ai.definePrompt({
-  name: 'checkMadeDesignsPrompt',
-  input: { schema: CheckMadeDesignsPromptInputSchema },
-  output: { schema: CheckMadeDesignsOutputSchema },
-  prompt: `You are an expert design reviewer assisting a designer named {{{userName}}}. Their communication style is: {{{communicationStyleNotes}}}.
+  let currentAiInstance = ai; // Global Genkit instance by default
+  let apiKeySourceForLog = "GOOGLE_API_KEY from .env file";
+
+  if (userApiKey) {
+    console.log(`INFO (${flowName}): Using user-provided API key.`);
+    currentAiInstance = genkit({ plugins: [googleAI({ apiKey: userApiKey })] });
+    apiKeySourceForLog = "User-provided API key from profile";
+  } else if (process.env.GOOGLE_API_KEY) {
+    console.log(`INFO (${flowName}): User API key not provided. Using GOOGLE_API_KEY from .env file.`);
+  } else {
+    console.error(`CRITICAL_ERROR (${flowName}): No API key available. Neither a user-provided API key nor the GOOGLE_API_KEY in the .env file is set.`);
+    throw new Error(`API key configuration error in ${flowName}. AI features are unavailable.`);
+  }
+  
+  const checkMadeDesignsPrompt = currentAiInstance.definePrompt({
+    name: `${flowName}Prompt_${Date.now()}`,
+    input: { schema: CheckMadeDesignsPromptInputSchema },
+    output: { schema: CheckMadeDesignsOutputSchema },
+    prompt: `You are an expert design reviewer assisting a designer named {{{userName}}}. Their communication style is: {{{communicationStyleNotes}}}.
 The designer made a design based on a client's requirements and wants you to check it thoroughly for mistakes.
 Your entire response MUST be in Bangla.
 
@@ -115,19 +122,18 @@ Output Format (ensure your entire response is a single JSON object matching this
   "overallSummary": "..."
 }
 `,
-});
-
-const checkMadeDesignsFlow = ai.defineFlow(
-  {
-    name: 'checkMadeDesignsFlow',
-    inputSchema: CheckMadeDesignsFlowInputSchema,
-    outputSchema: CheckMadeDesignsOutputSchema,
-  },
-  async (flowInput) => {
-    const { modelId, ...actualPromptInput } = flowInput;
-    const modelToUse = modelId || DEFAULT_MODEL_ID;
-    
-    const {output} = await prompt(actualPromptInput, { model: modelToUse });
-    return output!;
+  });
+  
+  try {
+    console.log(`INFO (${flowName}): Making AI call using API key from: ${apiKeySourceForLog}`);
+    const {output} = await checkMadeDesignsPrompt(actualPromptInputData, { model: modelToUse });
+    if (!output) {
+      console.error(`ERROR (${flowName}): AI returned empty or undefined output.`);
+      throw new Error(`AI response was empty or undefined in ${flowName}.`);
+    }
+    return output;
+  } catch (error) {
+    console.error(`ERROR (${flowName}): AI call failed (API key source: ${apiKeySourceForLog}). Error:`, error);
+    throw new Error(`AI call failed in ${flowName}. Please check server logs for details. Original error: ${(error as Error).message}`);
   }
-);
+}

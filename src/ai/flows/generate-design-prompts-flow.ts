@@ -11,6 +11,8 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
+import { genkit } from 'genkit';
+import { googleAI } from '@genkit-ai/googleai';
 
 const AttachedFileSchema = z.object({
   name: z.string().describe("Name of the file"),
@@ -32,6 +34,7 @@ const GenerateDesignPromptsFlowInputSchema = z.object({
   attachedFiles: z.array(AttachedFileSchema).optional().describe("Files attached by the user. Analyze for context."),
   chatHistory: z.array(ChatHistoryMessageSchema).optional().describe("Conversation history. Look for design ideas shared by the assistant in recent turns if not in clientMessage."),
   modelId: z.string().optional().describe('The Genkit model ID to use for this request.'),
+  userApiKey: z.string().optional().describe('User-provided Gemini API key.'),
 });
 export type GenerateDesignPromptsInput = z.infer<typeof GenerateDesignPromptsFlowInputSchema>;
 
@@ -49,15 +52,31 @@ const GenerateDesignPromptsOutputSchema = z.object({
 });
 export type GenerateDesignPromptsOutput = z.infer<typeof GenerateDesignPromptsOutputSchema>;
 
-export async function generateDesignPrompts(input: GenerateDesignPromptsInput): Promise<GenerateDesignPromptsOutput> {
-  return generateDesignPromptsFlow(input);
-}
+export async function generateDesignPrompts(flowInput: GenerateDesignPromptsInput): Promise<GenerateDesignPromptsOutput> {
+  const { userApiKey, modelId, clientMessage, userName, communicationStyleNotes, attachedFiles, chatHistory } = flowInput;
+  const actualPromptInputData = { clientMessage, userName, communicationStyleNotes, attachedFiles, chatHistory };
+  const modelToUse = modelId || DEFAULT_MODEL_ID;
+  const flowName = 'generateDesignPrompts';
 
-const prompt = ai.definePrompt({
-  name: 'generateDesignPromptsPrompt',
-  input: { schema: GenerateDesignPromptsPromptInputSchema },
-  output: { schema: GenerateDesignPromptsOutputSchema },
-  prompt: `You are an expert AI Prompt Engineer for a graphic designer named {{{userName}}}.
+  let currentAiInstance = ai; // Global Genkit instance by default
+  let apiKeySourceForLog = "GOOGLE_API_KEY from .env file";
+
+  if (userApiKey) {
+    console.log(`INFO (${flowName}): Using user-provided API key.`);
+    currentAiInstance = genkit({ plugins: [googleAI({ apiKey: userApiKey })] });
+    apiKeySourceForLog = "User-provided API key from profile";
+  } else if (process.env.GOOGLE_API_KEY) {
+    console.log(`INFO (${flowName}): User API key not provided. Using GOOGLE_API_KEY from .env file.`);
+  } else {
+    console.error(`CRITICAL_ERROR (${flowName}): No API key available. Neither a user-provided API key nor the GOOGLE_API_KEY in the .env file is set.`);
+    throw new Error(`API key configuration error in ${flowName}. AI features are unavailable.`);
+  }
+
+  const generateDesignPromptsPrompt = currentAiInstance.definePrompt({
+    name: `${flowName}Prompt_${Date.now()}`,
+    input: { schema: GenerateDesignPromptsPromptInputSchema },
+    output: { schema: GenerateDesignPromptsOutputSchema },
+    prompt: `You are an expert AI Prompt Engineer for a graphic designer named {{{userName}}}.
 Their communication style is: {{{communicationStyleNotes}}}.
 
 **Objective:** Convert design ideas (found in the client's current message or recent chat history from the assistant) into highly detailed prompts for AI image generation.
@@ -111,21 +130,19 @@ Attached Files (for additional context, if any):
 
 Generate the prompts based on the ideas you find. If no clear ideas are present, you can state that in a single prompt within the array, like "No specific design ideas found to generate prompts for. Please provide design ideas or use the 'Idea' feature first."
 `,
-});
-
-const generateDesignPromptsFlow = ai.defineFlow(
-  {
-    name: 'generateDesignPromptsFlow',
-    inputSchema: GenerateDesignPromptsFlowInputSchema,
-    outputSchema: GenerateDesignPromptsOutputSchema,
-  },
-  async (flowInput) => {
-    const { modelId, ...actualPromptInput } = flowInput;
-    const modelToUse = modelId || DEFAULT_MODEL_ID;
-    
-    const {output} = await prompt(actualPromptInput, { model: modelToUse });
-    return output!;
+  });
+  
+  try {
+    console.log(`INFO (${flowName}): Making AI call using API key from: ${apiKeySourceForLog}`);
+    const {output} = await generateDesignPromptsPrompt(actualPromptInputData, { model: modelToUse });
+    if (!output) {
+      console.error(`ERROR (${flowName}): AI returned empty or undefined output.`);
+      throw new Error(`AI response was empty or undefined in ${flowName}.`);
+    }
+    return output;
+  } catch (error) {
+    console.error(`ERROR (${flowName}): AI call failed (API key source: ${apiKeySourceForLog}). Error:`, error);
+    throw new Error(`AI call failed in ${flowName}. Please check server logs for details. Original error: ${(error as Error).message}`);
   }
-);
-
+}
     

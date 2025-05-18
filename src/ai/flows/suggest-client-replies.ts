@@ -11,13 +11,15 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
+import { genkit } from 'genkit';
+import { googleAI } from '@genkit-ai/googleai';
 
 const ChatHistoryMessageSchema = z.object({
   role: z.enum(['user', 'assistant']),
   text: z.string(),
 });
 
-// Schema for the flow's input, including modelId
+// Schema for the flow's input, including modelId and userApiKey
 const SuggestClientRepliesFlowInputSchema = z.object({
   clientMessage: z.string().describe("The client's current message to the designer."),
   userName: z.string().describe('The name of the designer.'),
@@ -26,10 +28,11 @@ const SuggestClientRepliesFlowInputSchema = z.object({
   services: z.array(z.string()).optional().describe('List of services offered by the designer.'),
   chatHistory: z.array(ChatHistoryMessageSchema).optional().describe("A summary of recent messages in the conversation, if any. The current clientMessage is NOT part of this history."),
   modelId: z.string().optional().describe('The Genkit model ID to use for this request.'),
+  userApiKey: z.string().optional().describe('User-provided Gemini API key.'),
 });
 export type SuggestClientRepliesInput = z.infer<typeof SuggestClientRepliesFlowInputSchema>;
 
-// Schema for the prompt's specific input (does not include modelId)
+// Schema for the prompt's specific input (does not include modelId or userApiKey)
 const SuggestClientRepliesPromptInputSchema = z.object({
   clientMessage: z.string().describe("The client's current message to the designer."),
   userName: z.string().describe('The name of the designer.'),
@@ -46,15 +49,31 @@ const SuggestClientRepliesOutputSchema = z.object({
 });
 export type SuggestClientRepliesOutput = z.infer<typeof SuggestClientRepliesOutputSchema>;
 
-export async function suggestClientReplies(input: SuggestClientRepliesInput): Promise<SuggestClientRepliesOutput> {
-  return suggestClientRepliesFlow(input);
-}
+export async function suggestClientReplies(flowInput: SuggestClientRepliesInput): Promise<SuggestClientRepliesOutput> {
+  const { userApiKey, modelId, clientMessage, userName, professionalTitle, communicationStyleNotes, services, chatHistory } = flowInput;
+  const actualPromptInputData = { clientMessage, userName, professionalTitle, communicationStyleNotes, services, chatHistory };
+  const modelToUse = modelId || DEFAULT_MODEL_ID;
+  const flowName = 'suggestClientReplies';
 
-const prompt = ai.definePrompt({
-  name: 'suggestClientRepliesPrompt',
-  input: {schema: SuggestClientRepliesPromptInputSchema}, // Use prompt-specific schema
-  output: {schema: SuggestClientRepliesOutputSchema},
-  prompt: `You are a professional assistant helping a graphic designer.
+  let currentAiInstance = ai; // Global Genkit instance by default
+  let apiKeySourceForLog = "GOOGLE_API_KEY from .env file";
+
+  if (userApiKey) {
+    console.log(`INFO (${flowName}): Using user-provided API key.`);
+    currentAiInstance = genkit({ plugins: [googleAI({ apiKey: userApiKey })] });
+    apiKeySourceForLog = "User-provided API key from profile";
+  } else if (process.env.GOOGLE_API_KEY) {
+    console.log(`INFO (${flowName}): User API key not provided. Using GOOGLE_API_KEY from .env file.`);
+  } else {
+    console.error(`CRITICAL_ERROR (${flowName}): No API key available. Neither a user-provided API key nor the GOOGLE_API_KEY in the .env file is set.`);
+    throw new Error(`API key configuration error in ${flowName}. AI features are unavailable.`);
+  }
+
+  const suggestRepliesPrompt = currentAiInstance.definePrompt({
+    name: `${flowName}Prompt_${Date.now()}`,
+    input: {schema: SuggestClientRepliesPromptInputSchema},
+    output: {schema: SuggestClientRepliesOutputSchema},
+    prompt: `You are a professional assistant helping a graphic designer.
 Designer's Name: {{userName}}
 {{#if professionalTitle}}Designer's Title: {{professionalTitle}}{{/if}}
 Designer's Communication Style: {{communicationStyleNotes}}
@@ -83,20 +102,18 @@ Client's Current Message:
 
 Return the replies and translations as a JSON object.
 `,
-});
-
-const suggestClientRepliesFlow = ai.defineFlow(
-  {
-    name: 'suggestClientRepliesFlow',
-    inputSchema: SuggestClientRepliesFlowInputSchema, // Use flow-specific schema
-    outputSchema: SuggestClientRepliesOutputSchema,
-  },
-  async (flowInput) => {
-    const { clientMessage, userName, professionalTitle, communicationStyleNotes, services, chatHistory, modelId } = flowInput;
-    const actualPromptInput = { clientMessage, userName, professionalTitle, communicationStyleNotes, services, chatHistory };
-    const modelToUse = modelId || DEFAULT_MODEL_ID;
-    
-    const {output} = await prompt(actualPromptInput, { model: modelToUse });
-    return output!;
+  });
+  
+  try {
+    console.log(`INFO (${flowName}): Making AI call using API key from: ${apiKeySourceForLog}`);
+    const {output} = await suggestRepliesPrompt(actualPromptInputData, { model: modelToUse });
+    if (!output) {
+      console.error(`ERROR (${flowName}): AI returned empty or undefined output.`);
+      throw new Error(`AI response was empty or undefined in ${flowName}.`);
+    }
+    return output;
+  } catch (error) {
+    console.error(`ERROR (${flowName}): AI call failed (API key source: ${apiKeySourceForLog}). Error:`, error);
+    throw new Error(`AI call failed in ${flowName}. Please check server logs for details. Original error: ${(error as Error).message}`);
   }
-);
+}

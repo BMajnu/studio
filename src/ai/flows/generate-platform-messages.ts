@@ -1,3 +1,4 @@
+
 // src/ai/flows/generate-platform-messages.ts
 'use server';
 /**
@@ -11,8 +12,10 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
+import { genkit } from 'genkit';
+import { googleAI } from '@genkit-ai/googleai';
 
-// Schema for the flow's input, including modelId
+// Schema for the flow's input, including modelId and userApiKey
 const GeneratePlatformMessagesFlowInputSchema = z.object({
   name: z.string().describe('The name of the designer.'),
   professionalTitle: z.string().optional().describe('The professional title of the designer.'),
@@ -24,10 +27,11 @@ const GeneratePlatformMessagesFlowInputSchema = z.object({
   customClientFeedbackResponseTemplate: z.string().optional().describe('Custom client feedback response template provided by the user.'),
   messageType: z.enum(['delivery', 'revision']).describe('The type of message to generate (delivery or revision).'),
   modelId: z.string().optional().describe('The Genkit model ID to use for this request.'),
+  userApiKey: z.string().optional().describe('User-provided Gemini API key.'),
 });
 export type GeneratePlatformMessagesInput = z.infer<typeof GeneratePlatformMessagesFlowInputSchema>;
 
-// Schema for the prompt's specific input (does not include modelId)
+// Schema for the prompt's specific input (does not include modelId or userApiKey)
 const GeneratePlatformMessagesPromptInputSchema = z.object({
   name: z.string().describe('The name of the designer.'),
   professionalTitle: z.string().optional().describe('The professional title of the designer.'),
@@ -50,15 +54,31 @@ const GeneratePlatformMessagesOutputSchema = z.object({
 });
 export type GeneratePlatformMessagesOutput = z.infer<typeof GeneratePlatformMessagesOutputSchema>;
 
-export async function generatePlatformMessages(input: GeneratePlatformMessagesInput): Promise<GeneratePlatformMessagesOutput> {
-  return generatePlatformMessagesFlow(input);
-}
+export async function generatePlatformMessages(flowInput: GeneratePlatformMessagesInput): Promise<GeneratePlatformMessagesOutput> {
+  const { userApiKey, modelId, name, professionalTitle, services, deliveryNotes, revisionNotes, fiverrUsername, customSellerFeedbackTemplate, customClientFeedbackResponseTemplate, messageType } = flowInput;
+  const actualPromptInputData = { name, professionalTitle, services, deliveryNotes, revisionNotes, fiverrUsername, customSellerFeedbackTemplate, customClientFeedbackResponseTemplate, messageType };
+  const modelToUse = modelId || DEFAULT_MODEL_ID;
+  const flowName = 'generatePlatformMessages';
 
-const prompt = ai.definePrompt({
-  name: 'generatePlatformMessagesPrompt',
-  input: {schema: GeneratePlatformMessagesPromptInputSchema},
-  output: {schema: GeneratePlatformMessagesOutputSchema},
-  prompt: `You are an expert assistant for a graphic designer named {{name}}.
+  let currentAiInstance = ai; // Global Genkit instance by default
+  let apiKeySourceForLog = "GOOGLE_API_KEY from .env file";
+
+  if (userApiKey) {
+    console.log(`INFO (${flowName}): Using user-provided API key.`);
+    currentAiInstance = genkit({ plugins: [googleAI({ apiKey: userApiKey })] });
+    apiKeySourceForLog = "User-provided API key from profile";
+  } else if (process.env.GOOGLE_API_KEY) {
+    console.log(`INFO (${flowName}): User API key not provided. Using GOOGLE_API_KEY from .env file.`);
+  } else {
+    console.error(`CRITICAL_ERROR (${flowName}): No API key available. Neither a user-provided API key nor the GOOGLE_API_KEY in the .env file is set.`);
+    throw new Error(`API key configuration error in ${flowName}. AI features are unavailable.`);
+  }
+
+  const platformMessagesPrompt = currentAiInstance.definePrompt({
+    name: `${flowName}Prompt_${Date.now()}`,
+    input: {schema: GeneratePlatformMessagesPromptInputSchema},
+    output: {schema: GeneratePlatformMessagesOutputSchema},
+    prompt: `You are an expert assistant for a graphic designer named {{name}}.
 {{#if professionalTitle}}Their professional title is {{professionalTitle}}.{{/if}}
 {{#if fiverrUsername}}Their Fiverr username is {{fiverrUsername}}.{{/if}}
 {{#if services.length}}
@@ -170,19 +190,18 @@ Output Format:
 }
 Ensure each "message" field contains the full text for that template.
 `,
-});
+  });
 
-const generatePlatformMessagesFlow = ai.defineFlow(
-  {
-    name: 'generatePlatformMessagesFlow',
-    inputSchema: GeneratePlatformMessagesFlowInputSchema,
-    outputSchema: GeneratePlatformMessagesOutputSchema,
-  },
-  async (flowInput) => {
-    const { modelId, ...actualPromptInput } = flowInput;
-    const modelToUse = modelId || DEFAULT_MODEL_ID;
-
-    const {output} = await prompt(actualPromptInput, { model: modelToUse });
-    return output!;
+  try {
+    console.log(`INFO (${flowName}): Making AI call using API key from: ${apiKeySourceForLog}`);
+    const {output} = await platformMessagesPrompt(actualPromptInputData, { model: modelToUse });
+    if (!output) {
+      console.error(`ERROR (${flowName}): AI returned empty or undefined output.`);
+      throw new Error(`AI response was empty or undefined in ${flowName}.`);
+    }
+    return output;
+  } catch (error) {
+    console.error(`ERROR (${flowName}): AI call failed (API key source: ${apiKeySourceForLog}). Error:`, error);
+    throw new Error(`AI call failed in ${flowName}. Please check server logs for details. Original error: ${(error as Error).message}`);
   }
-);
+}

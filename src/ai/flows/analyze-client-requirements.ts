@@ -11,6 +11,8 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
+import { genkit } from 'genkit';
+import { googleAI } from '@genkit-ai/googleai';
 
 const AttachedFileSchema = z.object({
   name: z.string().describe("Name of the file"),
@@ -24,7 +26,7 @@ const ChatHistoryMessageSchema = z.object({
   text: z.string(),
 });
 
-// Schema for the flow's input, including modelId
+// Schema for the flow's input, including modelId and userApiKey
 const AnalyzeClientRequirementsFlowInputSchema = z.object({
   clientMessage: z.string().describe('The current client message to process.'),
   userName: z.string().describe('The name of the user (designer).'),
@@ -32,10 +34,11 @@ const AnalyzeClientRequirementsFlowInputSchema = z.object({
   attachedFiles: z.array(AttachedFileSchema).optional().describe("Files attached by the user. Images should be passed as dataUris. Text files as textContent."),
   chatHistory: z.array(ChatHistoryMessageSchema).optional().describe("A summary of recent messages in the conversation, if any. The current clientMessage is NOT part of this history."),
   modelId: z.string().optional().describe('The Genkit model ID to use for this request.'),
+  userApiKey: z.string().optional().describe('User-provided Gemini API key.'),
 });
 export type AnalyzeClientRequirementsInput = z.infer<typeof AnalyzeClientRequirementsFlowInputSchema>;
 
-// Schema for the prompt's specific input (does not include modelId)
+// Schema for the prompt's specific input (does not include modelId or userApiKey)
 const AnalyzeClientRequirementsPromptInputSchema = z.object({
   clientMessage: z.string().describe('The current client message to process.'),
   userName: z.string().describe('The name of the user (designer).'),
@@ -53,19 +56,35 @@ const AnalyzeClientRequirementsOutputSchema = z.object({
 });
 export type AnalyzeClientRequirementsOutput = z.infer<typeof AnalyzeClientRequirementsOutputSchema>;
 
-export async function analyzeClientRequirements(input: AnalyzeClientRequirementsInput): Promise<AnalyzeClientRequirementsOutput> {
-  return analyzeClientRequirementsFlow(input);
-}
+export async function analyzeClientRequirements(flowInput: AnalyzeClientRequirementsInput): Promise<AnalyzeClientRequirementsOutput> {
+  const { userApiKey, modelId, clientMessage, userName, communicationStyleNotes, attachedFiles, chatHistory } = flowInput;
+  const actualPromptInputData = { clientMessage, userName, communicationStyleNotes, attachedFiles, chatHistory };
+  const modelToUse = modelId || DEFAULT_MODEL_ID;
+  const flowName = 'analyzeClientRequirements';
 
-const prompt = ai.definePrompt({
-  name: 'analyzeClientRequirementsPrompt',
-  input: {
-    schema: AnalyzeClientRequirementsPromptInputSchema, 
-  },
-  output: {
-    schema: AnalyzeClientRequirementsOutputSchema, 
-  },
-  prompt: `You are a helpful AI assistant for a graphic designer named {{{userName}}}.
+  let currentAiInstance = ai; // Global Genkit instance by default
+  let apiKeySourceForLog = "GOOGLE_API_KEY from .env file";
+
+  if (userApiKey) {
+    console.log(`INFO (${flowName}): Using user-provided API key.`);
+    currentAiInstance = genkit({ plugins: [googleAI({ apiKey: userApiKey })] });
+    apiKeySourceForLog = "User-provided API key from profile";
+  } else if (process.env.GOOGLE_API_KEY) {
+    console.log(`INFO (${flowName}): User API key not provided. Using GOOGLE_API_KEY from .env file.`);
+  } else {
+    console.error(`CRITICAL_ERROR (${flowName}): No API key available. Neither a user-provided API key nor the GOOGLE_API_KEY in the .env file is set.`);
+    throw new Error(`API key configuration error in ${flowName}. AI features are unavailable.`);
+  }
+
+  const analyzeClientRequirementsPrompt = currentAiInstance.definePrompt({
+    name: `${flowName}Prompt_${Date.now()}`,
+    input: {
+      schema: AnalyzeClientRequirementsPromptInputSchema, 
+    },
+    output: {
+      schema: AnalyzeClientRequirementsOutputSchema, 
+    },
+    prompt: `You are a helpful AI assistant for a graphic designer named {{{userName}}}.
 Their communication style is: {{{communicationStyleNotes}}}.
 
 Your task is to thoroughly analyze the client's request based on their latest message, any attached files, and the conversation history. Provide a structured analysis in four distinct paragraphs.
@@ -114,20 +133,18 @@ Output Format (ensure your entire response is a single JSON object matching this
   "designMessageOrSaying": "..."
 }
 `,
-});
+  });
 
-const analyzeClientRequirementsFlow = ai.defineFlow(
-  {
-    name: 'analyzeClientRequirementsFlow',
-    inputSchema: AnalyzeClientRequirementsFlowInputSchema, 
-    outputSchema: AnalyzeClientRequirementsOutputSchema, 
-  },
-  async (flowInput) => {
-    const { clientMessage, userName, communicationStyleNotes, attachedFiles, chatHistory, modelId } = flowInput;
-    const actualPromptInput = { clientMessage, userName, communicationStyleNotes, attachedFiles, chatHistory };
-    const modelToUse = modelId || DEFAULT_MODEL_ID;
-
-    const {output} = await prompt(actualPromptInput, { model: modelToUse });
-    return output!;
+  try {
+    console.log(`INFO (${flowName}): Making AI call using API key from: ${apiKeySourceForLog}`);
+    const {output} = await analyzeClientRequirementsPrompt(actualPromptInputData, { model: modelToUse });
+    if (!output) {
+      console.error(`ERROR (${flowName}): AI returned empty or undefined output.`);
+      throw new Error(`AI response was empty or undefined in ${flowName}.`);
+    }
+    return output;
+  } catch (error) {
+    console.error(`ERROR (${flowName}): AI call failed (API key source: ${apiKeySourceForLog}). Error:`, error);
+    throw new Error(`AI call failed in ${flowName}. Please check server logs for details. Original error: ${(error as Error).message}`);
   }
-);
+}

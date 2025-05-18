@@ -13,6 +13,8 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
+import { genkit } from 'genkit';
+import { googleAI } from '@genkit-ai/googleai';
 
 const AttachedFileSchema = z.object({
   name: z.string().describe("Name of the file"),
@@ -26,7 +28,7 @@ const ChatHistoryMessageSchema = z.object({
   text: z.string(),
 });
 
-// Schema for the flow's input, including modelId
+// Schema for the flow's input, including modelId and userApiKey
 const GenerateEngagementPackFlowInputSchema = z.object({
   clientMessage: z.string().describe('The current client message to process.'),
   designerName: z.string().describe("The designer's name (e.g., B. Majnu)."),
@@ -35,10 +37,11 @@ const GenerateEngagementPackFlowInputSchema = z.object({
   attachedFiles: z.array(AttachedFileSchema).optional().describe("Files attached by the user. Images as dataUris, text files as textContent."),
   chatHistory: z.array(ChatHistoryMessageSchema).optional().describe("A summary of recent messages in the conversation. The current clientMessage is NOT part of this history."),
   modelId: z.string().optional().describe('The Genkit model ID to use for this request.'),
+  userApiKey: z.string().optional().describe('User-provided Gemini API key.'),
 });
 export type GenerateEngagementPackInput = z.infer<typeof GenerateEngagementPackFlowInputSchema>;
 
-// Schema for the prompt's specific input (does not include modelId)
+// Schema for the prompt's specific input (does not include modelId or userApiKey)
 const GenerateEngagementPackPromptInputSchema = z.object({
   clientMessage: z.string().describe('The current client message to process.'),
   designerName: z.string().describe("The designer's name (e.g., B. Majnu)."),
@@ -60,15 +63,31 @@ const GenerateEngagementPackOutputSchema = z.object({
 });
 export type GenerateEngagementPackOutput = z.infer<typeof GenerateEngagementPackOutputSchema>;
 
-export async function generateEngagementPack(input: GenerateEngagementPackInput): Promise<GenerateEngagementPackOutput> {
-  return generateEngagementPackFlow(input);
-}
+export async function generateEngagementPack(flowInput: GenerateEngagementPackInput): Promise<GenerateEngagementPackOutput> {
+  const { userApiKey, modelId, clientMessage, designerName, designerRawStatement, designerCommunicationStyle, attachedFiles, chatHistory } = flowInput;
+  const actualPromptInputData = { clientMessage, designerName, designerRawStatement, designerCommunicationStyle, attachedFiles, chatHistory };
+  const modelToUse = modelId || DEFAULT_MODEL_ID;
+  const flowName = 'generateEngagementPack';
 
-const prompt = ai.definePrompt({
-  name: 'generateEngagementPackPrompt',
-  input: { schema: GenerateEngagementPackPromptInputSchema }, // Use prompt-specific schema
-  output: { schema: GenerateEngagementPackOutputSchema },
-  prompt: `You are an expert assistant for a graphic designer named {{{designerName}}}.
+  let currentAiInstance = ai; // Global Genkit instance by default
+  let apiKeySourceForLog = "GOOGLE_API_KEY from .env file";
+
+  if (userApiKey) {
+    console.log(`INFO (${flowName}): Using user-provided API key.`);
+    currentAiInstance = genkit({ plugins: [googleAI({ apiKey: userApiKey })] });
+    apiKeySourceForLog = "User-provided API key from profile";
+  } else if (process.env.GOOGLE_API_KEY) {
+    console.log(`INFO (${flowName}): User API key not provided. Using GOOGLE_API_KEY from .env file.`);
+  } else {
+    console.error(`CRITICAL_ERROR (${flowName}): No API key available. Neither a user-provided API key nor the GOOGLE_API_KEY in the .env file is set.`);
+    throw new Error(`API key configuration error in ${flowName}. AI features are unavailable.`);
+  }
+  
+  const generateEngagementPackPrompt = currentAiInstance.definePrompt({
+    name: `${flowName}Prompt_${Date.now()}`,
+    input: { schema: GenerateEngagementPackPromptInputSchema }, 
+    output: { schema: GenerateEngagementPackOutputSchema },
+    prompt: `You are an expert assistant for a graphic designer named {{{designerName}}}.
 Their communication style is: {{{designerCommunicationStyle}}}.
 
 **Objective:** Generate a comprehensive engagement pack to help {{{designerName}}} respond to a client's message. This pack includes a personalized introduction, a job reply, budget/timeline/software suggestions, and clarifying questions.
@@ -134,19 +153,18 @@ No previous conversation history available. Base the response on the current mes
 **Output Format:** Ensure your entire response is a single JSON object matching the \`GenerateEngagementPackOutputSchema\`.
 Example for clarifyingQuestions: ["What is the primary message you want the design to convey?", "Do you have any specific brand colors or fonts to incorporate?"]
 `,
-});
-
-const generateEngagementPackFlow = ai.defineFlow(
-  {
-    name: 'generateEngagementPackFlow',
-    inputSchema: GenerateEngagementPackFlowInputSchema, // Use flow-specific schema
-    outputSchema: GenerateEngagementPackOutputSchema,
-  },
-  async (flowInput) => {
-    const { modelId, ...actualPromptInput } = flowInput;
-    const modelToUse = modelId || DEFAULT_MODEL_ID;
-    
-    const {output} = await prompt(actualPromptInput, { model: modelToUse });
-    return output!;
+  });
+  
+  try {
+    console.log(`INFO (${flowName}): Making AI call using API key from: ${apiKeySourceForLog}`);
+    const {output} = await generateEngagementPackPrompt(actualPromptInputData, { model: modelToUse });
+    if (!output) {
+      console.error(`ERROR (${flowName}): AI returned empty or undefined output.`);
+      throw new Error(`AI response was empty or undefined in ${flowName}.`);
+    }
+    return output;
+  } catch (error) {
+    console.error(`ERROR (${flowName}): AI call failed (API key source: ${apiKeySourceForLog}). Error:`, error);
+    throw new Error(`AI call failed in ${flowName}. Please check server logs for details. Original error: ${(error as Error).message}`);
   }
-);
+}
