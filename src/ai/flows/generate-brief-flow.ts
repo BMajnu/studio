@@ -1,11 +1,8 @@
 
 'use server';
 /**
- * @fileOverview Generates a concise project brief based on client messages and history.
- *
- * - generateBrief - A function to generate a project brief.
- * - GenerateBriefInput - The input type for the generateBrief function.
- * - GenerateBriefOutput - The return type for the generateBrief function.
+ * @fileOverview This file is DEPRECATED and will be removed.
+ * The functionality has been replaced by generate-engagement-pack-flow.ts
  */
 
 import {ai} from '@/ai/genkit';
@@ -45,69 +42,28 @@ const GenerateBriefOutputSchema = z.object({
 export type GenerateBriefOutput = z.infer<typeof GenerateBriefOutputSchema>;
 
 export async function generateBrief(input: GenerateBriefInput): Promise<GenerateBriefOutput> {
-  return generateBriefFlow(input);
+  // This flow is deprecated. Consider removing or redirecting.
+  console.warn("generateBriefFlow is deprecated and will be removed. Use generateEngagementPackFlow instead.");
+  // Fallback to a simpler response or throw an error
+  return {
+    projectTitle: "Deprecated Flow",
+    projectSummary: "This flow is no longer active. Please use the updated 'Brief' (Engagement Pack) button.",
+    keyObjectives: "N/A",
+    targetAudience: "N/A",
+    designConsiderations: "N/A",
+    potentialDeliverables: "N/A",
+    timelineNotes: "N/A",
+    budgetNotes: "N/A",
+  };
 }
 
+// Original prompt and flow definition are commented out or removed as this flow is deprecated.
+/*
 const prompt = ai.definePrompt({
   name: 'generateBriefPrompt',
   input: { schema: GenerateBriefInputSchema },
   output: { schema: GenerateBriefOutputSchema },
-  prompt: `You are an expert project manager assisting a designer named {{{userName}}}.
-Their communication style is: {{{communicationStyleNotes}}}.
-
-Your task is to generate a concise and structured project brief based on the client's latest message, any attached files, and the entire conversation history.
-
-**Conversation Context:**
-{{#if chatHistory.length}}
-Previous conversation:
-{{#each chatHistory}}
-{{this.role}}: {{{this.text}}}
----
-{{/each}}
-{{else}}
-No previous conversation history available. Base the brief on the current message and attachments.
-{{/if}}
-
-**Client's Current Message (analyze this in light of the full history):**
-{{{clientMessage}}}
-
-{{#if attachedFiles.length}}
-**Attached Files (consider their content or existence):**
-{{#each attachedFiles}}
-- File: {{this.name}} (Type: {{this.type}})
-  {{#if this.dataUri}}
-    (Image content: {{media url=this.dataUri}})
-  {{else if this.textContent}}
-    Content of {{this.name}}: {{{this.textContent}}}
-  {{else}}
-    (File type {{this.type}} not directly viewable, note its existence and name if client refers to it.)
-  {{/if}}
-{{/each}}
-{{/if}}
-
-**Generate the Project Brief with the following sections. If information for a section is not explicitly available or strongly implied, state "Not specified" for that section.**
-
-1.  **Project Title:** A concise title for the project (e.g., 'T-Shirt Design for DesAInR Launch Event'). If not easily identifiable, generate a plausible one based on content.
-2.  **Project Summary:** A brief overview of the project.
-3.  **Key Objectives:** Main goals the client wants to achieve.
-4.  **Target Audience:** Intended audience for the design.
-5.  **Design Considerations:** Specific styles, colors, elements, inspirations, or constraints.
-6.  **Potential Deliverables:** Likely output files or formats.
-7.  **Timeline Notes:** Any mention of urgency or deadlines.
-8.  **Budget Notes:** Any mention of budget or pricing.
-
-Output Format (ensure your entire response is a single JSON object matching this structure):
-{
-  "projectTitle": "...",
-  "projectSummary": "...",
-  "keyObjectives": "...",
-  "targetAudience": "...",
-  "designConsiderations": "...",
-  "potentialDeliverables": "...",
-  "timelineNotes": "...",
-  "budgetNotes": "..."
-}
-`,
+  prompt: `... original prompt ...`,
 });
 
 const generateBriefFlow = ai.defineFlow(
@@ -121,3 +77,4 @@ const generateBriefFlow = ai.defineFlow(
     return output!;
   }
 );
+*/

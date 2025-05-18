@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -32,6 +33,7 @@ const profileFormSchema = z.object({
   geminiApiKey: z.string().max(100).optional(), // Not actively used by flows, but stored
   customSellerFeedbackTemplate: z.string().max(1000).optional(),
   customClientFeedbackResponseTemplate: z.string().max(1000).optional(),
+  rawPersonalStatement: z.string().max(2000).optional(), // New field
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -56,6 +58,7 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
       geminiApiKey: initialProfile.geminiApiKey || "",
       customSellerFeedbackTemplate: initialProfile.customSellerFeedbackTemplate || "",
       customClientFeedbackResponseTemplate: initialProfile.customClientFeedbackResponseTemplate || "",
+      rawPersonalStatement: initialProfile.rawPersonalStatement || DEFAULT_USER_PROFILE.rawPersonalStatement || "", // New field
     },
     mode: "onChange",
   });
@@ -193,6 +196,26 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
           </Button>
           <FormDescription>List the services you offer. Emojis are welcome!</FormDescription>
         </div>
+        
+        <FormField
+          control={form.control}
+          name="rawPersonalStatement"
+          render={({ field }) => (
+            <FormItem className="mt-6">
+              <FormLabel>Raw Personal Statement</FormLabel>
+              <FormControl>
+                <Textarea
+                  placeholder="Your detailed professional introduction and experience for the AI to adapt."
+                  className="resize-none h-40"
+                  {...field}
+                />
+              </FormControl>
+              <FormDescription>Provide your full professional bio here. The AI will adapt parts of this for client introductions based on their specific request.</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
           <FormField

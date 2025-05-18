@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Paperclip, Loader2, BotIcon, Menu, XIcon, PanelLeftOpen, PanelLeftClose, ClipboardList } from 'lucide-react';
+import { Paperclip, Loader2, BotIcon, Menu, XIcon, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -17,7 +17,7 @@ import { processClientMessage, type ProcessClientMessageInput } from '@/ai/flows
 import { suggestClientReplies, type SuggestClientRepliesInput } from '@/ai/flows/suggest-client-replies';
 import { generatePlatformMessages, type GeneratePlatformMessagesInput } from '@/ai/flows/generate-platform-messages';
 import { analyzeClientRequirements, type AnalyzeClientRequirementsInput } from '@/ai/flows/analyze-client-requirements';
-import { generateBrief, type GenerateBriefInput, type GenerateBriefOutput } from '@/ai/flows/generate-brief-flow'; // Added new flow
+import { generateEngagementPack, type GenerateEngagementPackInput, type GenerateEngagementPackOutput } from '@/ai/flows/generate-engagement-pack-flow';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
@@ -27,7 +27,7 @@ import { DEFAULT_USER_ID } from '@/lib/constants';
 // Helper to get textual content from ChatMessageContentPart[] or string
 const getMessageText = (content: string | ChatMessageContentPart[]): string => {
   if (typeof content === 'string') return content;
-  if (!Array.isArray(content)) return '[Invalid Message Content]';
+  if (!Array.isArray(content) || content.length === 0) return '[Empty or Invalid Message Content]';
 
   let fullText = '';
   content.forEach(part => {
@@ -44,6 +44,8 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
       case 'list':
         if (part.items && part.items.length > 0) {
           fullText += part.items.map((item, index) => `${index + 1}. ${item}`).join('\n') + '\n';
+        } else {
+          fullText += '[Empty List]\n';
         }
         break;
       case 'translation_group':
@@ -57,7 +59,7 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
           groupText += "\n";
           if (part.bengali.analysis) groupText += `Bengali Analysis/Combined Translation:\n${part.bengali.analysis}\n`;
           if (part.bengali.simplifiedRequest) groupText += `Bengali Simplified Request:\n${part.bengali.simplifiedRequest}\n`;
-           if (part.bengali.stepByStepApproach) groupText += `Bengali Step-by-Step Approach:\n${part.bengali.stepByStepApproach}\n`;
+          if (part.bengali.stepByStepApproach) groupText += `Bengali Step-by-Step Approach:\n${part.bengali.stepByStepApproach}\n`;
         }
         if (groupText.trim() === '') {
             groupText = '[Empty Translation Group]\n';
@@ -65,12 +67,13 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
         fullText += groupText;
         break;
       default:
-        const exhaustiveCheck: never = part; // This will error if a type is missed
-        fullText += '[Unsupported Content Part]\n';
+        // This exhaustive check helps catch unhandled part types during development
+        // const _exhaustiveCheck: never = part; 
+        fullText += `[Unsupported Content Part: ${(part as any).type}]\n`;
     }
     fullText += '\n'; 
   });
-  return fullText.trim() || '[Empty Message Content]';
+  return fullText.trim() || '[Empty Message Content Parts]';
 };
 
 
@@ -158,17 +161,24 @@ export default function ChatPage() {
 
     const currentUserIdToUse = userIdForHistory;
     const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + currentUserIdToUse;
-    const lastActiveSessionId = localStorage.getItem(lastActiveSessionIdKey);
+    let lastActiveSessionId = localStorage.getItem(lastActiveSessionIdKey);
     let sessionToLoad: ChatSession | null = null;
 
     if (lastActiveSessionId) {
-      sessionToLoad = getSession(lastActiveSessionId);
-      if (sessionToLoad && !sessionToLoad.id.startsWith(currentUserIdToUse + '_')) {
-          sessionToLoad = null; // Invalidate session if it doesn't match current user prefix
+      // Validate that the session ID actually belongs to the current user
+      if (!lastActiveSessionId.startsWith(currentUserIdToUse + '_')) {
+          console.warn(`Invalid lastActiveSessionId (${lastActiveSessionId}) for user ${currentUserIdToUse}. Resetting.`);
           localStorage.removeItem(lastActiveSessionIdKey);
+          lastActiveSessionId = null; // Force creation of a new session
+      } else {
+        sessionToLoad = getSession(lastActiveSessionId);
+        if (!sessionToLoad) { // Session might have been deleted or data corrupted
+             localStorage.removeItem(lastActiveSessionIdKey);
+             lastActiveSessionId = null;
+        }
       }
     }
-
+    
     if (sessionToLoad) {
       const migratedMessages = ensureMessagesHaveUniqueIds(sessionToLoad.messages);
       const updatedSession = { ...sessionToLoad, messages: migratedMessages };
@@ -226,8 +236,6 @@ export default function ChatPage() {
                     newCurrentSessionState.id = savedSession.id;
                     changesMade = true;
                 }
-
-
                 return changesMade ? newCurrentSessionState : prevCurrentSession;
             });
           }
@@ -334,10 +342,9 @@ export default function ChatPage() {
 
   const handleSendMessage = async (messageText: string = inputMessage, actionType: ActionType = 'processMessage', notes?: string) => {
     const currentMessageText = messageText.trim();
-    const canSendMessage = currentMessageText || currentAttachedFilesData.length > 0 || actionType === 'generateDelivery' || actionType === 'generateRevision' || actionType === 'analyzeRequirements' || actionType === 'generateBrief';
+     const canSendMessage = currentMessageText || currentAttachedFilesData.length > 0 || actionType === 'generateDelivery' || actionType === 'generateRevision' || actionType === 'analyzeRequirements' || actionType === 'generateEngagementPack';
     
     if (!canSendMessage && (actionType !== 'generateDelivery' && actionType !== 'generateRevision')) return;
-
 
     if (!profile) {
       toast({ title: "Profile not loaded", description: "Please wait for your profile to load or set it up in Settings.", variant: "destructive" });
@@ -363,10 +370,9 @@ export default function ChatPage() {
       const baseInput = { userName: profile.name, communicationStyleNotes: profile.communicationStyleNotes || '' };
       const filesForFlow = filesToSendWithThisMessage.map(f => ({ name: f.name, type: f.type, dataUri: f.dataUri, textContent: f.textContent }));
       
-      // Use messages directly from state before the new user/assistant messages were added
       const previousMessagesForHistory = messages;
       const chatHistoryForAI = previousMessagesForHistory
-        .slice(-5) // Take up to last 5 messages from current state
+        .slice(-5) 
         .map(msg => ({
           role: msg.role as 'user' | 'assistant', 
           text: getMessageText(msg.content) 
@@ -398,18 +404,30 @@ export default function ChatPage() {
         aiResponseContent.push({ type: 'text', title: 'Detailed Requirements (Bangla)', text: requirementsOutput.detailedRequirementsBangla });
         aiResponseContent.push({ type: 'text', title: 'Design Message or Saying', text: requirementsOutput.designMessageOrSaying });
       
-      } else if (actionType === 'generateBrief') {
-        const briefInput: GenerateBriefInput = { ...baseInput, clientMessage: currentMessageText, attachedFiles: filesForFlow, chatHistory: chatHistoryForAI };
-        const briefOutput = await generateBrief(briefInput);
-        aiResponseContent.push({ type: 'text', title: 'Project Title', text: briefOutput.projectTitle });
-        aiResponseContent.push({ type: 'text', title: 'Project Summary', text: briefOutput.projectSummary });
-        aiResponseContent.push({ type: 'text', title: 'Key Objectives', text: briefOutput.keyObjectives });
-        aiResponseContent.push({ type: 'text', title: 'Target Audience', text: briefOutput.targetAudience });
-        aiResponseContent.push({ type: 'text', title: 'Design Considerations', text: briefOutput.designConsiderations });
-        aiResponseContent.push({ type: 'text', title: 'Potential Deliverables', text: briefOutput.potentialDeliverables });
-        aiResponseContent.push({ type: 'text', title: 'Timeline Notes', text: briefOutput.timelineNotes });
-        aiResponseContent.push({ type: 'text', title: 'Budget Notes', text: briefOutput.budgetNotes });
+      } else if (actionType === 'generateEngagementPack') {
+        const engagementInput: GenerateEngagementPackInput = {
+          clientMessage: currentMessageText,
+          designerName: profile.name,
+          designerRawStatement: profile.rawPersonalStatement || '',
+          designerCommunicationStyle: profile.communicationStyleNotes || '',
+          attachedFiles: filesForFlow,
+          chatHistory: chatHistoryForAI,
+        };
+        const packOutput = await generateEngagementPack(engagementInput);
+        aiResponseContent.push({ type: 'text', title: `1. Personal Introduction for ${packOutput.clientGreetingName}:`, text: packOutput.personalizedIntroduction });
+        aiResponseContent.push({ type: 'text', title: '2. Brief Reply to Client:', text: packOutput.jobReplyToClient });
+        
+        let suggestionsText = `Suggested Budget: ${packOutput.suggestedBudget}\n`;
+        suggestionsText += `Suggested Timeline: ${packOutput.suggestedTimeline}\n`;
+        suggestionsText += `Suggested Software: ${packOutput.suggestedSoftware}`;
+        aiResponseContent.push({ type: 'text', title: 'Suggestions:', text: suggestionsText });
 
+        if (packOutput.clarifyingQuestions && packOutput.clarifyingQuestions.length > 0) {
+          aiResponseContent.push({ type: 'text', title: 'Clarifying Questions to Ask Client:', text: " "}); // Empty text just for the title
+          packOutput.clarifyingQuestions.forEach((q, index) => {
+            aiResponseContent.push({ type: 'code', title: `Question ${index + 1}`, code: q });
+          });
+        }
       } else if (actionType === 'generateDelivery' || actionType === 'generateRevision') {
         const platformInput: GeneratePlatformMessagesInput = {
           name: profile.name,
@@ -507,6 +525,7 @@ export default function ChatPage() {
   const handleDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
+    // Check if the mouse is leaving the dropZoneRef or one of its children
     if (dropZoneRef.current && !dropZoneRef.current.contains(event.relatedTarget as Node)) {
       setIsDragging(false);
     }
@@ -520,7 +539,7 @@ export default function ChatPage() {
       await handleFileSelectAndProcess(Array.from(event.dataTransfer.files));
       event.dataTransfer.clearData();
     }
-  }, [ensureMessagesHaveUniqueIds]); // ensureMessagesHaveUniqueIds was missing, but not directly used here. Added based on potential implicit need.
+  }, [handleFileSelectAndProcess]); 
 
 
   if (profileLoading || !currentSession) { 

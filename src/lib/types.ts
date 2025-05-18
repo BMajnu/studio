@@ -11,6 +11,7 @@ export interface UserProfile {
   geminiApiKey?: string; // Stored but might not be used by current flows
   customSellerFeedbackTemplate?: string;
   customClientFeedbackResponseTemplate?: string;
+  rawPersonalStatement?: string; // New field for the detailed personal intro
   createdAt?: string; // ISO Date string
   updatedAt?: string; // ISO Date string
 }

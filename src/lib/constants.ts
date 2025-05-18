@@ -31,6 +31,7 @@ export const DEFAULT_USER_PROFILE: UserProfile = {
   geminiApiKey: "",
   customSellerFeedbackTemplate: "Great client, outstanding experience, easy requirement. [AI to suggest adding a short description about the project/order]. I love working with you and looking forward to working with you again🥰.",
   customClientFeedbackResponseTemplate: "Thanks for your great feedback. I hope we will continue doing more and more.",
+  rawPersonalStatement: "I'm B. Majnu, a professional Graphic designer. I have over 6 years of experience in Graphics Design. I enjoy working on it. I'm a skilled graphic designer and offer unique, creative, and eye-catching T-shirt design as well as professional logo design, mug design, vector tracing, book cover design, business card design, etc. I am a full-time seller exclusively on Fiverr. I'm passionate about my craft, and I'm dedicated to providing high-quality work to satisfaction. Fiverr profile: www.fiverr.com/majnu786. I have 1k+ overall 5* customer feedback with 1.5k+ successfully completed orders.",
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };
@@ -44,29 +45,33 @@ Your AI-powered assistant for graphic design tasks. Here's a quick guide to the 
 
 These buttons trigger AI processing based on the client message you input:
 
-1.  **Process Client Message (Default):**
-    *   Analyzes the client's request.
-    *   Simplifies the client's needs.
+1.  **Chat (Default Process Client Message):**
+    *   Analyzes the client's request considering conversation history.
+    *   Simplifies the client's current needs.
     *   Outlines a step-by-step approach for the design task.
     *   Provides a Bengali translation of the analysis, simplification, and steps.
-    *   Suggests two professional English replies tailored to your profile.
+    *   Suggests two professional English replies tailored to your profile and the conversation.
 
-2.  **Analyze & Plan Request:**
-    *   Focuses on in-depth analysis, simplification, and a step-by-step plan.
-    *   Includes Bengali translation of these elements.
+2.  **Requirements:**
+    *   Identifies and analyzes main requirements from the client's message and attachments.
+    *   Provides a detailed breakdown of all requirements in English, specifying priority and reasoning.
+    *   Provides a similar detailed breakdown in Bangla.
+    *   Identifies any specific message or saying for the design.
 
-3.  **Suggest Client Replies:**
-    *   Generates two professional English replies based on the client's message and your profile.
+3.  **Brief (Generate Engagement Pack):**
+    *   Analyzes the client's request and history.
+    *   Generates a personalized introduction for you (the designer) based on your profile and tailored to the client's specific request.
+    *   Crafts a professional reply to the client.
+    *   Suggests a competitive budget and timeline.
+    *   Recommends software for the task.
+    *   Provides clarifying questions to ask the client to get started.
 
-4.  **Suggest Client Replies (with Translation):**
-    *   Generates two English replies and their Bengali translations.
-
-5.  **Generate Platform Delivery Message:**
+4.  **Generate Delivery Message:**
     *   Prompts for delivery notes.
     *   Creates 3 delivery message options for platforms like Fiverr.
     *   Includes automated follow-up content: Thank You message, Seller Feedback template, Client Feedback Response template.
 
-6.  **Generate Platform Revision Message:**
+5.  **Generate Revision Message:**
     *   Prompts for revision notes.
     *   Creates 3 revision message options.
     *   Includes automated follow-up content similar to delivery messages.
@@ -74,12 +79,12 @@ These buttons trigger AI processing based on the client message you input:
 ### User Profile
 
 *   Navigate to **Settings > Profile** to manage your professional details.
-*   Your profile information (name, title, services, communication style, etc.) is used to personalize AI-generated content.
+*   Your profile information (name, title, services, communication style, raw personal statement, etc.) is used to personalize AI-generated content.
 *   Keep your profile updated for the best results!
 
 ### Tips for Use
 
-*   Paste the full client message into the input field.
+*   Paste the full client message into the input field, or attach files.
 *   Use the action buttons to get specific AI assistance.
 *   Generated content can be easily copied using the "Copy" button next to each block.
 *   For "Generate Platform..." messages, provide clear notes when prompted.

@@ -2,7 +2,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { BotMessageSquare, Plane, RotateCcw, ListChecks, ClipboardList } from 'lucide-react'; // Added ListChecks, ClipboardList
+import { BotMessageSquare, Plane, RotateCcw, ListChecks, ClipboardList, Sparkles, MessageSquarePlus } from 'lucide-react';
 import type { UserProfile } from '@/lib/types';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from '@/lib/utils';
@@ -10,22 +10,22 @@ import { cn } from '@/lib/utils';
 export type ActionType = 
   | 'processMessage'
   | 'analyzeRequirements' 
+  | 'generateEngagementPack' // Changed from generateBrief
   | 'generateDelivery'
-  | 'generateRevision'
-  | 'generateBrief'; // Added new action type
+  | 'generateRevision';
 
 interface ActionButton {
   id: ActionType;
-  label: string;
+  label: string; // Full label for tooltip
+  shortLabel: string; // Short label for button text
   icon: React.ElementType;
   description: string;
-  shortLabel?: string; 
 }
 
 const actionButtonsConfig: ActionButton[] = [
-  { id: 'processMessage', label: 'Process Client Message', shortLabel: 'Chat', icon: BotMessageSquare, description: 'Full analysis, plan, Bengali translation, and English reply suggestions.' },
+  { id: 'processMessage', label: 'Process Client Message', shortLabel: 'Chat', icon: BotMessageSquare, description: 'Full analysis, plan, Bengali translation, and English reply suggestions based on conversation.' },
   { id: 'analyzeRequirements', label: 'Analyze Requirements', shortLabel: 'Requirements', icon: ListChecks, description: 'Detailed analysis of requirements, prioritization, Bangla translation, and design message.' },
-  { id: 'generateBrief', label: 'Generate Project Brief', shortLabel: 'Brief', icon: ClipboardList, description: 'Generate a concise project brief from the conversation.' },
+  { id: 'generateEngagementPack', label: 'Generate Engagement Pack', shortLabel: 'Brief', icon: ClipboardList, description: 'Generates a personalized intro, job reply, budget/timeline/software ideas, and clarifying questions.' },
   { id: 'generateDelivery', label: 'Generate Delivery Message', shortLabel: 'Delivery', icon: Plane, description: 'Platform-ready delivery messages and follow-ups.' },
   { id: 'generateRevision', label: 'Generate Revision Message', shortLabel: 'Revision', icon: RotateCcw, description: 'Platform-ready revision messages and follow-ups.' },
 ];
@@ -44,9 +44,9 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
     if (isLoading || !profile) {
       return true;
     }
-    // All buttons are active regardless of currentUserMessage or currentAttachedFilesDataLength,
+    // Buttons are active regardless of currentUserMessage or currentAttachedFilesDataLength,
     // unless loading or profile is missing.
-    return false;
+    return false; 
   };
 
   return (
@@ -67,7 +67,7 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
                 className="px-2.5 py-1.5 md:px-3 md:py-2 h-auto" 
               >
                 <btn.icon className="h-4 w-4 mr-1 md:mr-1.5" />
-                <span className="text-xs md:text-sm">{btn.shortLabel || btn.label}</span>
+                <span className="text-xs md:text-sm">{btn.shortLabel}</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent side="top" align="center">

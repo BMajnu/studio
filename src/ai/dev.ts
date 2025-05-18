@@ -7,4 +7,5 @@ import '@/ai/flows/generate-platform-messages.ts';
 import '@/ai/flows/suggest-client-replies.ts';
 import '@/ai/flows/generate-chat-name-flow.ts';
 import '@/ai/flows/analyze-client-requirements.ts';
-import '@/ai/flows/generate-brief-flow.ts'; // Added new flow
+import '@/ai/flows/generate-engagement-pack-flow.ts'; // Replaced generate-brief-flow
+
