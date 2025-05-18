@@ -30,11 +30,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!auth) { // Check if the auth object from firebase.ts is available
+    if (!auth) { 
       console.warn("AuthContext: Firebase auth instance is not available, likely due to missing API key or Firebase initialization error. Authentication features will be disabled.");
-      setUser(null); // Ensure user is null if auth is not available
-      setLoading(false); // Finalize loading state
-      return; // Do not attempt to use a non-existent auth object
+      setUser(null); 
+      setLoading(false); 
+      return; 
     }
 
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -42,21 +42,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, []); // `auth` is a module-level import, so it doesn't need to be in deps array here.
+  }, []); 
 
   const signUp = async (email: string, pass: string): Promise<FirebaseUser | null> => {
     if (!auth) {
       console.error("AuthContext: Cannot sign up, Firebase auth not initialized.");
-      return null;
+      throw new Error("Authentication service not available.");
     }
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-      setUser(userCredential.user);
+      setUser(userCredential.user); // This might be redundant if onAuthStateChanged handles it
       return userCredential.user;
     } catch (error) {
       console.error("Error signing up:", error);
-      return null;
+      throw error; // Re-throw the error to be handled by the calling component
     } finally {
       setLoading(false);
     }
@@ -65,16 +65,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signIn = async (email: string, pass: string): Promise<FirebaseUser | null> => {
     if (!auth) {
       console.error("AuthContext: Cannot sign in, Firebase auth not initialized.");
-      return null;
+      throw new Error("Authentication service not available.");
     }
     setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
-      setUser(userCredential.user);
+      setUser(userCredential.user);  // This might be redundant if onAuthStateChanged handles it
       return userCredential.user;
-    } catch (error) { // Added curly braces here
+    } catch (error) { 
       console.error("Error signing in:", error);
-      return null;
+      throw error; // Re-throw the error
     } finally {
       setLoading(false);
     }
@@ -83,17 +83,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signInWithGoogle = async (): Promise<FirebaseUser | null> => {
     if (!auth) {
       console.error("AuthContext: Cannot sign in with Google, Firebase auth not initialized.");
-      return null;
+      throw new Error("Authentication service not available.");
     }
     setLoading(true);
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      setUser(result.user);
+      setUser(result.user); // This might be redundant
       return result.user;
     } catch (error) {
       console.error("Error signing in with Google:", error);
-      return null;
+      throw error; // Re-throw the error
     } finally {
       setLoading(false);
     }
@@ -110,6 +110,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(null);
     } catch (error) {
       console.error("Error signing out:", error);
+      // Optionally re-throw or handle as needed
     } finally {
       setLoading(false);
     }

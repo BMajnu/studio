@@ -50,17 +50,28 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
 
   async function onSubmit(data: SignupFormValues) {
     setIsLoading(true);
-    const user = await signUp(data.email, data.password);
-    setIsLoading(false);
-    if (user) {
-      toast({ title: 'Signup Successful', description: `Welcome, ${user.email}! Please login.` });
+    try {
+      const user = await signUp(data.email, data.password);
+      // No need to check 'user' here as signUp will throw on Firebase error
+      // or on !auth. Successful execution means user is created.
+      toast({ title: 'Signup Successful', description: `Welcome, ${data.email}! Please login.` });
       onSuccess?.();
-    } else {
-      toast({
-        title: 'Signup Failed',
-        description: 'Could not create account. The email might already be in use or an error occurred.',
-        variant: 'destructive',
-      });
+    } catch (error: any) {
+      if (error.code === 'auth/email-already-in-use') {
+        toast({
+          title: 'Signup Failed',
+          description: 'This email address is already in use. Please try a different email or login.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Signup Failed',
+          description: error.message || 'Could not create account. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      setIsLoading(false);
     }
   }
 
