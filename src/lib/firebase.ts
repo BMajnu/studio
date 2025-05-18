@@ -1,6 +1,7 @@
 
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
+import { getFirestore, type Firestore } from 'firebase/firestore'; // Import Firestore
 
 // Load Firebase configuration from environment variables
 const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
@@ -44,41 +45,52 @@ const firebaseConfig = {
 
 let app: FirebaseApp;
 let auth: Auth;
+let db: Firestore; // Declare Firestore instance variable
 
 // Initialize Firebase
 if (!getApps().length) {
   // Only attempt to initialize if the critical API key is present
-  if (apiKey) {
+  if (apiKey && projectId && authDomain) { // Added more checks for critical config
     try {
       app = initializeApp(firebaseConfig);
-      auth = getAuth(app); // This is where the 'auth/invalid-api-key' error typically originates if the key value is wrong
+      auth = getAuth(app);
+      db = getFirestore(app); // Initialize Firestore
     } catch (error) {
       console.error("CRITICAL: Firebase initialization failed. This is often due to an invalid API key or misconfiguration.", error);
       // @ts-ignore: Assign undefined to auth if initialization fails to prevent further errors on auth usage
       auth = undefined; 
+      // @ts-ignore
+      db = undefined;
     }
   } else {
-    console.error("CRITICAL: Firebase API key is missing. Firebase App cannot be initialized. Auth will be unavailable.");
+    console.error("CRITICAL: Essential Firebase configuration (API Key, Project ID, or Auth Domain) is missing. Firebase App cannot be initialized. Auth and Firestore will be unavailable.");
     // @ts-ignore: Assign undefined to auth if config is missing
     auth = undefined;
+    // @ts-ignore
+    db = undefined;
   }
 } else {
   app = getApps()[0]!;
   // If the app was already initialized (e.g., due to Hot Module Replacement),
   // try to get the auth instance. This could still fail if the initial config was bad.
-  if (apiKey) { // Check apiKey again, as the initial init might have failed silently if HMR is involved
+  if (apiKey && projectId && authDomain) { // Check critical config again
     try {
       auth = getAuth(app);
+      db = getFirestore(app); // Get Firestore from existing app
     } catch (error) {
-      console.error("CRITICAL: Failed to get Auth from existing Firebase app. This might be due to an initial configuration error.", error);
+      console.error("CRITICAL: Failed to get Auth or Firestore from existing Firebase app. This might be due to an initial configuration error.", error);
       // @ts-ignore
       auth = undefined;
+      // @ts-ignore
+      db = undefined;
     }
   } else {
-    console.error("CRITICAL: Firebase API key is missing. Cannot get Auth from existing app. Auth will be unavailable.");
+    console.error("CRITICAL: Essential Firebase configuration missing. Cannot get Auth or Firestore from existing app. Services will be unavailable.");
     // @ts-ignore
     auth = undefined;
+    // @ts-ignore
+    db = undefined;
   }
 }
 
-export { app, auth };
+export { app, auth, db }; // Export db

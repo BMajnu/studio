@@ -18,53 +18,77 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import type { UserProfile } from "@/lib/types";
-import { DEFAULT_USER_PROFILE, AVAILABLE_MODELS, DEFAULT_MODEL_ID } from "@/lib/constants";
+import { DEFAULT_USER_PROFILE, AVAILABLE_MODELS, DEFAULT_MODEL_ID, DEFAULT_USER_ID } from "@/lib/constants";
 import { PlusCircle, Trash2 } from "lucide-react";
-// import { ScrollArea } from "@/components/ui/scroll-area"; // Removed
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useEffect } from "react";
 
 const profileFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }).max(50),
   professionalTitle: z.string().max(100).optional(),
-  yearsOfExperience: z.coerce.number().int().positive().optional().or(z.literal("")),
-  portfolioLink: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal("")),
-  communicationStyleNotes: z.string().max(500).optional(),
+  yearsOfExperience: z.coerce.number().int().positive().optional().or(z.literal("")).nullable(),
+  portfolioLink: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal("")).nullable(),
+  communicationStyleNotes: z.string().max(500).optional().nullable(),
   services: z.array(z.string().min(1, {message: "Service cannot be empty."}).max(100)).optional(),
-  fiverrUsername: z.string().max(50).optional(),
-  geminiApiKey: z.string().max(100).optional(), // Not actively used by flows, but stored
-  selectedGenkitModelId: z.string().optional(),
-  customSellerFeedbackTemplate: z.string().max(1000).optional(),
-  customClientFeedbackResponseTemplate: z.string().max(1000).optional(),
-  rawPersonalStatement: z.string().max(2000).optional(),
+  fiverrUsername: z.string().max(50).optional().nullable(),
+  geminiApiKey: z.string().max(100).optional().nullable(), 
+  selectedGenkitModelId: z.string().optional().nullable(),
+  customSellerFeedbackTemplate: z.string().max(1000).optional().nullable(),
+  customClientFeedbackResponseTemplate: z.string().max(1000).optional().nullable(),
+  rawPersonalStatement: z.string().max(2000).optional().nullable(),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 interface ProfileFormProps {
-  initialProfile: UserProfile;
-  onSave: (data: UserProfile) => void;
+  initialProfile: UserProfile; // This will come from useUserProfile hook (Firestore or localStorage)
+  onSave: (data: Partial<UserProfile>) => void; // Changed to Partial<UserProfile> for flexibility
 }
 
 export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
   const { toast } = useToast();
+  
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
+    // Default values should be driven by initialProfile, falling back to global defaults
+    // The userId is managed by the hook/Firestore, not directly by this form.
     defaultValues: {
-      name: initialProfile.name || DEFAULT_USER_PROFILE.name,
-      professionalTitle: initialProfile.professionalTitle || "",
-      yearsOfExperience: initialProfile.yearsOfExperience || "",
-      portfolioLink: initialProfile.portfolioLink || "",
-      communicationStyleNotes: initialProfile.communicationStyleNotes || "",
-      services: initialProfile.services || [],
-      fiverrUsername: initialProfile.fiverrUsername || "",
-      geminiApiKey: initialProfile.geminiApiKey || "",
-      selectedGenkitModelId: initialProfile.selectedGenkitModelId || DEFAULT_MODEL_ID,
-      customSellerFeedbackTemplate: initialProfile.customSellerFeedbackTemplate || "",
-      customClientFeedbackResponseTemplate: initialProfile.customClientFeedbackResponseTemplate || "",
-      rawPersonalStatement: initialProfile.rawPersonalStatement || DEFAULT_USER_PROFILE.rawPersonalStatement || "",
+      name: initialProfile?.name || DEFAULT_USER_PROFILE.name,
+      professionalTitle: initialProfile?.professionalTitle || DEFAULT_USER_PROFILE.professionalTitle || "",
+      yearsOfExperience: initialProfile?.yearsOfExperience || DEFAULT_USER_PROFILE.yearsOfExperience || "",
+      portfolioLink: initialProfile?.portfolioLink || DEFAULT_USER_PROFILE.portfolioLink || "",
+      communicationStyleNotes: initialProfile?.communicationStyleNotes || DEFAULT_USER_PROFILE.communicationStyleNotes || "",
+      services: initialProfile?.services && initialProfile.services.length > 0 ? initialProfile.services : DEFAULT_USER_PROFILE.services || [],
+      fiverrUsername: initialProfile?.fiverrUsername || DEFAULT_USER_PROFILE.fiverrUsername || "",
+      geminiApiKey: initialProfile?.geminiApiKey || DEFAULT_USER_PROFILE.geminiApiKey || "",
+      selectedGenkitModelId: initialProfile?.selectedGenkitModelId || DEFAULT_USER_PROFILE.selectedGenkitModelId || DEFAULT_MODEL_ID,
+      customSellerFeedbackTemplate: initialProfile?.customSellerFeedbackTemplate || DEFAULT_USER_PROFILE.customSellerFeedbackTemplate || "",
+      customClientFeedbackResponseTemplate: initialProfile?.customClientFeedbackResponseTemplate || DEFAULT_USER_PROFILE.customClientFeedbackResponseTemplate || "",
+      rawPersonalStatement: initialProfile?.rawPersonalStatement || DEFAULT_USER_PROFILE.rawPersonalStatement || "",
     },
     mode: "onChange",
   });
+
+  // Effect to reset form when initialProfile changes (e.g., after login or Firestore load)
+  useEffect(() => {
+    if (initialProfile) {
+      form.reset({
+        name: initialProfile.name || DEFAULT_USER_PROFILE.name,
+        professionalTitle: initialProfile.professionalTitle || DEFAULT_USER_PROFILE.professionalTitle || "",
+        yearsOfExperience: initialProfile.yearsOfExperience || DEFAULT_USER_PROFILE.yearsOfExperience || "",
+        portfolioLink: initialProfile.portfolioLink || DEFAULT_USER_PROFILE.portfolioLink || "",
+        communicationStyleNotes: initialProfile.communicationStyleNotes || DEFAULT_USER_PROFILE.communicationStyleNotes || "",
+        services: initialProfile.services && initialProfile.services.length > 0 ? initialProfile.services : DEFAULT_USER_PROFILE.services || [],
+        fiverrUsername: initialProfile.fiverrUsername || DEFAULT_USER_PROFILE.fiverrUsername || "",
+        geminiApiKey: initialProfile.geminiApiKey || DEFAULT_USER_PROFILE.geminiApiKey || "",
+        selectedGenkitModelId: initialProfile.selectedGenkitModelId || DEFAULT_USER_PROFILE.selectedGenkitModelId || DEFAULT_MODEL_ID,
+        customSellerFeedbackTemplate: initialProfile.customSellerFeedbackTemplate || DEFAULT_USER_PROFILE.customSellerFeedbackTemplate || "",
+        customClientFeedbackResponseTemplate: initialProfile.customClientFeedbackResponseTemplate || DEFAULT_USER_PROFILE.customClientFeedbackResponseTemplate || "",
+        rawPersonalStatement: initialProfile.rawPersonalStatement || DEFAULT_USER_PROFILE.rawPersonalStatement || "",
+      });
+    }
+  }, [initialProfile, form.reset]);
+
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -72,13 +96,21 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
   });
 
   function onSubmit(data: ProfileFormValues) {
-    const processedData: UserProfile = {
-      ...initialProfile,
+    // The userId is part of initialProfile and managed by the useUserProfile hook.
+    // We only pass the updatable fields.
+    const processedData: Partial<UserProfile> = {
       ...data,
       yearsOfExperience: data.yearsOfExperience ? Number(data.yearsOfExperience) : undefined,
       services: data.services || [],
       selectedGenkitModelId: data.selectedGenkitModelId || DEFAULT_MODEL_ID,
     };
+    // Remove nulls to avoid overwriting with null in Firestore merge if field was empty string
+    Object.keys(processedData).forEach(key => {
+      if ((processedData as any)[key] === null) {
+        delete (processedData as any)[key];
+      }
+    });
+
     onSave(processedData);
     toast({
       title: "Profile Updated",
@@ -89,8 +121,7 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        {/* ScrollArea removed from here. The CardContent or Page will handle scrolling if needed. */}
-        <div className="space-y-6 pr-1"> {/* Added pr-1 to mimic some spacing if ScrollArea had scrollbar */}
+        <div className="space-y-6 pr-1">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FormField
               control={form.control}
@@ -113,7 +144,7 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
                 <FormItem>
                   <FormLabel>Professional Title</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Professional Graphics Designer" {...field} />
+                    <Input placeholder="e.g., Professional Graphics Designer" {...field} value={field.value ?? ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -129,7 +160,7 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
                 <FormItem>
                   <FormLabel>Years of Experience</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="e.g., 6" {...field} />
+                    <Input type="number" placeholder="e.g., 6" {...field} value={field.value ?? ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -142,7 +173,7 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
                 <FormItem>
                   <FormLabel>Portfolio Link</FormLabel>
                   <FormControl>
-                    <Input type="url" placeholder="e.g., https://fiverr.com/majnu786" {...field} />
+                    <Input type="url" placeholder="e.g., https://fiverr.com/majnu786" {...field} value={field.value ?? ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -161,6 +192,7 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
                     placeholder="Keywords/description for AI tone, e.g., 'friendly, reliable, professional'"
                     className="resize-none"
                     {...field}
+                    value={field.value ?? ""}
                   />
                 </FormControl>
                 <FormDescription>Help AI understand your preferred tone.</FormDescription>
@@ -213,6 +245,7 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
                     placeholder="Your detailed professional introduction and experience for the AI to adapt."
                     className="resize-none h-40"
                     {...field}
+                    value={field.value ?? ""}
                   />
                 </FormControl>
                 <FormDescription>Provide your full professional bio here. The AI will adapt parts of this for client introductions based on their specific request.</FormDescription>
@@ -229,7 +262,7 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
                 <FormItem>
                   <FormLabel>Fiverr Username</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., majnu786" {...field} />
+                    <Input placeholder="e.g., majnu786" {...field} value={field.value ?? ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -242,10 +275,10 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
                 <FormItem>
                   <FormLabel>Gemini API Key (Optional)</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="Enter your Gemini API Key" {...field} />
+                    <Input type="password" placeholder="Enter your Gemini API Key" {...field} value={field.value ?? ""} />
                   </FormControl>
                   <FormDescription>
-                    Your API key is stored locally. If the app uses a server-level key, this may not be needed.
+                    Your API key is stored locally and in Firestore if logged in. If the app uses a server-level key, this may not be needed.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -292,6 +325,7 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
                     placeholder="e.g., Great client, outstanding experience..."
                     className="resize-none h-24"
                     {...field}
+                    value={field.value ?? ""}
                   />
                 </FormControl>
                 <FormMessage />
@@ -310,6 +344,7 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
                     placeholder="e.g., Thanks for your great feedback..."
                     className="resize-none h-24"
                     {...field}
+                    value={field.value ?? ""}
                   />
                 </FormControl>
                 <FormMessage />
