@@ -7,8 +7,8 @@ import {
   onAuthStateChanged, 
   signInWithEmailAndPassword, 
   signOut as firebaseSignOut,
-  GoogleAuthProvider, // Added
-  signInWithPopup     // Added
+  GoogleAuthProvider,
+  signInWithPopup
 } from 'firebase/auth';
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useEffect, useState } from 'react';
@@ -19,7 +19,7 @@ interface AuthContextType {
   loading: boolean;
   signUp: (email: string, pass: string) => Promise<FirebaseUser | null>;
   signIn: (email: string, pass: string) => Promise<FirebaseUser | null>;
-  signInWithGoogle: () => Promise<FirebaseUser | null>; // Added
+  signInWithGoogle: () => Promise<FirebaseUser | null>;
   signOut: () => Promise<void>;
 }
 
@@ -30,14 +30,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!auth) { // Check if the auth object from firebase.ts is available
+      console.warn("AuthContext: Firebase auth instance is not available, likely due to missing API key or Firebase initialization error. Authentication features will be disabled.");
+      setUser(null); // Ensure user is null if auth is not available
+      setLoading(false); // Finalize loading state
+      return; // Do not attempt to use a non-existent auth object
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, []); // `auth` is a module-level import, so it doesn't need to be in deps array here.
 
   const signUp = async (email: string, pass: string): Promise<FirebaseUser | null> => {
+    if (!auth) {
+      console.error("AuthContext: Cannot sign up, Firebase auth not initialized.");
+      return null;
+    }
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
@@ -52,12 +63,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signIn = async (email: string, pass: string): Promise<FirebaseUser | null> => {
+    if (!auth) {
+      console.error("AuthContext: Cannot sign in, Firebase auth not initialized.");
+      return null;
+    }
     setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
       setUser(userCredential.user);
       return userCredential.user;
-    } catch (error) {
+    } catch (error) { // Added curly braces here
       console.error("Error signing in:", error);
       return null;
     } finally {
@@ -66,6 +81,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signInWithGoogle = async (): Promise<FirebaseUser | null> => {
+    if (!auth) {
+      console.error("AuthContext: Cannot sign in with Google, Firebase auth not initialized.");
+      return null;
+    }
     setLoading(true);
     const provider = new GoogleAuthProvider();
     try {
@@ -74,8 +93,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return result.user;
     } catch (error) {
       console.error("Error signing in with Google:", error);
-      // Handle specific errors like 'auth/popup-closed-by-user' if needed
-      // For now, just return null and let the UI handle no user.
       return null;
     } finally {
       setLoading(false);
@@ -83,6 +100,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
+    if (!auth) {
+      console.error("AuthContext: Cannot sign out, Firebase auth not initialized.");
+      return;
+    }
     setLoading(true);
     try {
       await firebaseSignOut(auth);
