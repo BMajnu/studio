@@ -13,15 +13,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from '@/lib/utils';
 
-export type ActionType = 
+export type ActionType =
   | 'processMessage'
-  | 'analyzeRequirements' 
-  | 'generateEngagementPack'
-  | 'generateDeliveryTemplates' 
-  | 'checkMadeDesigns'          
-  | 'generateRevision'
+  | 'analyzeRequirements'
+  | 'generateEngagementPack' // Replaces generateBrief
   | 'generateDesignIdeas'
-  | 'generateDesignPrompts';
+  | 'generateDesignPrompts'
+  | 'checkMadeDesigns'
+  | 'generateDeliveryTemplates' // For actual delivery messages
+  | 'generateRevision';
 
 interface ActionButtonConfig {
   id: ActionType;
@@ -29,16 +29,17 @@ interface ActionButtonConfig {
   shortLabel: string;
   icon: React.ElementType;
   description: string;
-  isPrimaryAction?: boolean; 
+  isPrimaryAction?: boolean; // True for top-level buttons, false for dropdown items
 }
 
+// New structure for dropdowns
 interface DropdownActionConfig {
-    id: string; 
-    label: string;
-    shortLabel: string;
-    icon: React.ElementType;
-    description: string;
-    subActions: ActionButtonConfig[];
+    id: string; // e.g., 'designActions', 'deliveryActions'
+    label: string; // Tooltip for the main dropdown button
+    shortLabel: string; // Visible label for the main dropdown button (on desktop)
+    icon: React.ElementType; // Icon for the main dropdown button
+    description: string; // Tooltip description
+    subActions: ActionButtonConfig[]; // Array of actions within this dropdown
 }
 
 export type AnyActionConfig = ActionButtonConfig | DropdownActionConfig;
@@ -49,7 +50,7 @@ const actionButtonsConfig: AnyActionConfig[] = [
   { id: 'analyzeRequirements', label: 'Analyze Requirements', shortLabel: 'Requirements', icon: ListChecks, description: 'Detailed analysis of requirements, prioritization, Bangla translation, and design message.', isPrimaryAction: true },
   { id: 'generateEngagementPack', label: 'Generate Engagement Pack', shortLabel: 'Brief', icon: ClipboardList, description: 'Generates a personalized intro, job reply, budget/timeline/software ideas, and clarifying questions.', isPrimaryAction: true },
   {
-    id: 'designActions',
+    id: 'designActions', // Unique ID for the dropdown itself
     label: 'Design Tools',
     shortLabel: 'Design',
     icon: Palette,
@@ -60,7 +61,7 @@ const actionButtonsConfig: AnyActionConfig[] = [
     ]
   },
   {
-    id: 'deliveryActions', 
+    id: 'deliveryActions', // Unique ID for the dropdown itself
     label: 'Delivery Tools',
     shortLabel: 'Delivery',
     icon: Plane,
@@ -76,13 +77,14 @@ const actionButtonsConfig: AnyActionConfig[] = [
 interface ActionButtonsPanelProps {
   onAction: (action: ActionType) => void;
   isLoading: boolean;
-  currentUserMessage: string; 
+  currentUserMessage: string;
   profile: UserProfile | null;
-  currentAttachedFilesDataLength: number; 
+  currentAttachedFilesDataLength: number;
+  isMobile: boolean; // New prop
 }
 
-export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, profile, currentAttachedFilesDataLength }: ActionButtonsPanelProps) {
-  
+export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, profile, currentAttachedFilesDataLength, isMobile }: ActionButtonsPanelProps) {
+
   const isActionDisabled = (actionId?: ActionType) => {
     if (isLoading || !profile) {
       return true;
@@ -91,19 +93,22 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
     if (actionId === 'checkMadeDesigns' && currentAttachedFilesDataLength === 0) {
       return true;
     }
-    // Other buttons are generally active unless globally disabled (isLoading/no profile)
-    return false; 
+    // Other buttons are generally active unless globally disabled
+    return false;
   };
 
   return (
     <div className={cn(
-        "flex flex-wrap items-center justify-end gap-1.5 md:gap-2", 
-        isLoading && "opacity-60 pointer-events-none" 
+        "flex flex-wrap items-center justify-end gap-1.5 md:gap-2",
+        isLoading && "opacity-60 pointer-events-none"
       )}
     >
       {actionButtonsConfig.map((actionConfig) => {
-        const baseButtonClasses = "px-2.5 py-1.5 md:px-3 md:py-2 h-auto transition-all duration-150 ease-in-out hover:scale-105 active:scale-95 focus-visible:ring-primary";
-        
+        const baseButtonClasses = cn(
+            "h-auto transition-all duration-150 ease-in-out hover:scale-105 active:scale-95 focus-visible:ring-primary",
+            isMobile ? "p-2" : "px-2.5 py-1.5 md:px-3 md:py-2" // Conditional padding
+        );
+
         if ('isPrimaryAction' in actionConfig && actionConfig.isPrimaryAction) {
           const btn = actionConfig as ActionButtonConfig;
           return (
@@ -112,13 +117,13 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
                 <TooltipTrigger asChild>
                   <Button
                     variant="outline"
-                    size="sm" 
+                    size="sm" // Base size, padding adjusted by className
                     onClick={() => onAction(btn.id)}
-                    disabled={isActionDisabled(btn.id)} 
+                    disabled={isActionDisabled(btn.id)}
                     className={baseButtonClasses}
                   >
-                    <btn.icon className="h-4 w-4 mr-1 md:mr-1.5 shrink-0" />
-                    <span className="text-xs md:text-sm whitespace-nowrap">{btn.shortLabel}</span>
+                    <btn.icon className={cn("h-4 w-4 shrink-0", !isMobile && "mr-1 md:mr-1.5")} />
+                    {!isMobile && <span className="text-xs md:text-sm whitespace-nowrap">{btn.shortLabel}</span>}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="top" align="center" className="bg-popover text-popover-foreground shadow-lg rounded-md p-2">
@@ -131,7 +136,7 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
               </Tooltip>
             </TooltipProvider>
           );
-        } else {
+        } else { // This is a DropdownActionConfig
           const dropdown = actionConfig as DropdownActionConfig;
           return (
             <DropdownMenu key={dropdown.id}>
@@ -141,12 +146,12 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
                      <DropdownMenuTrigger asChild>
                         <Button
                             variant="outline"
-                            size="sm"
-                            disabled={isLoading || !profile} 
+                            size="sm" // Base size
+                            disabled={isLoading || !profile} // General disable for dropdown trigger
                             className={baseButtonClasses}
                         >
-                            <dropdown.icon className="h-4 w-4 mr-1 md:mr-1.5 shrink-0" />
-                            <span className="text-xs md:text-sm whitespace-nowrap">{dropdown.shortLabel}</span>
+                            <dropdown.icon className={cn("h-4 w-4 shrink-0", !isMobile && "mr-1 md:mr-1.5")} />
+                            {!isMobile && <span className="text-xs md:text-sm whitespace-nowrap">{dropdown.shortLabel}</span>}
                         </Button>
                      </DropdownMenuTrigger>
                   </TooltipTrigger>
@@ -161,7 +166,7 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
                   <DropdownMenuItem
                     key={subAction.id}
                     onClick={() => onAction(subAction.id)}
-                    disabled={isActionDisabled(subAction.id)} 
+                    disabled={isActionDisabled(subAction.id)} // Disable based on specific sub-action logic
                     className="text-sm cursor-pointer hover:bg-accent focus:bg-accent data-[disabled]:opacity-50 data-[disabled]:pointer-events-none"
                   >
                     <subAction.icon className="h-4 w-4 mr-2 shrink-0" />
