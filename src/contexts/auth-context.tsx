@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { User as FirebaseUser } from 'firebase/auth';
@@ -31,7 +30,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (!auth) { 
-      console.warn("AuthContext: Firebase auth instance is not available, likely due to missing API key or Firebase initialization error. Authentication features will be disabled.");
+      console.warn("AuthContext: Firebase auth instance is not available. Authentication features will be disabled.");
       setUser(null); 
       setLoading(false); 
       return; 
@@ -39,6 +38,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      setLoading(false);
+    }, (error) => {
+      // Handle potential errors during onAuthStateChanged subscription
+      console.error("AuthContext: Error in onAuthStateChanged listener:", error);
+      setUser(null);
       setLoading(false);
     });
     return () => unsubscribe();
@@ -52,10 +56,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-      setUser(userCredential.user); // This might be redundant if onAuthStateChanged handles it
+      // setUser(userCredential.user); // onAuthStateChanged will handle this
       return userCredential.user;
     } catch (error) {
-      console.error("Error signing up:", error);
+      console.error("Error signing up (AuthContext):", error);
       throw error; // Re-throw the error to be handled by the calling component
     } finally {
       setLoading(false);
@@ -70,10 +74,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
-      setUser(userCredential.user);  // This might be redundant if onAuthStateChanged handles it
+      // setUser(userCredential.user);  // onAuthStateChanged will handle this
       return userCredential.user;
     } catch (error) { 
-      console.error("Error signing in:", error);
+      console.error("Error signing in (AuthContext):", error);
       throw error; // Re-throw the error
     } finally {
       setLoading(false);
@@ -87,13 +91,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     setLoading(true);
     const provider = new GoogleAuthProvider();
+    // Optional: You can add custom parameters if needed
+    // provider.addScope('profile');
+    // provider.addScope('email');
+    // provider.setCustomParameters({
+    //   'login_hint': 'user@example.com'
+    // });
     try {
       const result = await signInWithPopup(auth, provider);
-      setUser(result.user); // This might be redundant
+      // setUser(result.user); // onAuthStateChanged will handle this
       return result.user;
-    } catch (error) {
-      console.error("Error signing in with Google:", error);
-      throw error; // Re-throw the error
+    } catch (error: any) {
+      console.error("Error signing in with Google (AuthContext):", error);
+      // Specific error handling for common Google Sign-In issues
+      if (error.code === 'auth/popup-closed-by-user') {
+        // User closed the popup, this is not necessarily an "error" to bubble up aggressively
+        // It will be caught by the LoginForm and handled with a toast
+      } else if (error.code === 'auth/unauthorized-domain') {
+        // This is a critical configuration error
+        console.error("CRITICAL: Google Sign-In failed due to unauthorized domain. Ensure your project's domain and the [PROJECT_ID].firebaseapp.com domain are in Firebase Auth > Settings > Authorized domains.");
+      }
+      throw error; // Re-throw the error to be handled by the calling component
     } finally {
       setLoading(false);
     }
@@ -107,9 +125,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     try {
       await firebaseSignOut(auth);
-      setUser(null);
+      // setUser(null); // onAuthStateChanged will handle this
     } catch (error) {
-      console.error("Error signing out:", error);
+      console.error("Error signing out (AuthContext):", error);
       // Optionally re-throw or handle as needed
     } finally {
       setLoading(false);
@@ -118,7 +136,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   const value = { user, loading, signUp, signIn, signInWithGoogle, signOut };
 
-  return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = (): AuthContextType => {

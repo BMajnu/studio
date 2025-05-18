@@ -32,7 +32,7 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ onSuccess }: LoginFormProps) {
-  const { signIn, signInWithGoogle } = useAuth(); // Added signInWithGoogle
+  const { signIn, signInWithGoogle } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -47,36 +47,67 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
 
   async function onSubmit(data: LoginFormValues) {
     setIsLoading(true);
-    const user = await signIn(data.email, data.password);
-    setIsLoading(false);
-    if (user) {
-      toast({ title: 'Login Successful', description: `Welcome back, ${user.displayName || user.email?.split('@')[0]}!` });
-      onSuccess?.();
-    } else {
-      // The specific Firebase error (e.g., auth/invalid-credential) is already logged by AuthContext
-      console.warn('LoginForm: signIn attempt failed. User object is null. This usually indicates invalid credentials or other Firebase auth issue.');
+    try {
+      const user = await signIn(data.email, data.password);
+      if (user) {
+        toast({ title: 'Login Successful', description: `Welcome back, ${user.displayName || user.email?.split('@')[0]}!` });
+        onSuccess?.();
+      } else {
+        // This path might not be hit if signIn throws and is caught below.
+        // Specific Firebase errors (e.g., auth/invalid-credential) are logged by AuthContext.
+        console.warn('LoginForm: signIn attempt failed. User object is null. This usually indicates invalid credentials or other Firebase auth issue.');
+        toast({
+          title: 'Login Failed',
+          description: 'Please check your email and password.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error: any) {
+      // Catching errors re-thrown by AuthContext's signIn
+      console.error("Login form submission error:", error);
       toast({
         title: 'Login Failed',
-        description: 'Please check your email and password.',
+        description: error.message || 'Please check your email and password.', // Use Firebase error message if available
         variant: 'destructive',
       });
+    } finally {
+      setIsLoading(false);
     }
   }
 
   async function handleGoogleSignIn() {
     setIsGoogleLoading(true);
-    const user = await signInWithGoogle();
-    setIsGoogleLoading(false);
-    if (user) {
-      toast({ title: 'Google Sign-In Successful', description: `Welcome, ${user.displayName || user.email?.split('@')[0]}!` });
-      onSuccess?.(); // Close modal on success
-    } else {
-      // Error is logged in AuthContext, toast can be shown here if more specific message needed
+    try {
+      const user = await signInWithGoogle();
+      if (user) {
+        toast({ title: 'Google Sign-In Successful', description: `Welcome, ${user.displayName || user.email?.split('@')[0]}!` });
+        onSuccess?.();
+      } else {
+        // This case might not be hit if signInWithGoogle throws on error
+        toast({
+          title: 'Google Sign-In Failed',
+          description: 'Could not sign in with Google. Please try again or check console for details.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error: any) {
+      console.error("Google Sign-In error in LoginForm:", error);
+      let description = 'Could not sign in with Google. Please try again.';
+      if (error.code === 'auth/unauthorized-domain') {
+        description = 'This domain is not authorized for Google Sign-In. Please check your Firebase project configuration (Authentication > Settings > Authorized domains) and ensure this domain and the [PROJECT_ID].firebaseapp.com domain are listed. See console for more details.';
+      } else if (error.code === 'auth/popup-closed-by-user') {
+        description = 'Google Sign-In cancelled by user.';
+      } else if (error.code) {
+        description = `Google Sign-In failed: ${error.message} (Code: ${error.code}). Check console for more details.`;
+      }
       toast({
         title: 'Google Sign-In Failed',
-        description: 'Could not sign in with Google. Please try again.',
+        description: description,
         variant: 'destructive',
+        duration: 9000, // Longer duration for more detailed message
       });
+    } finally {
+      setIsGoogleLoading(false);
     }
   }
 
