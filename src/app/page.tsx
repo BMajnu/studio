@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Paperclip, Loader2, BotIcon, Menu, XIcon, PanelLeftOpen, PanelLeftClose, Palette } from 'lucide-react';
+import { Paperclip, Loader2, BotIcon, Menu, XIcon, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -14,12 +14,13 @@ import { useUserProfile } from '@/lib/hooks/use-user-profile';
 import { useChatHistory } from '@/lib/hooks/use-chat-history';
 import type { ChatMessage, UserProfile, ChatMessageContentPart, AttachedFile, ChatSession } from '@/lib/types';
 import { processClientMessage, type ProcessClientMessageInput } from '@/ai/flows/process-client-message';
-import { suggestClientReplies, type SuggestClientRepliesInput } from '@/ai/flows/suggest-client-replies';
+// import { suggestClientReplies, type SuggestClientRepliesInput } from '@/ai/flows/suggest-client-replies'; // No longer directly used by a button
 import { generatePlatformMessages, type GeneratePlatformMessagesInput } from '@/ai/flows/generate-platform-messages';
 import { analyzeClientRequirements, type AnalyzeClientRequirementsInput } from '@/ai/flows/analyze-client-requirements';
 import { generateEngagementPack, type GenerateEngagementPackInput } from '@/ai/flows/generate-engagement-pack-flow';
-import { generateDesignIdeas, type GenerateDesignIdeasInput, type GenerateDesignIdeasOutput } from '@/ai/flows/generate-design-ideas-flow';
-import { generateDesignPrompts, type GenerateDesignPromptsInput, type GenerateDesignPromptsOutput } from '@/ai/flows/generate-design-prompts-flow';
+import { generateDesignIdeas, type GenerateDesignIdeasInput } from '@/ai/flows/generate-design-ideas-flow';
+import { generateDesignPrompts, type GenerateDesignPromptsInput } from '@/ai/flows/generate-design-prompts-flow';
+import { checkMadeDesigns, type CheckMadeDesignsInput, type CheckMadeDesignsOutput } from '@/ai/flows/check-made-designs-flow';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
@@ -34,7 +35,7 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
 
   let fullText = '';
   content.forEach(part => {
-    if (part.title && part.type !== 'code' && part.type !== 'list' && part.type !== 'translation_group') { // Avoid double titles for these
+    if (part.title && part.type !== 'code' && part.type !== 'list' && part.type !== 'translation_group') {
       fullText += `### ${part.title}\n`;
     }
     switch (part.type) {
@@ -63,7 +64,7 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
           if (part.english.stepByStepApproach) fullText += `English Step-by-Step Approach:\n${part.english.stepByStepApproach}\n\n`;
         }
         if (part.bengali) {
-          fullText += "\n"; // Ensure a line break before Bengali content
+          fullText += "\n"; 
           if (part.bengali.analysis) fullText += `Bengali Analysis/Combined Translation:\n${part.bengali.analysis}\n\n`;
           if (part.bengali.simplifiedRequest) fullText += `Bengali Simplified Request:\n${part.bengali.simplifiedRequest}\n\n`;
           if (part.bengali.stepByStepApproach) fullText += `Bengali Step-by-Step Approach:\n${part.bengali.stepByStepApproach}\n\n`;
@@ -73,24 +74,20 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
         }
         break;
       default:
-        // const _exhaustiveCheck: never = part; // For type checking
         fullText += `[Unsupported Content Part: ${(part as any).type} ${part.title ? `for "${part.title}"` : ''}]\n`;
     }
-    fullText += '\n'; // Add a newline after each part for better separation in history
+    fullText += '\n'; 
   });
   return fullText.trim() || '[Empty Message Content Parts]';
 };
 
 
-// Prefix for storing the last active session ID in localStorage
 const LAST_ACTIVE_SESSION_ID_KEY_PREFIX = 'desainr_last_active_session_id_';
 
-// Helper function to generate robust message IDs
 const generateRobustMessageId = (): string => {
   return `msg-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 };
 
-// Function to ensure messages have unique and correctly formatted IDs
 const baseEnsureMessagesHaveUniqueIds = (messagesToProcess: ChatMessage[]): ChatMessage[] => {
   if (!Array.isArray(messagesToProcess) || messagesToProcess.length === 0) {
     return [];
@@ -157,10 +154,9 @@ export default function ChatPage() {
   }, [isMobile]);
 
 
-  // Initialize or load session
   useEffect(() => {
     if (profileLoading) {
-        return; // Wait for profile loading to complete
+        return; 
     }
 
     const currentUserIdToUse = userIdForHistory;
@@ -198,14 +194,12 @@ export default function ChatPage() {
   }, [profileLoading, userIdForHistory, getSession, createNewSession, ensureMessagesHaveUniqueIds]);
 
 
-  // Auto-scroll chat
   useEffect(() => {
     if (chatAreaRef.current) {
       chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
     }
   }, [messages]);
 
-  // Auto-save session
   useEffect(() => {
     if (currentSession && (messages.length > 0 || currentSession.messages.length > 0) ) {
       const isNewChatName = currentSession.name === "New Chat";
@@ -227,10 +221,8 @@ export default function ChatPage() {
                     newCurrentSessionState.name = savedSession.name;
                     changesMade = true;
                 }
-                // Only update messages in currentSession if they are truly different, to avoid re-renders
-                // This check might be too naive if message objects change identity but content is same
                 if (JSON.stringify(savedSession.messages) !== JSON.stringify(newCurrentSessionState.messages)) {
-                    newCurrentSessionState.messages = savedSession.messages;
+                    newCurrentSessionState.messages = savedSession.messages; 
                     changesMade = true;
                 }
                  if (savedSession.updatedAt !== newCurrentSessionState.updatedAt) {
@@ -275,7 +267,7 @@ export default function ChatPage() {
 
   const handleNewChat = useCallback(() => {
     const modelIdToUse = (profile?.selectedGenkitModelId || DEFAULT_MODEL_ID);
-    const newSession = createNewSession([], modelIdToUse); // Pass modelId here
+    const newSession = createNewSession([], modelIdToUse); 
     setCurrentSession(newSession);
     setMessages(newSession.messages);
     setInputMessage('');
@@ -348,10 +340,7 @@ export default function ChatPage() {
 
   const handleSendMessage = async (messageText: string = inputMessage, actionType: ActionType = 'processMessage', notes?: string) => {
     const currentMessageText = messageText.trim();
-    const canSendMessage = currentMessageText || currentAttachedFilesData.length > 0 || ['generateDelivery', 'generateRevision', 'generateDesignIdeas', 'generateDesignPrompts', 'analyzeRequirements', 'generateEngagementPack'].includes(actionType);
-
-    if (!canSendMessage && !['generateDelivery', 'generateRevision'].includes(actionType) ) return;
-
+    
     if (!profile) {
       toast({ title: "Profile not loaded", description: "Please wait for your profile to load or set it up in Settings.", variant: "destructive" });
       return;
@@ -360,10 +349,14 @@ export default function ChatPage() {
         toast({ title: "Session not initialized", description: "Please wait or try creating a new chat.", variant: "destructive" });
         return;
     }
+    if (actionType === 'checkMadeDesigns' && currentAttachedFilesData.length === 0) {
+      toast({ title: "No Design Attached", description: "Please attach a design image to use the 'Check Made Designs' feature.", variant: "destructive" });
+      return;
+    }
 
     const filesToSendWithThisMessage = [...currentAttachedFilesData];
     const modelIdToUse = profile.selectedGenkitModelId || DEFAULT_MODEL_ID;
-    const userMessageContent = currentMessageText || (filesToSendWithThisMessage.length > 0 ? `Attached ${filesToSendWithThisMessage.length} file(s)` : `Triggered action: ${actionType}`);
+    const userMessageContent = currentMessageText || (filesToSendWithThisMessage.length > 0 ? `Attached ${filesToSendWithThisMessage.length} file(s)${notes ? ` (Notes: ${notes})` : ''}` : `Triggered action: ${actionType}${notes ? ` (Notes: ${notes})` : ''}`);
 
     addMessage('user', userMessageContent, filesToSendWithThisMessage);
     addMessage('assistant', 'Processing...', [], true);
@@ -384,7 +377,7 @@ export default function ChatPage() {
 
       const previousMessagesForHistory = messages;
       const chatHistoryForAI = previousMessagesForHistory
-        .slice(-5) // Get last 5 messages (user + assistant)
+        .slice(-10) 
         .map(msg => ({
           role: msg.role as 'user' | 'assistant',
           text: getMessageText(msg.content)
@@ -395,9 +388,8 @@ export default function ChatPage() {
       if (actionType === 'processMessage') {
         const processInput: ProcessClientMessageInput = { ...baseInput, clientMessage: currentMessageText, attachedFiles: filesForFlow, chatHistory: chatHistoryForAI };
         const processed = await processClientMessage(processInput);
-
-        const repliesInput: SuggestClientRepliesInput = { ...baseInput, clientMessage: currentMessageText, professionalTitle: profile.professionalTitle, services: profile.services, chatHistory: chatHistoryForAI };
-        const replies = await suggestClientReplies(repliesInput);
+        // const repliesInput: SuggestClientRepliesInput = { ...baseInput, clientMessage: currentMessageText, professionalTitle: profile.professionalTitle, services: profile.services, chatHistory: chatHistoryForAI };
+        // const replies = await suggestClientReplies(repliesInput); // Not directly used by a button anymore
 
         aiResponseContent.push({
           type: 'translation_group',
@@ -405,9 +397,9 @@ export default function ChatPage() {
           english: { analysis: processed.analysis, simplifiedRequest: processed.simplifiedRequest, stepByStepApproach: processed.stepByStepApproach },
           bengali: { analysis: processed.bengaliTranslation }
         });
-        if (replies.englishReplies && replies.englishReplies.length > 0) {
-          aiResponseContent.push({ type: 'list', title: 'Suggested English Replies', items: replies.englishReplies });
-        }
+        // if (replies.englishReplies && replies.englishReplies.length > 0) {
+        //   aiResponseContent.push({ type: 'list', title: 'Suggested English Replies', items: replies.englishReplies });
+        // }
       } else if (actionType === 'analyzeRequirements') {
         const requirementsInput: AnalyzeClientRequirementsInput = { ...baseInput, clientMessage: currentMessageText, attachedFiles: filesForFlow, chatHistory: chatHistoryForAI };
         const requirementsOutput = await analyzeClientRequirements(requirementsInput);
@@ -436,7 +428,7 @@ export default function ChatPage() {
         aiResponseContent.push({ type: 'text', title: '3. Suggestions:', text: suggestionsText });
 
         if (packOutput.clarifyingQuestions && packOutput.clarifyingQuestions.length > 0) {
-          aiResponseContent.push({ type: 'text', title: '4. Clarifying Questions to Ask Client:', text: " "}); // Add a space to ensure title renders if questions are just code blocks
+          aiResponseContent.push({ type: 'text', title: '4. Clarifying Questions to Ask Client:', text: " "}); 
           packOutput.clarifyingQuestions.forEach((q, index) => {
             aiResponseContent.push({ type: 'code', title: `Question ${index + 1}`, code: q });
           });
@@ -444,7 +436,7 @@ export default function ChatPage() {
       } else if (actionType === 'generateDesignIdeas') {
         const ideasInput: GenerateDesignIdeasInput = { 
             ...baseInput, 
-            designInputText: currentMessageText || "general creative designs", // Fallback if message is empty
+            designInputText: currentMessageText || "general creative designs", 
             attachedFiles: filesForFlow, 
             chatHistory: chatHistoryForAI 
         };
@@ -462,7 +454,7 @@ export default function ChatPage() {
       } else if (actionType === 'generateDesignPrompts') {
         const promptsInput: GenerateDesignPromptsInput = { 
             ...baseInput, 
-            clientMessage: currentMessageText, // The AI will look for ideas here or in history
+            clientMessage: currentMessageText, 
             attachedFiles: filesForFlow, 
             chatHistory: chatHistoryForAI 
         };
@@ -474,33 +466,58 @@ export default function ChatPage() {
         } else {
             aiResponseContent.push({ type: 'text', text: "No image prompts generated. Ensure design ideas were provided or generated."});
         }
-      } else if (actionType === 'generateDelivery' || actionType === 'generateRevision') {
+      } else if (actionType === 'checkMadeDesigns') {
+        const designFile = filesForFlow.find(f => f.type?.startsWith('image/') && f.dataUri);
+        if (!designFile || !designFile.dataUri) {
+          toast({ title: "Design Image Missing", description: "Please attach the design image you want to check.", variant: "destructive" });
+          updateLastMessage([{type: 'text', text: "Please attach a design image to check."}], false, true);
+          setIsLoading(false);
+          return;
+        }
+        const checkInput: CheckMadeDesignsInput = {
+          ...baseInput,
+          clientPromptOrDescription: currentMessageText || "Client requirements as per conversation history.", 
+          designToCheckDataUri: designFile.dataUri,
+          chatHistory: chatHistoryForAI,
+        };
+        const result: CheckMadeDesignsOutput = await checkMadeDesigns(checkInput);
+        aiResponseContent.push({ type: 'text', title: 'Design Check Summary (Bangla)', text: result.overallSummary });
+        aiResponseContent.push({ type: 'text', title: 'ভুল অবজেক্ট/উপাদান', text: result.mistakeAnalysis.wrongObjectOrElements });
+        aiResponseContent.push({ type: 'text', title: 'ভুল অবস্থান', text: result.mistakeAnalysis.wrongPositions });
+        aiResponseContent.push({ type: 'text', title: 'টাইপিং ও টেক্সট ভুল', text: result.mistakeAnalysis.typingMistakes });
+        aiResponseContent.push({ type: 'text', title: 'ভুল রঙ', text: result.mistakeAnalysis.wrongColors });
+        aiResponseContent.push({ type: 'text', title: 'ভুল আকার', text: result.mistakeAnalysis.wrongSizes });
+        aiResponseContent.push({ type: 'text', title: 'বাদ পড়া উপাদান', text: result.mistakeAnalysis.missingElements });
+        aiResponseContent.push({ type: 'text', title: 'অন্যান্য ভুল', text: result.mistakeAnalysis.otherMistakes });
+      }
+       else if (actionType === 'generateDeliveryTemplates' || actionType === 'generateRevision') {
         const platformInput: GeneratePlatformMessagesInput = {
           name: profile.name,
           professionalTitle: profile.professionalTitle || '',
           services: profile.services || [],
-          deliveryNotes: actionType === 'generateDelivery' ? notes || '' : '',
-          revisionNotes: actionType === 'generateRevision' ? notes || '' : '',
+          deliveryNotes: actionType === 'generateDeliveryTemplates' ? (notes || currentMessageText) : '',
+          revisionNotes: actionType === 'generateRevision' ? (notes || currentMessageText) : '',
           fiverrUsername: profile.fiverrUsername || '',
           customSellerFeedbackTemplate: profile.customSellerFeedbackTemplate || '',
           customClientFeedbackResponseTemplate: profile.customClientFeedbackResponseTemplate || '',
-          messageType: actionType === 'generateDelivery' ? 'delivery' : 'revision',
+          messageType: actionType === 'generateDeliveryTemplates' ? 'delivery' : 'revision',
           modelId: modelIdToUse,
         };
-        const platformMessages = await generatePlatformMessages(platformInput);
-        const mainMessages = platformMessages.messages.filter(m => m.type === platformInput.messageType);
-        const followUpMessages = platformMessages.messages.filter(m => m.type === 'follow-up');
-
-        if (mainMessages.length > 0) {
-           aiResponseContent.push({ type: 'list', title: `${actionType === 'generateDelivery' ? 'Delivery' : 'Revision'} Message Options`, items: mainMessages.map(m => m.message) });
-        }
-        if (followUpMessages.length > 0) {
-           aiResponseContent.push({ type: 'list', title: 'Follow-up Messages', items: followUpMessages.map(m => m.message) });
-        }
-        if (aiResponseContent.length === 0) {
+        const platformMessagesOutput = await generatePlatformMessages(platformInput);
+        
+        if (platformMessagesOutput.messages && platformMessagesOutput.messages.length > 0) {
+          // For Delivery Templates, we expect 7 distinct messages. For Revision, 3.
+          // Display each as a separate copyable block.
+          platformMessagesOutput.messages.forEach(m => {
+            // Clean up the type to use as a title
+            const messageTitle = m.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            aiResponseContent.push({ type: 'code', title: messageTitle, code: m.message });
+          });
+        } else {
           aiResponseContent.push({type: 'text', text: "No platform messages generated."});
         }
       }
+
 
       updateLastMessage(aiResponseContent.length > 0 ? aiResponseContent : [{type: 'text', text: "Done."}]);
 
@@ -514,7 +531,7 @@ export default function ChatPage() {
   };
 
   const handleAction = (action: ActionType) => {
-    if (action === 'generateDelivery' || action === 'generateRevision') {
+    if (action === 'generateDeliveryTemplates' || action === 'generateRevision') {
       setModalActionType(action);
       setShowNotesModal(true);
     } else {
@@ -532,14 +549,13 @@ export default function ChatPage() {
   };
 
   const handleFileSelectAndProcess = async (newFiles: File[]) => {
-    const combinedFiles = [...selectedFiles, ...newFiles].slice(0, 5); // Max 5 files
+    const combinedFiles = [...selectedFiles, ...newFiles].slice(0, 5); 
     setSelectedFiles(combinedFiles);
 
     const processedNewFiles = await processFilesForAI(newFiles);
-    // Combine and limit total attached files data as well
     setCurrentAttachedFilesData(prev => 
         [...prev, ...processedNewFiles]
-        .reduce((acc, current) => { // Deduplicate based on name and size
+        .reduce((acc, current) => { 
             if (!acc.find(item => item.name === current.name && item.size === current.size)) {
                 acc.push(current);
             }
@@ -582,7 +598,6 @@ export default function ChatPage() {
   const handleDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    // Check if the leave event is actually leaving the drop zone and not just an internal child
     if (dropZoneRef.current && !dropZoneRef.current.contains(event.relatedTarget as Node)) {
       setIsDragging(false);
     }
@@ -594,9 +609,9 @@ export default function ChatPage() {
     setIsDragging(false);
     if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
       await handleFileSelectAndProcess(Array.from(event.dataTransfer.files));
-      event.dataTransfer.clearData(); // Recommended for some browsers
+      event.dataTransfer.clearData(); 
     }
-  }, [handleFileSelectAndProcess]); // Dependency on the memoized or stable version
+  }, [handleFileSelectAndProcess]); 
 
 
   if (profileLoading || !currentSession) {
@@ -626,7 +641,7 @@ export default function ChatPage() {
             isHistoryPanelOpen ? "w-[280px] border-r" : "w-0 border-r-0 opacity-0"
           )}
         >
-          {isHistoryPanelOpen && ( // Only render if open to avoid rendering in zero-width state
+          {isHistoryPanelOpen && ( 
             <HistoryPanel
               sessions={historyMetadata}
               activeSessionId={currentSession?.id || null}
@@ -710,7 +725,7 @@ export default function ChatPage() {
                     multiple
                     onChange={handleFileChange}
                     className="hidden"
-                    accept="image/*,application/pdf,.txt,.md,.json" // Common design-related file types
+                    accept="image/*,application/pdf,.txt,.md,.json" 
                 />
              </div>
              <div>
@@ -729,7 +744,7 @@ export default function ChatPage() {
       <Dialog open={showNotesModal} onOpenChange={setShowNotesModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Additional Notes for {modalActionType === 'generateDelivery' ? 'Delivery' : 'Revision'}</DialogTitle>
+            <DialogTitle>Additional Notes for {modalActionType === 'generateDeliveryTemplates' ? 'Delivery' : 'Revision'}</DialogTitle>
             <DialogDescription>
               Provide any specific notes or details for the AI to consider.
             </DialogDescription>
@@ -744,7 +759,7 @@ export default function ChatPage() {
                 value={modalNotes}
                 onChange={(e) => setModalNotes(e.target.value)}
                 className="col-span-3 h-32 resize-none"
-                placeholder={modalActionType === 'generateDelivery' ? "e.g., All final files attached, 2 concepts included..." : "e.g., Client requested color changes, updated logo attached..."}
+                placeholder={modalActionType === 'generateDeliveryTemplates' ? "e.g., All final files attached, 2 concepts included..." : "e.g., Client requested color changes, updated logo attached..."}
               />
             </div>
           </div>
@@ -757,5 +772,3 @@ export default function ChatPage() {
     </div>
   );
 }
-
-    

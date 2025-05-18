@@ -2,7 +2,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { BotMessageSquare, Plane, RotateCcw, ListChecks, ClipboardList, Sparkles, MessageSquarePlus, Palette, Lightbulb, Terminal } from 'lucide-react';
+import { BotMessageSquare, Plane, RotateCcw, ListChecks, ClipboardList, Sparkles, MessageSquarePlus, Palette, Lightbulb, Terminal, SearchCheck, ClipboardSignature } from 'lucide-react';
 import type { UserProfile } from '@/lib/types';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -17,7 +17,8 @@ export type ActionType =
   | 'processMessage'
   | 'analyzeRequirements' 
   | 'generateEngagementPack'
-  | 'generateDelivery'
+  | 'generateDeliveryTemplates' 
+  | 'checkMadeDesigns'          
   | 'generateRevision'
   | 'generateDesignIdeas'
   | 'generateDesignPrompts';
@@ -28,11 +29,11 @@ interface ActionButtonConfig {
   shortLabel: string;
   icon: React.ElementType;
   description: string;
-  isPrimaryAction?: boolean; // True if it's a direct button, false if it's a dropdown item
+  isPrimaryAction?: boolean; 
 }
 
 interface DropdownActionConfig {
-    id: string; // e.g., 'designActions'
+    id: string; 
     label: string;
     shortLabel: string;
     icon: React.ElementType;
@@ -58,7 +59,17 @@ const actionButtonsConfig: AnyActionConfig[] = [
       { id: 'generateDesignPrompts', label: 'Generate AI Prompts', shortLabel: 'Prompt', icon: Terminal, description: 'Converts design ideas into detailed prompts for AI image generation.', isPrimaryAction: false },
     ]
   },
-  { id: 'generateDelivery', label: 'Generate Delivery Message', shortLabel: 'Delivery', icon: Plane, description: 'Platform-ready delivery messages and follow-ups.', isPrimaryAction: true },
+  {
+    id: 'deliveryActions', 
+    label: 'Delivery Tools',
+    shortLabel: 'Delivery',
+    icon: Plane,
+    description: 'Tools for checking designs and generating delivery messages.',
+    subActions: [
+      { id: 'checkMadeDesigns', label: 'Check Made Designs', shortLabel: 'Check', icon: SearchCheck, description: 'AI review of your design for mistakes (Bangla). Requires attached design.', isPrimaryAction: false },
+      { id: 'generateDeliveryTemplates', label: 'Delivery Templates', shortLabel: 'Templates', icon: ClipboardSignature, description: 'Generate Fiverr delivery messages and follow-ups.', isPrimaryAction: false },
+    ]
+  },
   { id: 'generateRevision', label: 'Generate Revision Message', shortLabel: 'Revision', icon: RotateCcw, description: 'Platform-ready revision messages and follow-ups.', isPrimaryAction: true },
 ];
 
@@ -76,20 +87,20 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
     if (isLoading || !profile) {
       return true;
     }
-    // For sub-actions, they depend on the main dropdown not being disabled.
-    // Individual sub-actions could have their own logic if needed, but for now, they follow the parent.
+    if (actionId === 'checkMadeDesigns' && currentAttachedFilesDataLength === 0) {
+      return true;
+    }
     return false; 
   };
 
   return (
     <div className={cn(
         "flex flex-wrap items-center justify-end gap-1.5 md:gap-2", 
-        (!profile || isLoading) && "opacity-60 pointer-events-none" 
+        isLoading && "opacity-60 pointer-events-none" 
       )}
     >
       {actionButtonsConfig.map((actionConfig) => {
         if ('isPrimaryAction' in actionConfig && actionConfig.isPrimaryAction) {
-          // Render a direct button
           const btn = actionConfig as ActionButtonConfig;
           return (
             <TooltipProvider key={btn.id} delayDuration={300}>
@@ -99,7 +110,7 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
                     variant="outline"
                     size="sm" 
                     onClick={() => onAction(btn.id)}
-                    disabled={isActionDisabled(btn.id)}
+                    disabled={isActionDisabled(btn.id)} 
                     className="px-2.5 py-1.5 md:px-3 md:py-2 h-auto" 
                   >
                     <btn.icon className="h-4 w-4 mr-1 md:mr-1.5" />
@@ -109,12 +120,14 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
                 <TooltipContent side="top" align="center">
                   <p className="font-semibold">{btn.label}</p>
                   <p className="text-xs text-muted-foreground max-w-xs">{btn.description}</p>
+                   {btn.id === 'checkMadeDesigns' && currentAttachedFilesDataLength === 0 && (
+                     <p className="text-xs text-destructive mt-1">Requires an image file to be attached.</p>
+                   )}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           );
         } else {
-          // Render a dropdown menu
           const dropdown = actionConfig as DropdownActionConfig;
           return (
             <DropdownMenu key={dropdown.id}>
@@ -125,7 +138,7 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
                         <Button
                             variant="outline"
                             size="sm"
-                            disabled={isActionDisabled()} // Main dropdown disabled state
+                            disabled={isLoading || !profile} 
                             className="px-2.5 py-1.5 md:px-3 md:py-2 h-auto"
                         >
                             <dropdown.icon className="h-4 w-4 mr-1 md:mr-1.5" />
@@ -144,7 +157,7 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
                   <DropdownMenuItem
                     key={subAction.id}
                     onClick={() => onAction(subAction.id)}
-                    disabled={isActionDisabled(subAction.id)}
+                    disabled={isActionDisabled(subAction.id)} 
                     className="text-sm cursor-pointer hover:bg-accent focus:bg-accent"
                   >
                     <subAction.icon className="h-4 w-4 mr-2" />
@@ -159,5 +172,3 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
     </div>
   );
 }
-
-    
