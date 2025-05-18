@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Paperclip, Loader2, BotIcon, Menu, XIcon, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
+import { Paperclip, Loader2, BotIcon, Menu, XIcon, PanelLeftOpen, PanelLeftClose, Palette } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -17,8 +17,9 @@ import { processClientMessage, type ProcessClientMessageInput } from '@/ai/flows
 import { suggestClientReplies, type SuggestClientRepliesInput } from '@/ai/flows/suggest-client-replies';
 import { generatePlatformMessages, type GeneratePlatformMessagesInput } from '@/ai/flows/generate-platform-messages';
 import { analyzeClientRequirements, type AnalyzeClientRequirementsInput } from '@/ai/flows/analyze-client-requirements';
-import { generateEngagementPack, type GenerateEngagementPackInput, type GenerateEngagementPackOutput } from '@/ai/flows/generate-engagement-pack-flow';
-import { generateBrief, type GenerateBriefInput } from '@/ai/flows/generate-brief-flow'; // For deprecated flow
+import { generateEngagementPack, type GenerateEngagementPackInput } from '@/ai/flows/generate-engagement-pack-flow';
+import { generateDesignIdeas, type GenerateDesignIdeasInput, type GenerateDesignIdeasOutput } from '@/ai/flows/generate-design-ideas-flow';
+import { generateDesignPrompts, type GenerateDesignPromptsInput, type GenerateDesignPromptsOutput } from '@/ai/flows/generate-design-prompts-flow';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
@@ -33,7 +34,7 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
 
   let fullText = '';
   content.forEach(part => {
-    if (part.title) {
+    if (part.title && part.type !== 'code' && part.type !== 'list' && part.type !== 'translation_group') { // Avoid double titles for these
       fullText += `### ${part.title}\n`;
     }
     switch (part.type) {
@@ -41,43 +42,41 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
         fullText += `${part.text || ''}\n`;
         break;
       case 'code':
+        if (part.title) fullText += `### ${part.title}\n`;
         fullText += `\`\`\`${part.language || ''}\n${part.code || ''}\n\`\`\`\n`;
         break;
       case 'list':
+        if (part.title) { 
+             fullText += `### ${part.title}\n`;
+        }
         if (part.items && part.items.length > 0) {
-          if (part.title) { // Ensure title is added before items if it exists
-             fullText += `Items for "${part.title}":\n`;
-          }
           fullText += part.items.map((item, index) => `${index + 1}. ${item}`).join('\n') + '\n';
         } else {
           fullText += `[Empty List${part.title ? ` for "${part.title}"` : ''}]\n`;
         }
         break;
       case 'translation_group':
-        let groupText = '';
-        if (part.title) groupText += `Content for "${part.title}":\n`;
-
+        if (part.title) fullText += `### ${part.title}\n`;
         if (part.english) {
-          if (part.english.analysis) groupText += `English Analysis:\n${part.english.analysis}\n\n`;
-          if (part.english.simplifiedRequest) groupText += `English Simplified Request:\n${part.english.simplifiedRequest}\n\n`;
-          if (part.english.stepByStepApproach) groupText += `English Step-by-Step Approach:\n${part.english.stepByStepApproach}\n\n`;
+          if (part.english.analysis) fullText += `English Analysis:\n${part.english.analysis}\n\n`;
+          if (part.english.simplifiedRequest) fullText += `English Simplified Request:\n${part.english.simplifiedRequest}\n\n`;
+          if (part.english.stepByStepApproach) fullText += `English Step-by-Step Approach:\n${part.english.stepByStepApproach}\n\n`;
         }
         if (part.bengali) {
-          groupText += "\n";
-          if (part.bengali.analysis) groupText += `Bengali Analysis/Combined Translation:\n${part.bengali.analysis}\n\n`;
-          if (part.bengali.simplifiedRequest) groupText += `Bengali Simplified Request:\n${part.bengali.simplifiedRequest}\n\n`;
-          if (part.bengali.stepByStepApproach) groupText += `Bengali Step-by-Step Approach:\n${part.bengali.stepByStepApproach}\n\n`;
+          fullText += "\n"; // Ensure a line break before Bengali content
+          if (part.bengali.analysis) fullText += `Bengali Analysis/Combined Translation:\n${part.bengali.analysis}\n\n`;
+          if (part.bengali.simplifiedRequest) fullText += `Bengali Simplified Request:\n${part.bengali.simplifiedRequest}\n\n`;
+          if (part.bengali.stepByStepApproach) fullText += `Bengali Step-by-Step Approach:\n${part.bengali.stepByStepApproach}\n\n`;
         }
-        if (groupText.trim() === '' || (part.title && groupText.trim() === `Content for "${part.title}":`)) {
-            groupText = `[Empty Translation Group${part.title ? ` for "${part.title}"` : ''}]\n`;
+        if (fullText.trim() === (part.title ? `### ${part.title}` : '')) {
+            fullText += `[Empty Translation Group${part.title ? ` for "${part.title}"` : ''}]\n`;
         }
-        fullText += groupText;
         break;
       default:
-        // const _exhaustiveCheck: never = part;
+        // const _exhaustiveCheck: never = part; // For type checking
         fullText += `[Unsupported Content Part: ${(part as any).type} ${part.title ? `for "${part.title}"` : ''}]\n`;
     }
-    fullText += '\n';
+    fullText += '\n'; // Add a newline after each part for better separation in history
   });
   return fullText.trim() || '[Empty Message Content Parts]';
 };
@@ -228,7 +227,9 @@ export default function ChatPage() {
                     newCurrentSessionState.name = savedSession.name;
                     changesMade = true;
                 }
-                if (savedSession.messages !== newCurrentSessionState.messages) {
+                // Only update messages in currentSession if they are truly different, to avoid re-renders
+                // This check might be too naive if message objects change identity but content is same
+                if (JSON.stringify(savedSession.messages) !== JSON.stringify(newCurrentSessionState.messages)) {
                     newCurrentSessionState.messages = savedSession.messages;
                     changesMade = true;
                 }
@@ -347,9 +348,9 @@ export default function ChatPage() {
 
   const handleSendMessage = async (messageText: string = inputMessage, actionType: ActionType = 'processMessage', notes?: string) => {
     const currentMessageText = messageText.trim();
-    const canSendMessage = currentMessageText || currentAttachedFilesData.length > 0 || actionType === 'generateDelivery' || actionType === 'generateRevision' || actionType === 'analyzeRequirements' || actionType === 'generateEngagementPack' || actionType === 'generateBrief';
+    const canSendMessage = currentMessageText || currentAttachedFilesData.length > 0 || ['generateDelivery', 'generateRevision', 'generateDesignIdeas', 'generateDesignPrompts', 'analyzeRequirements', 'generateEngagementPack'].includes(actionType);
 
-    if (!canSendMessage && (actionType !== 'generateDelivery' && actionType !== 'generateRevision')) return;
+    if (!canSendMessage && !['generateDelivery', 'generateRevision'].includes(actionType) ) return;
 
     if (!profile) {
       toast({ title: "Profile not loaded", description: "Please wait for your profile to load or set it up in Settings.", variant: "destructive" });
@@ -362,8 +363,9 @@ export default function ChatPage() {
 
     const filesToSendWithThisMessage = [...currentAttachedFilesData];
     const modelIdToUse = profile.selectedGenkitModelId || DEFAULT_MODEL_ID;
+    const userMessageContent = currentMessageText || (filesToSendWithThisMessage.length > 0 ? `Attached ${filesToSendWithThisMessage.length} file(s)` : `Triggered action: ${actionType}`);
 
-    addMessage('user', currentMessageText || `Triggered action: ${actionType}`, filesToSendWithThisMessage);
+    addMessage('user', userMessageContent, filesToSendWithThisMessage);
     addMessage('assistant', 'Processing...', [], true);
     setIsLoading(true);
     setInputMessage('');
@@ -382,7 +384,7 @@ export default function ChatPage() {
 
       const previousMessagesForHistory = messages;
       const chatHistoryForAI = previousMessagesForHistory
-        .slice(-5)
+        .slice(-5) // Get last 5 messages (user + assistant)
         .map(msg => ({
           role: msg.role as 'user' | 'assistant',
           text: getMessageText(msg.content)
@@ -434,18 +436,44 @@ export default function ChatPage() {
         aiResponseContent.push({ type: 'text', title: '3. Suggestions:', text: suggestionsText });
 
         if (packOutput.clarifyingQuestions && packOutput.clarifyingQuestions.length > 0) {
-          aiResponseContent.push({ type: 'text', title: '4. Clarifying Questions to Ask Client:', text: " "});
+          aiResponseContent.push({ type: 'text', title: '4. Clarifying Questions to Ask Client:', text: " "}); // Add a space to ensure title renders if questions are just code blocks
           packOutput.clarifyingQuestions.forEach((q, index) => {
             aiResponseContent.push({ type: 'code', title: `Question ${index + 1}`, code: q });
           });
         }
-      } else if (actionType === 'generateBrief') { // Deprecated flow call
-        const briefInput: GenerateBriefInput = { ...baseInput, clientMessage: currentMessageText, userName: profile.name, communicationStyleNotes: profile.communicationStyleNotes || '', attachedFiles: filesForFlow, chatHistory: chatHistoryForAI };
-        const briefOutput = await generateBrief(briefInput);
-        aiResponseContent.push({ type: 'text', title: 'Project Title', text: briefOutput.projectTitle });
-        aiResponseContent.push({ type: 'text', title: 'Project Summary', text: briefOutput.projectSummary });
-        aiResponseContent.push({ type: 'text', title: 'Key Objectives', text: briefOutput.keyObjectives });
-        // ... add other fields as needed
+      } else if (actionType === 'generateDesignIdeas') {
+        const ideasInput: GenerateDesignIdeasInput = { 
+            ...baseInput, 
+            designInputText: currentMessageText || "general creative designs", // Fallback if message is empty
+            attachedFiles: filesForFlow, 
+            chatHistory: chatHistoryForAI 
+        };
+        const ideasOutput = await generateDesignIdeas(ideasInput);
+        aiResponseContent.push({ type: 'text', title: 'Core Text/Saying for Ideas', text: ideasOutput.extractedTextOrSaying});
+        if (ideasOutput.simulatedWebInspiration && ideasOutput.simulatedWebInspiration.length > 0) {
+            aiResponseContent.push({ type: 'list', title: 'Simulated Web Inspiration', items: ideasOutput.simulatedWebInspiration.map(r => `${r.title} ([${r.link.length > 30 ? r.link.substring(0,27)+'...' : r.link }](${r.link})) - ${r.snippet}`) });
+        }
+        if (ideasOutput.creativeDesignIdeas && ideasOutput.creativeDesignIdeas.length > 0) {
+            aiResponseContent.push({ type: 'list', title: 'Creative Design Ideas', items: ideasOutput.creativeDesignIdeas });
+        }
+        if (ideasOutput.typographyDesignIdeas && ideasOutput.typographyDesignIdeas.length > 0) {
+            aiResponseContent.push({ type: 'list', title: 'Typography Design Ideas', items: ideasOutput.typographyDesignIdeas });
+        }
+      } else if (actionType === 'generateDesignPrompts') {
+        const promptsInput: GenerateDesignPromptsInput = { 
+            ...baseInput, 
+            clientMessage: currentMessageText, // The AI will look for ideas here or in history
+            attachedFiles: filesForFlow, 
+            chatHistory: chatHistoryForAI 
+        };
+        const promptsOutput = await generateDesignPrompts(promptsInput);
+        if (promptsOutput.imagePrompts && promptsOutput.imagePrompts.length > 0) {
+            promptsOutput.imagePrompts.forEach((promptText, index) => {
+                aiResponseContent.push({ type: 'code', title: `AI Image Prompt ${index + 1}`, code: promptText });
+            });
+        } else {
+            aiResponseContent.push({ type: 'text', text: "No image prompts generated. Ensure design ideas were provided or generated."});
+        }
       } else if (actionType === 'generateDelivery' || actionType === 'generateRevision') {
         const platformInput: GeneratePlatformMessagesInput = {
           name: profile.name,
@@ -504,11 +532,21 @@ export default function ChatPage() {
   };
 
   const handleFileSelectAndProcess = async (newFiles: File[]) => {
-    const combinedFiles = [...selectedFiles, ...newFiles].slice(0, 5);
+    const combinedFiles = [...selectedFiles, ...newFiles].slice(0, 5); // Max 5 files
     setSelectedFiles(combinedFiles);
 
     const processedNewFiles = await processFilesForAI(newFiles);
-    setCurrentAttachedFilesData(prev => [...prev, ...processedNewFiles].slice(0,5));
+    // Combine and limit total attached files data as well
+    setCurrentAttachedFilesData(prev => 
+        [...prev, ...processedNewFiles]
+        .reduce((acc, current) => { // Deduplicate based on name and size
+            if (!acc.find(item => item.name === current.name && item.size === current.size)) {
+                acc.push(current);
+            }
+            return acc;
+        }, [] as AttachedFile[])
+        .slice(0,5)
+    );
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -544,6 +582,7 @@ export default function ChatPage() {
   const handleDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
+    // Check if the leave event is actually leaving the drop zone and not just an internal child
     if (dropZoneRef.current && !dropZoneRef.current.contains(event.relatedTarget as Node)) {
       setIsDragging(false);
     }
@@ -555,9 +594,9 @@ export default function ChatPage() {
     setIsDragging(false);
     if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
       await handleFileSelectAndProcess(Array.from(event.dataTransfer.files));
-      event.dataTransfer.clearData();
+      event.dataTransfer.clearData(); // Recommended for some browsers
     }
-  }, [handleFileSelectAndProcess]);
+  }, [handleFileSelectAndProcess]); // Dependency on the memoized or stable version
 
 
   if (profileLoading || !currentSession) {
@@ -567,7 +606,7 @@ export default function ChatPage() {
   return (
     <div className="flex h-[calc(100vh-var(--header-height,0px))]">
       {isMobile && isHistoryPanelOpen && (
-        <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setIsHistoryPanelOpen(false)}>
+        <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setIsHistoryPanelOpen(false)}>
           <div className="absolute left-0 top-0 h-full w-4/5 max-w-xs bg-background shadow-xl" onClick={(e) => e.stopPropagation()}>
             <HistoryPanel
               sessions={historyMetadata}
@@ -587,7 +626,7 @@ export default function ChatPage() {
             isHistoryPanelOpen ? "w-[280px] border-r" : "w-0 border-r-0 opacity-0"
           )}
         >
-          {isHistoryPanelOpen && (
+          {isHistoryPanelOpen && ( // Only render if open to avoid rendering in zero-width state
             <HistoryPanel
               sessions={historyMetadata}
               activeSessionId={currentSession?.id || null}
@@ -632,7 +671,7 @@ export default function ChatPage() {
         </ScrollArea>
 
         {isDragging && (
-          <div className="absolute inset-x-4 bottom-[160px] md:bottom-[150px] top-16 md:top-[calc(var(--header-height)_+_0.5rem)] border-4 border-dashed border-primary bg-primary/10 rounded-lg flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-x-4 bottom-[160px] md:bottom-[150px] top-16 md:top-[calc(var(--header-height)_+_0.5rem)] border-4 border-dashed border-primary bg-primary/10 rounded-lg flex items-center justify-center pointer-events-none z-20">
             <p className="text-primary font-semibold text-lg">Drop files here</p>
           </div>
         )}
@@ -671,7 +710,7 @@ export default function ChatPage() {
                     multiple
                     onChange={handleFileChange}
                     className="hidden"
-                    accept="image/*,application/pdf,.txt,.md,.json"
+                    accept="image/*,application/pdf,.txt,.md,.json" // Common design-related file types
                 />
              </div>
              <div>
@@ -718,3 +757,5 @@ export default function ChatPage() {
     </div>
   );
 }
+
+    

@@ -37,6 +37,8 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         description = 'This domain is not authorized for Google Sign-In. Please check your Firebase project configuration (Authentication > Settings > Authorized domains) and ensure this domain and the [PROJECT_ID].firebaseapp.com domain are listed. See console for more details.';
       } else if (error.code === 'auth/popup-closed-by-user') {
         description = 'Google Sign-In cancelled by user.';
+      } else if (error.code === 'auth/popup-blocked') {
+        description = 'Google Sign-In was blocked by your browser. Please allow popups for this site and try again.';
       } else if (error.code) {
         description = `Google Sign-In failed: ${error.message} (Code: ${error.code}). Check console for more details.`;
       }

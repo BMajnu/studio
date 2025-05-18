@@ -15,9 +15,7 @@ export const AVAILABLE_MODELS = [
   { id: 'googleai/gemini-2.5-flash-preview-04-17', name: 'Gemini 2.5 Flash Preview (04-17)' },
   { id: 'googleai/gemini-2.5-pro-exp-03-25', name: 'Gemini 2.5 Pro Experimental (03-25)' },
   { id: 'googleai/gemini-2.5-pro-preview-05-06', name: 'Gemini 2.5 Pro Preview (05-06)' },
-  // Note: "Gemini 1.5 Flash 8B" is represented by 'googleai/gemini-1.5-flash-latest' as public IDs don't typically specify param count.
 ];
-// Updated DEFAULT_MODEL_ID to the latest flash version
 export const DEFAULT_MODEL_ID = 'googleai/gemini-1.5-flash-latest';
 
 
@@ -61,9 +59,9 @@ export const APP_FEATURES_GUIDE = `
 
 Your AI-powered assistant for graphic design tasks. Here's a quick guide to the features:
 
-### Core AI Actions
+### Core AI Actions (Buttons above input field)
 
-These buttons trigger AI processing based on the client message you input:
+These buttons trigger AI processing based on the client message you input and any attached files:
 
 1.  **Chat (Default Process Client Message):**
     *   Analyzes the client's request considering conversation history.
@@ -86,12 +84,24 @@ These buttons trigger AI processing based on the client message you input:
     *   Recommends software for the task.
     *   Provides clarifying questions to ask the client to get started.
 
-4.  **Generate Delivery Message:**
+4.  **Design (Dropdown Menu):**
+    *   **Idea:**
+        *   Analyzes your input (text/saying for design).
+        *   Provides simulated web inspiration (example links & snippets).
+        *   Generates 5 detailed creative design ideas.
+        *   Generates 2 creative typography-focused design ideas.
+    *   **Prompt:**
+        *   Takes design ideas (from your input or previous "Idea" generation) and converts them into detailed prompts for AI image generation tools.
+        *   Optimizes prompts for clarity and effectiveness.
+        *   Specifies backgrounds and uses generic design terms.
+        *   Outputs each prompt in a copyable code block.
+
+5.  **Generate Delivery Message:**
     *   Prompts for delivery notes.
     *   Creates 3 delivery message options for platforms like Fiverr.
     *   Includes automated follow-up content: Thank You message, Seller Feedback template, Client Feedback Response template.
 
-5.  **Generate Revision Message:**
+6.  **Generate Revision Message:**
     *   Prompts for revision notes.
     *   Creates 3 revision message options.
     *   Includes automated follow-up content similar to delivery messages.
@@ -104,7 +114,7 @@ These buttons trigger AI processing based on the client message you input:
 
 ### Tips for Use
 
-*   Paste the full client message into the input field, or attach files.
+*   Paste the full client message into the input field, or attach files (drag & drop or use the "Attach Files" button).
 *   Use the action buttons to get specific AI assistance.
 *   Generated content can be easily copied using the "Copy" button next to each block.
 *   For "Generate Platform..." messages, provide clear notes when prompted.
@@ -112,3 +122,4 @@ These buttons trigger AI processing based on the client message you input:
 We hope DesAInR streamlines your workflow and helps you communicate effectively!
 `;
 
+    
