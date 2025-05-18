@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Settings, Menu, HelpCircle, Sun, Moon, LogOut, LogIn, XIcon, Languages } from 'lucide-react';
+import { Home, Settings, Menu, HelpCircle, Sun, Moon, LogOut, LogIn, XIcon, Languages, UserPlus } from 'lucide-react'; // Added UserPlus
 import { DesAInRLogo } from '@/components/icons/logo';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
@@ -24,27 +24,29 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LoginForm } from '@/components/auth/login-form';
+import { SignupForm } from '@/components/auth/signup-form'; // Import SignupForm
 import { APP_FEATURES_GUIDE, APP_FEATURES_GUIDE_BN } from "@/lib/constants";
 
 interface NavItem {
   href?: string;
   label: string | { en: string; bn: string };
   icon: React.ElementType;
-  isModalTrigger?: boolean;
+  isModalTrigger?: boolean; // General modal trigger flag
+  modalType?: 'login' | 'signup' | 'features'; // Specify modal type
   requiresAuth?: boolean;
   hideWhenAuth?: boolean;
   action?: () => void;
-  isDialogTrigger?: boolean;
   dialogTitle?: string | { en: string; bn: string };
 }
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [effectiveTheme, setEffectiveTheme] = useState<'light' | 'dark'>('light'); // Default to light
+  const [effectiveTheme, setEffectiveTheme] = useState<'light' | 'dark'>('light');
   const [currentLanguage, setCurrentLanguage] = useState<'en' | 'bn'>('en');
   const { user, signOut, loading: authLoading } = useAuth();
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false); // State for signup modal
 
   const getLabel = (label: string | { en: string; bn: string }): string => {
     if (typeof label === 'string') return label;
@@ -54,22 +56,29 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const navItems: NavItem[] = [
     { href: '/', label: { en: 'Home', bn: 'হোম' }, icon: Home },
     { href: '/profile', label: { en: 'Profile', bn: 'প্রোফাইল' }, icon: Settings, requiresAuth: true },
-    { label: { en: 'Features Guide', bn: 'ফিচার গাইড' }, icon: HelpCircle, isModalTrigger: true },
+    { label: { en: 'Features Guide', bn: 'ফিচার গাইড' }, icon: HelpCircle, isModalTrigger: true, modalType: 'features' },
     {
       label: { en: 'Login', bn: 'লগইন করুন' },
       icon: LogIn,
       hideWhenAuth: true,
-      isDialogTrigger: true,
+      isModalTrigger: true,
+      modalType: 'login',
       dialogTitle: { en: 'Login to DesAInR', bn: 'DesAInR-এ লগইন করুন' }
+    },
+    { // New Sign Up button
+      label: { en: 'Sign Up', bn: 'সাইন আপ করুন' },
+      icon: UserPlus,
+      hideWhenAuth: true,
+      isModalTrigger: true,
+      modalType: 'signup',
+      dialogTitle: { en: 'Create DesAInR Account', bn: 'DesAInR অ্যাকাউন্ট তৈরি করুন' }
     },
     { label: { en: 'Logout', bn: 'লগআউট' }, icon: LogOut, requiresAuth: true, action: async () => { await signOut(); setIsMobileSheetOpen(false); } },
   ];
 
-  // Theme effect
   useEffect(() => {
     const storedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
     const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    // Default to 'light' if no stored theme and system doesn't prefer dark.
     const initialTheme = storedTheme || (systemPrefersDark ? 'dark' : 'light'); 
     
     setEffectiveTheme(initialTheme);
@@ -80,7 +89,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Language effect
   useEffect(() => {
     const storedLanguage = localStorage.getItem('desainr_language') as 'en' | 'bn' | null;
     if (storedLanguage) {
@@ -104,7 +112,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const changeLanguage = (lang: 'en' | 'bn') => {
     setCurrentLanguage(lang);
     localStorage.setItem('desainr_language', lang);
-    // Force re-render for mobile sheet text if open
     if (isMobileSheetOpen) {
       setIsMobileSheetOpen(false);
       setTimeout(() => setIsMobileSheetOpen(true), 0);
@@ -112,12 +119,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   };
   
   const renderNavItem = (item: NavItem, isMobile: boolean = false) => {
-    if (item.requiresAuth && !user && !authLoading) return null; // Hide if auth required and no user (and auth not loading)
-    if (item.requiresAuth && authLoading) return null; // Optionally hide auth-required items while auth is loading
+    if (item.requiresAuth && !user && !authLoading) return null;
+    if (item.requiresAuth && authLoading) return null; 
     if (item.hideWhenAuth && user) return null;
 
     const itemLabel = getLabel(item.label);
-    const itemDialogTitle = item.dialogTitle ? getLabel(item.dialogTitle) : undefined;
+    const itemDialogTitle = item.dialogTitle ? getLabel(item.dialogTitle) : itemLabel;
     const guideTextToShow = currentLanguage === 'bn' ? APP_FEATURES_GUIDE_BN : APP_FEATURES_GUIDE;
 
     const commonButtonProps = {
@@ -125,9 +132,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       className: `font-medium transition-all duration-200 ease-in-out hover:text-primary ${isMobile ? "w-full justify-start text-base py-3 h-auto" : "hover:bg-primary/10"}`,
       onClick: () => {
         if (item.action) item.action();
-        if (isMobile && item.href && !item.isDialogTrigger && !item.isModalTrigger) {
+        if (isMobile && item.href && !item.isModalTrigger) {
           setIsMobileSheetOpen(false);
         }
+        // For modal triggers, handle opening the correct modal
+        if (item.isModalTrigger && item.modalType === 'login') setIsLoginModalOpen(true);
+        if (item.isModalTrigger && item.modalType === 'signup') setIsSignupModalOpen(true);
+        // Features modal is handled by its own trigger logic if it's a direct child
       },
     };
 
@@ -137,35 +148,22 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       </>
     );
 
-    if (item.isModalTrigger && (item.label as { en: string; bn: string }).en === 'Features Guide') {
+    if (item.isModalTrigger && item.modalType === 'features') {
        const TriggerButton = <Button {...commonButtonProps}>{buttonContent}</Button>;
-      return (
+       return (
          <FeaturesGuideModal
-            key={itemLabel}
+            key={itemLabel} // Use itemLabel as key for consistency
             triggerButton={TriggerButton}
             guideContent={guideTextToShow}
          />
       );
     }
     
-    if (item.isDialogTrigger && (item.label as { en: string; bn: string }).en === 'Login') {
-       const openState = isLoginModalOpen;
-       const setOpenState = setIsLoginModalOpen;
+    if (item.isModalTrigger && (item.modalType === 'login' || item.modalType === 'signup')) {
         return (
-            <Dialog key={itemLabel} open={openState} onOpenChange={setOpenState}>
-            <ModalDialogTrigger asChild>
-                <Button {...commonButtonProps}>{buttonContent}</Button>
-            </ModalDialogTrigger>
-            <ModalContent className="sm:max-w-md">
-                <ModalHeader>
-                <ModalTitle>{itemDialogTitle || 'Login to DesAInR'}</ModalTitle>
-                </ModalHeader>
-                <LoginForm onSuccess={() => {
-                    setOpenState(false);
-                    if(isMobile) setIsMobileSheetOpen(false);
-                }} />
-            </ModalContent>
-            </Dialog>
+            <Button key={itemLabel} {...commonButtonProps}>
+                {buttonContent}
+            </Button>
         );
     }
 
@@ -189,7 +187,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
      const ActionButtonComponent = <Button {...commonButtonProps}>{buttonContent}</Button>;
      if (isMobile) {
-         return <SheetClose asChild key={itemLabel}>{ActionButtonComponent}</SheetClose>;
+        // If it's an action button in mobile sheet, ensure SheetClose wraps it if no modal handling
+        if (!item.isModalTrigger) {
+           return <SheetClose asChild key={itemLabel}>{ActionButtonComponent}</SheetClose>;
+        }
      }
      return <React.Fragment key={itemLabel}>{ActionButtonComponent}</React.Fragment>;
   };
@@ -202,7 +203,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const srToggleMenu = currentLanguage === 'bn' ? 'মেনু টগল করুন' : 'Toggle Menu';
   const srChangeLanguage = currentLanguage === 'bn' ? 'ভাষা পরিবর্তন করুন' : 'Change language';
   const srToggleTheme = currentLanguage === 'bn' ? 'থিম পরিবর্তন করুন' : 'Toggle theme';
-
 
   return (
     <div className="flex min-h-screen flex-col" style={{ "--header-height": "4rem" } as React.CSSProperties}>
@@ -272,6 +272,26 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <main className="flex-1 flex flex-col overflow-hidden">
         {children}
       </main>
+
+      {/* Login Modal */}
+      <Dialog open={isLoginModalOpen} onOpenChange={setIsLoginModalOpen}>
+        <ModalContent className="sm:max-w-md">
+          <ModalHeader>
+            <ModalTitle>{getLabel(navItems.find(item => item.modalType === 'login')?.dialogTitle || 'Login')}</ModalTitle>
+          </ModalHeader>
+          <LoginForm onSuccess={() => setIsLoginModalOpen(false)} />
+        </ModalContent>
+      </Dialog>
+
+      {/* Signup Modal */}
+      <Dialog open={isSignupModalOpen} onOpenChange={setIsSignupModalOpen}>
+        <ModalContent className="sm:max-w-md">
+          <ModalHeader>
+            <ModalTitle>{getLabel(navItems.find(item => item.modalType === 'signup')?.dialogTitle || 'Sign Up')}</ModalTitle>
+          </ModalHeader>
+          <SignupForm onSuccess={() => setIsSignupModalOpen(false)} />
+        </ModalContent>
+      </Dialog>
     </div>
   );
 }
