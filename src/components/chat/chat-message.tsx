@@ -1,26 +1,28 @@
 
 'use client';
 
-import type { ChatMessage, MessageRole, ChatMessageContentPart, AttachedFile } from '@/lib/types';
+import type { ChatMessage, MessageRole, ChatMessageContentPart, AttachedFile, ActionType } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Bot, User, AlertTriangle, Paperclip, FileText, Image as ImageIcon } from 'lucide-react';
+import { Bot, User, AlertTriangle, Paperclip, FileText, Image as ImageIcon, RotateCcw } from 'lucide-react';
 import { CopyToClipboard, CopyableText, CopyableList } from '@/components/copy-to-clipboard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button'; // Import Button
 
 interface ChatMessageProps {
   message: ChatMessage;
+  onRegenerate?: (requestDetails: ChatMessage['originalRequest']) => void; // Added prop
 }
 
 function MessageAvatar({ role }: { role: MessageRole }) {
   return (
     <Avatar className="h-8 w-8 self-start shrink-0">
-      <AvatarImage 
-        src={role === 'assistant' ? `https://placehold.co/40x40.png?text=AI` : `https://placehold.co/40x40.png?text=U`} 
-        alt={role} 
+      <AvatarImage
+        src={role === 'assistant' ? `https://placehold.co/40x40.png?text=AI` : `https://placehold.co/40x40.png?text=U`}
+        alt={role}
         data-ai-hint={role === 'assistant' ? 'robot face' : 'person silhouette'}
       />
       <AvatarFallback>
@@ -58,7 +60,7 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
       if (part.title) {
         return <CopyableText key={index} text={part.text} title={part.title} className={cn(commonClasses)} style={{ animationDelay }} />;
       }
-      return <p key={index} className="whitespace-pre-wrap">{part.text}</p>; // Simple text doesn't need animation if it's part of a larger animated block.
+      return <p key={index} className="whitespace-pre-wrap">{part.text}</p>;
     case 'code':
       return <CopyToClipboard key={index} textToCopy={part.code || ''} title={part.title} language={part.language} className={cn(commonClasses)} style={{ animationDelay }} />;
     case 'list':
@@ -67,10 +69,10 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
           <div key={index} className={cn(commonClasses)} style={{ animationDelay }}>
             {part.title && <h4 className="font-semibold mb-1 text-base">{part.title}</h4>}
             {part.items && part.items.map((item, itemIndex) => (
-              <CopyableText 
-                key={`${index}-item-${itemIndex}`} 
-                text={item} 
-                title={`${part.title && (part.title.startsWith('Suggest') || part.title.startsWith('Simulated')) ? 'Item' : 'Translation'} ${itemIndex + 1}`} 
+              <CopyableText
+                key={`${index}-item-${itemIndex}`}
+                text={item}
+                title={`${part.title && (part.title.startsWith('Suggest') || part.title.startsWith('Simulated')) ? 'Item' : 'Translation'} ${itemIndex + 1}`}
                 className="my-1"
               />
             ))}
@@ -93,7 +95,7 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
             {part.english?.analysis && <CopyableText title="Analysis (English)" text={part.english.analysis} />}
             {part.english?.simplifiedRequest && <CopyableText title="Simplified Request (English)" text={part.english.simplifiedRequest} />}
             {part.english?.stepByStepApproach && <CopyableText title="Step-by-Step Approach (English)" text={part.english.stepByStepApproach} />}
-            
+
             { (part.english?.analysis || part.english?.simplifiedRequest || part.english?.stepByStepApproach) &&
               (part.bengali?.analysis || part.bengali?.simplifiedRequest || part.bengali?.stepByStepApproach) &&
               <Separator className="my-3" />
@@ -111,7 +113,7 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
 }
 
 
-export function ChatMessageDisplay({ message }: ChatMessageProps) {
+export function ChatMessageDisplay({ message, onRegenerate }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
 
@@ -119,7 +121,7 @@ export function ChatMessageDisplay({ message }: ChatMessageProps) {
     return (
       <div className={`flex items-start gap-3 p-3 md:p-4 ${isUser ? 'justify-end' : ''}`}>
         {!isUser && <MessageAvatar role="assistant" />}
-        <div className={`flex flex-col gap-1 rounded-lg p-3 shadow-sm ${isAssistant ? 'bg-secondary text-secondary-foreground' : 'bg-primary text-primary-foreground'}`}>
+        <div className={`flex flex-col gap-1 rounded-lg p-3 shadow-sm w-full ${isAssistant ? 'bg-secondary text-secondary-foreground' : 'bg-primary text-primary-foreground'}`}>
           <Skeleton className="h-4 w-32 mb-1" />
           <Skeleton className="h-3 w-24" />
         </div>
@@ -127,10 +129,16 @@ export function ChatMessageDisplay({ message }: ChatMessageProps) {
       </div>
     );
   }
-  
+
+  const handleRegenerateClick = () => {
+    if (onRegenerate && message.originalRequest) {
+      onRegenerate(message.originalRequest);
+    }
+  };
+
   return (
     <div className={cn(
-        `flex items-start gap-3 p-3 md:p-4 animate-slideUpSlightly`, // Ensure animation class is here
+        `flex items-start gap-3 p-3 md:p-4 animate-slideUpSlightly`,
         isUser ? 'justify-end' : ''
       )}
     >
@@ -154,7 +162,21 @@ export function ChatMessageDisplay({ message }: ChatMessageProps) {
         )}
         {message.attachedFiles && message.attachedFiles.length > 0 && (
           <div className="mt-2 space-y-1">
-            {message.attachedFiles.map(file => <AttachedFileDisplay key={`${file.name}-${file.size}`} file={file} />)}
+            {message.attachedFiles.map(file => <AttachedFileDisplay key={`${file.name}-${file.size || 0}`} file={file} />)}
+          </div>
+        )}
+        {isAssistant && message.canRegenerate && message.originalRequest && onRegenerate && (
+          <div className="mt-2 pt-2 border-t border-border/50 flex justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleRegenerateClick}
+              className="text-xs text-muted-foreground hover:text-primary hover:bg-primary/10"
+              title="Regenerate response"
+            >
+              <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+              Regenerate
+            </Button>
           </div>
         )}
       </div>

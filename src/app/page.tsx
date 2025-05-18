@@ -45,9 +45,6 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
         fullText += `${part.text || ''}\n`;
         break;
       case 'code':
-        // For code, we only include the code content for history to keep it concise,
-        // but for display, the ChatMessageDisplay component handles the title.
-        // If a title is present, it can be prefixed for history.
         if (part.title) fullText += `### ${part.title}\n`;
         fullText += `\`\`\`${part.language || ''}\n${part.code || ''}\n\`\`\`\n`;
         break;
@@ -62,7 +59,6 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
         }
         break;
       case 'translation_group':
-        // For translation groups, concatenate all relevant pieces of text
         if (part.title) fullText += `### ${part.title}\n`;
         if (part.english) {
           if (part.english.analysis) fullText += `English Analysis:\n${part.english.analysis}\n\n`;
@@ -70,42 +66,35 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
           if (part.english.stepByStepApproach) fullText += `English Step-by-Step Approach:\n${part.english.stepByStepApproach}\n\n`;
         }
         if (part.bengali) {
-          fullText += "\n"; // Add a separator if both English and Bengali are present
+          fullText += "\n";
           if (part.bengali.analysis) fullText += `Bengali Analysis/Combined Translation:\n${part.bengali.analysis}\n\n`;
           if (part.bengali.simplifiedRequest) fullText += `Bengali Simplified Request:\n${part.bengali.simplifiedRequest}\n\n`;
           if (part.bengali.stepByStepApproach) fullText += `Bengali Step-by-Step Approach:\n${part.bengali.stepByStepApproach}\n\n`;
         }
-        // Check if after adding title and parts, the fullText is still minimal (just title or empty)
         if (fullText.trim() === (part.title ? `### ${part.title}` : '')) {
-            // Avoids adding an empty section if nothing was populated
             fullText += `[Empty Translation Group${part.title ? ` for "${part.title}"` : ''}]\n`;
         }
         break;
       default:
-        // Attempt to get some textual representation for unknown parts
-        // This ensures history has *something* rather than failing or being empty.
         let unknownText = (part as any).text || (part as any).code || (part as any).message;
         if (typeof unknownText === 'string') {
           fullText += `${unknownText}\n`;
         } else {
-           // Add a placeholder indicating an unsupported or empty part
            fullText += `[Unsupported Content Part: ${(part as any).type} ${part.title ? `for "${part.title}"` : ''}]\n`;
         }
     }
-    fullText += '\n'; // Add a newline after each part for better readability in history
+    fullText += '\n';
   });
-  return fullText.trim() || '[Empty Message Content Parts]'; // Fallback for safety
+  return fullText.trim() || '[Empty Message Content Parts]';
 };
 
 
 const LAST_ACTIVE_SESSION_ID_KEY_PREFIX = 'desainr_last_active_session_id_';
 
-// Function to generate a more robust unique ID
 const generateRobustMessageId = (): string => {
-  return `msg-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`; // Increased randomness part
+  return `msg-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 };
 
-// Function to ensure messages have unique and properly formatted IDs
 const baseEnsureMessagesHaveUniqueIds = (messagesToProcess: ChatMessage[]): ChatMessage[] => {
   if (!Array.isArray(messagesToProcess) || messagesToProcess.length === 0) {
     return [];
@@ -113,10 +102,9 @@ const baseEnsureMessagesHaveUniqueIds = (messagesToProcess: ChatMessage[]): Chat
   const seenIds = new Set<string>();
   return messagesToProcess.map(msg => {
     let newId = msg.id;
-    // Check if ID is missing, is a simple number (old format), or doesn't have "msg-" prefix, or is already seen
     if (typeof newId !== 'string' || !newId.startsWith('msg-') || seenIds.has(newId) || !isNaN(Number(newId.replace('msg-','').split('-')[0]))) {
       let candidateId = generateRobustMessageId();
-      while (seenIds.has(candidateId)) { // Ensure truly unique in this batch
+      while (seenIds.has(candidateId)) {
         candidateId = generateRobustMessageId();
       }
       newId = candidateId;
@@ -130,8 +118,8 @@ const baseEnsureMessagesHaveUniqueIds = (messagesToProcess: ChatMessage[]): Chat
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]); // For UI display of selected file names
-  const [currentAttachedFilesData, setCurrentAttachedFilesData] = useState<AttachedFile[]>([]); // For actual file data to send
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [currentAttachedFilesData, setCurrentAttachedFilesData] = useState<AttachedFile[]>([]);
 
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -144,12 +132,10 @@ export default function ChatPage() {
   const [modalNotes, setModalNotes] = useState('');
 
   const userIdForHistory = useMemo(() => {
-    // Determine the user ID to use for chat history operations.
-    // Prioritize the authenticated user's ID, fallback to DEFAULT_USER_ID if not logged in or profile not loaded.
     if (!profileLoading && profile) {
-      return profile.userId || DEFAULT_USER_ID; // profile.userId should be set if authUser exists
+      return profile.userId || DEFAULT_USER_ID;
     }
-    return DEFAULT_USER_ID; // Fallback while profile is loading or for anonymous
+    return DEFAULT_USER_ID;
   }, [profileLoading, profile]);
 
 
@@ -160,7 +146,7 @@ export default function ChatPage() {
     saveSession,
     deleteSession,
     createNewSession,
-  } = useChatHistory(userIdForHistory); // Pass the determined userId
+  } = useChatHistory(userIdForHistory);
 
   const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
   const isMobile = useIsMobile();
@@ -169,60 +155,49 @@ export default function ChatPage() {
   const ensureMessagesHaveUniqueIds = useCallback(baseEnsureMessagesHaveUniqueIds, []);
 
   useEffect(() => {
-    if (isMobile !== undefined) { // Only set once isMobile is determined
+    if (isMobile !== undefined) {
         setIsHistoryPanelOpen(!isMobile);
     }
   }, [isMobile]);
 
 
-  // Effect for initializing or loading the chat session
   useEffect(() => {
     if (profileLoading) {
-        // console.log("ChatPage: Profile is loading, session init deferred.");
-        return; // Wait for profile to finish loading
+        return;
     }
 
-    // console.log("ChatPage: Profile loaded. Current userIdForHistory:", userIdForHistory);
-    const currentUserIdToUse = userIdForHistory; // Capture for this effect run
+    const currentUserIdToUse = userIdForHistory;
     const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + currentUserIdToUse;
     let lastActiveSessionId = localStorage.getItem(lastActiveSessionIdKey);
     let sessionToLoad: ChatSession | null = null;
 
-    // console.log("ChatPage: Attempting to load last active session ID:", lastActiveSessionId, "for user:", currentUserIdToUse);
-
     if (lastActiveSessionId) {
-      // Validate that the lastActiveSessionId actually belongs to the current user
       if (!lastActiveSessionId.startsWith(currentUserIdToUse + '_')) {
-          // console.warn(`ChatPage: Invalid lastActiveSessionId (${lastActiveSessionId}) for user ${currentUserIdToUse}. Resetting.`);
-          localStorage.removeItem(lastActiveSessionIdKey); // Clean up invalid ID
-          lastActiveSessionId = null; // Treat as no last active session
+          localStorage.removeItem(lastActiveSessionIdKey);
+          lastActiveSessionId = null;
       } else {
         sessionToLoad = getSession(lastActiveSessionId);
         if (!sessionToLoad) {
-             // console.warn(`ChatPage: Could not load session ${lastActiveSessionId} from storage. Removing from last active.`);
-             localStorage.removeItem(lastActiveSessionIdKey); // Clean up if session data is missing
+             localStorage.removeItem(lastActiveSessionIdKey);
              lastActiveSessionId = null;
         }
       }
     }
 
     if (sessionToLoad) {
-      // console.log("ChatPage: Loading existing session:", sessionToLoad.id);
       const migratedMessages = ensureMessagesHaveUniqueIds(sessionToLoad.messages);
       const updatedSession = { ...sessionToLoad, messages: migratedMessages };
       setCurrentSession(updatedSession);
       setMessages(updatedSession.messages);
     } else {
-      // console.log("ChatPage: No valid last session found or loaded. Creating new session for user:", currentUserIdToUse);
-      const newSession = createNewSession(); // Will use currentUserIdToUse internally
+      const newSession = createNewSession([], profile?.selectedGenkitModelId || DEFAULT_MODEL_ID, (profile?.geminiApiKeys && profile.geminiApiKeys.length > 0) ? profile.geminiApiKeys[0] : undefined);
       setCurrentSession(newSession);
       setMessages(newSession.messages);
-      // Save the new session ID as the last active for this user
-      if (newSession.id && newSession.id.startsWith(currentUserIdToUse + '_')) { // Ensure new session ID is valid for current user
+      if (newSession.id && newSession.id.startsWith(currentUserIdToUse + '_')) {
         localStorage.setItem(lastActiveSessionIdKey, newSession.id);
       }
     }
-  }, [profileLoading, userIdForHistory, getSession, createNewSession, ensureMessagesHaveUniqueIds]);
+  }, [profileLoading, userIdForHistory, getSession, createNewSession, ensureMessagesHaveUniqueIds, profile?.selectedGenkitModelId, profile?.geminiApiKeys]);
 
 
   useEffect(() => {
@@ -231,97 +206,85 @@ export default function ChatPage() {
     }
   }, [messages]);
 
-  // Effect for auto-saving the current session
+
   useEffect(() => {
     if (currentSession && (messages.length > 0 || currentSession.messages.length > 0) ) {
-      // Condition to attempt name generation:
-      // - Session name is "New Chat"
-      // - There are 1 or 2 messages (enough for context, but not too many to rename repeatedly)
       const isNewChatName = currentSession.name === "New Chat";
       const shouldAttemptNameGeneration = isNewChatName && messages.length > 0 && messages.length <= 2;
       const modelIdToUse = (profile?.selectedGenkitModelId || DEFAULT_MODEL_ID);
+      const userApiKeyForNameGen = (profile?.geminiApiKeys && profile.geminiApiKeys.length > 0) ? profile.geminiApiKeys[0] : undefined;
 
-      // Create the updated session object with the current messages and timestamp
       const updatedSession = { ...currentSession, messages, updatedAt: Date.now() };
 
-      // Debounce saving to avoid excessive writes, especially during rapid message exchanges or renames
       const saveTimeout = setTimeout(() => {
-        saveSession(updatedSession, shouldAttemptNameGeneration, modelIdToUse).then(savedSession => {
-          // Update local currentSession state only if the saved session differs significantly
-          // This prevents re-renders if only minor things like timestamps changed which are handled by saveSession.
+        saveSession(updatedSession, shouldAttemptNameGeneration, modelIdToUse, userApiKeyForNameGen).then(savedSession => {
           if (savedSession) {
              setCurrentSession(prevCurrentSession => {
-                // Basic check: if IDs are different (e.g., temp ID replaced by actual ID), or name changed
-                if (!prevCurrentSession || !savedSession) return savedSession; // Should not happen if saveSession returns a session
-
+                if (!prevCurrentSession || !savedSession) return savedSession;
                 let changesMade = false;
                 const newCurrentSessionState = { ...prevCurrentSession };
-
-                if (savedSession.name !== newCurrentSessionState.name) {
-                    newCurrentSessionState.name = savedSession.name;
-                    changesMade = true;
-                }
-                // Compare messages carefully, as direct object comparison might always be false
-                if (JSON.stringify(savedSession.messages) !== JSON.stringify(newCurrentSessionState.messages)) {
-                    newCurrentSessionState.messages = savedSession.messages; // Or ensureMessagesHaveUniqueIds(savedSession.messages) if needed
-                    changesMade = true;
-                }
-                 if (savedSession.updatedAt !== newCurrentSessionState.updatedAt) {
-                    newCurrentSessionState.updatedAt = savedSession.updatedAt;
-                    changesMade = true;
-                }
-                // If the session ID was a temporary one and got updated
-                if (savedSession.id !== newCurrentSessionState.id && newCurrentSessionState.id.startsWith('temp_')) {
-                    newCurrentSessionState.id = savedSession.id;
-                    changesMade = true;
-                }
+                if (savedSession.name !== newCurrentSessionState.name) { newCurrentSessionState.name = savedSession.name; changesMade = true; }
+                if (JSON.stringify(savedSession.messages) !== JSON.stringify(newCurrentSessionState.messages)) { newCurrentSessionState.messages = savedSession.messages; changesMade = true; }
+                if (savedSession.updatedAt !== newCurrentSessionState.updatedAt) { newCurrentSessionState.updatedAt = savedSession.updatedAt; changesMade = true; }
+                if (savedSession.id !== newCurrentSessionState.id && newCurrentSessionState.id.startsWith('temp_')) { newCurrentSessionState.id = savedSession.id; changesMade = true; }
                 return changesMade ? newCurrentSessionState : prevCurrentSession;
             });
           }
         });
-      }, 1000); // Save after 1 second of inactivity
+      }, 1000);
       return () => clearTimeout(saveTimeout);
     }
-  }, [messages, currentSession, saveSession, profile?.selectedGenkitModelId]); // Ensure all dependencies are listed
+  }, [messages, currentSession, saveSession, profile?.selectedGenkitModelId, profile?.geminiApiKeys]);
 
 
-  const addMessage = useCallback((role: 'user' | 'assistant' | 'system', content: string | ChatMessageContentPart[], currentAttachments?: AttachedFile[], isLoadingParam?: boolean, isErrorParam?: boolean) => {
+  const addMessage = useCallback((role: 'user' | 'assistant' | 'system', content: string | ChatMessageContentPart[], currentAttachments?: AttachedFile[], isLoadingParam?: boolean, isErrorParam?: boolean, originalRequest?: ChatMessage['originalRequest']) => {
     const newMessage: ChatMessage = {
-      id: generateRobustMessageId(), // Use robust ID generation
+      id: generateRobustMessageId(),
       role,
       content,
       timestamp: Date.now(),
       isLoading: isLoadingParam,
       isError: isErrorParam,
       attachedFiles: role === 'user' ? currentAttachments : undefined,
+      canRegenerate: role === 'assistant' && !!originalRequest, // Can regenerate if it's an assistant message with original request
+      originalRequest: role === 'assistant' ? originalRequest : undefined,
     };
     setMessages(prev => [...prev, newMessage]);
-  }, []); // No complex dependencies, setMessages is stable
+  }, []);
 
-  const updateLastMessage = useCallback((content: string | ChatMessageContentPart[], isLoadingParam: boolean = false, isErrorParam: boolean = false) => {
+  const updateLastMessage = useCallback((content: string | ChatMessageContentPart[], isLoadingParam: boolean = false, isErrorParam: boolean = false, originalRequestDetails?: ChatMessage['originalRequest']) => {
     setMessages(prev => {
       if (prev.length === 0) return prev;
       return prev.map((msg, index) =>
-        index === prev.length - 1 ? { ...msg, content, isLoading: isLoadingParam, isError: isErrorParam, timestamp: Date.now() } : msg
+        index === prev.length - 1 ? {
+            ...msg,
+            content,
+            isLoading: isLoadingParam,
+            isError: isErrorParam,
+            timestamp: Date.now(),
+            canRegenerate: !!originalRequestDetails, // Enable regen if details provided
+            originalRequest: originalRequestDetails
+        } : msg
       );
     });
-  }, []); // No complex dependencies, setMessages is stable
+  }, []);
 
   const handleNewChat = useCallback(() => {
     const modelIdToUse = (profile?.selectedGenkitModelId || DEFAULT_MODEL_ID);
-    const newSession = createNewSession([], modelIdToUse); // Pass model ID for potential name generation
+    const userApiKeyForNameGen = (profile?.geminiApiKeys && profile.geminiApiKeys.length > 0) ? profile.geminiApiKeys[0] : undefined;
+    const newSession = createNewSession([], modelIdToUse, userApiKeyForNameGen);
     setCurrentSession(newSession);
     setMessages(newSession.messages);
     setInputMessage('');
     setSelectedFiles([]);
     setCurrentAttachedFilesData([]);
-    const currentUserId = userIdForHistory; // Use the memoized userIdForHistory
+    const currentUserId = userIdForHistory;
     const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + currentUserId;
-    if (newSession.id && newSession.id.startsWith(currentUserId + '_')) { // Ensure new session ID is valid for current user
+    if (newSession.id && newSession.id.startsWith(currentUserId + '_')) {
       localStorage.setItem(lastActiveSessionIdKey, newSession.id);
     }
     if (isMobile) setIsHistoryPanelOpen(false);
-  }, [createNewSession, userIdForHistory, isMobile, profile?.selectedGenkitModelId]);
+  }, [createNewSession, userIdForHistory, isMobile, profile?.selectedGenkitModelId, profile?.geminiApiKeys]);
 
   const handleSelectSession = useCallback((sessionId: string) => {
     const selected = getSession(sessionId);
@@ -330,7 +293,7 @@ export default function ChatPage() {
       const updatedSession = { ...selected, messages: migratedMessages };
       setCurrentSession(updatedSession);
       setMessages(updatedSession.messages);
-      const currentUserId = userIdForHistory; // Use the memoized userIdForHistory
+      const currentUserId = userIdForHistory;
       const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + currentUserId;
       localStorage.setItem(lastActiveSessionIdKey, sessionId);
     }
@@ -375,15 +338,21 @@ export default function ChatPage() {
           basicInfo.textContent = await readFileAsText(file);
         } catch (e) { console.error("Error reading text file:", e); }
       }
-      // For PDFs and other types, we're just passing name and type.
-      // Server-side processing would be needed for deep content extraction if required.
       processedFiles.push(basicInfo);
     }
     return processedFiles;
   };
 
-  const handleSendMessage = async (messageText: string = inputMessage, actionType: ActionType = 'processMessage', notes?: string) => {
-    const currentMessageText = messageText.trim();
+  const handleSendMessage = async (
+    messageTextParam: string,
+    actionTypeParam: ActionType,
+    notesParam?: string,
+    attachedFilesDataParam?: AttachedFile[] // Allow passing pre-processed files for regeneration
+  ) => {
+    const currentMessageText = messageTextParam.trim();
+    const currentActionType = actionTypeParam;
+    const currentNotes = notesParam;
+    const filesToSendWithThisMessage = attachedFilesDataParam || [...currentAttachedFilesData];
 
     if (!profile) {
       toast({ title: "Profile not loaded", description: "Please wait for your profile to load or set it up in Settings.", variant: "destructive" });
@@ -393,22 +362,39 @@ export default function ChatPage() {
         toast({ title: "Session not initialized", description: "Please wait or try creating a new chat.", variant: "destructive" });
         return;
     }
-    if (actionType === 'checkMadeDesigns' && currentAttachedFilesData.length === 0) {
+    if (currentActionType === 'checkMadeDesigns' && filesToSendWithThisMessage.length === 0) {
       toast({ title: "No Design Attached", description: "Please attach a design image to use the 'Check Made Designs' feature.", variant: "destructive" });
       return;
     }
 
-    const filesToSendWithThisMessage = [...currentAttachedFilesData]; // Use a snapshot
     const modelIdToUse = profile.selectedGenkitModelId || DEFAULT_MODEL_ID;
-    const userMessageContent = currentMessageText || (filesToSendWithThisMessage.length > 0 ? `Attached ${filesToSendWithThisMessage.length} file(s)${notes ? ` (Notes: ${notes})` : ''}` : `Triggered action: ${actionType}${notes ? ` (Notes: ${notes})` : ''}`);
+    const userApiKey = (profile.geminiApiKeys && profile.geminiApiKeys.length > 0) ? profile.geminiApiKeys[0] : undefined;
+    
+    const userMessageContent = currentMessageText || (filesToSendWithThisMessage.length > 0 ? `Attached ${filesToSendWithThisMessage.length} file(s)${currentNotes ? ` (Notes: ${currentNotes})` : ''}` : `Triggered action: ${currentActionType}${currentNotes ? ` (Notes: ${currentNotes})` : ''}`);
 
-    addMessage('user', userMessageContent, filesToSendWithThisMessage);
-    addMessage('assistant', 'Processing...', [], true);
+    // Store details for potential regeneration, this applies to the USER's action that initiates AI response
+    const requestParamsForRegeneration: ChatMessage['originalRequest'] = {
+        actionType: currentActionType,
+        messageText: currentMessageText, // Store the text that was in the input box
+        notes: currentNotes,
+        attachedFilesData: filesToSendWithThisMessage,
+    };
+
+    // Add user message only if it's not a regeneration call that's re-using an existing structure
+    // Or, if we always add user message, regeneration has to be handled carefully
+    if (!attachedFilesDataParam) { // Heuristic: if attachedFilesDataParam is provided, it's likely a regeneration
+        addMessage('user', userMessageContent, filesToSendWithThisMessage);
+    }
+    addMessage('assistant', 'Processing...', [], true); // Add loading message
+
     setIsLoading(true);
-    setInputMessage('');
-    setSelectedFiles([]); // Clear UI selection
-    setCurrentAttachedFilesData([]); // Clear actual data
-    if (fileInputRef.current) fileInputRef.current.value = ''; // Reset file input
+    if (!attachedFilesDataParam) { // Clear input only for new messages
+        setInputMessage('');
+        setSelectedFiles([]);
+        setCurrentAttachedFilesData([]);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+
 
     try {
       let aiResponseContent: ChatMessageContentPart[] = [];
@@ -416,37 +402,30 @@ export default function ChatPage() {
         userName: profile.name,
         communicationStyleNotes: profile.communicationStyleNotes || '',
         modelId: modelIdToUse,
+        userApiKey: userApiKey,
       };
       const filesForFlow = filesToSendWithThisMessage.map(f => ({ name: f.name, type: f.type, dataUri: f.dataUri, textContent: f.textContent }));
 
-      // Construct chat history for AI, excluding the very last "Processing..." message
-      // and also excluding the user message we just added (it's passed as clientMessage)
       const chatHistoryForAI = messages
-        .slice(0, -1) // Exclude the "Processing..." message and the new user message (which is now -2 after adding "Processing...")
-        .slice(-10) // Take up to the last 10 of the remaining
+        .slice(0, -1) 
+        .slice(-10)
         .map(msg => ({
-          role: msg.role as 'user' | 'assistant', // Ensure role is correctly typed
-          text: getMessageText(msg.content) // Use the enhanced getMessageText
+          role: msg.role as 'user' | 'assistant',
+          text: getMessageText(msg.content)
         }))
-        .filter(msg => msg.text.trim() !== '' && (msg.role === 'user' || msg.role === 'assistant')); // Basic filter
+        .filter(msg => msg.text.trim() !== '' && (msg.role === 'user' || msg.role === 'assistant'));
 
 
-      if (actionType === 'processMessage') {
+      if (currentActionType === 'processMessage') {
         const processInput: ProcessClientMessageInput = { ...baseInput, clientMessage: currentMessageText, attachedFiles: filesForFlow, chatHistory: chatHistoryForAI };
         const processed = await processClientMessage(processInput);
         aiResponseContent.push({
           type: 'translation_group',
           title: 'Client Request Analysis & Plan',
           english: { analysis: processed.analysis, simplifiedRequest: processed.simplifiedRequest, stepByStepApproach: processed.stepByStepApproach },
-          bengali: { analysis: processed.bengaliTranslation } // Assuming bengaliTranslation contains all parts
+          bengali: { analysis: processed.bengaliTranslation }
         });
-        // if (processed.englishReplies && processed.englishReplies.length > 0) {
-        //   aiResponseContent.push({ type: 'list', title: 'Suggested English Replies', items: processed.englishReplies });
-        // }
-        // if (processed.bengaliReplies && processed.bengaliReplies.length > 0) {
-        //   aiResponseContent.push({ type: 'list', title: 'Suggested Bengali Replies', items: processed.bengaliReplies });
-        // }
-      } else if (actionType === 'analyzeRequirements') {
+      } else if (currentActionType === 'analyzeRequirements') {
         const requirementsInput: AnalyzeClientRequirementsInput = { ...baseInput, clientMessage: currentMessageText, attachedFiles: filesForFlow, chatHistory: chatHistoryForAI };
         const requirementsOutput = await analyzeClientRequirements(requirementsInput);
         aiResponseContent.push({ type: 'text', title: 'Main Requirements Analysis', text: requirementsOutput.mainRequirementsAnalysis });
@@ -454,7 +433,7 @@ export default function ChatPage() {
         aiResponseContent.push({ type: 'text', title: 'Detailed Requirements (Bangla)', text: requirementsOutput.detailedRequirementsBangla });
         aiResponseContent.push({ type: 'text', title: 'Design Message or Saying', text: requirementsOutput.designMessageOrSaying });
 
-      } else if (actionType === 'generateEngagementPack') {
+      } else if (currentActionType === 'generateEngagementPack') {
         const engagementInput: GenerateEngagementPackInput = {
           ...baseInput,
           clientMessage: currentMessageText,
@@ -474,15 +453,15 @@ export default function ChatPage() {
         aiResponseContent.push({ type: 'text', title: '3. Suggestions:', text: suggestionsText });
 
         if (packOutput.clarifyingQuestions && packOutput.clarifyingQuestions.length > 0) {
-          aiResponseContent.push({ type: 'text', title: '4. Clarifying Questions to Ask Client:', text: " "}); // Add a space or some non-empty text if titles for CopyableText expect it
+          aiResponseContent.push({ type: 'text', title: '4. Clarifying Questions to Ask Client:', text: " "});
           packOutput.clarifyingQuestions.forEach((q, index) => {
             aiResponseContent.push({ type: 'code', title: `Question ${index + 1}`, code: q });
           });
         }
-      } else if (actionType === 'generateDesignIdeas') {
+      } else if (currentActionType === 'generateDesignIdeas') {
         const ideasInput: GenerateDesignIdeasInput = {
             ...baseInput,
-            designInputText: currentMessageText || "general creative designs", // Provide a fallback if input is empty
+            designInputText: currentMessageText || "general creative designs",
             attachedFiles: filesForFlow,
             chatHistory: chatHistoryForAI
         };
@@ -497,10 +476,10 @@ export default function ChatPage() {
         if (ideasOutput.typographyDesignIdeas && ideasOutput.typographyDesignIdeas.length > 0) {
             aiResponseContent.push({ type: 'list', title: 'Typography Design Ideas', items: ideasOutput.typographyDesignIdeas });
         }
-      } else if (actionType === 'generateDesignPrompts') {
+      } else if (currentActionType === 'generateDesignPrompts') {
         const promptsInput: GenerateDesignPromptsInput = {
             ...baseInput,
-            clientMessage: currentMessageText, // currentMessageText might be an instruction or refer to history
+            clientMessage: currentMessageText,
             attachedFiles: filesForFlow,
             chatHistory: chatHistoryForAI
         };
@@ -512,17 +491,17 @@ export default function ChatPage() {
         } else {
             aiResponseContent.push({ type: 'text', text: "No image prompts generated. Ensure design ideas were provided or generated."});
         }
-      } else if (actionType === 'checkMadeDesigns') {
+      } else if (currentActionType === 'checkMadeDesigns') {
         const designFile = filesForFlow.find(f => f.type?.startsWith('image/') && f.dataUri);
         if (!designFile || !designFile.dataUri) {
           toast({ title: "Design Image Missing", description: "Please attach the design image you want to check.", variant: "destructive" });
-          updateLastMessage([{type: 'text', text: "Please attach a design image to check."}], false, true);
+          updateLastMessage([{type: 'text', text: "Please attach a design image to check."}], false, true, requestParamsForRegeneration);
           setIsLoading(false);
           return;
         }
         const checkInput: CheckMadeDesignsInput = {
           ...baseInput,
-          clientPromptOrDescription: currentMessageText || "Client requirements as per conversation history.", // Fallback
+          clientPromptOrDescription: currentMessageText || "Client requirements as per conversation history.",
           designToCheckDataUri: designFile.dataUri,
           chatHistory: chatHistoryForAI,
         };
@@ -536,24 +515,25 @@ export default function ChatPage() {
         aiResponseContent.push({ type: 'text', title: 'বাদ পড়া উপাদান', text: result.mistakeAnalysis.missingElements });
         aiResponseContent.push({ type: 'text', title: 'অন্যান্য ভুল', text: result.mistakeAnalysis.otherMistakes });
       }
-       else if (actionType === 'generateDeliveryTemplates' || actionType === 'generateRevision') {
+       else if (currentActionType === 'generateDeliveryTemplates' || currentActionType === 'generateRevision') {
         const platformInput: GeneratePlatformMessagesInput = {
           name: profile.name,
           professionalTitle: profile.professionalTitle || '',
           services: profile.services || [],
-          deliveryNotes: actionType === 'generateDeliveryTemplates' ? (notes || currentMessageText) : '',
-          revisionNotes: actionType === 'generateRevision' ? (notes || currentMessageText) : '',
+          deliveryNotes: currentActionType === 'generateDeliveryTemplates' ? (currentNotes || currentMessageText) : '',
+          revisionNotes: currentActionType === 'generateRevision' ? (currentNotes || currentMessageText) : '',
           fiverrUsername: profile.fiverrUsername || '',
           customSellerFeedbackTemplate: profile.customSellerFeedbackTemplate || '',
           customClientFeedbackResponseTemplate: profile.customClientFeedbackResponseTemplate || '',
-          messageType: actionType === 'generateDeliveryTemplates' ? 'delivery' : 'revision',
+          messageType: currentActionType === 'generateDeliveryTemplates' ? 'delivery' : 'revision',
           modelId: modelIdToUse,
+          userApiKey: userApiKey,
         };
         const platformMessagesOutput = await generatePlatformMessages(platformInput);
 
         if (platformMessagesOutput.messages && platformMessagesOutput.messages.length > 0) {
            platformMessagesOutput.messages.forEach(m => {
-            const messageTitle = m.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); // Convert type to title
+            const messageTitle = m.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
             aiResponseContent.push({ type: 'code', title: messageTitle, code: m.message });
           });
         } else {
@@ -561,24 +541,37 @@ export default function ChatPage() {
         }
       }
 
-
-      updateLastMessage(aiResponseContent.length > 0 ? aiResponseContent : [{type: 'text', text: "Done."}]);
+      updateLastMessage(aiResponseContent.length > 0 ? aiResponseContent : [{type: 'text', text: "Done."}], false, false, requestParamsForRegeneration);
 
     } catch (error: any) {
       console.error("Error processing AI request:", error);
       toast({ title: "AI Error", description: error.message || "Failed to get response from AI.", variant: "destructive" });
-      updateLastMessage([{type: 'text', text: "Sorry, I couldn't process that."}], false, true);
+      updateLastMessage([{type: 'text', text: "Sorry, I couldn't process that."}], false, true, requestParamsForRegeneration);
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleRegenerateMessage = useCallback((originalRequestDetails?: ChatMessage['originalRequest']) => {
+    if (!originalRequestDetails) {
+        toast({ title: "Cannot Regenerate", description: "Original request details are missing.", variant: "destructive" });
+        return;
+    }
+    // Call handleSendMessage with the stored parameters
+    handleSendMessage(
+        originalRequestDetails.messageText,
+        originalRequestDetails.actionType,
+        originalRequestDetails.notes,
+        originalRequestDetails.attachedFilesData // Pass the stored files
+    );
+  }, []); // Add handleSendMessage to dependencies if it's not stable, but it should be with useCallback
 
   const handleAction = (action: ActionType) => {
     if (action === 'generateDeliveryTemplates' || action === 'generateRevision') {
       setModalActionType(action);
       setShowNotesModal(true);
     } else {
-      handleSendMessage(inputMessage || '', action);
+      handleSendMessage(inputMessage || '', action, undefined);
     }
   };
 
@@ -592,19 +585,19 @@ export default function ChatPage() {
   };
 
   const handleFileSelectAndProcess = async (newFiles: File[]) => {
-    const combinedFiles = [...selectedFiles, ...newFiles].slice(0, 5); // Max 5 files UI
+    const combinedFiles = [...selectedFiles, ...newFiles].slice(0, 5);
     setSelectedFiles(combinedFiles);
 
     const processedNewFiles = await processFilesForAI(newFiles);
     setCurrentAttachedFilesData(prev =>
         [...prev, ...processedNewFiles]
-        .reduce((acc, current) => { // Avoid duplicates if same file is somehow added again
+        .reduce((acc, current) => {
             if (!acc.find(item => item.name === current.name && item.size === current.size)) {
                 acc.push(current);
             }
             return acc;
         }, [] as AttachedFile[])
-        .slice(0,5) // Also limit the data array to 5
+        .slice(0,5)
     );
   };
 
@@ -624,14 +617,13 @@ export default function ChatPage() {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       if (!isLoading && (inputMessage.trim() || currentAttachedFilesData.length > 0)) {
-        handleSendMessage(inputMessage, 'processMessage');
+        handleSendMessage(inputMessage, 'processMessage', undefined);
       }
     }
   };
 
-  // Drag and Drop state and handlers
   const [isDragging, setIsDragging] = useState(false);
-  const dropZoneRef = useRef<HTMLDivElement>(null); // For the main chat area
+  const dropZoneRef = useRef<HTMLDivElement>(null);
 
   const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -642,7 +634,6 @@ export default function ChatPage() {
   const handleDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    // Check if the leave event is truly leaving the drop zone and not just moving over a child
     if (dropZoneRef.current && !dropZoneRef.current.contains(event.relatedTarget as Node)) {
       setIsDragging(false);
     }
@@ -654,12 +645,11 @@ export default function ChatPage() {
     setIsDragging(false);
     if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
       await handleFileSelectAndProcess(Array.from(event.dataTransfer.files));
-      event.dataTransfer.clearData(); // Recommended
+      event.dataTransfer.clearData();
     }
-  }, [handleFileSelectAndProcess]); // Dependency
+  }, [handleFileSelectAndProcess]);
 
 
-  // Show loading spinner if profile is loading or currentSession hasn't been initialized yet
   if (profileLoading || !currentSession) {
     return <div className="flex items-center justify-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary" /> <p className="ml-4 text-lg">Loading DesAInR...</p></div>;
   }
@@ -668,7 +658,6 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-[calc(100vh-var(--header-height,0px))]">
-      {/* Mobile History Panel Overlay */}
       {isMobile && isHistoryPanelOpen && (
         <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setIsHistoryPanelOpen(false)}>
           <div className="absolute left-0 top-0 h-full w-4/5 max-w-xs bg-background shadow-xl animate-fadeIn" onClick={(e) => e.stopPropagation()}>
@@ -683,15 +672,14 @@ export default function ChatPage() {
           </div>
         </div>
       )}
-      {/* Desktop History Panel */}
       {!isMobile && (
         <div
           className={cn(
             "bg-background shrink-0 transition-all duration-300 ease-in-out overflow-hidden",
-            isHistoryPanelOpen ? "w-[280px] border-r" : "w-0 border-r-0 opacity-0" // Collapses to 0 width
+            isHistoryPanelOpen ? "w-[280px] border-r" : "w-0 border-r-0 opacity-0"
           )}
         >
-          {isHistoryPanelOpen && ( // Only render content if open to avoid rendering in 0-width
+          {isHistoryPanelOpen && (
             <HistoryPanel
               sessions={historyMetadata}
               activeSessionId={currentSession?.id || null}
@@ -705,7 +693,6 @@ export default function ChatPage() {
       )}
 
       <div className="flex-1 flex flex-col bg-transparent overflow-hidden" ref={dropZoneRef} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
-        {/* Header within chat page for toggle and chat name */}
         <div className="p-2 border-b flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-sm z-10 shadow-sm">
           <div className="flex items-center">
             <Button variant="ghost" size="icon" onClick={() => setIsHistoryPanelOpen(prev => !prev)} aria-label="Toggle history panel" className="hover:bg-primary/10">
@@ -717,13 +704,12 @@ export default function ChatPage() {
             </Button>
             <h2 className="ml-2 font-semibold text-lg truncate" title={currentSession?.name || "Chat"}>{currentSession?.name || "Chat"}</h2>
           </div>
-          {/* Potentially add other header actions here if needed */}
         </div>
 
         <ScrollArea className="flex-1 p-1 md:p-4" ref={chatAreaRef}>
           <div className="space-y-2">
             {messages.map((msg) => (
-              <ChatMessageDisplay key={msg.id} message={msg} />
+              <ChatMessageDisplay key={msg.id} message={msg} onRegenerate={handleRegenerateMessage} />
             ))}
              {messages.length === 0 && !isLoading && (
                 <div className="flex flex-col items-center justify-center h-full text-center p-8 animate-fadeIn">
@@ -737,7 +723,6 @@ export default function ChatPage() {
           </div>
         </ScrollArea>
 
-        {/* Drag and Drop Overlay */}
         {isDragging && (
           <div className="absolute inset-x-4 bottom-[160px] md:bottom-[150px] top-16 md:top-[calc(var(--header-height)_+_0.5rem)] border-4 border-dashed border-primary bg-primary/10 rounded-lg flex items-center justify-center pointer-events-none z-20 animate-fadeIn">
             <p className="text-primary font-semibold text-lg">Drop files here</p>
@@ -761,9 +746,8 @@ export default function ChatPage() {
               rows={Math.max(1, Math.min(5, inputMessage.split('\n').length))}
             />
           </div>
-           {/* Bottom row for Attach Files and Action Buttons */}
            <div className="flex flex-wrap items-center justify-between mt-2 gap-y-2">
-             <div className="flex-shrink-0"> {/* Attach files button */}
+             <div className="flex-shrink-0">
                 <Button
                     variant="ghost"
                     size="sm"
@@ -779,10 +763,10 @@ export default function ChatPage() {
                     multiple
                     onChange={handleFileChange}
                     className="hidden"
-                    accept="image/*,application/pdf,.txt,.md,.json" // Specify acceptable file types
+                    accept="image/*,application/pdf,.txt,.md,.json"
                 />
              </div>
-             <div className="flex-1 flex justify-end"> {/* Action buttons panel pushed to the right */}
+             <div className="flex-1 flex justify-end">
                 <ActionButtonsPanel
                     onAction={handleAction}
                     isLoading={isLoading}
@@ -795,7 +779,6 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Modal for Delivery/Revision Notes */}
       <Dialog open={showNotesModal} onOpenChange={setShowNotesModal}>
         <DialogContent className="animate-fadeIn">
           <DialogHeader>

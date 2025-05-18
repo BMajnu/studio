@@ -8,16 +8,27 @@ export interface UserProfile {
   communicationStyleNotes?: string;
   services: string[];
   fiverrUsername?: string;
-  geminiApiKey?: string; // Stored but might not be used by current flows
-  selectedGenkitModelId?: string; // New field for selecting Genkit model
+  geminiApiKeys?: string[]; // Changed from geminiApiKey: string
+  selectedGenkitModelId?: string;
   customSellerFeedbackTemplate?: string;
   customClientFeedbackResponseTemplate?: string;
-  rawPersonalStatement?: string; // New field for the detailed personal intro
+  rawPersonalStatement?: string;
   createdAt?: string; // ISO Date string
   updatedAt?: string; // ISO Date string
 }
 
 export type MessageRole = 'user' | 'assistant' | 'system';
+
+// Keep ActionType definition here if it's broadly used, or ensure it's imported if defined elsewhere
+export type ActionType =
+  | 'processMessage'
+  | 'analyzeRequirements'
+  | 'generateEngagementPack'
+  | 'generateDeliveryTemplates'
+  | 'checkMadeDesigns'
+  | 'generateRevision'
+  | 'generateDesignIdeas'
+  | 'generateDesignPrompts';
 
 export interface ChatMessageContentPart {
   type: 'text' | 'code' | 'list' | 'translation_group';
@@ -46,6 +57,13 @@ export interface ChatMessage {
   isError?: boolean;
   profileUsed?: Partial<UserProfile>; // To show which profile was active for this AI message
   attachedFiles?: AttachedFile[]; // Files attached with this specific message (primarily for user messages)
+  canRegenerate?: boolean; // New: Flag to indicate if this message can be regenerated
+  originalRequest?: { // New: Stores details of the request that generated this message
+    actionType: ActionType;
+    messageText: string;
+    notes?: string;
+    attachedFilesData?: AttachedFile[]; // Store the actual file data used
+  };
 }
 
 // AI Flow input/output types (re-exporting or extending if needed)
