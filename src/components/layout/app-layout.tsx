@@ -27,14 +27,14 @@ import { LoginForm } from '@/components/auth/login-form';
 
 interface NavItem {
   href?: string;
-  label: string;
+  label: string | { en: string; bn: string }; // Allow string or object for i18n
   icon: React.ElementType;
   isModalTrigger?: boolean;
   requiresAuth?: boolean;
   hideWhenAuth?: boolean;
   action?: () => void;
   isDialogTrigger?: boolean;
-  dialogTitle?: string;
+  dialogTitle?: string | { en: string; bn: string };
 }
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -45,18 +45,23 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
+  const getLabel = (label: string | { en: string; bn: string }): string => {
+    if (typeof label === 'string') return label;
+    return label[currentLanguage] || label.en;
+  };
+  
   const navItems: NavItem[] = [
-    { href: '/', label: 'Home', icon: Home },
-    { href: '/profile', label: 'Profile', icon: Settings, requiresAuth: true },
-    { label: 'Features Guide', icon: HelpCircle, isModalTrigger: true },
+    { href: '/', label: { en: 'Home', bn: 'হোম' }, icon: Home },
+    { href: '/profile', label: { en: 'Profile', bn: 'প্রোফাইল' }, icon: Settings, requiresAuth: true },
+    { label: { en: 'Features Guide', bn: 'ফিচার গাইড' }, icon: HelpCircle, isModalTrigger: true },
     {
-      label: 'Login', // Changed from "Login with Google" as it's the only login option now
+      label: { en: 'Login', bn: 'লগইন করুন' },
       icon: LogIn,
       hideWhenAuth: true,
       isDialogTrigger: true,
-      dialogTitle: 'Login to DesAInR'
+      dialogTitle: { en: 'Login to DesAInR', bn: 'DesAInR-এ লগইন করুন' }
     },
-    { label: 'Logout', icon: LogOut, requiresAuth: true, action: async () => { await signOut(); setIsMobileSheetOpen(false); } },
+    { label: { en: 'Logout', bn: 'লগআউট' }, icon: LogOut, requiresAuth: true, action: async () => { await signOut(); setIsMobileSheetOpen(false); } },
   ];
 
   // Theme effect
@@ -78,10 +83,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     const storedLanguage = localStorage.getItem('desainr_language') as 'en' | 'bn' | null;
     if (storedLanguage) {
       setCurrentLanguage(storedLanguage);
+      console.log(`Language loaded from localStorage: ${storedLanguage}`);
     }
-    // Note: This doesn't automatically translate UI text.
-    // For full UI translation, an i18n library would be needed.
-    // document.documentElement.lang = storedLanguage || 'en'; // Optionally set lang on html
+    // document.documentElement.lang = storedLanguage || 'en'; 
   }, []);
 
   const toggleTheme = () => {
@@ -100,14 +104,17 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const changeLanguage = (lang: 'en' | 'bn') => {
     setCurrentLanguage(lang);
     localStorage.setItem('desainr_language', lang);
-    // document.documentElement.lang = lang; // Optionally set lang on html
-    // Add logic here to re-render UI with translated strings if using an i18n library
-    console.log(`Language changed to: ${lang}. UI text remains English without i18n setup.`);
+    // document.documentElement.lang = lang; 
+    console.log(`Language changed to: ${lang}. Some UI text might change. Full UI translation requires an i18n library.`);
   };
   
   const renderNavItem = (item: NavItem, isMobile: boolean = false) => {
     if (item.requiresAuth && !user) return null;
     if (item.hideWhenAuth && user) return null;
+
+    const itemLabel = getLabel(item.label);
+    const itemDialogTitle = item.dialogTitle ? getLabel(item.dialogTitle) : undefined;
+
 
     const commonButtonProps = {
       variant: (item.href && pathname === item.href) ? "default" : "ghost" as "default" | "ghost",
@@ -122,7 +129,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
     const buttonContent = (
       <>
-        <item.icon className={isMobile ? "h-5 w-5 mr-3" : "h-5 w-5 mr-2"} /> {item.label}
+        <item.icon className={isMobile ? "h-5 w-5 mr-3" : "h-5 w-5 mr-2"} /> {itemLabel}
       </>
     );
 
@@ -130,23 +137,23 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       const TriggerButton = <Button {...commonButtonProps}>{buttonContent}</Button>;
       return (
          <FeaturesGuideModal
-            key={item.label}
+            key={itemLabel} // Use itemLabel for key
             triggerButton={isMobile ? <SheetClose asChild>{TriggerButton}</SheetClose> : TriggerButton}
          />
       );
     }
     
-    if (item.isDialogTrigger && item.label === 'Login') {
+    if (item.isDialogTrigger && (item.label as { en: string; bn: string }).en === 'Login') { // Check based on English label for consistency
        const openState = isLoginModalOpen;
        const setOpenState = setIsLoginModalOpen;
         return (
-            <Dialog key={item.label} open={openState} onOpenChange={setOpenState}>
+            <Dialog key={itemLabel} open={openState} onOpenChange={setOpenState}>
             <ModalDialogTrigger asChild>
                 <Button {...commonButtonProps}>{buttonContent}</Button>
             </ModalDialogTrigger>
             <ModalContent className="sm:max-w-md">
                 <ModalHeader>
-                <ModalTitle>{item.dialogTitle || 'Login to DesAInR'}</ModalTitle>
+                <ModalTitle>{itemDialogTitle || 'Login to DesAInR'}</ModalTitle>
                 </ModalHeader>
                 <LoginForm onSuccess={() => {
                     setOpenState(false);
@@ -160,19 +167,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     if (item.href) {
       const ButtonComponent = <Button {...commonButtonProps}>{buttonContent}</Button>;
       return (
-        <Link key={item.label} href={item.href!} passHref legacyBehavior>
+        <Link key={itemLabel} href={item.href!} passHref legacyBehavior>
           {isMobile ? <SheetClose asChild>{ButtonComponent}</SheetClose> : ButtonComponent}
         </Link>
       );
     }
 
     return (
-      <Button key={item.label} {...commonButtonProps}>
+      <Button key={itemLabel} {...commonButtonProps}>
         {buttonContent}
       </Button>
     );
   };
 
+  const welcomeMessage = currentLanguage === 'bn' ? `স্বাগতম, ${user?.displayName || user?.email?.split('@')[0]}` : `Welcome, ${user?.displayName || user?.email?.split('@')[0]}`;
 
   return (
     <div className="flex min-h-screen flex-col" style={{ "--header-height": "4rem" } as React.CSSProperties}>
@@ -182,7 +190,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </Link>
 
         <div className="flex items-center">
-          {user && <span className="text-sm text-muted-foreground mr-4 hidden md:inline">Welcome, {user.displayName || user.email?.split('@')[0]}</span>}
+          {user && <span className="text-sm text-muted-foreground mr-4 hidden md:inline">{welcomeMessage}</span>}
           <nav className="hidden md:flex items-center space-x-1">
             {navItems.map(item => renderNavItem(item, false))}
           </nav>
@@ -229,7 +237,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                    </Link>
                 </SheetHeader>
                 <div className="p-4">
-                  {user && <div className="text-sm text-muted-foreground mb-4 px-2">Welcome, {user.displayName || user.email?.split('@')[0]}</div>}
+                  {user && <div className="text-sm text-muted-foreground mb-4 px-2">{welcomeMessage}</div>}
                   <nav className="flex flex-col space-y-2">
                      {navItems.map(item => renderNavItem(item, true))}
                   </nav>
@@ -245,3 +253,5 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
+    
