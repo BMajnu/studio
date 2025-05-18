@@ -50,9 +50,11 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     const user = await signIn(data.email, data.password);
     setIsLoading(false);
     if (user) {
-      toast({ title: 'Login Successful', description: `Welcome back!` });
+      toast({ title: 'Login Successful', description: `Welcome back, ${user.displayName || user.email?.split('@')[0]}!` });
       onSuccess?.();
     } else {
+      // The specific Firebase error (e.g., auth/invalid-credential) is already logged by AuthContext
+      console.warn('LoginForm: signIn attempt failed. User object is null. This usually indicates invalid credentials or other Firebase auth issue.');
       toast({
         title: 'Login Failed',
         description: 'Please check your email and password.',
@@ -66,7 +68,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     const user = await signInWithGoogle();
     setIsGoogleLoading(false);
     if (user) {
-      toast({ title: 'Google Sign-In Successful', description: `Welcome, ${user.displayName || user.email}!` });
+      toast({ title: 'Google Sign-In Successful', description: `Welcome, ${user.displayName || user.email?.split('@')[0]}!` });
       onSuccess?.(); // Close modal on success
     } else {
       // Error is logged in AuthContext, toast can be shown here if more specific message needed
