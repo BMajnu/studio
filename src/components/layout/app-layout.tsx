@@ -27,7 +27,7 @@ import { LoginForm } from '@/components/auth/login-form';
 
 interface NavItem {
   href?: string;
-  label: string | { en: string; bn: string }; // Allow string or object for i18n
+  label: string | { en: string; bn: string };
   icon: React.ElementType;
   isModalTrigger?: boolean;
   requiresAuth?: boolean;
@@ -85,7 +85,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       setCurrentLanguage(storedLanguage);
       console.log(`Language loaded from localStorage: ${storedLanguage}`);
     }
-    // document.documentElement.lang = storedLanguage || 'en'; 
   }, []);
 
   const toggleTheme = () => {
@@ -104,7 +103,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const changeLanguage = (lang: 'en' | 'bn') => {
     setCurrentLanguage(lang);
     localStorage.setItem('desainr_language', lang);
-    // document.documentElement.lang = lang; 
     console.log(`Language changed to: ${lang}. Some UI text might change. Full UI translation requires an i18n library.`);
   };
   
@@ -114,7 +112,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
     const itemLabel = getLabel(item.label);
     const itemDialogTitle = item.dialogTitle ? getLabel(item.dialogTitle) : undefined;
-
 
     const commonButtonProps = {
       variant: (item.href && pathname === item.href) ? "default" : "ghost" as "default" | "ghost",
@@ -137,13 +134,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       const TriggerButton = <Button {...commonButtonProps}>{buttonContent}</Button>;
       return (
          <FeaturesGuideModal
-            key={itemLabel} // Use itemLabel for key
-            triggerButton={isMobile ? <SheetClose asChild>{TriggerButton}</SheetClose> : TriggerButton}
+            key={itemLabel}
+            triggerButton={TriggerButton} // Simplified: Pass the button directly
          />
       );
     }
     
-    if (item.isDialogTrigger && (item.label as { en: string; bn: string }).en === 'Login') { // Check based on English label for consistency
+    if (item.isDialogTrigger && (item.label as { en: string; bn: string }).en === 'Login') {
        const openState = isLoginModalOpen;
        const setOpenState = setIsLoginModalOpen;
         return (
@@ -180,7 +177,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     );
   };
 
-  const welcomeMessage = currentLanguage === 'bn' ? `স্বাগতম, ${user?.displayName || user?.email?.split('@')[0]}` : `Welcome, ${user?.displayName || user?.email?.split('@')[0]}`;
+  const welcomeMessageText = currentLanguage === 'bn' 
+    ? `স্বাগতম, ${user?.displayName || user?.email?.split('@')[0] || 'অতিথি'}` 
+    : `Welcome, ${user?.displayName || user?.email?.split('@')[0] || 'Guest'}`;
 
   return (
     <div className="flex min-h-screen flex-col" style={{ "--header-height": "4rem" } as React.CSSProperties}>
@@ -190,7 +189,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </Link>
 
         <div className="flex items-center">
-          {user && <span className="text-sm text-muted-foreground mr-4 hidden md:inline">{welcomeMessage}</span>}
+          {user && <span className="text-sm text-muted-foreground mr-4 hidden md:inline">{welcomeMessageText}</span>}
           <nav className="hidden md:flex items-center space-x-1">
             {navItems.map(item => renderNavItem(item, false))}
           </nav>
@@ -237,7 +236,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                    </Link>
                 </SheetHeader>
                 <div className="p-4">
-                  {user && <div className="text-sm text-muted-foreground mb-4 px-2">{welcomeMessage}</div>}
+                  {user && <div className="text-sm text-muted-foreground mb-4 px-2">{welcomeMessageText}</div>}
                   <nav className="flex flex-col space-y-2">
                      {navItems.map(item => renderNavItem(item, true))}
                   </nav>
@@ -253,5 +252,3 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-
-    
