@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { DEFAULT_MODEL_ID } from '@/lib/constants';
 
 const AttachedFileSchema = z.object({
   name: z.string().describe("Name of the file"),
@@ -23,17 +24,27 @@ const ChatHistoryMessageSchema = z.object({
   text: z.string(),
 });
 
-// Internal Zod schema, not exported
-const AnalyzeClientRequirementsInputSchema = z.object({
+// Schema for the flow's input, including modelId
+const AnalyzeClientRequirementsFlowInputSchema = z.object({
+  clientMessage: z.string().describe('The current client message to process.'),
+  userName: z.string().describe('The name of the user (designer).'),
+  communicationStyleNotes: z.string().describe('The communication style notes of the user.'),
+  attachedFiles: z.array(AttachedFileSchema).optional().describe("Files attached by the user. Images should be passed as dataUris. Text files as textContent."),
+  chatHistory: z.array(ChatHistoryMessageSchema).optional().describe("A summary of recent messages in the conversation, if any. The current clientMessage is NOT part of this history."),
+  modelId: z.string().optional().describe('The Genkit model ID to use for this request.'),
+});
+export type AnalyzeClientRequirementsInput = z.infer<typeof AnalyzeClientRequirementsFlowInputSchema>;
+
+// Schema for the prompt's specific input (does not include modelId)
+const AnalyzeClientRequirementsPromptInputSchema = z.object({
   clientMessage: z.string().describe('The current client message to process.'),
   userName: z.string().describe('The name of the user (designer).'),
   communicationStyleNotes: z.string().describe('The communication style notes of the user.'),
   attachedFiles: z.array(AttachedFileSchema).optional().describe("Files attached by the user. Images should be passed as dataUris. Text files as textContent."),
   chatHistory: z.array(ChatHistoryMessageSchema).optional().describe("A summary of recent messages in the conversation, if any. The current clientMessage is NOT part of this history."),
 });
-export type AnalyzeClientRequirementsInput = z.infer<typeof AnalyzeClientRequirementsInputSchema>;
 
-// Internal Zod schema, not exported
+
 const AnalyzeClientRequirementsOutputSchema = z.object({
   mainRequirementsAnalysis: z.string().describe('Paragraph 1: Identification and analysis of the client\'s main requirements.'),
   detailedRequirementsEnglish: z.string().describe('Paragraph 2: Detailed breakdown of all requirements in English, specifying which should be prioritized and which can be overlooked, with proper reasoning. Ensure no requirements are skipped.'),
@@ -49,10 +60,10 @@ export async function analyzeClientRequirements(input: AnalyzeClientRequirements
 const prompt = ai.definePrompt({
   name: 'analyzeClientRequirementsPrompt',
   input: {
-    schema: AnalyzeClientRequirementsInputSchema, // Use internal schema
+    schema: AnalyzeClientRequirementsPromptInputSchema, 
   },
   output: {
-    schema: AnalyzeClientRequirementsOutputSchema, // Use internal schema
+    schema: AnalyzeClientRequirementsOutputSchema, 
   },
   prompt: `You are a helpful AI assistant for a graphic designer named {{{userName}}}.
 Their communication style is: {{{communicationStyleNotes}}}.
@@ -108,12 +119,15 @@ Output Format (ensure your entire response is a single JSON object matching this
 const analyzeClientRequirementsFlow = ai.defineFlow(
   {
     name: 'analyzeClientRequirementsFlow',
-    inputSchema: AnalyzeClientRequirementsInputSchema, // Use internal schema
-    outputSchema: AnalyzeClientRequirementsOutputSchema, // Use internal schema
+    inputSchema: AnalyzeClientRequirementsFlowInputSchema, 
+    outputSchema: AnalyzeClientRequirementsOutputSchema, 
   },
-  async input => {
-    const {output} = await prompt(input);
+  async (flowInput) => {
+    const { clientMessage, userName, communicationStyleNotes, attachedFiles, chatHistory, modelId } = flowInput;
+    const actualPromptInput = { clientMessage, userName, communicationStyleNotes, attachedFiles, chatHistory };
+    const modelToUse = modelId || DEFAULT_MODEL_ID;
+
+    const {output} = await prompt(actualPromptInput, { model: modelToUse });
     return output!;
   }
 );
-

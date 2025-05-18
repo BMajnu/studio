@@ -7,6 +7,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+// Removed DEFAULT_MODEL_ID import as this flow is deprecated and doesn't use it.
 
 const AttachedFileSchema = z.object({
   name: z.string().describe("Name of the file"),
@@ -20,14 +21,17 @@ const ChatHistoryMessageSchema = z.object({
   text: z.string(),
 });
 
-const GenerateBriefInputSchema = z.object({
+// Schema for the flow's input, including modelId (though not used by deprecated logic)
+const GenerateBriefFlowInputSchema = z.object({
   clientMessage: z.string().describe('The current client message to process.'),
   userName: z.string().describe('The name of the user (designer).'),
   communicationStyleNotes: z.string().describe('The communication style notes of the user.'),
   attachedFiles: z.array(AttachedFileSchema).optional().describe("Files attached by the user. Images as dataUris, text files as textContent."),
   chatHistory: z.array(ChatHistoryMessageSchema).optional().describe("A summary of recent messages in the conversation. The current clientMessage is NOT part of this history."),
+  modelId: z.string().optional().describe('The Genkit model ID to use for this request (not used by deprecated flow).'),
 });
-export type GenerateBriefInput = z.infer<typeof GenerateBriefInputSchema>;
+export type GenerateBriefInput = z.infer<typeof GenerateBriefFlowInputSchema>;
+
 
 const GenerateBriefOutputSchema = z.object({
   projectTitle: z.string().describe("A concise title for the project (e.g., 'T-Shirt Design for DesAInR Launch Event'). If not easily identifiable, generate a plausible one based on content."),
@@ -61,7 +65,7 @@ export async function generateBrief(input: GenerateBriefInput): Promise<Generate
 /*
 const prompt = ai.definePrompt({
   name: 'generateBriefPrompt',
-  input: { schema: GenerateBriefInputSchema },
+  input: { schema: GenerateBriefInputSchema }, // This would need to be a prompt-specific schema without modelId
   output: { schema: GenerateBriefOutputSchema },
   prompt: `... original prompt ...`,
 });
@@ -69,11 +73,13 @@ const prompt = ai.definePrompt({
 const generateBriefFlow = ai.defineFlow(
   {
     name: 'generateBriefFlow',
-    inputSchema: GenerateBriefInputSchema,
+    inputSchema: GenerateBriefFlowInputSchema, // Flow schema includes modelId
     outputSchema: GenerateBriefOutputSchema,
   },
-  async (input) => {
-    const {output} = await prompt(input);
+  async (flowInput) => {
+    const { modelId, ...actualPromptInput } = flowInput;
+    const modelToUse = modelId || DEFAULT_MODEL_ID; // Or some other default
+    const {output} = await prompt(actualPromptInput, { model: modelToUse });
     return output!;
   }
 );

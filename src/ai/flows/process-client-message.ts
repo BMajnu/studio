@@ -12,6 +12,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { DEFAULT_MODEL_ID } from '@/lib/constants';
 
 const AttachedFileSchema = z.object({
   name: z.string().describe("Name of the file"),
@@ -25,14 +26,27 @@ const ChatHistoryMessageSchema = z.object({
   text: z.string(),
 });
 
-const ProcessClientMessageInputSchema = z.object({
+// Schema for the flow's input, including modelId
+const ProcessClientMessageFlowInputSchema = z.object({
+  clientMessage: z.string().describe('The current client message to process.'),
+  userName: z.string().describe('The name of the user (designer).'),
+  communicationStyleNotes: z.string().describe('The communication style notes of the user.'),
+  attachedFiles: z.array(AttachedFileSchema).optional().describe("Files attached by the user. Images should be passed as dataUris. Text files as textContent."),
+  chatHistory: z.array(ChatHistoryMessageSchema).optional().describe("A summary of recent messages in the conversation, if any. The current clientMessage is NOT part of this history."),
+  modelId: z.string().optional().describe('The Genkit model ID to use for this request.'),
+});
+export type ProcessClientMessageInput = z.infer<typeof ProcessClientMessageFlowInputSchema>;
+
+
+// Schema for the prompt's specific input (does not include modelId)
+const ProcessClientMessagePromptInputSchema = z.object({
   clientMessage: z.string().describe('The current client message to process.'),
   userName: z.string().describe('The name of the user (designer).'),
   communicationStyleNotes: z.string().describe('The communication style notes of the user.'),
   attachedFiles: z.array(AttachedFileSchema).optional().describe("Files attached by the user. Images should be passed as dataUris. Text files as textContent."),
   chatHistory: z.array(ChatHistoryMessageSchema).optional().describe("A summary of recent messages in the conversation, if any. The current clientMessage is NOT part of this history."),
 });
-export type ProcessClientMessageInput = z.infer<typeof ProcessClientMessageInputSchema>;
+
 
 const ProcessClientMessageOutputSchema = z.object({
   analysis: z.string().describe('Analysis of the client message, considering conversation history and attachments.'),
@@ -49,7 +63,7 @@ export async function processClientMessage(input: ProcessClientMessageInput): Pr
 const prompt = ai.definePrompt({
   name: 'processClientMessagePrompt',
   input: {
-    schema: ProcessClientMessageInputSchema,
+    schema: ProcessClientMessagePromptInputSchema, // Use prompt-specific schema
   },
   output: {
     schema: ProcessClientMessageOutputSchema,
@@ -57,19 +71,32 @@ const prompt = ai.definePrompt({
   prompt: `You are a helpful AI assistant for a graphic designer named {{{userName}}}.
 Their communication style is: {{{communicationStyleNotes}}}.
 
+**Your Primary Task:** Analyze the "Client's Current Message" in the context of the "Previous conversation context" (if available) and any "Attached Files". Provide a comprehensive analysis, a simplified request, a step-by-step plan, and a Bengali translation, all focused on the *current state of the client's needs as understood from the entire interaction so far*.
+
+**Contextual Understanding Rules:**
+1.  **Examine History:** If "Previous conversation context" exists, review it carefully to understand the ongoing project, previous discussions, and decisions.
+2.  **Latest Message's Role:** Determine if the "Client's Current Message" is:
+    *   A continuation or clarification of the existing topic.
+    *   Introducing a new, distinct request or a significant change to the existing one.
+3.  **Integration:**
+    *   If it's a continuation/clarification, integrate this new information seamlessly into the existing understanding. Your output should reflect this updated understanding.
+    *   If it's a new request or major change, clearly acknowledge this shift in your "Analysis" and tailor the "Simplified Request" and "Step-by-Step Approach" accordingly, while still being mindful of any relevant overarching context from the history if applicable (e.g., client preferences).
+
 {{#if chatHistory.length}}
-Previous conversation context:
+Previous conversation context (analyze the current message in light of this full history):
 {{#each chatHistory}}
 {{this.role}}: {{{this.text}}}
-{{/each}}
 ---
+{{/each}}
+{{else}}
+No previous conversation history available. Base your response solely on the current message and attachments.
 {{/if}}
 
 Client's Current Message:
 {{{clientMessage}}}
 
 {{#if attachedFiles.length}}
-The client also attached the following files with their current message. Consider their content or existence if relevant to the message:
+The client also attached the following files with their current message. Consider their content (if viewable by you) or existence if relevant to the message and overall request:
 {{#each attachedFiles}}
 - File: {{this.name}} (Type: {{this.type}})
   {{#if this.dataUri}}
@@ -83,11 +110,11 @@ The client also attached the following files with their current message. Conside
 {{/each}}
 {{/if}}
 
-Based on the client's current message (and any attached files), and considering the previous conversation context if available, provide the following for the CURRENT request:
+Based on *all available information* (latest message, full history, attachments), provide the following for the CURRENT request:
 
-1.  **Analysis:** Detailed analysis of the client's current needs and requirements.
-2.  **Simplified Request:** A concise summary of what the client is currently asking for.
-3.  **Step-by-Step Approach:** A clear plan for {{{userName}}} to fulfill the current request.
+1.  **Analysis:** Detailed analysis of the client's *current cumulative needs and requirements*. If the latest message shifts focus, explain how it relates to or diverges from previous points.
+2.  **Simplified Request:** A concise summary of what the client is *currently asking for, considering all context*.
+3.  **Step-by-Step Approach:** A clear plan for {{{userName}}} to fulfill the *current, fully understood request*.
 4.  **Bengali Translation:** Translate the Analysis, Simplified Request, and Step-by-Step Approach for the current request into Bengali.
 
 Output Format (ensure your entire response is a single JSON object matching this structure):
@@ -103,11 +130,15 @@ Output Format (ensure your entire response is a single JSON object matching this
 const processClientMessageFlow = ai.defineFlow(
   {
     name: 'processClientMessageFlow',
-    inputSchema: ProcessClientMessageInputSchema,
+    inputSchema: ProcessClientMessageFlowInputSchema, // Use flow-specific schema
     outputSchema: ProcessClientMessageOutputSchema,
   },
-  async input => {
-    const {output} = await prompt(input);
+  async (flowInput) => {
+    const { clientMessage, userName, communicationStyleNotes, attachedFiles, chatHistory, modelId } = flowInput;
+    const actualPromptInput = { clientMessage, userName, communicationStyleNotes, attachedFiles, chatHistory };
+    const modelToUse = modelId || DEFAULT_MODEL_ID;
+
+    const {output} = await prompt(actualPromptInput, { model: modelToUse });
     return output!;
   }
 );

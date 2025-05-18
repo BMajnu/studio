@@ -1,6 +1,16 @@
+
 import type { UserProfile } from './types';
 
 export const DEFAULT_USER_ID = 'default-user';
+
+export const AVAILABLE_MODELS = [
+  { id: 'googleai/gemini-1.5-flash-latest', name: 'Gemini 1.5 Flash (Latest)' },
+  { id: 'googleai/gemini-1.5-pro-latest', name: 'Gemini 1.5 Pro (Latest)' },
+  { id: 'googleai/gemini-pro', name: 'Gemini 1.0 Pro' },
+  // Add other models here as they become available or relevant
+];
+export const DEFAULT_MODEL_ID = 'googleai/gemini-1.5-flash-latest';
+
 
 export const DEFAULT_USER_PROFILE: UserProfile = {
   userId: DEFAULT_USER_ID,
@@ -29,6 +39,7 @@ export const DEFAULT_USER_PROFILE: UserProfile = {
   ],
   fiverrUsername: "majnu786",
   geminiApiKey: "",
+  selectedGenkitModelId: DEFAULT_MODEL_ID,
   customSellerFeedbackTemplate: "Great client, outstanding experience, easy requirement. [AI to suggest adding a short description about the project/order]. I love working with you and looking forward to working with you again🥰.",
   customClientFeedbackResponseTemplate: "Thanks for your great feedback. I hope we will continue doing more and more.",
   rawPersonalStatement: "I'm B. Majnu, a professional Graphic designer. I have over 6 years of experience in Graphics Design. I enjoy working on it. I'm a skilled graphic designer and offer unique, creative, and eye-catching T-shirt design as well as professional logo design, mug design, vector tracing, book cover design, business card design, etc. I am a full-time seller exclusively on Fiverr. I'm passionate about my craft, and I'm dedicated to providing high-quality work to satisfaction. Fiverr profile: www.fiverr.com/majnu786. I have 1k+ overall 5* customer feedback with 1.5k+ successfully completed orders.",
@@ -79,7 +90,7 @@ These buttons trigger AI processing based on the client message you input:
 ### User Profile
 
 *   Navigate to **Settings > Profile** to manage your professional details.
-*   Your profile information (name, title, services, communication style, raw personal statement, etc.) is used to personalize AI-generated content.
+*   Your profile information (name, title, services, communication style, raw personal statement, AI Model etc.) is used to personalize AI-generated content.
 *   Keep your profile updated for the best results!
 
 ### Tips for Use

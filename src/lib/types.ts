@@ -9,6 +9,7 @@ export interface UserProfile {
   services: string[];
   fiverrUsername?: string;
   geminiApiKey?: string; // Stored but might not be used by current flows
+  selectedGenkitModelId?: string; // New field for selecting Genkit model
   customSellerFeedbackTemplate?: string;
   customClientFeedbackResponseTemplate?: string;
   rawPersonalStatement?: string; // New field for the detailed personal intro

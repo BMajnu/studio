@@ -10,12 +10,22 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { DEFAULT_MODEL_ID } from '@/lib/constants';
 
-const GenerateChatNameInputSchema = z.object({
+// Schema for the flow's input, including modelId
+const GenerateChatNameFlowInputSchema = z.object({
+  firstUserMessage: z.string().describe("The first message sent by the user in the chat."),
+  firstAssistantMessage: z.string().optional().describe("The first reply from the assistant, if available."),
+  modelId: z.string().optional().describe('The Genkit model ID to use for this request.'),
+});
+export type GenerateChatNameInput = z.infer<typeof GenerateChatNameFlowInputSchema>;
+
+// Schema for the prompt's specific input (does not include modelId)
+const GenerateChatNamePromptInputSchema = z.object({
   firstUserMessage: z.string().describe("The first message sent by the user in the chat."),
   firstAssistantMessage: z.string().optional().describe("The first reply from the assistant, if available."),
 });
-export type GenerateChatNameInput = z.infer<typeof GenerateChatNameInputSchema>;
+
 
 const GenerateChatNameOutputSchema = z.object({
   chatName: z.string().describe("A short, descriptive name for the chat session (max 5 words, e.g., 'T-Shirt Design Inquiry')."),
@@ -28,7 +38,7 @@ export async function generateChatName(input: GenerateChatNameInput): Promise<Ge
 
 const prompt = ai.definePrompt({
   name: 'generateChatNamePrompt',
-  input: {schema: GenerateChatNameInputSchema},
+  input: {schema: GenerateChatNamePromptInputSchema}, // Use prompt-specific schema
   output: {schema: GenerateChatNameOutputSchema},
   prompt: `Based on the following initial messages in a conversation with a graphic designer, generate a very short, descriptive title or name for this chat session. The name should be a maximum of 5 words and capture the main topic.
 
@@ -49,12 +59,15 @@ Generate a suitable name for the provided messages.
 const generateChatNameFlow = ai.defineFlow(
   {
     name: 'generateChatNameFlow',
-    inputSchema: GenerateChatNameInputSchema,
+    inputSchema: GenerateChatNameFlowInputSchema, // Use flow-specific schema
     outputSchema: GenerateChatNameOutputSchema,
   },
-  async (input) => {
-    const {output} = await prompt(input);
+  async (flowInput) => {
+    const { firstUserMessage, firstAssistantMessage, modelId } = flowInput;
+    const actualPromptInput = { firstUserMessage, firstAssistantMessage };
+    const modelToUse = modelId || DEFAULT_MODEL_ID;
+    
+    const {output} = await prompt(actualPromptInput, { model: modelToUse });
     return output!;
   }
 );
-

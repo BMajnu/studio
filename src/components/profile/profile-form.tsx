@@ -18,9 +18,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import type { UserProfile } from "@/lib/types";
-import { DEFAULT_USER_PROFILE } from "@/lib/constants";
+import { DEFAULT_USER_PROFILE, AVAILABLE_MODELS, DEFAULT_MODEL_ID } from "@/lib/constants";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const profileFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }).max(50),
@@ -31,9 +32,10 @@ const profileFormSchema = z.object({
   services: z.array(z.string().min(1, {message: "Service cannot be empty."}).max(100)).optional(),
   fiverrUsername: z.string().max(50).optional(),
   geminiApiKey: z.string().max(100).optional(), // Not actively used by flows, but stored
+  selectedGenkitModelId: z.string().optional(), // New field for model selection
   customSellerFeedbackTemplate: z.string().max(1000).optional(),
   customClientFeedbackResponseTemplate: z.string().max(1000).optional(),
-  rawPersonalStatement: z.string().max(2000).optional(), // New field
+  rawPersonalStatement: z.string().max(2000).optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -56,9 +58,10 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
       services: initialProfile.services || [],
       fiverrUsername: initialProfile.fiverrUsername || "",
       geminiApiKey: initialProfile.geminiApiKey || "",
+      selectedGenkitModelId: initialProfile.selectedGenkitModelId || DEFAULT_MODEL_ID,
       customSellerFeedbackTemplate: initialProfile.customSellerFeedbackTemplate || "",
       customClientFeedbackResponseTemplate: initialProfile.customClientFeedbackResponseTemplate || "",
-      rawPersonalStatement: initialProfile.rawPersonalStatement || DEFAULT_USER_PROFILE.rawPersonalStatement || "", // New field
+      rawPersonalStatement: initialProfile.rawPersonalStatement || DEFAULT_USER_PROFILE.rawPersonalStatement || "",
     },
     mode: "onChange",
   });
@@ -74,6 +77,7 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
       ...data,
       yearsOfExperience: data.yearsOfExperience ? Number(data.yearsOfExperience) : undefined,
       services: data.services || [],
+      selectedGenkitModelId: data.selectedGenkitModelId || DEFAULT_MODEL_ID,
     };
     onSave(processedData);
     toast({
@@ -85,7 +89,7 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-      <ScrollArea className="h-[calc(100vh-200px)] pr-6"> {/* Adjust height as needed */}
+      <ScrollArea className="h-[calc(100vh-200px)] pr-6"> 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <FormField
             control={form.control}
@@ -216,7 +220,6 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
           )}
         />
 
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
           <FormField
             control={form.control}
@@ -236,18 +239,46 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
             name="geminiApiKey"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Gemini API Key</FormLabel>
+                <FormLabel>Gemini API Key (Optional)</FormLabel>
                 <FormControl>
                   <Input type="password" placeholder="Enter your Gemini API Key" {...field} />
                 </FormControl>
                 <FormDescription>
-                  Your API key is stored locally and not strictly required if the backend uses a server-level key.
+                  Your API key is stored locally. If the app uses a server-level key, this may not be needed.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
+        
+        <FormField
+          control={form.control}
+          name="selectedGenkitModelId"
+          render={({ field }) => (
+            <FormItem className="mt-6">
+              <FormLabel>Preferred AI Model</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value || DEFAULT_MODEL_ID}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an AI model" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {AVAILABLE_MODELS.map(model => (
+                    <SelectItem key={model.id} value={model.id}>
+                      {model.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Choose the AI model for generating responses. "Flash" is faster, "Pro" may be more capable.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <FormField
           control={form.control}

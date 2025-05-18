@@ -1,3 +1,4 @@
+
 // src/ai/flows/generate-platform-messages.ts
 'use server';
 /**
@@ -10,8 +11,25 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { DEFAULT_MODEL_ID } from '@/lib/constants';
 
-const GeneratePlatformMessagesInputSchema = z.object({
+// Schema for the flow's input, including modelId
+const GeneratePlatformMessagesFlowInputSchema = z.object({
+  name: z.string().describe('The name of the designer.'),
+  professionalTitle: z.string().describe('The professional title of the designer.'),
+  services: z.array(z.string()).describe('A list of services offered by the designer.'),
+  deliveryNotes: z.string().describe('Any notes about the delivery.'),
+  revisionNotes: z.string().describe('Any notes about the revision.'),
+  fiverrUsername: z.string().describe('The Fiverr username of the designer.'),
+  customSellerFeedbackTemplate: z.string().describe('Custom seller feedback template.'),
+  customClientFeedbackResponseTemplate: z.string().describe('Custom client feedback response template.'),
+  messageType: z.enum(['delivery', 'revision']).describe('The type of message to generate (delivery or revision).'),
+  modelId: z.string().optional().describe('The Genkit model ID to use for this request.'),
+});
+export type GeneratePlatformMessagesInput = z.infer<typeof GeneratePlatformMessagesFlowInputSchema>;
+
+// Schema for the prompt's specific input (does not include modelId)
+const GeneratePlatformMessagesPromptInputSchema = z.object({
   name: z.string().describe('The name of the designer.'),
   professionalTitle: z.string().describe('The professional title of the designer.'),
   services: z.array(z.string()).describe('A list of services offered by the designer.'),
@@ -23,7 +41,6 @@ const GeneratePlatformMessagesInputSchema = z.object({
   messageType: z.enum(['delivery', 'revision']).describe('The type of message to generate (delivery or revision).'),
 });
 
-export type GeneratePlatformMessagesInput = z.infer<typeof GeneratePlatformMessagesInputSchema>;
 
 const GeneratePlatformMessagesOutputSchema = z.object({
   messages: z.array(
@@ -33,7 +50,6 @@ const GeneratePlatformMessagesOutputSchema = z.object({
     })
   ),
 });
-
 export type GeneratePlatformMessagesOutput = z.infer<typeof GeneratePlatformMessagesOutputSchema>;
 
 export async function generatePlatformMessages(input: GeneratePlatformMessagesInput): Promise<GeneratePlatformMessagesOutput> {
@@ -42,7 +58,7 @@ export async function generatePlatformMessages(input: GeneratePlatformMessagesIn
 
 const prompt = ai.definePrompt({
   name: 'generatePlatformMessagesPrompt',
-  input: {schema: GeneratePlatformMessagesInputSchema},
+  input: {schema: GeneratePlatformMessagesPromptInputSchema}, // Use prompt-specific schema
   output: {schema: GeneratePlatformMessagesOutputSchema},
   prompt: `You are a professional assistant helping a graphic designer named {{name}}.
   {{name}}'s professional title is {{professionalTitle}} and their Fiverr username is {{fiverrUsername}}.
@@ -78,11 +94,14 @@ const prompt = ai.definePrompt({
 const generatePlatformMessagesFlow = ai.defineFlow(
   {
     name: 'generatePlatformMessagesFlow',
-    inputSchema: GeneratePlatformMessagesInputSchema,
+    inputSchema: GeneratePlatformMessagesFlowInputSchema, // Use flow-specific schema
     outputSchema: GeneratePlatformMessagesOutputSchema,
   },
-  async input => {
-    const {output} = await prompt(input);
+  async (flowInput) => {
+    const { modelId, ...actualPromptInput } = flowInput;
+    const modelToUse = modelId || DEFAULT_MODEL_ID;
+
+    const {output} = await prompt(actualPromptInput, { model: modelToUse });
     return output!;
   }
 );

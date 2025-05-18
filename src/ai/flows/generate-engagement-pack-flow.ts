@@ -12,6 +12,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { DEFAULT_MODEL_ID } from '@/lib/constants';
 
 const AttachedFileSchema = z.object({
   name: z.string().describe("Name of the file"),
@@ -25,8 +26,20 @@ const ChatHistoryMessageSchema = z.object({
   text: z.string(),
 });
 
-// Internal Zod schema, not exported
-const GenerateEngagementPackInputSchema = z.object({
+// Schema for the flow's input, including modelId
+const GenerateEngagementPackFlowInputSchema = z.object({
+  clientMessage: z.string().describe('The current client message to process.'),
+  designerName: z.string().describe("The designer's name (e.g., B. Majnu)."),
+  designerRawStatement: z.string().describe("The designer's full raw personal statement detailing their skills, experience, Fiverr profile, feedback stats etc. The AI will rewrite and tailor this."),
+  designerCommunicationStyle: z.string().optional().describe("Keywords describing the designer's communication style (e.g., 'friendly, professional')."),
+  attachedFiles: z.array(AttachedFileSchema).optional().describe("Files attached by the user. Images as dataUris, text files as textContent."),
+  chatHistory: z.array(ChatHistoryMessageSchema).optional().describe("A summary of recent messages in the conversation. The current clientMessage is NOT part of this history."),
+  modelId: z.string().optional().describe('The Genkit model ID to use for this request.'),
+});
+export type GenerateEngagementPackInput = z.infer<typeof GenerateEngagementPackFlowInputSchema>;
+
+// Schema for the prompt's specific input (does not include modelId)
+const GenerateEngagementPackPromptInputSchema = z.object({
   clientMessage: z.string().describe('The current client message to process.'),
   designerName: z.string().describe("The designer's name (e.g., B. Majnu)."),
   designerRawStatement: z.string().describe("The designer's full raw personal statement detailing their skills, experience, Fiverr profile, feedback stats etc. The AI will rewrite and tailor this."),
@@ -34,9 +47,8 @@ const GenerateEngagementPackInputSchema = z.object({
   attachedFiles: z.array(AttachedFileSchema).optional().describe("Files attached by the user. Images as dataUris, text files as textContent."),
   chatHistory: z.array(ChatHistoryMessageSchema).optional().describe("A summary of recent messages in the conversation. The current clientMessage is NOT part of this history."),
 });
-export type GenerateEngagementPackInput = z.infer<typeof GenerateEngagementPackInputSchema>;
 
-// Internal Zod schema, not exported
+
 const GenerateEngagementPackOutputSchema = z.object({
   clientGreetingName: z.string().describe("The client's name if found in history/message, otherwise 'there' (e.g., 'John' or 'there')."),
   personalizedIntroduction: z.string().describe("A concise, AI-rewritten introduction of the designer, tailored to be highly relevant to the client's specific request based on their message and the designer's raw statement. Focus on skills matching the request."),
@@ -54,7 +66,7 @@ export async function generateEngagementPack(input: GenerateEngagementPackInput)
 
 const prompt = ai.definePrompt({
   name: 'generateEngagementPackPrompt',
-  input: { schema: GenerateEngagementPackInputSchema },
+  input: { schema: GenerateEngagementPackPromptInputSchema }, // Use prompt-specific schema
   output: { schema: GenerateEngagementPackOutputSchema },
   prompt: `You are an expert assistant for a graphic designer named {{{designerName}}}.
 Their communication style is: {{{designerCommunicationStyle}}}.
@@ -127,13 +139,14 @@ Example for clarifyingQuestions: ["What is the primary message you want the desi
 const generateEngagementPackFlow = ai.defineFlow(
   {
     name: 'generateEngagementPackFlow',
-    inputSchema: GenerateEngagementPackInputSchema,
+    inputSchema: GenerateEngagementPackFlowInputSchema, // Use flow-specific schema
     outputSchema: GenerateEngagementPackOutputSchema,
   },
-  async (input) => {
-    const {output} = await prompt(input);
+  async (flowInput) => {
+    const { modelId, ...actualPromptInput } = flowInput;
+    const modelToUse = modelId || DEFAULT_MODEL_ID;
+    
+    const {output} = await prompt(actualPromptInput, { model: modelToUse });
     return output!;
   }
 );
-
-
