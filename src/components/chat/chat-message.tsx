@@ -10,11 +10,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button'; // Import Button
+import { Button } from '@/components/ui/button';
 
 interface ChatMessageProps {
   message: ChatMessage;
-  onRegenerate?: (requestDetails: ChatMessage['originalRequest']) => void; // Added prop
+  onRegenerate?: (requestDetails: ChatMessage['originalRequest'] & { messageIdToRegenerate: string }) => void;
 }
 
 function MessageAvatar({ role }: { role: MessageRole }) {
@@ -64,21 +64,7 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
     case 'code':
       return <CopyToClipboard key={index} textToCopy={part.code || ''} title={part.title} language={part.language} className={cn(commonClasses)} style={{ animationDelay }} />;
     case 'list':
-      if (part.title && (part.title.toLowerCase().includes('suggested') || part.title.toLowerCase().includes('translations') || part.title.toLowerCase().includes('inspiration'))) {
-        return (
-          <div key={index} className={cn(commonClasses)} style={{ animationDelay }}>
-            {part.title && <h4 className="font-semibold mb-1 text-base">{part.title}</h4>}
-            {part.items && part.items.map((item, itemIndex) => (
-              <CopyableText
-                key={`${index}-item-${itemIndex}`}
-                text={item}
-                title={`${part.title && (part.title.startsWith('Suggest') || part.title.startsWith('Simulated')) ? 'Item' : 'Translation'} ${itemIndex + 1}`}
-                className="my-1"
-              />
-            ))}
-          </div>
-        );
-      }
+      // Always use CopyableList for better display and copy functionality of lists.
       return (
         <div key={index} className={cn(commonClasses)} style={{ animationDelay }}>
           {part.title && <h4 className="font-semibold mb-1 text-base">{part.title}</h4>}
@@ -101,7 +87,7 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
               <Separator className="my-3" />
             }
 
-            {part.bengali?.analysis && <CopyableText title=" বিশ্লেষণ (Bengali Analysis/Combined)" text={part.bengali.analysis} />}
+            {part.bengali?.analysis && <CopyableText title="বিশ্লেষণ (Bengali Analysis/Combined)" text={part.bengali.analysis} />}
             {part.bengali?.simplifiedRequest && <CopyableText title="সরলীকৃত অনুরোধ (Bengali Simplified Request)" text={part.bengali.simplifiedRequest} />}
             {part.bengali?.stepByStepApproach && <CopyableText title="ধাপে ধাপে পদ্ধতি (Bengali Step-by-Step)" text={part.bengali.stepByStepApproach} />}
           </CardContent>
@@ -117,11 +103,11 @@ export function ChatMessageDisplay({ message, onRegenerate }: ChatMessageProps) 
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
 
-  if (message.isLoading) {
+  if (message.isLoading && !message.content) { // Show skeleton only if no content yet
     return (
-      <div className={`flex items-start gap-3 p-3 md:p-4 ${isUser ? 'justify-end' : ''}`}>
+      <div className={`flex items-start gap-3 p-3 md:p-4 w-full ${isUser ? 'justify-end' : ''}`}>
         {!isUser && <MessageAvatar role="assistant" />}
-        <div className={`flex flex-col gap-1 rounded-lg p-3 shadow-sm w-full ${isAssistant ? 'bg-secondary text-secondary-foreground' : 'bg-primary text-primary-foreground'}`}>
+        <div className={`flex flex-col gap-1 rounded-lg p-3 shadow-sm w-full ${isAssistant ? 'bg-card text-card-foreground' : 'bg-primary text-primary-foreground'}`}>
           <Skeleton className="h-4 w-32 mb-1" />
           <Skeleton className="h-3 w-24" />
         </div>
@@ -132,19 +118,25 @@ export function ChatMessageDisplay({ message, onRegenerate }: ChatMessageProps) 
 
   const handleRegenerateClick = () => {
     if (onRegenerate && message.originalRequest) {
-      onRegenerate(message.originalRequest);
+      // Pass the full originalRequest and the ID of the message to be regenerated
+      onRegenerate({ ...message.originalRequest, messageIdToRegenerate: message.id });
     }
   };
 
+  const displayContent = message.isLoading && typeof message.content === 'string' && message.content.startsWith('Processing...')
+    ? [{ type: 'text' as const, text: message.content }] // Ensure type is literal for discrimination
+    : (typeof message.content === 'string' ? [{ type: 'text' as const, text: message.content }] : message.content);
+
+
   return (
     <div className={cn(
-        `flex items-start gap-3 p-3 md:p-4 animate-slideUpSlightly`,
+        `flex items-start gap-3 p-3 md:p-4 animate-slideUpSlightly w-full`, // Ensure full width
         isUser ? 'justify-end' : ''
       )}
     >
       {!isUser && <MessageAvatar role={message.role} />}
       <div
-        className={cn(`flex flex-col gap-1.5 rounded-lg p-3 shadow-md text-sm w-full
+        className={cn(`flex flex-col gap-1.5 rounded-lg p-3 shadow-md text-sm w-full 
           ${isAssistant ? 'bg-card text-card-foreground' : 'bg-primary text-primary-foreground'}
           ${message.isError ? 'border-destructive border-2' : 'border-transparent'}`
         )}
@@ -155,11 +147,12 @@ export function ChatMessageDisplay({ message, onRegenerate }: ChatMessageProps) 
             <span className="font-medium">Error processing request.</span>
           </div>
         )}
-        {typeof message.content === 'string' ? (
-          <p className="whitespace-pre-wrap">{message.content}</p>
-        ) : (
-          message.content.map((part, index) => <RenderContentPart part={part} index={index} key={`${message.id}-part-${index}`}/>)
-        )}
+        
+        {message.isLoading && typeof message.content === 'string' && message.content.startsWith('Processing...')
+          ? <p className="whitespace-pre-wrap animate-pulse">{message.content}</p>
+          : displayContent.map((part, index) => <RenderContentPart part={part} index={index} key={`${message.id}-part-${index}`}/>)
+        }
+
         {message.attachedFiles && message.attachedFiles.length > 0 && (
           <div className="mt-2 space-y-1">
             {message.attachedFiles.map(file => <AttachedFileDisplay key={`${file.name}-${file.size || 0}`} file={file} />)}
@@ -173,6 +166,7 @@ export function ChatMessageDisplay({ message, onRegenerate }: ChatMessageProps) 
               onClick={handleRegenerateClick}
               className="text-xs text-muted-foreground hover:text-primary hover:bg-primary/10"
               title="Regenerate response"
+              disabled={message.isLoading} // Disable if the message itself is currently loading (being regenerated)
             >
               <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
               Regenerate
@@ -184,3 +178,4 @@ export function ChatMessageDisplay({ message, onRegenerate }: ChatMessageProps) 
     </div>
   );
 }
+

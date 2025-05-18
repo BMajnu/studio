@@ -8,7 +8,7 @@ export interface UserProfile {
   communicationStyleNotes?: string;
   services: string[];
   fiverrUsername?: string;
-  geminiApiKeys?: string[]; // Changed from geminiApiKey: string
+  geminiApiKeys?: string[];
   selectedGenkitModelId?: string;
   customSellerFeedbackTemplate?: string;
   customClientFeedbackResponseTemplate?: string;
@@ -19,7 +19,6 @@ export interface UserProfile {
 
 export type MessageRole = 'user' | 'assistant' | 'system';
 
-// Keep ActionType definition here if it's broadly used, or ensure it's imported if defined elsewhere
 export type ActionType =
   | 'processMessage'
   | 'analyzeRequirements'
@@ -57,12 +56,13 @@ export interface ChatMessage {
   isError?: boolean;
   profileUsed?: Partial<UserProfile>; // To show which profile was active for this AI message
   attachedFiles?: AttachedFile[]; // Files attached with this specific message (primarily for user messages)
-  canRegenerate?: boolean; // New: Flag to indicate if this message can be regenerated
-  originalRequest?: { // New: Stores details of the request that generated this message
+  canRegenerate?: boolean;
+  originalRequest?: {
     actionType: ActionType;
     messageText: string;
     notes?: string;
-    attachedFilesData?: AttachedFile[]; // Store the actual file data used
+    attachedFilesData?: AttachedFile[];
+    messageIdToRegenerate?: string; // ID of the assistant message being regenerated
   };
 }
 
@@ -98,3 +98,4 @@ export interface ChatSession {
   updatedAt: number; // Timestamp
   userId: string; // Associate with a user
 }
+

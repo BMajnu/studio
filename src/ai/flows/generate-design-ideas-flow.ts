@@ -2,6 +2,7 @@
 'use server';
 /**
  * @fileOverview Generates creative design ideas, simulated web search results, and typography ideas.
+ * Emphasizes highly detailed, specific, and well-directed outputs.
  *
  * - generateDesignIdeas - A function to generate design ideas.
  * - GenerateDesignIdeasInput - The input type for the function.
@@ -56,8 +57,8 @@ const WebSearchResultSchema = z.object({
 const GenerateDesignIdeasOutputSchema = z.object({
   extractedTextOrSaying: z.string().describe("The specific text or saying identified from the input that the design ideas are based on. If input is a general theme, this might be a concise summary of it."),
   simulatedWebInspiration: z.array(WebSearchResultSchema).describe("Simulated web search results: 2-3 example links with titles and snippets for designs similar to the design's text/saying. You are not browsing; create plausible examples if real search is not possible or if the input doesn't provide enough specifics for actual search queries. If no text/saying is clear, provide general inspiration related to the broader theme if one can be inferred."),
-  creativeDesignIdeas: z.array(z.string()).describe("Five detailed creative design ideas for new designs based on the extracted text/saying. Include style and concept details. Example: 'Coffee bean character joyfully holding a golden trophy, rendered in a retro comic book style, with the text 'Coffee Beats Everything' in a dynamic, slightly distressed font.'"),
-  typographyDesignIdeas: z.array(z.string()).describe("Two creative typography-focused design ideas (graphics optional or minimal) for the extracted text/saying, emphasizing font style, layout, and typographic effects."),
+  creativeDesignIdeas: z.array(z.string()).describe("Five highly detailed, specific, and well-directed creative design ideas for new designs based on the extracted text/saying. Include style, concept, visual elements, color palette suggestions, and how the text is incorporated. Aim for production-ready concepts."),
+  typographyDesignIdeas: z.array(z.string()).describe("Two highly detailed and specific creative typography-focused design ideas (graphics optional or minimal) for the extracted text/saying, emphasizing font style, layout, typographic effects, and overall aesthetic. Aim for unique and impactful typographic treatments."),
 });
 export type GenerateDesignIdeasOutput = z.infer<typeof GenerateDesignIdeasOutputSchema>;
 
@@ -88,11 +89,11 @@ export async function generateDesignIdeas(flowInput: GenerateDesignIdeasInput): 
     prompt: `You are an expert Design Idea Generator for a graphic designer named {{{userName}}}.
 Their communication style is: {{{communicationStyleNotes}}}.
 
-**Objective:** Generate creative design ideas based on the provided "Design Input Text", conversation history, and any attached files.
+**Objective:** Generate highly detailed, specific, well-directed, and creative design ideas based on the provided "Design Input Text", considering the full conversation history and any attached files. If multiple distinct design themes or texts are evident in the input or history, attempt to generate ideas for each.
 
 **Context:**
 {{#if chatHistory.length}}
-Previous conversation context:
+Previous conversation context (use this to understand the full scope of the request, including any evolving requirements or themes):
 {{#each chatHistory}}
 {{this.role}}: {{{this.text}}}
 ---
@@ -100,7 +101,7 @@ Previous conversation context:
 {{/if}}
 
 {{#if attachedFiles.length}}
-Attached Files (consider for visual cues, themes, or explicit requirements):
+Attached Files (analyze for visual cues, specific elements, style preferences, or explicit requirements mentioned in text):
 {{#each attachedFiles}}
 - File: {{this.name}} (Type: {{this.type}})
   {{#if this.dataUri}}(Image content: {{media url=this.dataUri}}){{/if}}
@@ -109,27 +110,38 @@ Attached Files (consider for visual cues, themes, or explicit requirements):
 {{/each}}
 {{/if}}
 
-**Design Input Text (Primary focus for idea generation):**
+**Design Input Text (Primary focus for idea generation, interpret within the full context above):**
 "{{{designInputText}}}"
 
 **Tasks:**
 
-1.  **Identify Core Text/Saying:** Determine the core text, slogan, or saying from the "Design Input Text" that should be the focus of the design. If the input is more of a theme, summarize it concisely. Populate \`extractedTextOrSaying\`.
+1.  **Identify Core Text(s)/Saying(s)/Theme(s):** Determine the core text(s), slogan(s), saying(s), or theme(s) from the "Design Input Text" AND the "Previous conversation context" that should be the focus of the design(s). If multiple distinct subjects for design are apparent, acknowledge them. Populate \`extractedTextOrSaying\` with a concise summary or the primary text.
 
-2.  **Simulate Web Inspiration (Field: \`simulatedWebInspiration\`):**
-    *   Based on the \`extractedTextOrSaying\`, generate 2-3 *simulated* web search results or inspirational examples.
-    *   Each result should have a plausible \`title\`, a conceptual \`link\` (e.g., "designspiration.net/coffee-poster-ideas", "pinterest.com/vintage-typography-examples"), and a brief \`snippet\`.
-    *   You are NOT browsing the live web. Create realistic-sounding examples that would be helpful for inspiration. If the input text is too vague for specific examples, provide general design inspiration links relevant to a potential theme.
+2.  **Simulated Web Inspiration (Field: \`simulatedWebInspiration\`):**
+    *   Based on the identified core text(s)/theme(s), generate 2-3 *simulated* web search results or inspirational examples.
+    *   Each result must have a plausible \`title\`, a conceptual \`link\` (e.g., "dribbble.com/coffee-logo-concepts", "behance.net/minimalist-typography-posters"), and a brief, relevant \`snippet\`.
+    *   You are NOT browsing the live web. Create realistic-sounding examples. If input is too vague, provide general design inspiration relevant to potential themes.
 
 3.  **Creative Design Ideas (Field: \`creativeDesignIdeas\`):**
-    *   Generate FIVE distinct and detailed creative design ideas based on the \`extractedTextOrSaying\`.
-    *   For each idea, describe the concept, style (e.g., vintage, minimalist, bold, retro comic), visual elements, and how the text is incorporated.
-    *   Example: "A coffee bean character wearing a crown, looking triumphant, with 'Coffee Beats Everything' in a bold, modern sans-serif font arched above. Style: Playful, modern."
+    *   Generate FIVE distinct, **highly detailed, specific, and well-directed** creative design ideas. These should be production-ready concepts.
+    *   For each idea:
+        *   **Concept:** Clearly describe the core concept and narrative.
+        *   **Style:** Specify the artistic style (e.g., vintage, minimalist, retro comic, abstract, geometric, illustrative, photographic).
+        *   **Visual Elements:** Detail all key visual elements, objects, characters, or symbols. Describe their appearance and interaction.
+        *   **Color Palette:** Suggest a specific color palette (e.g., "monochromatic blues with a gold accent," "earthy tones of brown, green, and terracotta").
+        *   **Text Incorporation:** Explain how the text/saying is integrated into the design (e.g., "arched above the central graphic," "interwoven with illustrative elements," "boldly centered").
+        *   **Overall Mood/Feeling:** Describe the intended emotional impact (e.g., "playful and energetic," "sophisticated and modern," "nostalgic and warm").
+    *   Example: "Idea 1: A majestic wolf silhouette against a vibrant geometric aurora borealis. Style: Modern geometric, slightly abstract. Visual Elements: Wolf head composed of interconnected triangles, sharp lines for aurora, subtle starbursts. Color Palette: Deep blues, purples, teals for aurora, with a contrasting silver or white for the wolf outline and stars. Text Incorporation: 'Northern Soul' (example text) in a clean, sans-serif font, subtly placed at the bottom. Mood: Mysterious, powerful, serene."
 
 4.  **Typography Design Ideas (Field: \`typographyDesignIdeas\`):**
-    *   Generate TWO creative typography-focused design ideas for the \`extractedTextOrSaying\`.
-    *   These ideas should primarily emphasize font choice, layout, text effects, and composition, with minimal or no additional graphical elements.
-    *   Example: "'Coffee Beats Everything' rendered in an elegant, flowing script font, intertwined with subtle coffee steam wisps forming decorative ligatures. Color palette: Rich browns and creams."
+    *   Generate TWO distinct, **highly detailed and specific** creative typography-focused design ideas. These should emphasize unique and impactful typographic treatments with minimal or optional graphics.
+    *   For each idea:
+        *   **Font Style:** Describe the specific font style (e.g., "bold condensed sans-serif," "elegant flowing script," "distressed vintage serif," "futuristic display font").
+        *   **Layout & Composition:** Detail how the text is arranged (e.g., "stacked vertically," "circular arrangement," "text forming a specific shape").
+        *   **Typographic Effects:** Mention any effects (e.g., "3D extrusion," "neon glow," "letterpress deboss," "interlocking ligatures").
+        *   **Color & Treatment:** Suggest colors for the text and any subtle background treatments.
+        *   **Overall Aesthetic:** (e.g., "Clean and corporate," "Grungy and urban," "Playful and whimsical").
+    *   Example: "Typography Idea 1: 'Coffee Beats Everything' (example text) rendered in a dynamic, hand-drawn script font that mimics steam rising from a coffee cup. Layout: Text flows upwards, with ligatures connecting letters like wisps of steam. Effects: Subtle textured background resembling parchment, text has a slightly imperfect, hand-lettered feel. Color: Rich dark brown for text on a cream background. Aesthetic: Warm, inviting, artisanal."
 
 Ensure your entire response is a single JSON object matching the \`GenerateDesignIdeasOutputSchema\`.
 `,
