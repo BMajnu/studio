@@ -18,20 +18,22 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import type { UserProfile } from "@/lib/types";
-import { DEFAULT_USER_PROFILE, AVAILABLE_MODELS, DEFAULT_MODEL_ID, DEFAULT_USER_ID } from "@/lib/constants";
+import { DEFAULT_USER_PROFILE, AVAILABLE_MODELS, DEFAULT_MODEL_ID } from "@/lib/constants";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEffect } from "react";
 
 const profileFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }).max(50),
-  professionalTitle: z.string().max(100).optional(),
+  professionalTitle: z.string().max(100).optional().nullable(),
   yearsOfExperience: z.coerce.number().int().positive().optional().or(z.literal("")).nullable(),
   portfolioLink: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal("")).nullable(),
   communicationStyleNotes: z.string().max(500).optional().nullable(),
   services: z.array(z.string().min(1, {message: "Service cannot be empty."}).max(100)).optional(),
   fiverrUsername: z.string().max(50).optional().nullable(),
-  geminiApiKey: z.string().max(100).optional().nullable(), 
+  geminiApiKeys: z.array(
+      z.string().min(1, "API Key cannot be empty.").max(100, "API Key is too long.")
+    ).min(1, "At least one Gemini API Key is required."),
   selectedGenkitModelId: z.string().optional().nullable(),
   customSellerFeedbackTemplate: z.string().max(1000).optional().nullable(),
   customClientFeedbackResponseTemplate: z.string().max(1000).optional().nullable(),
@@ -41,8 +43,8 @@ const profileFormSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 interface ProfileFormProps {
-  initialProfile: UserProfile; // This will come from useUserProfile hook (Firestore or localStorage)
-  onSave: (data: Partial<UserProfile>) => void; // Changed to Partial<UserProfile> for flexibility
+  initialProfile: UserProfile;
+  onSave: (data: Partial<UserProfile>) => void;
 }
 
 export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
@@ -50,8 +52,6 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
   
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
-    // Default values should be driven by initialProfile, falling back to global defaults
-    // The userId is managed by the hook/Firestore, not directly by this form.
     defaultValues: {
       name: initialProfile?.name || DEFAULT_USER_PROFILE.name,
       professionalTitle: initialProfile?.professionalTitle || DEFAULT_USER_PROFILE.professionalTitle || "",
@@ -60,7 +60,7 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
       communicationStyleNotes: initialProfile?.communicationStyleNotes || DEFAULT_USER_PROFILE.communicationStyleNotes || "",
       services: initialProfile?.services && initialProfile.services.length > 0 ? initialProfile.services : DEFAULT_USER_PROFILE.services || [],
       fiverrUsername: initialProfile?.fiverrUsername || DEFAULT_USER_PROFILE.fiverrUsername || "",
-      geminiApiKey: initialProfile?.geminiApiKey || DEFAULT_USER_PROFILE.geminiApiKey || "",
+      geminiApiKeys: initialProfile?.geminiApiKeys && initialProfile.geminiApiKeys.length > 0 ? initialProfile.geminiApiKeys : DEFAULT_USER_PROFILE.geminiApiKeys || [''],
       selectedGenkitModelId: initialProfile?.selectedGenkitModelId || DEFAULT_USER_PROFILE.selectedGenkitModelId || DEFAULT_MODEL_ID,
       customSellerFeedbackTemplate: initialProfile?.customSellerFeedbackTemplate || DEFAULT_USER_PROFILE.customSellerFeedbackTemplate || "",
       customClientFeedbackResponseTemplate: initialProfile?.customClientFeedbackResponseTemplate || DEFAULT_USER_PROFILE.customClientFeedbackResponseTemplate || "",
@@ -69,7 +69,6 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
     mode: "onChange",
   });
 
-  // Effect to reset form when initialProfile changes (e.g., after login or Firestore load)
   useEffect(() => {
     if (initialProfile) {
       form.reset({
@@ -80,7 +79,7 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
         communicationStyleNotes: initialProfile.communicationStyleNotes || DEFAULT_USER_PROFILE.communicationStyleNotes || "",
         services: initialProfile.services && initialProfile.services.length > 0 ? initialProfile.services : DEFAULT_USER_PROFILE.services || [],
         fiverrUsername: initialProfile.fiverrUsername || DEFAULT_USER_PROFILE.fiverrUsername || "",
-        geminiApiKey: initialProfile.geminiApiKey || DEFAULT_USER_PROFILE.geminiApiKey || "",
+        geminiApiKeys: initialProfile.geminiApiKeys && initialProfile.geminiApiKeys.length > 0 ? initialProfile.geminiApiKeys : DEFAULT_USER_PROFILE.geminiApiKeys || [''],
         selectedGenkitModelId: initialProfile.selectedGenkitModelId || DEFAULT_USER_PROFILE.selectedGenkitModelId || DEFAULT_MODEL_ID,
         customSellerFeedbackTemplate: initialProfile.customSellerFeedbackTemplate || DEFAULT_USER_PROFILE.customSellerFeedbackTemplate || "",
         customClientFeedbackResponseTemplate: initialProfile.customClientFeedbackResponseTemplate || DEFAULT_USER_PROFILE.customClientFeedbackResponseTemplate || "",
@@ -90,24 +89,29 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
   }, [initialProfile, form.reset]);
 
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields: serviceFields, append: appendService, remove: removeService } = useFieldArray({
     control: form.control,
     name: "services",
   });
 
+  const { fields: apiKeyFields, append: appendApiKey, remove: removeApiKey } = useFieldArray({
+    control: form.control,
+    name: "geminiApiKeys",
+  });
+
   function onSubmit(data: ProfileFormValues) {
-    // The userId is part of initialProfile and managed by the useUserProfile hook.
-    // We only pass the updatable fields.
     const processedData: Partial<UserProfile> = {
       ...data,
       yearsOfExperience: data.yearsOfExperience ? Number(data.yearsOfExperience) : undefined,
       services: data.services || [],
+      geminiApiKeys: data.geminiApiKeys.filter(key => key.trim() !== ''), // Filter out empty keys before saving
       selectedGenkitModelId: data.selectedGenkitModelId || DEFAULT_MODEL_ID,
     };
-    // Remove nulls to avoid overwriting with null in Firestore merge if field was empty string
+    
     Object.keys(processedData).forEach(key => {
-      if ((processedData as any)[key] === null) {
-        delete (processedData as any)[key];
+      const K = key as keyof Partial<UserProfile>;
+      if (processedData[K] === null) {
+        delete processedData[K];
       }
     });
 
@@ -122,6 +126,7 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <div className="space-y-6 pr-1">
+          {/* ... other form fields ... */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FormField
               control={form.control}
@@ -203,7 +208,7 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
 
           <div className="space-y-4">
             <FormLabel>Services Offered</FormLabel>
-            {fields.map((field, index) => (
+            {serviceFields.map((field, index) => (
               <FormField
                 control={form.control}
                 key={field.id}
@@ -214,7 +219,7 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
                       <FormControl>
                         <Input placeholder="e.g., 🎽 T-Shirt Designs" {...itemField} />
                       </FormControl>
-                      <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} aria-label="Remove service">
+                      <Button type="button" variant="ghost" size="icon" onClick={() => removeService(index)} aria-label="Remove service">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -227,7 +232,7 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => append("")}
+              onClick={() => appendService("")}
             >
               <PlusCircle className="mr-2 h-4 w-4" /> Add Service
             </Button>
@@ -268,52 +273,90 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
                 </FormItem>
               )}
             />
+            
             <FormField
-              control={form.control}
-              name="geminiApiKey"
-              render={({ field }) => (
+                control={form.control}
+                name="selectedGenkitModelId"
+                render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Gemini API Key (Optional)</FormLabel>
-                  <FormControl>
-                    <Input type="password" placeholder="Enter your Gemini API Key" {...field} value={field.value ?? ""} />
-                  </FormControl>
-                  <FormDescription>
-                    Your API key is stored locally and in Firestore if logged in. If the app uses a server-level key, this may not be needed.
-                  </FormDescription>
-                  <FormMessage />
+                    <FormLabel>Preferred AI Model</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value || DEFAULT_MODEL_ID}>
+                    <FormControl>
+                        <SelectTrigger>
+                        <SelectValue placeholder="Select an AI model" />
+                        </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                        {AVAILABLE_MODELS.map(model => (
+                        <SelectItem key={model.id} value={model.id}>
+                            {model.name}
+                        </SelectItem>
+                        ))}
+                    </SelectContent>
+                    </Select>
+                    <FormDescription>
+                    Choose the AI model for generating responses.
+                    </FormDescription>
+                    <FormMessage />
                 </FormItem>
-              )}
+                )}
             />
           </div>
-          
-          <FormField
-            control={form.control}
-            name="selectedGenkitModelId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Preferred AI Model</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value || DEFAULT_MODEL_ID}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select an AI model" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {AVAILABLE_MODELS.map(model => (
-                      <SelectItem key={model.id} value={model.id}>
-                        {model.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormDescription>
-                  Choose the AI model for generating responses. "Flash" is faster, "Pro" may be more capable.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
 
+          <div className="space-y-4">
+            <FormLabel>Gemini API Keys *</FormLabel>
+            {apiKeyFields.map((field, index) => (
+              <FormField
+                control={form.control}
+                key={field.id}
+                name={`geminiApiKeys.${index}`}
+                render={({ field: itemField }) => (
+                  <FormItem>
+                    <div className="flex items-center gap-2">
+                      <FormControl>
+                        <Input 
+                          type="password" 
+                          placeholder={`API Key ${index + 1}`} 
+                          {...itemField} 
+                        />
+                      </FormControl>
+                      {apiKeyFields.length > 1 && (
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => removeApiKey(index)} 
+                          aria-label="Remove API Key"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    <FormMessage /> {/* This will show errors for individual keys if any */}
+                  </FormItem>
+                )}
+              />
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => appendApiKey("")}
+              className="mt-2"
+            >
+              <PlusCircle className="mr-2 h-4 w-4" /> Add API Key
+            </Button>
+            <FormDescription>
+              Enter your Gemini API Keys. The first key in the list will be used. At least one key is required for AI features.
+            </FormDescription>
+            {/* Display top-level form error for geminiApiKeys if it exists (e.g., "At least one key is required") */}
+            {form.formState.errors.geminiApiKeys && !form.formState.errors.geminiApiKeys.message && (
+                 <p className="text-sm font-medium text-destructive">
+                    {form.formState.errors.geminiApiKeys.root?.message || "Please provide at least one API key."}
+                </p>
+            )}
+          </div>
+          
           <FormField
             control={form.control}
             name="customSellerFeedbackTemplate"
@@ -357,3 +400,5 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
     </Form>
   );
 }
+
+    
