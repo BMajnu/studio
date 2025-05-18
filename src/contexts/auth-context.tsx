@@ -2,7 +2,14 @@
 'use client';
 
 import type { User as FirebaseUser } from 'firebase/auth';
-import { createUserWithEmailAndPassword, onAuthStateChanged, signInWithEmailAndPassword, signOut as firebaseSignOut } from 'firebase/auth';
+import { 
+  createUserWithEmailAndPassword, 
+  onAuthStateChanged, 
+  signInWithEmailAndPassword, 
+  signOut as firebaseSignOut,
+  GoogleAuthProvider, // Added
+  signInWithPopup     // Added
+} from 'firebase/auth';
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth } from '@/lib/firebase'; // Firebase auth instance
@@ -12,6 +19,7 @@ interface AuthContextType {
   loading: boolean;
   signUp: (email: string, pass: string) => Promise<FirebaseUser | null>;
   signIn: (email: string, pass: string) => Promise<FirebaseUser | null>;
+  signInWithGoogle: () => Promise<FirebaseUser | null>; // Added
   signOut: () => Promise<void>;
 }
 
@@ -37,7 +45,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return userCredential.user;
     } catch (error) {
       console.error("Error signing up:", error);
-      // Consider using toast to show error to user
       return null;
     } finally {
       setLoading(false);
@@ -52,7 +59,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return userCredential.user;
     } catch (error) {
       console.error("Error signing in:", error);
-      // Consider using toast to show error to user
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signInWithGoogle = async (): Promise<FirebaseUser | null> => {
+    setLoading(true);
+    const provider = new GoogleAuthProvider();
+    try {
+      const result = await signInWithPopup(auth, provider);
+      setUser(result.user);
+      return result.user;
+    } catch (error) {
+      console.error("Error signing in with Google:", error);
+      // Handle specific errors like 'auth/popup-closed-by-user' if needed
+      // For now, just return null and let the UI handle no user.
       return null;
     } finally {
       setLoading(false);
@@ -66,13 +89,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(null);
     } catch (error) {
       console.error("Error signing out:", error);
-      // Consider using toast to show error to user
     } finally {
       setLoading(false);
     }
   };
   
-  const value = { user, loading, signUp, signIn, signOut };
+  const value = { user, loading, signUp, signIn, signInWithGoogle, signOut };
 
   return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
 };

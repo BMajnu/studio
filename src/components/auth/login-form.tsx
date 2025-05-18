@@ -17,7 +17,8 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ChromeIcon } from 'lucide-react'; // Using ChromeIcon as a placeholder for Google
+import { Separator } from '@/components/ui/separator';
 
 const loginFormSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -31,9 +32,10 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ onSuccess }: LoginFormProps) {
-  const { signIn } = useAuth();
+  const { signIn, signInWithGoogle } = useAuth(); // Added signInWithGoogle
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -48,7 +50,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     const user = await signIn(data.email, data.password);
     setIsLoading(false);
     if (user) {
-      toast({ title: 'Login Successful', description: `Welcome back, ${user.email}!` });
+      toast({ title: 'Login Successful', description: `Welcome back!` });
       onSuccess?.();
     } else {
       toast({
@@ -59,40 +61,84 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     }
   }
 
+  async function handleGoogleSignIn() {
+    setIsGoogleLoading(true);
+    const user = await signInWithGoogle();
+    setIsGoogleLoading(false);
+    if (user) {
+      toast({ title: 'Google Sign-In Successful', description: `Welcome, ${user.displayName || user.email}!` });
+      onSuccess?.(); // Close modal on success
+    } else {
+      // Error is logged in AuthContext, toast can be shown here if more specific message needed
+      toast({
+        title: 'Google Sign-In Failed',
+        description: 'Could not sign in with Google. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  }
+
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input type="email" placeholder="you@example.com" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Password</FormLabel>
-              <FormControl>
-                <Input type="password" placeholder="••••••••" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Login
-        </Button>
-      </form>
-    </Form>
+    <div className="space-y-6">
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input type="email" placeholder="you@example.com" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Password</FormLabel>
+                <FormControl>
+                  <Input type="password" placeholder="••••••••" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Login
+          </Button>
+        </form>
+      </Form>
+
+      <div className="relative my-4">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-background px-2 text-muted-foreground">
+            Or continue with
+          </span>
+        </div>
+      </div>
+
+      <Button 
+        variant="outline" 
+        className="w-full" 
+        onClick={handleGoogleSignIn} 
+        disabled={isLoading || isGoogleLoading}
+      >
+        {isGoogleLoading ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          <ChromeIcon className="mr-2 h-4 w-4" /> // Placeholder for Google Icon
+        )}
+        Sign in with Google
+      </Button>
+    </div>
   );
 }
