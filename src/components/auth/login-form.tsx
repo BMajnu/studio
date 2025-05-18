@@ -54,6 +54,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         onSuccess?.();
       } else {
         // This path is less likely if signIn throws specific errors
+        console.warn("LoginForm: signIn returned null without throwing an error.");
         toast({
           title: 'Login Failed',
           description: 'Please check your email and password.',
@@ -86,7 +87,6 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         toast({ title: 'Google Sign-In Successful', description: `Welcome, ${user.displayName || user.email?.split('@')[0]}!` });
         onSuccess?.();
       } else {
-        // This path is less likely if signInWithGoogle throws specific errors
          console.warn("LoginForm: signInWithGoogle returned null without throwing an error.");
         toast({
           title: 'Google Sign-In Failed',
@@ -96,22 +96,30 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       }
     } catch (error: any) {
       console.error("Google Sign-In error in LoginForm:", error);
-      let description = 'Could not sign in with Google. Please try again.';
-      if (error.code === 'auth/unauthorized-domain') {
-        description = 'This domain is not authorized for Google Sign-In. Please check your Firebase project configuration (Authentication > Settings > Authorized domains) and ensure this domain and the [PROJECT_ID].firebaseapp.com domain are listed. See console for more details.';
-      } else if (error.code === 'auth/popup-closed-by-user') {
-        description = 'Google Sign-In cancelled by user.';
-      } else if (error.code === 'auth/popup-blocked') {
-        description = 'Google Sign-In was blocked by your browser. Please allow popups for this site and try again.';
-      } else if (error.code) {
-        description = `Google Sign-In failed: ${error.message} (Code: ${error.code}). Check console for more details.`;
+      
+      if (error.code === 'auth/popup-closed-by-user') {
+        toast({
+          title: 'Sign-In Cancelled',
+          description: 'Google Sign-In was cancelled by user.',
+          variant: 'default', // Use default variant, not destructive
+          duration: 5000,
+        });
+      } else {
+        let description = 'Could not sign in with Google. Please try again.';
+        if (error.code === 'auth/unauthorized-domain') {
+          description = 'This domain is not authorized for Google Sign-In. Please check your Firebase project configuration (Authentication > Settings > Authorized domains) and ensure this domain and the [PROJECT_ID].firebaseapp.com domain are listed. See console for more details.';
+        } else if (error.code === 'auth/popup-blocked') {
+          description = 'Google Sign-In was blocked by your browser. Please allow popups for this site and try again.';
+        } else if (error.code) {
+          description = `Google Sign-In failed: ${error.message} (Code: ${error.code}). Check console for more details.`;
+        }
+        toast({
+          title: 'Google Sign-In Failed',
+          description: description,
+          variant: 'destructive',
+          duration: 9000, 
+        });
       }
-      toast({
-        title: 'Google Sign-In Failed',
-        description: description,
-        variant: 'destructive',
-        duration: 9000, 
-      });
     } finally {
       setIsGoogleLoading(false);
     }
