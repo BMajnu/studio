@@ -3,7 +3,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import type { ChatSession, ChatSessionMetadata, ChatMessage } from '@/lib/types';
+import type { ChatSession, ChatSessionMetadata, ChatMessage, AttachedFile } from '@/lib/types';
 import { DEFAULT_USER_ID, DEFAULT_MODEL_ID } from '@/lib/constants';
 import { generateChatName, type GenerateChatNameInput } from '@/ai/flows/generate-chat-name-flow';
 
@@ -16,8 +16,22 @@ const getMessageTextPreview = (message: ChatMessage | undefined): string => {
   if (typeof message.content === 'string') {
     return message.content.substring(0, 50);
   }
-  const textPart = message.content.find(part => part.type === 'text');
-  return textPart?.text?.substring(0, 50) || 'Media message';
+  if (Array.isArray(message.content)) {
+    const textPart = message.content.find(part => part.type === 'text');
+    if (textPart && textPart.text) return textPart.text.substring(0, 50);
+    const codePart = message.content.find(part => part.type === 'code');
+    if (codePart && codePart.title) return `Code: ${codePart.title.substring(0,40)}`;
+    if (codePart && codePart.code) return `Code snippet (first 50 chars): ${codePart.code.substring(0,50)}`;
+    const listPart = message.content.find(part => part.type === 'list');
+    if (listPart && listPart.title) return `List: ${listPart.title.substring(0,40)}`;
+    if (listPart && listPart.items && listPart.items.length > 0) return `List: ${listPart.items[0].substring(0,40)}`;
+    const translationPart = message.content.find(part => part.type === 'translation_group');
+    if (translationPart && translationPart.title) return `Analysis: ${translationPart.title.substring(0,40)}`;
+    if (message.attachedFiles && message.attachedFiles.length > 0) {
+        return `Attached: ${message.attachedFiles[0].name.substring(0,40)}`;
+    }
+  }
+  return 'Structured message';
 };
 
 // Helper function to check for QuotaExceededError
@@ -74,15 +88,15 @@ export function useChatHistory(userId: string = DEFAULT_USER_ID) {
   const saveSession = useCallback(async (session: ChatSession, attemptNameGeneration: boolean = false, modelIdForNameGeneration?: string): Promise<ChatSession> => {
     if (!userId || !session || !session.id.startsWith(userId + '_')) {
         console.warn("Attempted to save session without valid userId or session ID prefix. Session:", session, "UserId:", userId);
-        return session; 
+        return session;
     }
     
-    let sessionToSave = { ...session };
-    sessionToSave.updatedAt = Date.now();
+    let sessionToUpdateInMemory = { ...session }; // This will hold the version with full data for immediate use
+    sessionToUpdateInMemory.updatedAt = Date.now();
 
-    if (attemptNameGeneration && sessionToSave.messages.length > 0 && sessionToSave.name === "New Chat") {
-      const firstUserMsg = sessionToSave.messages.find(m => m.role === 'user');
-      const firstAssistantMsg = sessionToSave.messages.find(m => m.role === 'assistant');
+    if (attemptNameGeneration && sessionToUpdateInMemory.messages.length > 0 && sessionToUpdateInMemory.name === "New Chat") {
+      const firstUserMsg = sessionToUpdateInMemory.messages.find(m => m.role === 'user');
+      const firstAssistantMsg = sessionToUpdateInMemory.messages.find(m => m.role === 'assistant');
       
       if (firstUserMsg) {
         try {
@@ -93,43 +107,69 @@ export function useChatHistory(userId: string = DEFAULT_USER_ID) {
           };
           const nameOutput = await generateChatName(nameInput);
           if (nameOutput.chatName) {
-            sessionToSave.name = nameOutput.chatName;
+            sessionToUpdateInMemory.name = nameOutput.chatName;
           }
         } catch (nameGenError) {
           console.error("Failed to generate chat name:", nameGenError);
-          if (sessionToSave.name === "New Chat") {
-               sessionToSave.name = `Chat ${new Date(sessionToSave.createdAt).toLocaleString()}`;
+          if (sessionToUpdateInMemory.name === "New Chat") { // Check again in case of error
+               sessionToUpdateInMemory.name = `Chat ${new Date(sessionToUpdateInMemory.createdAt).toLocaleTimeString()}`;
           }
         }
-      } else if (sessionToSave.name === "New Chat") {
-          sessionToSave.name = `Chat ${new Date(sessionToSave.createdAt).toLocaleString()}`;
+      } else if (sessionToUpdateInMemory.name === "New Chat") { // Fallback if no user message for some reason
+          sessionToUpdateInMemory.name = `Chat ${new Date(sessionToUpdateInMemory.createdAt).toLocaleTimeString()}`;
       }
     }
 
+    // Create a lean version for localStorage
+    const sessionForLocalStorage: ChatSession = {
+      ...sessionToUpdateInMemory,
+      messages: sessionToUpdateInMemory.messages.map(msg => {
+        if (msg.attachedFiles && msg.attachedFiles.length > 0) {
+          return {
+            ...msg,
+            attachedFiles: msg.attachedFiles.map(file => {
+              const leanFile: AttachedFile = {
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                // dataUri is removed
+                // textContent could also be truncated/removed if very large
+                textContent: file.textContent ? file.textContent.substring(0, 500) + (file.textContent.length > 500 ? '...' : '') : undefined,
+              };
+              return leanFile;
+            })
+          };
+        }
+        return msg;
+      })
+    };
+
+
     try {
-      localStorage.setItem(`${CHAT_SESSION_PREFIX}${sessionToSave.id}`, JSON.stringify(sessionToSave));
+      localStorage.setItem(`${CHAT_SESSION_PREFIX}${sessionForLocalStorage.id}`, JSON.stringify(sessionForLocalStorage));
     } catch (error) {
       if (isQuotaExceededError(error)) {
-        console.error(`Failed to save session ${sessionToSave.id} due to localStorage quota exceeded. Session data might be too large.`, error);
-        // Optionally, inform the user via a toast or state update handled by the calling component.
-        // For now, we return the original session to indicate the save might not have fully completed or to prevent further state corruption.
-        return session; 
+        console.error(`Failed to save session ${sessionForLocalStorage.id} due to localStorage quota exceeded. Session data might be too large. DataURIs were removed, but content might still be too big.`, error);
+        // Return the in-memory version so app state is still up-to-date for current session.
+        return sessionToUpdateInMemory;
       } else {
-        console.error(`Failed to save session ${sessionToSave.id}:`, error);
-        return session; // Return original session on other errors too
+        console.error(`Failed to save session ${sessionForLocalStorage.id}:`, error);
+        return sessionToUpdateInMemory; // Return in-memory version on other errors too
       }
     }
 
     setHistoryMetadata(prev => {
       const userSpecificPrev = prev.filter(meta => meta.id.startsWith(userId + '_'));
-      const existingIndex = userSpecificPrev.findIndex(meta => meta.id === sessionToSave.id);
+      const existingIndex = userSpecificPrev.findIndex(meta => meta.id === sessionToUpdateInMemory.id); // Use sessionToUpdateInMemory for ID and name
+      
       const newMeta: ChatSessionMetadata = {
-        id: sessionToSave.id,
-        name: sessionToSave.name,
-        lastMessageTimestamp: sessionToSave.updatedAt,
-        preview: getMessageTextPreview(sessionToSave.messages[sessionToSave.messages.length - 1]),
-        messageCount: sessionToSave.messages.length,
+        id: sessionToUpdateInMemory.id,
+        name: sessionToUpdateInMemory.name || `Chat ${new Date(sessionToUpdateInMemory.createdAt).toLocaleTimeString()}`, // Ensure name is a string
+        lastMessageTimestamp: sessionToUpdateInMemory.updatedAt,
+        preview: getMessageTextPreview(sessionToUpdateInMemory.messages[sessionToUpdateInMemory.messages.length - 1]),
+        messageCount: sessionToUpdateInMemory.messages.length,
       };
+
       let updatedUserHistory;
       if (existingIndex > -1) {
         updatedUserHistory = [...userSpecificPrev];
@@ -142,6 +182,7 @@ export function useChatHistory(userId: string = DEFAULT_USER_ID) {
       try {
         const globalIndexStr = localStorage.getItem(CHAT_HISTORY_INDEX_KEY);
         const globalIndex = globalIndexStr ? JSON.parse(globalIndexStr) : [];
+        // Filter out any existing metadata for the current user before adding the updated list
         const otherUserHistories = globalIndex.filter((meta: ChatSessionMetadata) => !meta.id.startsWith(userId + '_'));
         const newGlobalIndex = [...otherUserHistories, ...sortedUserHistory].sort((a,b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
         localStorage.setItem(CHAT_HISTORY_INDEX_KEY, JSON.stringify(newGlobalIndex));
@@ -151,14 +192,12 @@ export function useChatHistory(userId: string = DEFAULT_USER_ID) {
           } else {
             console.error("Failed to save chat history index:", error);
           }
-          // If index saving fails, the in-memory `historyMetadata` will still be updated for the current user for the current session.
-          // However, it might not persist correctly across reloads if the index itself couldn't be saved.
       }
       
       return sortedUserHistory;
     });
-    return sessionToSave;
-  }, [userId, setHistoryMetadata]);
+    return sessionToUpdateInMemory; // Return the version with potentially full data for in-memory state
+  }, [userId, setHistoryMetadata]); // Removed getMessageTextPreview from deps as it's defined outside
 
   const deleteSession = useCallback((sessionId: string) => {
     if (!userId || !sessionId.startsWith(userId + '_')) return;
@@ -189,7 +228,7 @@ export function useChatHistory(userId: string = DEFAULT_USER_ID) {
   const createNewSession = useCallback((initialMessages: ChatMessage[] = [], modelIdForNameGeneration?: string): ChatSession => {
     if (!userId) {
         console.error("createNewSession called without a userId.");
-        const tempId = `temp_${Date.now()}`;
+        const tempId = `temp_${Date.now()}_${Math.random().toString(36).substring(2,7)}`;
          return {
           id: tempId,
           name: 'New Chat (Error: No User ID)',
@@ -199,7 +238,7 @@ export function useChatHistory(userId: string = DEFAULT_USER_ID) {
           userId: "unknown",
         };
     }
-    const newSessionId = `${userId}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`; // Added randomness to ID
+    const newSessionId = `${userId}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const now = Date.now();
     const newSession: ChatSession = {
       id: newSessionId,
@@ -209,6 +248,8 @@ export function useChatHistory(userId: string = DEFAULT_USER_ID) {
       updatedAt: now,
       userId: userId,
     };
+    // Call saveSession but don't await it here to avoid making createNewSession async
+    // saveSession itself will handle name generation if needed
     saveSession(newSession, true, modelIdForNameGeneration || DEFAULT_MODEL_ID); 
     return newSession;
   }, [userId, saveSession]);
@@ -216,3 +257,4 @@ export function useChatHistory(userId: string = DEFAULT_USER_ID) {
   return { historyMetadata, isLoading, getSession, saveSession, deleteSession, createNewSession, loadHistoryIndex };
 }
 
+    
