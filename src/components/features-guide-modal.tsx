@@ -12,14 +12,14 @@ import {
   DialogClose
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { APP_FEATURES_GUIDE } from "@/lib/constants";
-import ReactMarkdown from 'react-markdown'; // You might need to install this: npm install react-markdown
+import ReactMarkdown from 'react-markdown';
 
 interface FeaturesGuideModalProps {
   triggerButton?: React.ReactNode;
+  guideContent: string; // Added prop to accept guide content
 }
 
-export function FeaturesGuideModal({ triggerButton }: FeaturesGuideModalProps) {
+export function FeaturesGuideModal({ triggerButton, guideContent }: FeaturesGuideModalProps) {
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -34,7 +34,6 @@ export function FeaturesGuideModal({ triggerButton }: FeaturesGuideModalProps) {
         </DialogHeader>
         <ScrollArea className="max-h-[60vh] p-1 pr-4">
           <div className="prose prose-sm dark:prose-invert max-w-none py-4">
-             {/* Using ReactMarkdown for better formatting. Install with `npm install react-markdown` */}
             <ReactMarkdown
               components={{
                 h1: ({node, ...props}) => <h1 className="text-2xl font-bold my-4" {...props} />,
@@ -47,7 +46,7 @@ export function FeaturesGuideModal({ triggerButton }: FeaturesGuideModalProps) {
                   inline ? <code className="bg-muted px-1 py-0.5 rounded-sm font-mono text-sm" {...props} /> : <pre className="bg-muted p-2 rounded-md overflow-x-auto my-2"><code className="font-mono text-sm" {...props} /></pre>,
               }}
             >
-              {APP_FEATURES_GUIDE}
+              {guideContent}
             </ReactMarkdown>
           </div>
         </ScrollArea>

@@ -6,13 +6,13 @@ import { usePathname } from 'next/navigation';
 import { Home, Settings, Menu, HelpCircle, Sun, Moon, LogOut, LogIn, XIcon, Languages } from 'lucide-react';
 import { DesAInRLogo } from '@/components/icons/logo';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetClose, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import React, { useState, useEffect } from 'react';
 import { FeaturesGuideModal } from '@/components/features-guide-modal';
 import { useAuth } from '@/contexts/auth-context';
 import {
   Dialog,
-  DialogContent as ModalContent,
+  DialogContent as ModalContent, // Renamed to avoid conflict
   DialogHeader as ModalHeader,
   DialogTitle as ModalTitle,
   DialogTrigger as ModalDialogTrigger,
@@ -24,12 +24,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LoginForm } from '@/components/auth/login-form';
+import { APP_FEATURES_GUIDE, APP_FEATURES_GUIDE_BN } from "@/lib/constants"; // Import Bengali guide
 
 interface NavItem {
   href?: string;
   label: string | { en: string; bn: string };
   icon: React.ElementType;
   isModalTrigger?: boolean;
+  modalContent?: string; // For passing guide content
   requiresAuth?: boolean;
   hideWhenAuth?: boolean;
   action?: () => void;
@@ -53,7 +55,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const navItems: NavItem[] = [
     { href: '/', label: { en: 'Home', bn: 'হোম' }, icon: Home },
     { href: '/profile', label: { en: 'Profile', bn: 'প্রোফাইল' }, icon: Settings, requiresAuth: true },
-    { label: { en: 'Features Guide', bn: 'ফিচার গাইড' }, icon: HelpCircle, isModalTrigger: true },
+    { label: { en: 'Features Guide', bn: 'ফিচার গাইড' }, icon: HelpCircle, isModalTrigger: true }, // modalContent will be set dynamically
     {
       label: { en: 'Login', bn: 'লগইন করুন' },
       icon: LogIn,
@@ -104,6 +106,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     setCurrentLanguage(lang);
     localStorage.setItem('desainr_language', lang);
     console.log(`Language changed to: ${lang}. Some UI text might change. Full UI translation requires an i18n library.`);
+    // Forcing a re-render if necessary, though state change should handle it
+    // This is a bit of a hack, better handled by i18n library state management
+    if (isMobileSheetOpen) {
+      setIsMobileSheetOpen(false);
+      setTimeout(() => setIsMobileSheetOpen(true), 0);
+    }
   };
   
   const renderNavItem = (item: NavItem, isMobile: boolean = false) => {
@@ -112,16 +120,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
     const itemLabel = getLabel(item.label);
     const itemDialogTitle = item.dialogTitle ? getLabel(item.dialogTitle) : undefined;
+    const guideTextToShow = currentLanguage === 'bn' ? APP_FEATURES_GUIDE_BN : APP_FEATURES_GUIDE;
 
     const commonButtonProps = {
       variant: (item.href && pathname === item.href) ? "default" : "ghost" as "default" | "ghost",
       className: isMobile ? "w-full justify-start text-base py-3 h-auto" : "font-medium",
-      onClick: item.action ? () => {
-        item.action!();
-         if (isMobile && !item.isDialogTrigger && !item.isModalTrigger) {
-           setIsMobileSheetOpen(false);
-         }
-      } : undefined,
+      onClick: () => {
+        if (item.action) item.action();
+        // Close sheet for simple links or actions, but not for modal/dialog triggers
+        if (isMobile && item.href && !item.isDialogTrigger && !item.isModalTrigger) {
+          setIsMobileSheetOpen(false);
+        }
+      },
     };
 
     const buttonContent = (
@@ -130,12 +140,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       </>
     );
 
-    if (item.isModalTrigger) {
-      const TriggerButton = <Button {...commonButtonProps}>{buttonContent}</Button>;
+    if (item.isModalTrigger && (item.label as { en: string; bn: string }).en === 'Features Guide') {
+       const TriggerButton = <Button {...commonButtonProps}>{buttonContent}</Button>;
       return (
          <FeaturesGuideModal
-            key={itemLabel}
-            triggerButton={TriggerButton} // Simplified: Pass the button directly
+            key={itemLabel} // Use itemLabel for key as it's unique per language too
+            triggerButton={TriggerButton}
+            guideContent={guideTextToShow}
          />
       );
     }
@@ -163,18 +174,28 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
     if (item.href) {
       const ButtonComponent = <Button {...commonButtonProps}>{buttonContent}</Button>;
+      if (isMobile) {
+        return (
+          <SheetClose asChild key={itemLabel}>
+            <Link href={item.href!} passHref legacyBehavior>
+              {ButtonComponent}
+            </Link>
+          </SheetClose>
+        );
+      }
       return (
         <Link key={itemLabel} href={item.href!} passHref legacyBehavior>
-          {isMobile ? <SheetClose asChild>{ButtonComponent}</SheetClose> : ButtonComponent}
+          {ButtonComponent}
         </Link>
       );
     }
 
-    return (
-      <Button key={itemLabel} {...commonButtonProps}>
-        {buttonContent}
-      </Button>
-    );
+    // For simple action buttons (like Logout)
+     const ActionButtonComponent = <Button {...commonButtonProps}>{buttonContent}</Button>;
+     if (isMobile) {
+         return <SheetClose asChild key={itemLabel}>{ActionButtonComponent}</SheetClose>;
+     }
+     return <React.Fragment key={itemLabel}>{ActionButtonComponent}</React.Fragment>;
   };
 
   const welcomeMessageText = currentLanguage === 'bn' 
@@ -196,7 +217,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="ml-2" aria-label="Change language">
+              <Button variant="ghost" size="icon" className="ml-2" aria-label={currentLanguage === 'bn' ? 'ভাষা পরিবর্তন করুন' : 'Change language'}>
                 <Languages className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>
@@ -214,7 +235,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             variant="ghost"
             size="icon"
             onClick={toggleTheme}
-            aria-label="Toggle theme"
+            aria-label={currentLanguage === 'bn' ? 'থিম পরিবর্তন করুন' : "Toggle theme"}
             className="ml-1" 
           >
             {effectiveTheme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
@@ -230,7 +251,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </SheetTrigger>
               <SheetContent side="left" className="w-72 bg-background p-0">
                 <SheetHeader className="p-4 border-b">
-                   <SheetTitle className="sr-only">Main Menu</SheetTitle>
+                   <SheetTitle className="sr-only">{currentLanguage === 'bn' ? 'প্রধান মেনু' : 'Main Menu'}</SheetTitle>
                    <Link href="/" onClick={() => setIsMobileSheetOpen(false)} className="flex items-center gap-2">
                       <DesAInRLogo />
                    </Link>

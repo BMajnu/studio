@@ -4,10 +4,9 @@ import type { UserProfile } from './types';
 export const DEFAULT_USER_ID = 'default-user';
 
 export const AVAILABLE_MODELS = [
-  // Consolidated: Kept only -latest versions for 1.5 Flash and Pro
   { id: 'googleai/gemini-1.5-flash-latest', name: 'Gemini 1.5 Flash (Latest)' },
   { id: 'googleai/gemini-1.5-pro-latest', name: 'Gemini 1.5 Pro (Latest)' },
-  { id: 'googleai/gemini-pro', name: 'Gemini 1.0 Pro' }, 
+  { id: 'googleai/gemini-pro', name: 'Gemini 1.0 Pro' },
   { id: 'googleai/gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
   { id: 'googleai/gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite' },
   { id: 'googleai/gemini-2.0-flash-preview-image-generation', name: 'Gemini 2.0 Flash Preview (Image Gen)' },
@@ -68,7 +67,6 @@ These buttons trigger AI processing based on the client message you input and an
     *   Simplifies the client's current needs.
     *   Outlines a step-by-step approach for the design task.
     *   Provides a Bengali translation of the analysis, simplification, and steps.
-    *   Suggests two professional English replies tailored to your profile and the conversation.
 
 2.  **Requirements:**
     *   Identifies and analyzes main requirements from the client's message and attachments.
@@ -96,19 +94,25 @@ These buttons trigger AI processing based on the client message you input and an
         *   Specifies backgrounds and uses generic design terms.
         *   Outputs each prompt in a copyable code block.
 
-5.  **Generate Delivery Message:**
-    *   Prompts for delivery notes.
-    *   Creates 3 delivery message options for platforms like Fiverr.
-    *   Includes automated follow-up content: Thank You message, Seller Feedback template, Client Feedback Response template.
+5.  **Delivery (Dropdown Menu):**
+    *   **Check Made Designs:**
+        *   AI reviews your attached design image based on client requirements (from chat or input message).
+        *   Provides detailed feedback in Bangla, categorizing mistakes (wrong objects, positions, typing, colors, sizes, missing elements) and suggesting if changes are "Must Required" or "Optional".
+        *   Concludes with an overall summary in Bangla.
+        *   **Requires a design image to be attached to the message.**
+    *   **Delivery Templates:**
+        *   Prompts for delivery notes (number of concepts, etc.).
+        *   Generates 3 distinct delivery message options for platforms like Fiverr.
+        *   Includes 4 follow-up message templates: Thank You (with/without tip, including your services & portfolio), Seller Feedback, and Client Feedback Response.
 
-6.  **Generate Revision Message:**
+6.  **Revision:**
     *   Prompts for revision notes.
     *   Creates 3 revision message options.
-    *   Includes automated follow-up content similar to delivery messages.
+    *   Includes the same 4 automated follow-up message templates as "Delivery Templates".
 
 ### User Profile
 
-*   Navigate to **Settings > Profile** to manage your professional details.
+*   Navigate to **Profile** (via header link) to manage your professional details.
 *   Your profile information (name, title, services, communication style, raw personal statement, AI Model etc.) is used to personalize AI-generated content.
 *   Keep your profile updated for the best results!
 
@@ -117,9 +121,80 @@ These buttons trigger AI processing based on the client message you input and an
 *   Paste the full client message into the input field, or attach files (drag & drop or use the "Attach Files" button).
 *   Use the action buttons to get specific AI assistance.
 *   Generated content can be easily copied using the "Copy" button next to each block.
-*   For "Generate Platform..." messages, provide clear notes when prompted.
+*   For "Delivery Templates" or "Revision" messages, provide clear notes when prompted via the modal.
 
 We hope DesAInR streamlines your workflow and helps you communicate effectively!
 `;
 
-    
+export const APP_FEATURES_GUIDE_BN = `
+## DesAInR-এ স্বাগতম!
+
+আপনার গ্রাফিক ডিজাইন কাজের জন্য AI-চালিত সহকারী। এখানে ফিচারগুলির একটি দ্রুত গাইড রয়েছে:
+
+### কোর এআই অ্যাকশন (ইনপুট ফিল্ডের উপরের বোতাম)
+
+এই বোতামগুলি আপনার ইনপুট করা ক্লায়েন্টের বার্তা এবং সংযুক্ত ফাইলগুলির উপর ভিত্তি করে এআই প্রসেসিং শুরু করে:
+
+1.  **চ্যাট (ডিফল্ট প্রসেস ক্লায়েন্ট মেসেজ):**
+    *   কথোপকথনের ইতিহাস বিবেচনা করে ক্লায়েন্টের অনুরোধ বিশ্লেষণ করে।
+    *   ক্লায়েন্টের বর্তমান প্রয়োজনগুলি সহজ করে।
+    *   ডিজাইন কাজের জন্য ধাপে ধাপে পদ্ধতির রূপরেখা দেয়।
+    *   বিশ্লেষণ, সরলীকরণ এবং পদক্ষেপগুলির বাংলা অনুবাদ প্রদান করে।
+
+2.  **রিকোয়ারমেন্টস:**
+    *   ক্লায়েন্টের বার্তা এবং সংযুক্তি থেকে প্রধান প্রয়োজনীয়তাগুলি সনাক্ত এবং বিশ্লেষণ করে।
+    *   অগ্রাধিকার এবং যুক্তি উল্লেখ করে ইংরেজিতে সমস্ত প্রয়োজনীয়তার একটি বিস্তারিত বিবরণ প্রদান করে।
+    *   বাংলায় একই রকম বিস্তারিত বিবরণ প্রদান করে।
+    *   ডিজাইনের জন্য কোনও নির্দিষ্ট বার্তা বা উক্তি সনাক্ত করে।
+
+3.  **ব্রিফ (এনগেজমেন্ট প্যাক তৈরি করুন):**
+    *   ক্লায়েন্টের অনুরোধ এবং ইতিহাস বিশ্লেষণ করে।
+    *   আপনার প্রোফাইলের উপর ভিত্তি করে এবং ক্লায়েন্টের নির্দিষ্ট অনুরোধের সাথে সঙ্গতি রেখে আপনার (ডিজাইনার) জন্য একটি ব্যক্তিগতকৃত ভূমিকা তৈরি করে।
+    *   ক্লায়েন্টের জন্য একটি পেশাদার উত্তর তৈরি করে।
+    *   একটি প্রতিযোগিতামূলক বাজেট এবং সময়রেখার পরামর্শ দেয়।
+    *   কাজের জন্য সফটওয়্যার সুপারিশ করে।
+    *   কাজ শুরু করার জন্য ক্লায়েন্টকে জিজ্ঞাসা করার জন্য স্পষ্ট প্রশ্ন সরবরাহ করে।
+
+4.  **ডিজাইন (ড্রপডাউন মেনু):**
+    *   **আইডিয়া:**
+        *   আপনার ইনপুট (ডিজাইনের জন্য টেক্সট/উক্তি) বিশ্লেষণ করে।
+        *   অনুপ্রেরণার জন্য সিমুলেটেড ওয়েব ফলাফল (উদাহরণ লিঙ্ক এবং স্নিপেট) প্রদান করে।
+        *   ৫টি বিস্তারিত সৃজনশীল ডিজাইন আইডিয়া তৈরি করে।
+        *   ২টি সৃজনশীল টাইপোগ্রাফি-কেন্দ্রিক ডিজাইন আইডিয়া তৈরি করে।
+    *   **প্রম্পট:**
+        *   ডিজাইন আইডিয়াগুলিকে (আপনার ইনপুট বা পূর্ববর্তী "আইডিয়া" জেনারেশন থেকে) এআই ইমেজ জেনারেশন সরঞ্জামগুলির জন্য বিস্তারিত প্রম্পটে রূপান্তর করে।
+        *   স্পষ্টতা এবং কার্যকারিতার জন্য প্রম্পটগুলি অপ্টিমাইজ করে।
+        *   পটভূমি নির্দিষ্ট করে এবং জেনেরিক ডিজাইন শব্দ ব্যবহার করে।
+        *   প্রতিটি প্রম্পট একটি অনুলিপিযোগ্য কোড ব্লকে আউটপুট করে।
+
+5.  **ডেলিভারি (ড্রপডাউন মেনু):**
+    *   **চেক মেইড ডিজাইন:**
+        *   ক্লায়েন্টের প্রয়োজনীয়তার উপর ভিত্তি করে (চ্যাট বা ইনপুট বার্তা থেকে) আপনার সংযুক্ত ডিজাইন চিত্র এআই পর্যালোচনা করে।
+        *   বাংলায় বিস্তারিত প্রতিক্রিয়া প্রদান করে, ভুলগুলি শ্রেণীবদ্ধ করে (ভুল অবজেক্ট, অবস্থান, টাইপিং, রঙ, আকার, অনুপস্থিত উপাদান) এবং পরিবর্তনগুলি "অবশ্যই প্রয়োজনীয়" বা "ঐচ্ছিক" কিনা তা প্রস্তাব করে।
+        *   বাংলায় একটি সামগ্রিক সারাংশ দিয়ে শেষ করে।
+        *   **বার্তায় একটি ডিজাইন চিত্র সংযুক্ত করা প্রয়োজন।**
+    *   **ডেলিভারি টেমপ্লেট:**
+        *   ডেলিভারি নোটের জন্য অনুরোধ করে (ধারণার সংখ্যা, ইত্যাদি)।
+        *   Fiverr-এর মতো প্ল্যাটফর্মের জন্য ৩টি স্বতন্ত্র ডেলিভারি বার্তা বিকল্প তৈরি করে।
+        *   ৪টি ফলো-আপ বার্তা টেমপ্লেট অন্তর্ভুক্ত করে: ধন্যবাদ (টিপ সহ/ছাড়া, আপনার পরিষেবা এবং পোর্টফোলিও সহ), বিক্রেতার প্রতিক্রিয়া এবং ক্লায়েন্টের প্রতিক্রিয়া।
+
+6.  **রিভিশন:**
+    *   রিভিশন নোটের জন্য অনুরোধ করে।
+    *   ৩টি রিভিশন বার্তা বিকল্প তৈরি করে।
+    *   "ডেলিভারি টেমপ্লেট"-এর মতো একই ৪টি স্বয়ংক্রিয় ফলো-আপ বার্তা টেমপ্লেট অন্তর্ভুক্ত করে।
+
+### ব্যবহারকারীর প্রোফাইল
+
+*   আপনার পেশাদার বিবরণ পরিচালনা করতে **প্রোফাইল**-এ নেভিগেট করুন (হেডার লিঙ্কের মাধ্যমে)।
+*   আপনার প্রোফাইল তথ্য (নাম, শিরোনাম, পরিষেবা, যোগাযোগের স্টাইল, কাঁচা ব্যক্তিগত বিবৃতি, এআই মডেল ইত্যাদি) এআই-উত্পন্ন সামগ্রী ব্যক্তিগতকৃত করতে ব্যবহৃত হয়।
+*   সেরা ফলাফলের জন্য আপনার প্রোফাইল আপডেট রাখুন!
+
+### ব্যবহারের জন্য টিপস
+
+*   ইনপুট ফিল্ডে সম্পূর্ণ ক্লায়েন্ট বার্তাটি পেস্ট করুন, অথবা ফাইল সংযুক্ত করুন (টেনে এনে ড্রপ করুন বা "ফাইল সংযুক্ত করুন" বোতামটি ব্যবহার করুন)।
+*   নির্দিষ্ট এআই সহায়তার জন্য অ্যাকশন বোতামগুলি ব্যবহার করুন।
+*   উত্পন্ন সামগ্রী প্রতিটি ব্লকের পাশের "অনুলিপি" বোতামটি ব্যবহার করে সহজেই অনুলিপি করা যায়।
+*   "ডেলিভারি টেমপ্লেট" বা "রিভিশন" বার্তাগুলির জন্য, মোডালের মাধ্যমে অনুরোধ করা হলে স্পষ্ট নোট সরবরাহ করুন।
+
+আমরা আশা করি DesAInR আপনার ওয়ার্কফ্লোকে সহজ করবে এবং আপনাকে কার্যকরভাবে যোগাযোগ করতে সাহায্য করবে!
+`;
