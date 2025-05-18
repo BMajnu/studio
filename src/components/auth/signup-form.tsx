@@ -68,6 +68,8 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
       let description = 'Could not create account. Please try again.';
       if (error.code === 'auth/email-already-in-use') {
         description = 'This email address is already in use. Please try logging in or use a different email.';
+      } else if (error.code === 'auth/api-key-not-valid') {
+        description = 'Firebase API Key is invalid. Please ensure NEXT_PUBLIC_FIREBASE_API_KEY is correctly set in your .env file and you have restarted your development server.';
       } else if (error.code) {
         description = `Signup failed: ${error.message} (Code: ${error.code})`;
       }
