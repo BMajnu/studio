@@ -1,4 +1,3 @@
-
 // src/ai/flows/generate-platform-messages.ts
 'use server';
 /**
@@ -67,14 +66,16 @@ Services offered by {{name}}:
 {{#each services}}
 - {{this}}
 {{/each}}
+{{else}}
+- A variety of professional graphic design services.
 {{/if}}
 
 You are generating templates for the {{messageType}} process on a platform like Fiverr.
+Designer's custom seller feedback base: "{{#if customSellerFeedbackTemplate}}{{customSellerFeedbackTemplate}}{{else}}Great client, outstanding experience, easy requirement. I love working with you and looking forward to working with you again.{{/if}}"
+Designer's custom client feedback response base: "{{#if customClientFeedbackResponseTemplate}}{{customClientFeedbackResponseTemplate}}{{else}}Thanks for your great feedback. I hope we will continue doing more and more.{{/if}}"
 
 {{#if (eq messageType "delivery")}}
 Context/Notes for this delivery: "{{#if deliveryNotes}}{{deliveryNotes}}{{else}}No specific notes provided.{{/if}}"
-Designer's custom seller feedback base: "{{#if customSellerFeedbackTemplate}}{{customSellerFeedbackTemplate}}{{else}}Great client, outstanding experience, easy requirement. I love working with you and looking forward to working with you again.{{/if}}"
-Designer's custom client feedback response base: "{{#if customClientFeedbackResponseTemplate}}{{customClientFeedbackResponseTemplate}}{{else}}Thanks for your great feedback. I hope we will continue doing more and more.{{/if}}"
 
 Your task is to generate SEVEN distinct message templates for a DELIVERY. Each template should be a separate item in the "messages" array of the output JSON.
 
@@ -116,19 +117,55 @@ Your task is to generate SEVEN distinct message templates for a DELIVERY. Each t
     *   Use the custom client feedback response base. Adapt slightly if context suggests, but stick close to the template.
     *   Example: "{{#if customClientFeedbackResponseTemplate}}{{customClientFeedbackResponseTemplate}}{{else}}Thanks for your great feedback. I hope we will continue doing more and more.{{/if}}"
     *   This message should be the SEVENTH item. Set its "type" to "client_feedback_response_template".
+
 {{else if (eq messageType "revision")}}
 Context/Notes for this revision: "{{#if revisionNotes}}{{revisionNotes}}{{else}}No specific notes provided.{{/if}}"
-  Generate three distinct message options for providing a REVISION to the client.
-  The third option should be very concise.
-  Each message should be professional and clearly state that revisions have been made based on feedback.
-  Set message "type" to "revision_option_1", "revision_option_2", "revision_option_3" respectively.
+
+Your task is to generate SEVEN distinct message templates for a REVISION. The first three are revision delivery options, and the next four are standard follow-up messages. Each template should be a separate item in the "messages" array of the output JSON.
+
+1.  **Revision Message Option 1 (Detailed):**
+    *   Generate a friendly, professional message for delivering revisions. Infer project details from revisionNotes if available.
+    *   Use this example as a base, but adapt it: "Hello, Mate, Thank you for your request for a revision. I'm pleased to share the updated version, and I trust it meets your expectations. If there’s anything that still needs adjusting, please don't hesitate to let me know—I’m here to make sure it’s just right. Once you’re happy with the final product, I would greatly appreciate it if you could leave feedback. Your support truly means a lot to me! Thank you again, and I hope you have an excellent day! Best regards, {{name}}"
+    *   This message should be the FIRST item. Set its "type" to "revision_option_1".
+
+2.  **Revision Message Option 2 (Standard):**
+    *   A slightly different but still professional version of the revision delivery message.
+    *   This message should be the SECOND item. Set its "type" to "revision_option_2".
+
+3.  **Revision Message Option 3 (Concise):**
+    *   A very brief and direct message for delivering revisions.
+    *   Example: "Hi! Here are the updated [project/designs] based on your feedback. Let me know if further changes are needed. Thanks, {{name}}"
+    *   This message should be the THIRD item. Set its "type" to "revision_option_3".
+
+4.  **Thank You Message (Order Completed WITH Tip - after revision):**
+    *   Thank client for order AND tip.
+    *   Include a list of other services offered by {{name}} (use provided service list).
+    *   Include portfolio link: fiverr.com/users/{{fiverrUsername}}/portfolio (if fiverrUsername is available).
+    *   Example: "Thanks a lot for your tip😍, [Client Name if known, otherwise omit]! I am looking forward to working with you again. I'm thrilled to share some exciting updates on the services I offer currently: {{#if services.length}}{{#each services}}\\n{{this}}{{/each}}{{else}}\\nA variety of other design services!{{/if}}\\nDive into my profile, gigs, reviews, and portfolio at fiverr.com/users/{{fiverrUsername}}/portfolio to see the dedication and quality I bring to every project. Interested in any of these services or have questions? Just send me a message—I’m here 24/7 to help your project exceed expectations. I’m eager to continue our creative partnership and bring your next project to life! Wishing you a wonderful day! Best regards, {{name}}"
+    *   This message should be the FOURTH item. Set its "type" to "thank_you_with_tip".
+
+5.  **Thank You Message (Order Completed WITHOUT Tip - after revision):**
+    *   Thank client for order (no mention of tip).
+    *   Include same service list and portfolio link as above.
+    *   Example: "Thanks for your order and help, [Client Name if known, otherwise omit]! I am looking forward to working with you again🥰. I'm thrilled to share... [same service list and closing as above] ... Best regards, {{name}}"
+    *   This message should be the FIFTH item. Set its "type" to "thank_you_no_tip".
+
+6.  **Seller Feedback Template (after revision):**
+    *   Use the custom seller feedback base. Add placeholder for {{name}} to insert a short, positive project description (mentioning it was a revision if appropriate).
+    *   Example: "{{#if customSellerFeedbackTemplate}}{{customSellerFeedbackTemplate}}{{else}}Great client, outstanding experience, easy requirement. I love working with you and looking forward to working with you again.{{/if}} [Add a short description about the project/order, e.g., 'The client provided clear feedback for revisions, and we achieved a great result.']"
+    *   This message should be the SIXTH item. Set its "type" to "seller_feedback_template".
+
+7.  **Client Feedback Response Template (after revision):**
+    *   Use the custom client feedback response base. Adapt slightly if context suggests, but stick close to the template.
+    *   Example: "{{#if customClientFeedbackResponseTemplate}}{{customClientFeedbackResponseTemplate}}{{else}}Thanks for your great feedback. I hope we will continue doing more and more.{{/if}}"
+    *   This message should be the SEVENTH item. Set its "type" to "client_feedback_response_template".
 {{/if}}
 
 Output Format:
 {
   "messages": [
     // Array of message objects, each with "message" and "type" as described above.
-    // For "delivery", there will be 7 messages. For "revision", there will be 3.
+    // For "delivery" and "revision", there will be 7 messages.
   ]
 }
 Ensure each "message" field contains the full text for that template.

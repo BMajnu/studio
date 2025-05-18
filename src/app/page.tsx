@@ -377,7 +377,7 @@ export default function ChatPage() {
 
       const previousMessagesForHistory = messages;
       const chatHistoryForAI = previousMessagesForHistory
-        .slice(-10) 
+        .slice(-10) // Get last 10 messages for context
         .map(msg => ({
           role: msg.role as 'user' | 'assistant',
           text: getMessageText(msg.content)
@@ -506,10 +506,7 @@ export default function ChatPage() {
         const platformMessagesOutput = await generatePlatformMessages(platformInput);
         
         if (platformMessagesOutput.messages && platformMessagesOutput.messages.length > 0) {
-          // For Delivery Templates, we expect 7 distinct messages. For Revision, 3.
-          // Display each as a separate copyable block.
           platformMessagesOutput.messages.forEach(m => {
-            // Clean up the type to use as a title
             const messageTitle = m.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
             aiResponseContent.push({ type: 'code', title: messageTitle, code: m.message });
           });
@@ -772,3 +769,4 @@ export default function ChatPage() {
     </div>
   );
 }
+
