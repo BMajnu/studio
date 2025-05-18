@@ -4,12 +4,20 @@ import type { UserProfile } from './types';
 export const DEFAULT_USER_ID = 'default-user';
 
 export const AVAILABLE_MODELS = [
+  { id: 'googleai/gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
+  { id: 'googleai/gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
   { id: 'googleai/gemini-1.5-flash-latest', name: 'Gemini 1.5 Flash (Latest)' },
   { id: 'googleai/gemini-1.5-pro-latest', name: 'Gemini 1.5 Pro (Latest)' },
-  { id: 'googleai/gemini-pro', name: 'Gemini 1.0 Pro' },
-  // Add other models here as they become available or relevant
+  { id: 'googleai/gemini-pro', name: 'Gemini 1.0 Pro' }, // Kept from previous list
+  { id: 'googleai/gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
+  { id: 'googleai/gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite' },
+  { id: 'googleai/gemini-2.0-flash-preview-image-generation', name: 'Gemini 2.0 Flash Preview (Image Gen)' },
+  { id: 'googleai/gemini-2.0-pro-exp', name: 'Gemini 2.0 Pro Experimental' },
+  { id: 'googleai/gemini-2.5-flash-preview-04-17', name: 'Gemini 2.5 Flash Preview (04-17)' },
+  { id: 'googleai/gemini-2.5-pro-exp-03-25', name: 'Gemini 2.5 Pro Experimental (03-25)' },
+  { id: 'googleai/gemini-2.5-pro-preview-05-06', name: 'Gemini 2.5 Pro Preview (05-06)' },
 ];
-export const DEFAULT_MODEL_ID = 'googleai/gemini-1.5-flash-latest';
+export const DEFAULT_MODEL_ID = 'googleai/gemini-1.5-flash';
 
 
 export const DEFAULT_USER_PROFILE: UserProfile = {
@@ -102,3 +110,4 @@ These buttons trigger AI processing based on the client message you input:
 
 We hope DesAInR streamlines your workflow and helps you communicate effectively!
 `;
+
