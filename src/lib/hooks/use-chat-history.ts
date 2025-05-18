@@ -20,6 +20,17 @@ const getMessageTextPreview = (message: ChatMessage | undefined): string => {
   return textPart?.text?.substring(0, 50) || 'Media message';
 };
 
+// Helper function to check for QuotaExceededError
+const isQuotaExceededError = (error: any): boolean => {
+  if (!error) return false;
+  return (
+    error.name === 'QuotaExceededError' || // Standard
+    error.name === 'NS_ERROR_DOM_QUOTA_REACHED' || // Firefox
+    (error.code === 22 && error.name === 'DataCloneError') || // Safari (sometimes)
+    (error.message && error.message.toLowerCase().includes('quota'))
+  );
+};
+
 
 export function useChatHistory(userId: string = DEFAULT_USER_ID) {
   const [historyMetadata, setHistoryMetadata] = useState<ChatSessionMetadata[]>([]);
@@ -62,74 +73,91 @@ export function useChatHistory(userId: string = DEFAULT_USER_ID) {
 
   const saveSession = useCallback(async (session: ChatSession, attemptNameGeneration: boolean = false, modelIdForNameGeneration?: string): Promise<ChatSession> => {
     if (!userId || !session || !session.id.startsWith(userId + '_')) {
+        console.warn("Attempted to save session without valid userId or session ID prefix. Session:", session, "UserId:", userId);
         return session; 
     }
-    try {
-      let sessionToSave = { ...session };
-      sessionToSave.updatedAt = Date.now();
+    
+    let sessionToSave = { ...session };
+    sessionToSave.updatedAt = Date.now();
 
-      if (attemptNameGeneration && sessionToSave.messages.length > 0 && sessionToSave.name === "New Chat") {
-        const firstUserMsg = sessionToSave.messages.find(m => m.role === 'user');
-        const firstAssistantMsg = sessionToSave.messages.find(m => m.role === 'assistant');
-        
-        if (firstUserMsg) {
-          try {
-            const nameInput: GenerateChatNameInput = {
-              firstUserMessage: getMessageTextPreview(firstUserMsg) || "Chat conversation",
-              firstAssistantMessage: getMessageTextPreview(firstAssistantMsg),
-              modelId: modelIdForNameGeneration || DEFAULT_MODEL_ID,
-            };
-            const nameOutput = await generateChatName(nameInput);
-            if (nameOutput.chatName) {
-              sessionToSave.name = nameOutput.chatName;
-            }
-          } catch (nameGenError) {
-            console.error("Failed to generate chat name:", nameGenError);
-            // Fallback name if AI generation fails and name is still default
-            if (sessionToSave.name === "New Chat") {
-                 sessionToSave.name = `Chat ${new Date(sessionToSave.createdAt).toLocaleString()}`;
-            }
+    if (attemptNameGeneration && sessionToSave.messages.length > 0 && sessionToSave.name === "New Chat") {
+      const firstUserMsg = sessionToSave.messages.find(m => m.role === 'user');
+      const firstAssistantMsg = sessionToSave.messages.find(m => m.role === 'assistant');
+      
+      if (firstUserMsg) {
+        try {
+          const nameInput: GenerateChatNameInput = {
+            firstUserMessage: getMessageTextPreview(firstUserMsg) || "Chat conversation",
+            firstAssistantMessage: getMessageTextPreview(firstAssistantMsg),
+            modelId: modelIdForNameGeneration || DEFAULT_MODEL_ID,
+          };
+          const nameOutput = await generateChatName(nameInput);
+          if (nameOutput.chatName) {
+            sessionToSave.name = nameOutput.chatName;
           }
-        } else if (sessionToSave.name === "New Chat") {
-            // If no user message but still need a name
-            sessionToSave.name = `Chat ${new Date(sessionToSave.createdAt).toLocaleString()}`;
+        } catch (nameGenError) {
+          console.error("Failed to generate chat name:", nameGenError);
+          if (sessionToSave.name === "New Chat") {
+               sessionToSave.name = `Chat ${new Date(sessionToSave.createdAt).toLocaleString()}`;
+          }
         }
+      } else if (sessionToSave.name === "New Chat") {
+          sessionToSave.name = `Chat ${new Date(sessionToSave.createdAt).toLocaleString()}`;
       }
+    }
 
+    try {
       localStorage.setItem(`${CHAT_SESSION_PREFIX}${sessionToSave.id}`, JSON.stringify(sessionToSave));
+    } catch (error) {
+      if (isQuotaExceededError(error)) {
+        console.error(`Failed to save session ${sessionToSave.id} due to localStorage quota exceeded. Session data might be too large.`, error);
+        // Optionally, inform the user via a toast or state update handled by the calling component.
+        // For now, we return the original session to indicate the save might not have fully completed or to prevent further state corruption.
+        return session; 
+      } else {
+        console.error(`Failed to save session ${sessionToSave.id}:`, error);
+        return session; // Return original session on other errors too
+      }
+    }
 
-      setHistoryMetadata(prev => {
-        const userSpecificPrev = prev.filter(meta => meta.id.startsWith(userId + '_'));
-        const existingIndex = userSpecificPrev.findIndex(meta => meta.id === sessionToSave.id);
-        const newMeta: ChatSessionMetadata = {
-          id: sessionToSave.id,
-          name: sessionToSave.name,
-          lastMessageTimestamp: sessionToSave.updatedAt,
-          preview: getMessageTextPreview(sessionToSave.messages[sessionToSave.messages.length - 1]),
-          messageCount: sessionToSave.messages.length,
-        };
-        let updatedUserHistory;
-        if (existingIndex > -1) {
-          updatedUserHistory = [...userSpecificPrev];
-          updatedUserHistory[existingIndex] = newMeta;
-        } else {
-          updatedUserHistory = [newMeta, ...userSpecificPrev];
-        }
-        const sortedUserHistory = updatedUserHistory.sort((a,b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
-        
+    setHistoryMetadata(prev => {
+      const userSpecificPrev = prev.filter(meta => meta.id.startsWith(userId + '_'));
+      const existingIndex = userSpecificPrev.findIndex(meta => meta.id === sessionToSave.id);
+      const newMeta: ChatSessionMetadata = {
+        id: sessionToSave.id,
+        name: sessionToSave.name,
+        lastMessageTimestamp: sessionToSave.updatedAt,
+        preview: getMessageTextPreview(sessionToSave.messages[sessionToSave.messages.length - 1]),
+        messageCount: sessionToSave.messages.length,
+      };
+      let updatedUserHistory;
+      if (existingIndex > -1) {
+        updatedUserHistory = [...userSpecificPrev];
+        updatedUserHistory[existingIndex] = newMeta;
+      } else {
+        updatedUserHistory = [newMeta, ...userSpecificPrev];
+      }
+      const sortedUserHistory = updatedUserHistory.sort((a,b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
+      
+      try {
         const globalIndexStr = localStorage.getItem(CHAT_HISTORY_INDEX_KEY);
         const globalIndex = globalIndexStr ? JSON.parse(globalIndexStr) : [];
         const otherUserHistories = globalIndex.filter((meta: ChatSessionMetadata) => !meta.id.startsWith(userId + '_'));
         const newGlobalIndex = [...otherUserHistories, ...sortedUserHistory].sort((a,b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
         localStorage.setItem(CHAT_HISTORY_INDEX_KEY, JSON.stringify(newGlobalIndex));
-        
-        return sortedUserHistory;
-      });
-      return sessionToSave;
-    } catch (error) {
-      console.error(`Failed to save session ${session.id}:`, error);
-      return session; 
-    }
+      } catch (error) {
+         if (isQuotaExceededError(error)) {
+            console.error("Failed to save chat history index due to localStorage quota exceeded.", error);
+          } else {
+            console.error("Failed to save chat history index:", error);
+          }
+          // If index saving fails, the in-memory `historyMetadata` will still be updated for the current user for the current session.
+          // However, it might not persist correctly across reloads if the index itself couldn't be saved.
+      }
+      
+      return sortedUserHistory;
+    });
+    return sessionToSave;
   }, [userId, setHistoryMetadata]);
 
   const deleteSession = useCallback((sessionId: string) => {
@@ -138,11 +166,19 @@ export function useChatHistory(userId: string = DEFAULT_USER_ID) {
       localStorage.removeItem(`${CHAT_SESSION_PREFIX}${sessionId}`);
       setHistoryMetadata(prev => {
         const updatedUserHistory = prev.filter(meta => meta.id !== sessionId && meta.id.startsWith(userId + '_'));
-        const globalIndexStr = localStorage.getItem(CHAT_HISTORY_INDEX_KEY);
-        const globalIndex = globalIndexStr ? JSON.parse(globalIndexStr) : [];
-        const otherUserHistories = globalIndex.filter((meta: ChatSessionMetadata) => !meta.id.startsWith(userId + '_'));
-        const newGlobalIndex = [...otherUserHistories, ...updatedUserHistory].sort((a,b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
-        localStorage.setItem(CHAT_HISTORY_INDEX_KEY, JSON.stringify(newGlobalIndex));
+        try {
+          const globalIndexStr = localStorage.getItem(CHAT_HISTORY_INDEX_KEY);
+          const globalIndex = globalIndexStr ? JSON.parse(globalIndexStr) : [];
+          const otherUserHistories = globalIndex.filter((meta: ChatSessionMetadata) => !meta.id.startsWith(userId + '_'));
+          const newGlobalIndex = [...otherUserHistories, ...updatedUserHistory].sort((a,b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
+          localStorage.setItem(CHAT_HISTORY_INDEX_KEY, JSON.stringify(newGlobalIndex));
+        } catch (error) {
+           if (isQuotaExceededError(error)) {
+              console.error("Failed to update chat history index after deletion due to localStorage quota exceeded.", error);
+            } else {
+              console.error("Failed to update chat history index after deletion:", error);
+            }
+        }
         return updatedUserHistory;
       });
     } catch (error) {
@@ -163,7 +199,7 @@ export function useChatHistory(userId: string = DEFAULT_USER_ID) {
           userId: "unknown",
         };
     }
-    const newSessionId = `${userId}_${Date.now()}`;
+    const newSessionId = `${userId}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`; // Added randomness to ID
     const now = Date.now();
     const newSession: ChatSession = {
       id: newSessionId,
@@ -179,3 +215,4 @@ export function useChatHistory(userId: string = DEFAULT_USER_ID) {
 
   return { historyMetadata, isLoading, getSession, saveSession, deleteSession, createNewSession, loadHistoryIndex };
 }
+
