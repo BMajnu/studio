@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Paperclip, Loader2, BotIcon, Menu, XIcon, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature } from 'lucide-react';
+import { Paperclip, Loader2, BotIcon, Menu, XIcon, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -46,7 +46,7 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
         fullText += `\`\`\`${part.language || ''}\n${part.code || ''}\n\`\`\`\n`;
         break;
       case 'list':
-        if (part.title) { 
+        if (part.title) {
              fullText += `### ${part.title}\n`;
         }
         if (part.items && part.items.length > 0) {
@@ -63,7 +63,7 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
           if (part.english.stepByStepApproach) fullText += `English Step-by-Step Approach:\n${part.english.stepByStepApproach}\n\n`;
         }
         if (part.bengali) {
-          fullText += "\n"; 
+          fullText += "\n";
           if (part.bengali.analysis) fullText += `Bengali Analysis/Combined Translation:\n${part.bengali.analysis}\n\n`;
           if (part.bengali.simplifiedRequest) fullText += `Bengali Simplified Request:\n${part.bengali.simplifiedRequest}\n\n`;
           if (part.bengali.stepByStepApproach) fullText += `Bengali Step-by-Step Approach:\n${part.bengali.stepByStepApproach}\n\n`;
@@ -73,7 +73,6 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
         }
         break;
       default:
-        // For unknown parts, try to extract text if possible, or provide a generic indicator
         let unknownText = (part as any).text || (part as any).code || (part as any).message;
         if (typeof unknownText === 'string') {
           fullText += `${unknownText}\n`;
@@ -81,7 +80,7 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
            fullText += `[Unsupported Content Part: ${(part as any).type} ${part.title ? `for "${part.title}"` : ''}]\n`;
         }
     }
-    fullText += '\n'; 
+    fullText += '\n';
   });
   return fullText.trim() || '[Empty Message Content Parts]';
 };
@@ -153,7 +152,7 @@ export default function ChatPage() {
   const ensureMessagesHaveUniqueIds = useCallback(baseEnsureMessagesHaveUniqueIds, []);
 
   useEffect(() => {
-    if (isMobile !== undefined) { // Only set once isMobile is determined
+    if (isMobile !== undefined) {
         setIsHistoryPanelOpen(!isMobile);
     }
   }, [isMobile]);
@@ -161,7 +160,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (profileLoading) {
-        return; 
+        return;
     }
 
     const currentUserIdToUse = userIdForHistory;
@@ -228,7 +227,7 @@ export default function ChatPage() {
                     changesMade = true;
                 }
                 if (JSON.stringify(savedSession.messages) !== JSON.stringify(newCurrentSessionState.messages)) {
-                    newCurrentSessionState.messages = savedSession.messages; 
+                    newCurrentSessionState.messages = savedSession.messages;
                     changesMade = true;
                 }
                  if (savedSession.updatedAt !== newCurrentSessionState.updatedAt) {
@@ -273,7 +272,7 @@ export default function ChatPage() {
 
   const handleNewChat = useCallback(() => {
     const modelIdToUse = (profile?.selectedGenkitModelId || DEFAULT_MODEL_ID);
-    const newSession = createNewSession([], modelIdToUse); 
+    const newSession = createNewSession([], modelIdToUse);
     setCurrentSession(newSession);
     setMessages(newSession.messages);
     setInputMessage('');
@@ -346,7 +345,7 @@ export default function ChatPage() {
 
   const handleSendMessage = async (messageText: string = inputMessage, actionType: ActionType = 'processMessage', notes?: string) => {
     const currentMessageText = messageText.trim();
-    
+
     if (!profile) {
       toast({ title: "Profile not loaded", description: "Please wait for your profile to load or set it up in Settings.", variant: "destructive" });
       return;
@@ -374,19 +373,18 @@ export default function ChatPage() {
 
     try {
       let aiResponseContent: ChatMessageContentPart[] = [];
-      const baseInput = { 
-        userName: profile.name, 
+      const baseInput = {
+        userName: profile.name,
         communicationStyleNotes: profile.communicationStyleNotes || '',
         modelId: modelIdToUse,
       };
       const filesForFlow = filesToSendWithThisMessage.map(f => ({ name: f.name, type: f.type, dataUri: f.dataUri, textContent: f.textContent }));
 
-      // Get a richer text summary for history
       const chatHistoryForAI = messages
-        .slice(-10) 
+        .slice(-10)
         .map(msg => ({
           role: msg.role as 'user' | 'assistant',
-          text: getMessageText(msg.content) // Use our enhanced getMessageText
+          text: getMessageText(msg.content)
         }))
         .filter(msg => msg.text.trim() !== '' && (msg.role === 'user' || msg.role === 'assistant'));
 
@@ -428,17 +426,17 @@ export default function ChatPage() {
         aiResponseContent.push({ type: 'text', title: '3. Suggestions:', text: suggestionsText });
 
         if (packOutput.clarifyingQuestions && packOutput.clarifyingQuestions.length > 0) {
-          aiResponseContent.push({ type: 'text', title: '4. Clarifying Questions to Ask Client:', text: " "}); 
+          aiResponseContent.push({ type: 'text', title: '4. Clarifying Questions to Ask Client:', text: " "});
           packOutput.clarifyingQuestions.forEach((q, index) => {
             aiResponseContent.push({ type: 'code', title: `Question ${index + 1}`, code: q });
           });
         }
       } else if (actionType === 'generateDesignIdeas') {
-        const ideasInput: GenerateDesignIdeasInput = { 
-            ...baseInput, 
-            designInputText: currentMessageText || "general creative designs", 
-            attachedFiles: filesForFlow, 
-            chatHistory: chatHistoryForAI 
+        const ideasInput: GenerateDesignIdeasInput = {
+            ...baseInput,
+            designInputText: currentMessageText || "general creative designs",
+            attachedFiles: filesForFlow,
+            chatHistory: chatHistoryForAI
         };
         const ideasOutput = await generateDesignIdeas(ideasInput);
         aiResponseContent.push({ type: 'text', title: 'Core Text/Saying for Ideas', text: ideasOutput.extractedTextOrSaying});
@@ -452,11 +450,11 @@ export default function ChatPage() {
             aiResponseContent.push({ type: 'list', title: 'Typography Design Ideas', items: ideasOutput.typographyDesignIdeas });
         }
       } else if (actionType === 'generateDesignPrompts') {
-        const promptsInput: GenerateDesignPromptsInput = { 
-            ...baseInput, 
-            clientMessage: currentMessageText, 
-            attachedFiles: filesForFlow, 
-            chatHistory: chatHistoryForAI 
+        const promptsInput: GenerateDesignPromptsInput = {
+            ...baseInput,
+            clientMessage: currentMessageText,
+            attachedFiles: filesForFlow,
+            chatHistory: chatHistoryForAI
         };
         const promptsOutput = await generateDesignPrompts(promptsInput);
         if (promptsOutput.imagePrompts && promptsOutput.imagePrompts.length > 0) {
@@ -476,7 +474,7 @@ export default function ChatPage() {
         }
         const checkInput: CheckMadeDesignsInput = {
           ...baseInput,
-          clientPromptOrDescription: currentMessageText || "Client requirements as per conversation history.", 
+          clientPromptOrDescription: currentMessageText || "Client requirements as per conversation history.",
           designToCheckDataUri: designFile.dataUri,
           chatHistory: chatHistoryForAI,
         };
@@ -504,7 +502,7 @@ export default function ChatPage() {
           modelId: modelIdToUse,
         };
         const platformMessagesOutput = await generatePlatformMessages(platformInput);
-        
+
         if (platformMessagesOutput.messages && platformMessagesOutput.messages.length > 0) {
            platformMessagesOutput.messages.forEach(m => {
             const messageTitle = m.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
@@ -518,9 +516,9 @@ export default function ChatPage() {
 
       updateLastMessage(aiResponseContent.length > 0 ? aiResponseContent : [{type: 'text', text: "Done."}]);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error processing AI request:", error);
-      toast({ title: "AI Error", description: (error as Error).message || "Failed to get response from AI.", variant: "destructive" });
+      toast({ title: "AI Error", description: error.message || "Failed to get response from AI.", variant: "destructive" });
       updateLastMessage([{type: 'text', text: "Sorry, I couldn't process that."}], false, true);
     } finally {
       setIsLoading(false);
@@ -546,13 +544,13 @@ export default function ChatPage() {
   };
 
   const handleFileSelectAndProcess = async (newFiles: File[]) => {
-    const combinedFiles = [...selectedFiles, ...newFiles].slice(0, 5); 
+    const combinedFiles = [...selectedFiles, ...newFiles].slice(0, 5);
     setSelectedFiles(combinedFiles);
 
     const processedNewFiles = await processFilesForAI(newFiles);
-    setCurrentAttachedFilesData(prev => 
+    setCurrentAttachedFilesData(prev =>
         [...prev, ...processedNewFiles]
-        .reduce((acc, current) => { 
+        .reduce((acc, current) => {
             if (!acc.find(item => item.name === current.name && item.size === current.size)) {
                 acc.push(current);
             }
@@ -606,9 +604,9 @@ export default function ChatPage() {
     setIsDragging(false);
     if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
       await handleFileSelectAndProcess(Array.from(event.dataTransfer.files));
-      event.dataTransfer.clearData(); 
+      event.dataTransfer.clearData();
     }
-  }, [handleFileSelectAndProcess]); 
+  }, [handleFileSelectAndProcess]);
 
 
   if (profileLoading || !currentSession) {
@@ -638,7 +636,7 @@ export default function ChatPage() {
             isHistoryPanelOpen ? "w-[280px] border-r" : "w-0 border-r-0 opacity-0"
           )}
         >
-          {isHistoryPanelOpen && ( 
+          {isHistoryPanelOpen && (
             <HistoryPanel
               sessions={historyMetadata}
               activeSessionId={currentSession?.id || null}
@@ -705,7 +703,7 @@ export default function ChatPage() {
               rows={Math.max(1, Math.min(5, inputMessage.split('\n').length))}
             />
           </div>
-           <div className="flex items-center justify-between mt-2">
+           <div className="flex flex-wrap items-center justify-between mt-2 gap-y-2">
              <div>
                 <Button
                     variant="ghost"
@@ -722,16 +720,16 @@ export default function ChatPage() {
                     multiple
                     onChange={handleFileChange}
                     className="hidden"
-                    accept="image/*,application/pdf,.txt,.md,.json" 
+                    accept="image/*,application/pdf,.txt,.md,.json"
                 />
              </div>
-             <div className="flex-shrink-0">
+             <div className="flex justify-end flex-1"> {/* Ensure ActionButtonsPanel is pushed to the right */}
                 <ActionButtonsPanel
                     onAction={handleAction}
                     isLoading={isLoading}
                     currentUserMessage={inputMessage}
                     profile={profile}
-                    currentAttachedFilesDataLength={currentAttachedFilesData.length}
+                    currentAttachedFilesDataLength={currentAttachedFilesDataLength}
                 />
              </div>
            </div>
@@ -769,3 +767,4 @@ export default function ChatPage() {
     </div>
   );
 }
+
