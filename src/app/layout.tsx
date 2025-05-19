@@ -28,7 +28,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning={true}>
-      <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}>
+      <body 
+        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
+        suppressHydrationWarning={true} // Add this line
+      >
         <AuthProvider> {/* Wrap AppLayout with AuthProvider */}
           <AppLayout>
             {children}
