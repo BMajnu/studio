@@ -148,7 +148,6 @@ export async function saveSessionToDrive(
         name: fileName,
         mimeType: 'application/json',
     };
-    // Only specify parents for new file creation, not for updates.
     if (!existingFileId) {
         fileMetadataForUpload.parents = [appFolderId];
     }
@@ -180,7 +179,7 @@ export async function saveSessionToDrive(
         body: formData,
       });
     } catch (fetchError: any) {
-      console.error(`DriveService (${functionName}): fetch() to ${url} (method: ${method}) failed directly. This is often a network, CORS, or browser extension issue. Error:`, fetchError.message, fetchError);
+      console.error(`DriveService (${functionName}): fetch() to ${url} (method: ${method}) failed directly. Error:`, fetchError.message, fetchError);
       throw new Error(`Network error during Drive API call (${method} ${url}): ${fetchError.message}`);
     }
 
@@ -266,7 +265,7 @@ export async function getSessionFromDrive(accessToken: string, fileId: string): 
 
     if (!response.ok) {
       let errorDetailsMessage = `Status: ${response.status} ${response.statusText}.`;
-      try { const errorData = await response.json(); errorDetailsMessage += ` Body: ${JSON.stringify(errorData)}`; } // Less likely for alt=media to return JSON error body
+      try { const errorData = await response.json(); errorDetailsMessage += ` Body: ${JSON.stringify(errorData)}`; } 
       catch (e) { try { const textError = await response.text(); errorDetailsMessage += ` Body: ${textError}`; } catch (fe) {errorDetailsMessage += " Could not parse error body."} }
       console.error(`DriveService (${functionName}): Error fetching file content for ${fileId}. ${errorDetailsMessage}`);
       throw new Error(`Failed to fetch file content from Drive for ${fileId}. ${errorDetailsMessage}`);
@@ -280,7 +279,43 @@ export async function getSessionFromDrive(accessToken: string, fileId: string): 
   }
 }
 
+/**
+ * Deletes a file from Google Drive by its file ID.
+ * @param accessToken Google OAuth2 access token.
+ * @param fileId The Drive ID of the file to delete.
+ * @returns Promise resolving to true if successful, false otherwise.
+ */
+export async function deleteFileFromDrive(accessToken: string, fileId: string): Promise<boolean> {
+  const functionName = "deleteFileFromDrive";
+  if (!accessToken || !fileId) {
+    console.error(`DriveService (${functionName}): Missing accessToken or fileId.`);
+    return false;
+  }
+
+  console.log(`DriveService (${functionName}): Attempting to delete file with ID ${fileId} from Drive...`);
+  const url = `${DRIVE_API_BASE_URL}/files/${fileId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+
+    if (response.ok) { // HTTP 204 No Content on successful deletion
+      console.log(`DriveService (${functionName}): File ${fileId} deleted successfully from Drive.`);
+      return true;
+    } else {
+      let errorDetailsMessage = `Status: ${response.status} ${response.statusText}.`;
+      try { const errorData = await response.json(); errorDetailsMessage += ` Body: ${JSON.stringify(errorData)}`; }
+      catch (e) { try { const textError = await response.text(); errorDetailsMessage += ` Body: ${textError}`; } catch (fe) {errorDetailsMessage += " Could not parse error body."} }
+      console.error(`DriveService (${functionName}): Error deleting file ${fileId} from Drive. ${errorDetailsMessage}`);
+      return false;
+    }
+  } catch (error: any) {
+    console.error(`DriveService (${functionName}): General exception deleting file ${fileId}:`, error.message, error);
+    return false;
+  }
+}
 // Placeholder for future functions
-// export async function deleteSessionFromDrive(accessToken: string, fileId: string): Promise<boolean> { ... }
 // export async function uploadGeneralFileToDrive(accessToken: string, appFolderId: string, file: File, desiredName?: string): Promise<DriveFile | null> { ... }
 
