@@ -16,7 +16,7 @@ const CHAT_SESSION_PREFIX_LS = 'desainr_chat_session_ls_v3_';
 const getMessageTextPreview = (message: ChatMessage | undefined): string => {
   if (!message) return 'New Chat';
   if (typeof message.content === 'string') {
-    return message.content.substring(0, 50);
+    return message.content.substring(0, 50) || "Chat started";
   }
   if (Array.isArray(message.content)) {
     for (const part of message.content) {
@@ -60,6 +60,24 @@ const isQuotaExceededError = (error: any): boolean => {
   );
 };
 
+// Utility function to deduplicate metadata, keeping the one with the latest timestamp
+function deduplicateMetadata(metadataList: ChatSessionMetadata[]): ChatSessionMetadata[] {
+  if (!Array.isArray(metadataList)) return [];
+  const map = new Map<string, ChatSessionMetadata>();
+  for (const item of metadataList) {
+    if (!item || typeof item.id !== 'string') { // Ensure item and item.id are valid
+      console.warn("DeduplicateMetadata: Encountered invalid item:", item);
+      continue;
+    }
+    const existing = map.get(item.id);
+    if (!existing || item.lastMessageTimestamp > existing.lastMessageTimestamp) {
+      map.set(item.id, item);
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
+}
+
+
 export function useChatHistory(userIdFromProfile: string | undefined) {
   const { user: authUser, googleAccessToken } = useAuth();
   const { toast } = useToast();
@@ -97,7 +115,8 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
     } else if (!googleAccessToken && authUser) {
       setAppDriveFolderId(null);
     }
-  }, [googleAccessToken, authUser, appDriveFolderId, toast]);
+  }, [googleAccessToken, authUser, appDriveFolderId, toast, setAppDriveFolderId]);
+
 
   useEffect(() => {
     initializeDriveFolder();
@@ -112,57 +131,69 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
     }
     setIsLoading(true);
     
+    let combinedMetadata: ChatSessionMetadata[] = [];
     const seenIds = new Set<string>();
-    const uniqueCombinedMetadata: ChatSessionMetadata[] = [];
 
+    // 1. Load from Drive if available
     if (googleAccessToken && appDriveFolderId && authUser?.uid === effectiveUserId) {
       console.log("useChatHistory: Attempting to load session list from Google Drive.");
       const driveFiles = await listSessionFilesFromDrive(googleAccessToken, appDriveFolderId);
       if (driveFiles) {
-        const driveMetadataList = driveFiles.map((file: DriveFile) => {
-          const fileSessionId = file.name.replace('session_', '').replace('.json', '');
-          return {
-            id: fileSessionId,
-            name: file.name.replace('session_', '').replace('.json', '').substring(0,50), // Placeholder, full name might be in file content
-            lastMessageTimestamp: file.modifiedTime ? new Date(file.modifiedTime).getTime() : Date.now(),
-            preview: "From Google Drive",
-            messageCount: 0, // Placeholder, full count from file content
-            isDriveSession: true,
-          };
-        }).filter(meta => meta.id.startsWith(effectiveUserId + '_'));
+        const driveMetadataList = driveFiles
+          .map((file: DriveFile) => {
+            if (!file || !file.name || !file.id) return null;
+            const fileSessionId = file.name.replace('session_', '').replace('.json', '');
+            if (!fileSessionId.startsWith(effectiveUserId + '_')) return null; // Ensure it belongs to the user
+            return {
+              id: fileSessionId,
+              name: file.name.replace('session_', '').replace('.json', '').substring(0,50), // Placeholder
+              lastMessageTimestamp: file.modifiedTime ? new Date(file.modifiedTime).getTime() : Date.now(),
+              preview: "From Google Drive", // Placeholder
+              messageCount: 0, // Placeholder
+              isDriveSession: true,
+            };
+          })
+          .filter(Boolean) as ChatSessionMetadata[]; // Filter out nulls
         
-        driveMetadataList.forEach(driveMeta => {
+        const dedupedDriveMetadata = deduplicateMetadata(driveMetadataList);
+        dedupedDriveMetadata.forEach(driveMeta => {
             if (!seenIds.has(driveMeta.id)) {
-                uniqueCombinedMetadata.push(driveMeta);
+                combinedMetadata.push(driveMeta);
                 seenIds.add(driveMeta.id);
             }
         });
-        console.log(`useChatHistory: Processed ${driveMetadataList.length} session metadata entries from Drive. Unique count: ${uniqueCombinedMetadata.length}`);
       } else {
         console.warn("useChatHistory: Failed to load session list from Google Drive or no files found.");
       }
     }
 
+    // 2. Load from LocalStorage
     try {
       const storedIndex = localStorage.getItem(CHAT_HISTORY_INDEX_KEY_LS);
       const localParsedIndex: ChatSessionMetadata[] = storedIndex ? JSON.parse(storedIndex) : [];
-      const userLocalHistory = localParsedIndex.filter((meta) => meta.id.startsWith(effectiveUserId + '_'));
-      
-      userLocalHistory.forEach(localMeta => {
+      const userLocalHistoryFromStorage = localParsedIndex.filter((meta) => meta && meta.id && meta.id.startsWith(effectiveUserId + '_'));
+      const dedupedUserLocalHistory = deduplicateMetadata(userLocalHistoryFromStorage);
+
+      dedupedUserLocalHistory.forEach(localMeta => {
         if (!seenIds.has(localMeta.id)) {
-          uniqueCombinedMetadata.push({...localMeta, isDriveSession: false});
+          // Item is only in local storage
+          combinedMetadata.push({...localMeta, isDriveSession: false});
           seenIds.add(localMeta.id);
         } else {
-          const existingIndex = uniqueCombinedMetadata.findIndex(m => m.id === localMeta.id);
+          // Item ID was also found on Drive. Merge/update.
+          const existingIndex = combinedMetadata.findIndex(m => m.id === localMeta.id);
           if (existingIndex !== -1) {
-            const existingMeta = uniqueCombinedMetadata[existingIndex];
-            if (localMeta.lastMessageTimestamp > existingMeta.lastMessageTimestamp || 
-                (existingMeta.preview === "From Google Drive" && localMeta.preview !== "From Google Drive")) {
-              uniqueCombinedMetadata[existingIndex] = {
-                ...localMeta,
-                isDriveSession: existingMeta.isDriveSession,
-                lastMessageTimestamp: Math.max(localMeta.lastMessageTimestamp, existingMeta.lastMessageTimestamp)
-              };
+            const driveMeta = combinedMetadata[existingIndex]; // This is the Drive version
+             if (localMeta.lastMessageTimestamp > driveMeta.lastMessageTimestamp ||
+                (driveMeta.preview === "From Google Drive" && localMeta.preview && localMeta.preview !== "From Google Drive")) {
+                combinedMetadata[existingIndex] = {
+                    ...localMeta,
+                    isDriveSession: true, // It exists on Drive
+                    lastMessageTimestamp: Math.max(localMeta.lastMessageTimestamp, driveMeta.lastMessageTimestamp),
+                    name: localMeta.name || driveMeta.name,
+                    preview: (localMeta.preview && localMeta.preview !== "From Google Drive") ? localMeta.preview : driveMeta.preview,
+                    messageCount: localMeta.messageCount > 0 ? localMeta.messageCount : driveMeta.messageCount,
+                };
             }
           }
         }
@@ -171,12 +202,14 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
       console.error("Failed to load/merge chat history index from localStorage:", error);
     }
     
-    setHistoryMetadata(uniqueCombinedMetadata.sort((a,b) => b.lastMessageTimestamp - a.lastMessageTimestamp));
+    const finalDedupedAndSortedMetadata = deduplicateMetadata(combinedMetadata);
+    setHistoryMetadata(finalDedupedAndSortedMetadata);
     setIsLoading(false);
   }, [effectiveUserId, googleAccessToken, appDriveFolderId, authUser]);
 
+
   useEffect(() => {
-     if (effectiveUserId && (!authUser || (googleAccessToken && appDriveFolderId) || (!googleAccessToken && !authUser))) {
+     if (effectiveUserId && (!authUser || authUser?.uid !== effectiveUserId || (googleAccessToken && appDriveFolderId) || (!googleAccessToken && !authUser))) {
         loadHistoryIndex();
     }
   }, [effectiveUserId, googleAccessToken, appDriveFolderId, authUser, loadHistoryIndex]);
@@ -199,7 +232,6 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
             const driveSession = await getSessionFromDrive(googleAccessToken, targetDriveFile.id);
             if (driveSession) {
                 try {
-                    // Cache to localStorage for faster subsequent loads if needed
                     localStorage.setItem(`${CHAT_SESSION_PREFIX_LS}${sessionId}`, JSON.stringify(driveSession));
                 } catch (e) { console.error("Error caching Drive session to localStorage", e); }
                 return driveSession;
@@ -304,17 +336,17 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
       }
     }
 
-    let driveSaved = false;
+    let driveSavedSuccessfully = false;
     if (googleAccessToken && appDriveFolderId && authUser && authUser.uid === effectiveUserId) {
       console.log(`useChatHistory: Attempting to save session ${sessionToUpdateInMemory.id} to Google Drive.`);
       try {
         const driveFile = await saveSessionToDrive(googleAccessToken, appDriveFolderId, sessionToUpdateInMemory.id, sessionToUpdateInMemory);
         if (driveFile) {
           console.log(`useChatHistory: Session ${sessionToUpdateInMemory.id} saved to Drive. File ID: ${driveFile.id}`);
-          driveSaved = true;
+          driveSavedSuccessfully = true;
         } else {
           console.warn(`useChatHistory: Failed to save session ${sessionToUpdateInMemory.id} to Drive (saveSessionToDrive returned null).`);
-          toast({
+           toast({
             title: "Google Drive Sync Issue",
             description: "Session was saved locally, but failed to sync to Google Drive.",
             variant: "default",
@@ -322,7 +354,7 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
         }
       } catch (driveError: any) {
         console.error(`useChatHistory: Error saving session ${sessionToUpdateInMemory.id} to Drive:`, driveError);
-        toast({
+         toast({
             title: "Google Drive Sync Failed",
             description: `Session saved locally, but Drive sync failed: ${driveError.message}`,
             variant: "default",
@@ -332,33 +364,20 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
 
 
     setHistoryMetadata(prev => {
-      const userSpecificPrev = prev.filter(meta => meta.id.startsWith(effectiveUserId + '_'));
-      const existingIndex = userSpecificPrev.findIndex(meta => meta.id === sessionToUpdateInMemory.id);
-      
       const newMeta: ChatSessionMetadata = {
         id: sessionToUpdateInMemory.id,
         name: sessionToUpdateInMemory.name || `Chat ${new Date(sessionToUpdateInMemory.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
         lastMessageTimestamp: sessionToUpdateInMemory.updatedAt,
         preview: getMessageTextPreview(sessionToUpdateInMemory.messages[sessionToUpdateInMemory.messages.length - 1]),
         messageCount: sessionToUpdateInMemory.messages.length,
-        isDriveSession: driveSaved || (existingIndex > -1 ? userSpecificPrev[existingIndex].isDriveSession : false)
+        isDriveSession: driveSavedSuccessfully || prev.find(m => m.id === sessionToUpdateInMemory.id)?.isDriveSession || false,
       };
 
-      let updatedUserHistory;
-      if (existingIndex > -1) {
-        updatedUserHistory = [...userSpecificPrev];
-        updatedUserHistory[existingIndex] = newMeta;
-      } else {
-        updatedUserHistory = [newMeta, ...userSpecificPrev];
-      }
-      const sortedUserHistory = updatedUserHistory.sort((a,b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
+      const otherMeta = prev.filter(meta => meta.id !== sessionToUpdateInMemory.id);
+      const updatedFullHistory = deduplicateMetadata([newMeta, ...otherMeta]);
       
       try {
-        const globalIndexStr = localStorage.getItem(CHAT_HISTORY_INDEX_KEY_LS);
-        const globalIndex = globalIndexStr ? JSON.parse(globalIndexStr) : [];
-        const otherUserHistories = globalIndex.filter((meta: ChatSessionMetadata) => !meta.id.startsWith(effectiveUserId + '_'));
-        const newGlobalIndex = [...otherUserHistories, ...sortedUserHistory].sort((a,b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
-        localStorage.setItem(CHAT_HISTORY_INDEX_KEY_LS, JSON.stringify(newGlobalIndex));
+        localStorage.setItem(CHAT_HISTORY_INDEX_KEY_LS, JSON.stringify(updatedFullHistory));
       } catch (error) {
          if (isQuotaExceededError(error)) {
             console.error("Failed to save chat history index to localStorage due to quota exceeded.", error);
@@ -366,23 +385,21 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
             console.error("Failed to save chat history index to localStorage:", error);
           }
       }
-      return sortedUserHistory;
+      return updatedFullHistory;
     });
     return sessionToUpdateInMemory;
-  }, [effectiveUserId, googleAccessToken, appDriveFolderId, authUser, toast]);
+  }, [effectiveUserId, googleAccessToken, appDriveFolderId, authUser, toast, setHistoryMetadata]);
+
 
   const deleteSession = useCallback((sessionId: string) => {
     if (!effectiveUserId || !sessionId.startsWith(effectiveUserId + '_')) return;
     try {
       localStorage.removeItem(`${CHAT_SESSION_PREFIX_LS}${sessionId}`);
       setHistoryMetadata(prev => {
-        const updatedUserHistory = prev.filter(meta => meta.id !== sessionId && meta.id.startsWith(effectiveUserId + '_'));
+        const updatedHistory = prev.filter(meta => meta.id !== sessionId);
+        const finalHistory = deduplicateMetadata(updatedHistory);
         try {
-          const globalIndexStr = localStorage.getItem(CHAT_HISTORY_INDEX_KEY_LS);
-          const globalIndex = globalIndexStr ? JSON.parse(globalIndexStr) : [];
-          const otherUserHistories = globalIndex.filter((meta: ChatSessionMetadata) => !meta.id.startsWith(effectiveUserId + '_'));
-          const newGlobalIndex = [...otherUserHistories, ...updatedUserHistory].sort((a,b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
-          localStorage.setItem(CHAT_HISTORY_INDEX_KEY_LS, JSON.stringify(newGlobalIndex));
+          localStorage.setItem(CHAT_HISTORY_INDEX_KEY_LS, JSON.stringify(finalHistory));
         } catch (error) {
            if (isQuotaExceededError(error)) {
               console.error("Failed to update chat history index (localStorage) after deletion due to quota exceeded.", error);
@@ -390,17 +407,18 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
               console.error("Failed to update chat history index (localStorage) after deletion:", error);
             }
         }
-        return updatedUserHistory;
+        return finalHistory;
       });
     } catch (error) {
       console.error(`Failed to delete session ${sessionId} from localStorage:`, error);
     }
   }, [effectiveUserId, setHistoryMetadata]);
 
+
   const createNewSession = useCallback((initialMessages: ChatMessage[] = [], modelIdForNameGeneration?: string, userApiKeyForNameGen?: string): ChatSession => {
     if (!effectiveUserId) {
         console.error("createNewSession called without an effectiveUserId.");
-        const tempId = `temp_error_no_user_${Date.now()}_${Math.random().toString(36).substring(2,7)}`;
+        const tempId = `temp_error_no_user_${Date.now()}_${Math.random().toString(36).substring(2,11)}`;
          return {
           id: tempId,
           name: 'New Chat (Error)',
@@ -424,53 +442,37 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
     return newSession;
   }, [effectiveUserId, saveSession]);
 
+
   const syncWithDrive = useCallback(async () => {
-    if (!googleAccessToken || !authUser || authUser.uid !== effectiveUserId) {
-      toast({
-        title: "Sync Unavailable",
-        description: "Please ensure you are fully logged in with Google to sync with Drive.",
-        variant: "default",
-      });
-      setIsSyncing(false);
-      return;
+    if (!authUser || !googleAccessToken) {
+        toast({ title: "Sync Unavailable", description: "Please log in with Google to sync.", variant: "default" });
+        setIsSyncing(false);
+        return;
+    }
+    if (authUser.uid !== effectiveUserId) {
+        toast({ title: "Sync User Mismatch", description: "Cannot sync, active user differs from Google authenticated user.", variant: "destructive" });
+        setIsSyncing(false);
+        return;
     }
 
     setIsSyncing(true);
     toast({ title: "Syncing with Google Drive...", description: "Please wait." });
 
     let currentAppDriveFolderId = appDriveFolderId;
-
     if (!currentAppDriveFolderId) {
-      console.log("syncWithDrive: appDriveFolderId not set, attempting to ensure it exists...");
-      try {
-        const folderId = await ensureAppFolderExists(googleAccessToken);
-        if (folderId) {
-          setAppDriveFolderId(folderId);
-          currentAppDriveFolderId = folderId;
-          console.log("syncWithDrive: App Drive folder ID ensured/retrieved:", folderId);
-        } else {
-          throw new Error("Failed to ensure Drive app folder exists during sync attempt.");
+        try {
+            const folderId = await ensureAppFolderExists(googleAccessToken);
+            if (folderId) {
+                setAppDriveFolderId(folderId);
+                currentAppDriveFolderId = folderId;
+            } else {
+                throw new Error("Failed to ensure Drive app folder exists during sync attempt.");
+            }
+        } catch (error: any) {
+            toast({ title: "Drive Folder Error", description: `Could not initialize Drive folder: ${error.message || 'Unknown error'}. Sync aborted.`, variant: "destructive" });
+            setIsSyncing(false);
+            return;
         }
-      } catch (error: any) {
-        console.error("syncWithDrive: Error ensuring app folder exists:", error);
-        toast({
-          title: "Drive Folder Error",
-          description: `Could not access or create app folder in Google Drive: ${error.message || 'Unknown error'}. Sync aborted.`,
-          variant: "destructive",
-        });
-        setIsSyncing(false);
-        return;
-      }
-    }
-    
-    if (!currentAppDriveFolderId) {
-        toast({
-            title: "Sync Failed",
-            description: "Google Drive folder ID is still missing after attempt. Cannot proceed with sync.",
-            variant: "destructive",
-        });
-        setIsSyncing(false);
-        return;
     }
     
     try {
@@ -479,74 +481,85 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
         throw new Error("Failed to list session files from Google Drive.");
       }
 
-      const driveMetadataFromFiles: ChatSessionMetadata[] = driveFiles.map((file: DriveFile) => {
+      const driveMetadataMap = new Map<string, ChatSessionMetadata>();
+      driveFiles.forEach((file: DriveFile) => {
+        if (!file || !file.name || !file.id) return;
         const fileSessionId = file.name.replace('session_', '').replace('.json', '');
-        return {
+        if (!fileSessionId.startsWith(effectiveUserId + '_')) return;
+        driveMetadataMap.set(fileSessionId, {
           id: fileSessionId,
           name: file.name.replace('session_', '').replace('.json', '').substring(0, 50),
           lastMessageTimestamp: file.modifiedTime ? new Date(file.modifiedTime).getTime() : Date.now(),
           preview: "From Google Drive",
           messageCount: 0,
           isDriveSession: true,
-        };
-      }).filter(meta => meta.id.startsWith(effectiveUserId + '_'));
+        });
+      });
       
-      let mergedMetadata = [...driveMetadataFromFiles];
-      const seenDriveIds = new Set(driveMetadataFromFiles.map(m => m.id));
+      const localIndexString = localStorage.getItem(CHAT_HISTORY_INDEX_KEY_LS);
+      const localIndex: ChatSessionMetadata[] = localIndexString ? JSON.parse(localIndexString) : [];
+      const userLocalHistory = localIndex.filter(meta => meta && meta.id && meta.id.startsWith(effectiveUserId + '_'));
+      const dedupedUserLocalHistory = deduplicateMetadata(userLocalHistory);
 
-      try {
-        const storedIndex = localStorage.getItem(CHAT_HISTORY_INDEX_KEY_LS);
-        const localParsedIndex: ChatSessionMetadata[] = storedIndex ? JSON.parse(storedIndex) : [];
-        const userLocalHistory = localParsedIndex.filter((meta) => meta.id.startsWith(effectiveUserId + '_'));
+      let combinedHistory: ChatSessionMetadata[] = Array.from(driveMetadataMap.values());
+      const processedLocalIds = new Set<string>(driveMetadataMap.keys());
 
-        for (const localMeta of userLocalHistory) {
-          if (!seenDriveIds.has(localMeta.id)) {
-            mergedMetadata.push({ ...localMeta, isDriveSession: false });
-            const localSessionData = localStorage.getItem(`${CHAT_SESSION_PREFIX_LS}${localMeta.id}`);
-            if (localSessionData && googleAccessToken && currentAppDriveFolderId && authUser) {
-              try {
-                const fullSession: ChatSession = JSON.parse(localSessionData);
-                 console.log(`Sync: Attempting to upload local-only session ${fullSession.id} to Drive.`);
-                 await saveSessionToDrive(googleAccessToken, currentAppDriveFolderId, fullSession.id, fullSession)
-                   .then(savedFile => {
-                     if (savedFile) {
-                       console.log(`Sync: Successfully uploaded local session ${fullSession.id} to Drive.`);
-                       setHistoryMetadata(prev => prev.map(m => m.id === fullSession.id ? {...m, isDriveSession: true} : m));
-                     }
-                   });
-              } catch (e) { console.error(`Sync: Error parsing or saving local session ${localMeta.id} to Drive.`, e); }
+      for (const localMeta of dedupedUserLocalHistory) {
+        const driveVersion = driveMetadataMap.get(localMeta.id);
+        if (driveVersion) { // Exists on Drive and Local
+          const existingIndex = combinedHistory.findIndex(ch => ch.id === localMeta.id);
+          if (localMeta.lastMessageTimestamp > driveVersion.lastMessageTimestamp || 
+              (driveVersion.preview === "From Google Drive" && localMeta.preview && localMeta.preview !== "From Google Drive")) {
+            // Local is newer or has better preview, update Drive version representation
+            if (existingIndex !== -1) {
+              combinedHistory[existingIndex] = {
+                ...localMeta, // Use local data
+                isDriveSession: true, // It's on Drive
+                lastMessageTimestamp: Math.max(localMeta.lastMessageTimestamp, driveVersion.lastMessageTimestamp),
+              };
             }
-          } else {
-             const driveEntryIndex = mergedMetadata.findIndex(dm => dm.id === localMeta.id);
-             if (driveEntryIndex !== -1) {
-                const driveEntry = mergedMetadata[driveEntryIndex];
-                if (localMeta.lastMessageTimestamp > driveEntry.lastMessageTimestamp || 
-                    (driveEntry.preview === "From Google Drive" && localMeta.preview !== "From Google Drive")) {
-                    mergedMetadata[driveEntryIndex] = {
-                        ...localMeta,
-                        isDriveSession: true,
-                        lastMessageTimestamp: Math.max(localMeta.lastMessageTimestamp, driveEntry.lastMessageTimestamp)
-                    };
+            // Also, upload this newer local version to Drive
+            const fullLocalSession = await getSession(localMeta.id);
+            if (fullLocalSession) {
+              await saveSessionToDrive(googleAccessToken, currentAppDriveFolderId, fullLocalSession.id, fullLocalSession);
+            }
+          } else if (driveVersion.lastMessageTimestamp > localMeta.lastMessageTimestamp) {
+             // Drive is newer, update local storage representation after fetching full session
+             const fullDriveSession = await getSessionFromDrive(googleAccessToken, driveFiles.find(f => f.name === `session_${driveVersion.id}.json`)!.id);
+             if (fullDriveSession) {
+                if (existingIndex !== -1) {
+                  combinedHistory[existingIndex] = {
+                    id: fullDriveSession.id,
+                    name: fullDriveSession.name,
+                    lastMessageTimestamp: fullDriveSession.updatedAt,
+                    preview: getMessageTextPreview(fullDriveSession.messages[fullDriveSession.messages.length-1]),
+                    messageCount: fullDriveSession.messages.length,
+                    isDriveSession: true,
+                  };
                 }
+                localStorage.setItem(`${CHAT_SESSION_PREFIX_LS}${fullDriveSession.id}`, JSON.stringify(fullDriveSession));
              }
           }
-        }
-      } catch (e) { console.error("Sync: Error processing localStorage history during sync", e); }
-      
-      const sortedMergedMetadata = mergedMetadata.sort((a,b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
-      
-      try {
-        localStorage.setItem(CHAT_HISTORY_INDEX_KEY_LS, JSON.stringify(sortedMergedMetadata));
-      } catch (error) {
-        if (isQuotaExceededError(error)) {
-          console.error("Failed to save updated chat history index to localStorage due to quota exceeded after Drive sync.", error);
-        } else {
-          console.error("Failed to save updated chat history index to localStorage after Drive sync:", error);
+        } else { // Exists only in Local
+          combinedHistory.push({ ...localMeta, isDriveSession: false });
+          processedLocalIds.add(localMeta.id);
+          // Upload to Drive
+          const fullLocalSession = await getSession(localMeta.id);
+          if (fullLocalSession) {
+            const savedDriveFile = await saveSessionToDrive(googleAccessToken, currentAppDriveFolderId, fullLocalSession.id, fullLocalSession);
+            if (savedDriveFile) {
+                const idx = combinedHistory.findIndex(ch => ch.id === fullLocalSession.id);
+                if(idx !== -1) combinedHistory[idx].isDriveSession = true;
+            }
+          }
         }
       }
-      setHistoryMetadata(sortedMergedMetadata);
+      
+      const finalHistory = deduplicateMetadata(combinedHistory);
+      localStorage.setItem(CHAT_HISTORY_INDEX_KEY_LS, JSON.stringify(finalHistory));
+      setHistoryMetadata(finalHistory);
 
-      toast({ title: "Sync Complete", description: `Synced with Google Drive. ${sortedMergedMetadata.length} sessions found/merged.` });
+      toast({ title: "Sync Complete", description: `Synced with Google Drive. ${finalHistory.length} sessions processed.` });
       
     } catch (error: any) {
       console.error("Error during Sync with Drive:", error);
@@ -558,9 +571,8 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
     } finally {
       setIsSyncing(false);
     }
-  }, [googleAccessToken, appDriveFolderId, authUser, effectiveUserId, toast, setAppDriveFolderId, setHistoryMetadata]);
+  }, [googleAccessToken, appDriveFolderId, authUser, effectiveUserId, toast, setAppDriveFolderId, setHistoryMetadata, getSession, loadHistoryIndex]);
 
 
   return { historyMetadata, isLoading, getSession, saveSession, deleteSession, createNewSession, loadHistoryIndex, appDriveFolderId, initializeDriveFolder, syncWithDrive, isSyncing };
 }
-
