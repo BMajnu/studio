@@ -2,7 +2,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { BotMessageSquare, Plane, RotateCcw, ListChecks, ClipboardList, Sparkles, MessageSquarePlus, Palette, Lightbulb, Terminal, SearchCheck, ClipboardSignature, Edit3 } from 'lucide-react'; // Added Edit3
+import { BotMessageSquare, Plane, RotateCcw, ListChecks, ClipboardList, Sparkles, MessageSquarePlus, Palette, Lightbulb, Terminal, SearchCheck, ClipboardSignature, Edit3 } from 'lucide-react';
 import type { UserProfile } from '@/lib/types';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -10,19 +10,21 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import { cn } from '@/lib/utils';
 
 export type ActionType =
   | 'processMessage'
   | 'analyzeRequirements'
-  | 'generateEngagementPack' // Replaces generateBrief
+  | 'generateEngagementPack'
   | 'generateDesignIdeas'
   | 'generateDesignPrompts'
   | 'checkMadeDesigns'
-  | 'generateDeliveryTemplates' // For actual delivery messages
+  | 'generateDeliveryTemplates'
   | 'generateRevision'
-  | 'generateEditingPrompts'; // Added new action type
+  | 'generateEditingPrompts';
 
 interface ActionButtonConfig {
   id: ActionType;
@@ -30,15 +32,15 @@ interface ActionButtonConfig {
   shortLabel: string;
   icon: React.ElementType;
   description: string;
-  isPrimaryAction?: boolean;
+  isPrimaryAction?: boolean; // True for top-level buttons, false for sub-actions
 }
 
 interface DropdownActionConfig {
-    id: string;
-    label: string;
-    shortLabel: string;
-    icon: React.ElementType;
-    description: string;
+    id: string; // Unique ID for the dropdown trigger itself
+    label: string; // Full label for the dropdown trigger button's tooltip
+    shortLabel: string; // Short label for the dropdown trigger button
+    icon: React.ElementType; // Icon for the dropdown trigger button
+    description: string; // Description for the dropdown trigger button's tooltip
     subActions: ActionButtonConfig[];
 }
 
@@ -50,10 +52,10 @@ const actionButtonsConfig: AnyActionConfig[] = [
   { id: 'analyzeRequirements', label: 'Analyze Requirements', shortLabel: 'Requirements', icon: ListChecks, description: 'Detailed analysis of requirements, prioritization, Bangla translation, and design message.', isPrimaryAction: true },
   { id: 'generateEngagementPack', label: 'Generate Engagement Pack', shortLabel: 'Brief', icon: ClipboardList, description: 'Generates a personalized intro, job reply, budget/timeline/software ideas, and clarifying questions.', isPrimaryAction: true },
   {
-    id: 'designActions',
-    label: 'Design Tools',
-    shortLabel: 'Design',
-    icon: Palette,
+    id: 'designActions', // ID for the dropdown trigger
+    label: 'Design Tools', // Tooltip for the trigger
+    shortLabel: 'Design',  // Text on the trigger button
+    icon: Palette,         // Icon for the trigger
     description: 'Access tools to generate design ideas and AI prompts.',
     subActions: [
       { id: 'generateDesignIdeas', label: 'Generate Design Ideas', shortLabel: 'Idea', icon: Lightbulb, description: 'Generates creative design ideas, web inspiration, and typography concepts.', isPrimaryAction: false },
@@ -61,14 +63,14 @@ const actionButtonsConfig: AnyActionConfig[] = [
     ]
   },
   {
-    id: 'deliveryActions',
-    label: 'Delivery Tools',
-    shortLabel: 'Delivery',
-    icon: Plane,
+    id: 'deliveryActions', // ID for the dropdown trigger
+    label: 'Delivery Tools', // Tooltip for the trigger
+    shortLabel: 'Delivery',  // Text on the trigger button
+    icon: Plane,             // Icon for the trigger
     description: 'Tools for checking designs and generating delivery messages.',
     subActions: [
       { id: 'checkMadeDesigns', label: 'Check Designs', shortLabel: 'Check', icon: SearchCheck, description: 'AI review of your design for mistakes (Bangla). Requires attached design.', isPrimaryAction: false },
-      { id: 'generateEditingPrompts', label: 'Editing Prompts', shortLabel: 'Edit', icon: Edit3, description: 'Generate prompts to edit a design based on prior feedback. Requires image attachment.', isPrimaryAction: false },
+      { id: 'generateEditingPrompts', label: 'Editing Prompts', shortLabel: 'Edit', icon: Edit3, description: 'Generate prompts to edit a design. Uses currently attached image if provided, or attempts to use the last relevant image from chat history.', isPrimaryAction: false },
       { id: 'generateDeliveryTemplates', label: 'Delivery Templates', shortLabel: 'Templates', icon: ClipboardSignature, description: 'Generate Fiverr delivery messages and follow-ups.', isPrimaryAction: false },
     ]
   },
@@ -90,16 +92,12 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
     if (isLoading || !profile) {
       return true;
     }
-    // Specific logic for actions requiring attachments
-    if ((actionId === 'checkMadeDesigns' || actionId === 'generateEditingPrompts') && currentAttachedFilesDataLength === 0) {
+    // "Check Designs" requires an image to be attached *before* clicking
+    if (actionId === 'checkMadeDesigns' && currentAttachedFilesDataLength === 0) {
       return true;
     }
-    // General disable if no message and no files for certain actions (can be adjusted)
-    // if (!currentUserMessage && currentAttachedFilesDataLength === 0 &&
-    //     (actionId === 'processMessage' || actionId === 'analyzeRequirements' || actionId === 'generateEngagementPack' || actionId === 'generateDesignIdeas' || actionId === 'generateDesignPrompts') ) {
-    //   return true;
-    // }
-    return false; // Default to active unless loading or profile missing
+    // "Editing Prompts" no longer has this client-side check, the flow will handle it.
+    return false;
   };
 
   return (
@@ -134,7 +132,7 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
                 <TooltipContent side="top" align="center" className="bg-popover text-popover-foreground shadow-lg rounded-md p-2">
                   <p className="font-semibold">{btn.label}</p>
                   <p className="text-xs text-muted-foreground max-w-xs">{btn.description}</p>
-                   { (btn.id === 'checkMadeDesigns' || btn.id === 'generateEditingPrompts') && currentAttachedFilesDataLength === 0 && (
+                   { btn.id === 'checkMadeDesigns' && currentAttachedFilesDataLength === 0 && (
                      <p className="text-xs text-destructive mt-1">Requires an image file to be attached.</p>
                    )}
                 </TooltipContent>
@@ -152,7 +150,7 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
                         <Button
                             variant="outline"
                             size="sm"
-                            disabled={isLoading || !profile}
+                            disabled={isLoading || !profile} // General disable for dropdown trigger
                             className={baseButtonClasses}
                         >
                             <dropdown.icon className={cn("h-4 w-4 shrink-0", !isMobile && "mr-1 md:mr-1.5")} />
@@ -167,15 +165,21 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
                 </Tooltip>
               </TooltipProvider>
               <DropdownMenuContent align="end" className="bg-popover border-border shadow-xl rounded-md">
+                <DropdownMenuLabel className="text-xs px-2 py-1.5 text-muted-foreground">{dropdown.label}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
                 {dropdown.subActions.map(subAction => (
                   <DropdownMenuItem
                     key={subAction.id}
                     onClick={() => onAction(subAction.id)}
                     disabled={isActionDisabled(subAction.id)}
-                    className="text-sm cursor-pointer hover:bg-accent focus:bg-accent data-[disabled]:opacity-50 data-[disabled]:pointer-events-none"
+                    className="text-sm cursor-pointer hover:bg-accent focus:bg-accent data-[disabled]:opacity-50 data-[disabled]:pointer-events-none flex items-center gap-2"
                   >
-                    <subAction.icon className="h-4 w-4 mr-2 shrink-0" />
-                    {subAction.label}
+                    <subAction.icon className="h-4 w-4 shrink-0" />
+                    <span>{subAction.label}</span>
+                     { (subAction.id === 'checkMadeDesigns' && currentAttachedFilesDataLength === 0) && (
+                       <span className="ml-auto text-xs text-destructive/70">(Needs Image)</span>
+                     )}
+                     {/* Removed (Needs Image) hint for generateEditingPrompts as per new requirement */}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
