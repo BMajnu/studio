@@ -34,18 +34,19 @@ export async function ensureAppFolderExists(accessToken: string): Promise<string
     });
 
     if (!listResponse.ok) {
-      let errorDetails: any = { message: "Failed to get error details from Drive API." };
+      let errorDetailsMessage = "Failed to get error details from Drive API.";
       try {
-        errorDetails = await listResponse.json();
+        const errorData = await listResponse.json();
+        errorDetailsMessage = JSON.stringify(errorData);
       } catch (e) {
         try {
-          errorDetails = { message: await listResponse.text() };
+          errorDetailsMessage = await listResponse.text();
         } catch (textError) {
-          // errorDetails remains the default
+          // errorDetailsMessage remains the default
         }
       }
-      console.error('DriveService: Error listing appDataFolder content:', listResponse.status, listResponse.statusText, errorDetails);
-      throw new Error(`Failed to list appDataFolder content. Status: ${listResponse.status} ${listResponse.statusText}. Details: ${JSON.stringify(errorDetails)}`);
+      console.error('DriveService: Error listing appDataFolder content:', listResponse.status, listResponse.statusText, errorDetailsMessage);
+      throw new Error(`Failed to list appDataFolder content. Status: ${listResponse.status} ${listResponse.statusText}. Details: ${errorDetailsMessage}`);
     }
 
     const listResult = await listResponse.json();
@@ -71,18 +72,19 @@ export async function ensureAppFolderExists(accessToken: string): Promise<string
     });
 
     if (!createFolderResponse.ok) {
-      let errorDetails: any = { message: "Failed to get error details from Drive API." };
+      let errorDetailsMessage = "Failed to get error details from Drive API.";
       try {
-        errorDetails = await createFolderResponse.json();
+        const errorData = await createFolderResponse.json();
+        errorDetailsMessage = JSON.stringify(errorData);
       } catch (e) {
          try {
-            errorDetails = { message: await createFolderResponse.text() };
+            errorDetailsMessage = await createFolderResponse.text();
         } catch (textError) {
-            // errorDetails remains the default
+            // errorDetailsMessage remains the default
         }
       }
-      console.error('DriveService: Error creating app folder:', createFolderResponse.status, createFolderResponse.statusText, errorDetails);
-      throw new Error(`Failed to create app folder. Status: ${createFolderResponse.status} ${createFolderResponse.statusText}. Details: ${JSON.stringify(errorDetails)}`);
+      console.error('DriveService: Error creating app folder:', createFolderResponse.status, createFolderResponse.statusText, errorDetailsMessage);
+      throw new Error(`Failed to create app folder. Status: ${createFolderResponse.status} ${createFolderResponse.statusText}. Details: ${errorDetailsMessage}`);
     }
 
     const createdFolder: DriveFile = await createFolderResponse.json();
@@ -111,17 +113,12 @@ export async function saveSessionToDrive(
   sessionData: any
 ): Promise<DriveFile | null> {
   if (!accessToken || !appFolderId || !sessionId || !sessionData) {
-    console.error('DriveService: saveSessionToDrive called with missing parameters.');
+    console.error('DriveService: saveSessionToDrive called with missing parameters. Token or folder ID might be null.');
     return null;
   }
 
   const fileName = `session_${sessionId}.json`;
-  const metadata = {
-    name: fileName,
-    mimeType: 'application/json',
-    parents: [appFolderId], // Ensure it's associated with the appData subfolder
-  };
-
+  
   try {
     // Check if the file already exists to decide between create or update
     const listResponse = await fetch(`${DRIVE_API_BASE_URL}/files?spaces=appDataFolder&q=name='${fileName}' and '${appFolderId}' in parents and trashed=false&fields=files(id)`, {
@@ -129,16 +126,17 @@ export async function saveSessionToDrive(
     });
 
     if (!listResponse.ok) {
-        let errorDetails: any = { message: "Failed to get error details from Drive API." };
+        let errorDetailsMessage = "Failed to get error details from Drive API when checking for existing file.";
         try {
-            errorDetails = await listResponse.json();
+            const errorData = await listResponse.json();
+            errorDetailsMessage = JSON.stringify(errorData);
         } catch (e) {
             try {
-                errorDetails = { message: await listResponse.text() };
+                errorDetailsMessage = await listResponse.text();
             } catch (textError) { /* Gulp */ }
         }
-        console.error('DriveService: Error checking for existing session file:', listResponse.status, listResponse.statusText, errorDetails);
-        throw new Error(`Failed to check for existing session file. Status: ${listResponse.status} ${listResponse.statusText}. Details: ${JSON.stringify(errorDetails)}`);
+        console.error('DriveService: Error checking for existing session file:', listResponse.status, listResponse.statusText, errorDetailsMessage);
+        throw new Error(`Failed to check for existing session file. Status: ${listResponse.status} ${listResponse.statusText}. Details: ${errorDetailsMessage}`);
     }
     const listResult = await listResponse.json();
     const existingFileId = listResult.files && listResult.files.length > 0 ? listResult.files[0].id : null;
@@ -149,62 +147,63 @@ export async function saveSessionToDrive(
     let url = `${DRIVE_UPLOAD_API_BASE_URL}/files?uploadType=multipart`;
     let method = 'POST';
 
-    const fileMetadataForUpload: any = { // Use 'any' temporarily for flexibility during debugging
+    const fileMetadataForUpload: any = {
         name: fileName,
         mimeType: 'application/json',
     };
-    // Only add parents for new file creation, not for updates (PATCH might not like 'parents' if file already exists)
     if (!existingFileId) {
         fileMetadataForUpload.parents = [appFolderId];
     }
 
-
     const formData = new FormData();
-    // For PATCH, Google Drive API expects metadata to be updated separately or along with content.
-    // If just content, 'metadata' part can be minimal or sometimes even empty if only content is changing.
-    // If name/parents change, they must be in the metadata part of this multipart request.
-    // For simplicity in this multipart upload, we send the metadata always.
     formData.append('metadata', new Blob([JSON.stringify(fileMetadataForUpload)], { type: 'application/json' }));
     formData.append('file', blob);
 
     if (existingFileId) {
-      // File exists, use PATCH to update content. Metadata part of FormData should reflect any metadata changes.
       url = `${DRIVE_UPLOAD_API_BASE_URL}/files/${existingFileId}?uploadType=multipart`;
       method = 'PATCH';
-      console.log(`DriveService: Updating existing session file ${fileName} (ID: ${existingFileId}) in Drive.`);
+      console.log(`DriveService: Attempting to update existing session file ${fileName} (ID: ${existingFileId}) in Drive.`);
     } else {
-      // File does not exist, use POST to create
-      console.log(`DriveService: Creating new session file ${fileName} in Drive.`);
+      console.log(`DriveService: Attempting to create new session file ${fileName} in Drive.`);
     }
     
-    const response = await fetch(url, {
-      method: method,
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        // 'Content-Type' is set by FormData
-      },
-      body: formData,
-    });
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: method,
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          // 'Content-Type' is automatically set by browser for FormData
+        },
+        body: formData,
+      });
+    } catch (fetchError: any) {
+      // This catch block is specifically for "TypeError: Failed to fetch" or other direct fetch errors
+      console.error(`DriveService: fetch() to ${url} (method: ${method}) failed directly. This is often a network, CORS, or browser extension issue. Error:`, fetchError.message, fetchError);
+      throw new Error(`Network error during Drive API call (${method} ${url}): ${fetchError.message}`);
+    }
 
     if (!response.ok) {
-      let errorDetails: any = { message: "Failed to get error details from Drive API." };
+      let errorDetailsMessage = `Failed to get error details from Drive API during ${existingFileId ? 'update' : 'creation'}.`;
       try {
-        errorDetails = await response.json();
+        const errorData = await response.json();
+        errorDetailsMessage = JSON.stringify(errorData);
       } catch (e) {
          try {
-            errorDetails = { message: await response.text() };
+            errorDetailsMessage = await response.text();
         } catch (textError) { /* Gulp */ }
       }
-      console.error(`DriveService: Error ${existingFileId ? 'updating' : 'creating'} session file ${fileName} in Drive:`, response.status, response.statusText, errorDetails);
-      throw new Error(`Failed to ${existingFileId ? 'update' : 'create'} session file in Drive. Status: ${response.status} ${response.statusText}. Details: ${JSON.stringify(errorDetails)}`);
+      console.error(`DriveService: Error ${existingFileId ? 'updating' : 'creating'} session file ${fileName} in Drive:`, response.status, response.statusText, errorDetailsMessage);
+      throw new Error(`Failed to ${existingFileId ? 'update' : 'create'} session file in Drive. Status: ${response.status} ${response.statusText}. Details: ${errorDetailsMessage}`);
     }
 
     const savedFile: DriveFile = await response.json();
     console.log(`DriveService: Session file ${fileName} ${existingFileId ? 'updated' : 'created'} successfully in Drive. ID: ${savedFile.id}`);
     return savedFile;
 
-  } catch (error) {
-    console.error(`DriveService: Exception in saveSessionToDrive for ${fileName}:`, error);
+  } catch (error: any) { 
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`DriveService: Overall exception in saveSessionToDrive for ${fileName}:`, errorMessage, error);
     return null;
   }
 }
@@ -214,4 +213,4 @@ export async function saveSessionToDrive(
 // export async function getSessionFromDrive(accessToken: string, fileId: string): Promise<any | null> { ... }
 // export async function deleteSessionFromDrive(accessToken: string, fileId: string): Promise<boolean> { ... }
 // export async function uploadGeneralFileToDrive(accessToken: string, appFolderId: string, file: File, desiredName?: string): Promise<DriveFile | null> { ... }
-
+    
