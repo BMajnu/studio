@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import React, { useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile'; // Import useIsMobile
 
 interface HistoryPanelProps {
   sessions: ChatSessionMetadata[];
@@ -40,6 +41,7 @@ export function HistoryPanel({
   isLoading,
 }: HistoryPanelProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const isMobile = useIsMobile(); // Get mobile status
 
   const displayedSessions = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -48,8 +50,8 @@ export function HistoryPanel({
     const lowerCaseQuery = searchQuery.toLowerCase();
     return sessions.filter(
       (session) =>
-        session.name.toLowerCase().includes(lowerCaseQuery) ||
-        session.preview.toLowerCase().includes(lowerCaseQuery)
+        (session.name && session.name.toLowerCase().includes(lowerCaseQuery)) ||
+        (session.preview && session.preview.toLowerCase().includes(lowerCaseQuery))
     );
   }, [sessions, searchQuery]);
 
@@ -111,7 +113,7 @@ export function HistoryPanel({
                 style={{ animationDelay: `${index * 30}ms` }}
                 onClick={() => onSelectSession(session.id)}
               >
-                <div className="flex-1 overflow-hidden">
+                <div className="flex-1 min-w-0 overflow-hidden"> {/* Ensures this div can shrink and text truncates */}
                   <p className="text-sm font-medium truncate" title={session.name}>{session.name}</p>
                   <p className={cn("text-xs truncate", session.id === activeSessionId ? "text-accent-foreground/80" : "text-muted-foreground" )} title={session.preview}>
                     {session.messageCount} msg - {session.preview}
@@ -125,7 +127,9 @@ export function HistoryPanel({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className={cn("h-7 w-7 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity hover:text-destructive hover:bg-destructive/10",
+                      className={cn(
+                        "h-7 w-7 flex-shrink-0 transition-opacity hover:text-destructive hover:bg-destructive/10", // Added flex-shrink-0
+                        isMobile ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus:opacity-100", // Conditional opacity
                         session.id === activeSessionId ? "text-accent-foreground/70 hover:text-destructive" : "text-muted-foreground"
                       )}
                       onClick={(e) => e.stopPropagation()} // Prevent session selection
