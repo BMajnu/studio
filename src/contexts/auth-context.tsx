@@ -2,28 +2,30 @@
 'use client';
 
 import type { User as FirebaseUser } from 'firebase/auth';
-import { 
-  onAuthStateChanged, 
+import {
+  onAuthStateChanged,
   signOut as firebaseSignOut,
   GoogleAuthProvider,
   signInWithPopup,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  sendEmailVerification
+  sendEmailVerification,
+  getAdditionalUserInfo, // To check for new users with Google Sign-In
 } from 'firebase/auth';
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth } from '@/lib/firebase'; // Firebase auth instance
-import { useToast } from '@/hooks/use-toast'; // Import useToast
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
   user: FirebaseUser | null;
   loading: boolean;
+  googleAccessToken: string | null; // To store Google API access token
   signUp: (email: string, pass: string) => Promise<FirebaseUser | null>;
   signIn: (email: string, pass: string) => Promise<FirebaseUser | null>;
   signInWithGoogle: () => Promise<FirebaseUser | null>;
   signOut: () => Promise<void>;
-  sendVerificationEmail: () => Promise<void>; // New method
+  sendVerificationEmail: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,26 +33,33 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast(); // Initialize toast
+  const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
-    if (!auth) { 
-      console.warn("AuthContext: Firebase auth instance is not available. Authentication features will be disabled.");
-      setUser(null); 
-      setLoading(false); 
-      return; 
+    if (!auth) {
+      console.warn("AuthContext: Firebase auth instance is not available. Auth features will be disabled.");
+      setUser(null);
+      setLoading(false);
+      setGoogleAccessToken(null);
+      return;
     }
 
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      if (!currentUser) {
+        setGoogleAccessToken(null); // Clear token on logout
+      }
+      // Access token for Google Sign-In is handled within signInWithGoogle
       setLoading(false);
     }, (error) => {
       console.error("AuthContext: Error in onAuthStateChanged listener:", error);
       setUser(null);
+      setGoogleAccessToken(null);
       setLoading(false);
     });
     return () => unsubscribe();
-  }, []); 
+  }, []);
 
   const signUp = async (email: string, pass: string): Promise<FirebaseUser | null> => {
     if (!auth) {
@@ -60,10 +69,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-      // setUser(userCredential.user); // onAuthStateChanged will handle this
-      // Send verification email immediately after successful signup
       if (userCredential.user) {
-        await sendEmailVerification(userCredential.user);
+        await sendEmailVerification(userCredential.user); // No need to await, let it happen in background
         toast({
           title: 'Verification Email Sent',
           description: 'Please check your inbox to verify your email address.',
@@ -72,7 +79,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return userCredential.user;
     } catch (error: any) {
       console.error("Error signing up (AuthContext):", error);
-      throw error; // Re-throw the error to be caught by the form
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -86,11 +93,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
-      // setUser(userCredential.user); // onAuthStateChanged will handle this
       return userCredential.user;
     } catch (error: any) {
       console.error("Error signing in (AuthContext):", error);
-      throw error; // Re-throw the error
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -104,15 +110,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
+      // Add scope for Google Drive appDataFolder access
+      provider.addScope('https://www.googleapis.com/auth/drive.appdata');
+      // Optionally, prompt for account selection every time
+      // provider.setCustomParameters({ prompt: 'select_account' });
+
       const result = await signInWithPopup(auth, provider);
-      // setUser(result.user); // onAuthStateChanged will handle this
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        setGoogleAccessToken(credential.accessToken);
+        console.log("Google Access Token obtained and stored in AuthContext.");
+      } else {
+        console.warn("Google Sign-In: Access token not found in credential.");
+        setGoogleAccessToken(null);
+      }
+      
+      // Check if it's a new user
+      const additionalUserInfo = getAdditionalUserInfo(result);
+      if (additionalUserInfo?.isNewUser && result.user && !result.user.emailVerified) {
+        // New Google user, might want to trigger a welcome or specific onboarding
+        console.log("New user signed up with Google:", result.user.email);
+        // For Google sign-ups, email is usually pre-verified by Google.
+        // If additional app-level verification is needed, handle here.
+      }
+
       return result.user;
     } catch (error: any) {
+      setGoogleAccessToken(null);
       if (error.code === 'auth/unauthorized-domain') {
         console.error("CRITICAL: Google Sign-In failed due to unauthorized domain. Ensure your project's domain and the [PROJECT_ID].firebaseapp.com domain are in Firebase Auth > Settings > Authorized domains.");
+      } else if (error.code === 'auth/popup-closed-by-user') {
+        console.log("Google Sign-In popup closed by user.");
+      } else {
+        console.error("Error signing in with Google (AuthContext):", error);
       }
-      console.error("Error signing in with Google (AuthContext):", error);
-      throw error; 
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -126,7 +158,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     try {
       await firebaseSignOut(auth);
-      // setUser(null); // onAuthStateChanged will handle this
+      setGoogleAccessToken(null); // Clear token on sign out
     } catch (error) {
       console.error("Error signing out (AuthContext):", error);
     } finally {
@@ -134,20 +166,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const sendVerificationEmail = async () => {
-    if (!auth || !auth.currentUser) {
+  const sendVerificationEmail = async (userToSendTo?: FirebaseUser | null) => {
+    const targetUser = userToSendTo || (auth ? auth.currentUser : null);
+    if (!targetUser) {
       toast({
         title: 'Error',
-        description: 'No user is currently signed in or auth service is unavailable.',
+        description: 'No user is currently signed in or auth service is unavailable to send verification.',
         variant: 'destructive',
       });
       return;
     }
     try {
-      await sendEmailVerification(auth.currentUser);
+      await sendEmailVerification(targetUser);
       toast({
         title: 'Verification Email Sent',
-        description: 'Please check your inbox to verify your email address.',
+        description: `A verification email has been sent to ${targetUser.email}. Please check your inbox.`,
       });
     } catch (error: any) {
       console.error('Error sending verification email:', error);
@@ -158,8 +191,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
     }
   };
-  
-  const value = { user, loading, signUp, signIn, signInWithGoogle, signOut, sendVerificationEmail };
+
+  const value = { user, loading, googleAccessToken, signUp, signIn, signInWithGoogle, signOut, sendVerificationEmail };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
