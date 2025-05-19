@@ -41,12 +41,13 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
         fullText += `${part.text || ''}\n`;
         break;
       case 'code':
-        // For history, don't include the "Copy" part, just the content.
-        if (part.title) fullText += `### ${part.title}\n`;
+        if (part.title && !fullText.includes(`### ${part.title}`)) { // Avoid duplicate titles if already added
+            fullText += `### ${part.title}\n`;
+        }
         fullText += `\`\`\`${part.language || ''}\n${part.code || ''}\n\`\`\`\n`;
         break;
       case 'list':
-         if (part.title) {
+         if (part.title && !fullText.includes(`### ${part.title}`)) {
              fullText += `### ${part.title}\n`;
          }
          if (part.items && part.items.length > 0) {
@@ -56,7 +57,7 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
          }
         break;
       case 'translation_group':
-        if (part.title) fullText += `### ${part.title}\n\n`;
+        if (part.title && !fullText.includes(`### ${part.title}`)) fullText += `### ${part.title}\n\n`;
         if (part.english) {
           if (part.english.analysis) fullText += `**English Analysis:**\n${part.english.analysis}\n\n`;
           if (part.english.simplifiedRequest) fullText += `**English Simplified Request:**\n${part.english.simplifiedRequest}\n\n`;
@@ -68,21 +69,25 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
           if (part.bengali.simplifiedRequest) fullText += `**Bengali Simplified Request:**\n${part.bengali.simplifiedRequest}\n\n`;
           if (part.bengali.stepByStepApproach) fullText += `**Bengali Step-by-Step Approach:**\n${part.bengali.stepByStepApproach}\n\n`;
         }
-        if (fullText.trim() === (part.title ? `### ${part.title}` : '')) {
+        // Ensure fallback if no content parts were actually populated
+        const potentialTitleOnly = part.title ? `### ${part.title}\n\n` : '';
+        if (fullText.trim().endsWith(potentialTitleOnly.trim()) || fullText.trim() === potentialTitleOnly.trim()) {
+            fullText = fullText.replace(potentialTitleOnly, ''); // Remove if it's just the title
             fullText += `[Empty Translation Group${part.title ? ` for "${part.title}"`: ''}]\n`;
         }
         break;
       default:
-        // Attempt to get text from unknown part types, or mark as unsupported
         const unknownPart = part as any;
         let unknownText = unknownPart.text || unknownPart.code || unknownPart.message;
         if (typeof unknownText === 'string') {
           fullText += `${unknownText}\n`;
         } else if (unknownPart.items && Array.isArray(unknownPart.items) && unknownPart.items.length > 0) {
-          fullText += (unknownPart.title ? `### ${unknownPart.title}\n` : '');
+          if (unknownPart.title && !fullText.includes(`### ${unknownPart.title}`)) {
+            fullText += `### ${unknownPart.title}\n`;
+          }
           fullText += unknownPart.items.map((item: string, index: number) => `${index + 1}. ${item}`).join('\n') + '\n';
         } else {
-           fullText += `[Unsupported Content Part: ${unknownPart.type || 'Unknown Type'} ${part.title ? `for "${part.title}"`: ''}]\n`;
+           fullText += `[Unsupported Content Part: ${unknownPart.type || 'Unknown Type'}${part.title ? ` for "${part.title}"`: ''}]\n`;
         }
     }
     fullText += '\n';
@@ -104,7 +109,11 @@ const baseEnsureMessagesHaveUniqueIds = (messagesToProcess: ChatMessage[]): Chat
   const seenIds = new Set<string>();
   return messagesToProcess.map(msg => {
     let newId = msg.id;
-    if (typeof newId !== 'string' || !newId.startsWith('msg-') || seenIds.has(newId) || !isNaN(Number(newId.replace('msg-','').split('-')[0]))) {
+    // Check if ID is missing, not starting with "msg-", or if the timestamp part is not a valid number (older format)
+    const idParts = typeof newId === 'string' ? newId.split('-') : [];
+    const isInvalidOldId = idParts.length < 2 || isNaN(Number(idParts[1]));
+
+    if (typeof newId !== 'string' || !newId.startsWith('msg-') || seenIds.has(newId) || isInvalidOldId) {
       let candidateId = generateRobustMessageId();
       while (seenIds.has(candidateId)) {
         candidateId = generateRobustMessageId();
@@ -159,7 +168,7 @@ export default function ChatPage() {
   const ensureMessagesHaveUniqueIds = useCallback(baseEnsureMessagesHaveUniqueIds, []);
 
   useEffect(() => {
-    if (isMobile !== undefined) {
+    if (isMobile !== undefined) { // Only set once isMobile is determined
         setIsHistoryPanelOpen(!isMobile);
     }
   }, [isMobile]);
@@ -219,12 +228,13 @@ export default function ChatPage() {
       const isNewChatName = currentSession.name === "New Chat";
       const shouldAttemptNameGeneration = isNewChatName && messages.length > 0 && messages.length <= 2;
       const modelIdToUse = (profile?.selectedGenkitModelId || DEFAULT_MODEL_ID);
-      const userApiKeyForNameGen = (profile?.geminiApiKeys && profile.geminiApiKeys.length > 0 && profile.geminiApiKeys[0]) ? profile.geminiApiKeys[0] : undefined;
+      
+      const firstUserApiKey = (profile?.geminiApiKeys && profile.geminiApiKeys.length > 0 && profile.geminiApiKeys[0]) ? profile.geminiApiKeys[0] : undefined;
 
       const updatedSession = { ...currentSession, messages, updatedAt: Date.now() };
 
       const saveTimeout = setTimeout(() => {
-        saveSession(updatedSession, shouldAttemptNameGeneration, modelIdToUse, userApiKeyForNameGen).then(savedSession => {
+        saveSession(updatedSession, shouldAttemptNameGeneration, modelIdToUse, firstUserApiKey).then(savedSession => {
           if (savedSession) {
              setCurrentSession(prevCurrentSession => {
                 if (!prevCurrentSession || !savedSession) return savedSession;
@@ -258,7 +268,7 @@ export default function ChatPage() {
       originalRequest: role === 'assistant' ? originalRequest : undefined,
     };
     setMessages(prev => [...prev, newMessage]);
-    return newMessageId; // Return the ID of the newly added message
+    return newMessageId; 
   }, []);
 
   const updateMessageById = useCallback((messageId: string, content: string | ChatMessageContentPart[], isLoadingParam: boolean = false, isErrorParam: boolean = false, originalRequestDetails?: ChatMessage['originalRequest']) => {
@@ -270,8 +280,8 @@ export default function ChatPage() {
             content,
             isLoading: isLoadingParam,
             isError: isErrorParam,
-            timestamp: Date.now(),
-            canRegenerate: !!originalRequestDetails,
+            timestamp: Date.now(), // Update timestamp on modification
+            canRegenerate: !!originalRequestDetails, // Only AI messages intended for regen have originalRequestDetails
             originalRequest: originalRequestDetails
         } : msg
       );
@@ -287,7 +297,7 @@ export default function ChatPage() {
     setInputMessage('');
     setSelectedFiles([]);
     setCurrentAttachedFilesData([]);
-    currentApiKeyIndexRef.current = 0;
+    currentApiKeyIndexRef.current = 0; // Reset API key index for new chat
     const currentUserId = userIdForHistory;
     const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + currentUserId;
     if (newSession.id && newSession.id.startsWith(currentUserId + '_')) {
@@ -303,7 +313,7 @@ export default function ChatPage() {
       const updatedSession = { ...selected, messages: migratedMessages };
       setCurrentSession(updatedSession);
       setMessages(updatedSession.messages);
-      currentApiKeyIndexRef.current = 0;
+      currentApiKeyIndexRef.current = 0; // Reset API key index for selected chat
       const currentUserId = userIdForHistory;
       const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + currentUserId;
       localStorage.setItem(lastActiveSessionIdKey, sessionId);
@@ -358,7 +368,7 @@ export default function ChatPage() {
     messageTextParam: string,
     actionTypeParam: ActionType,
     notesParam?: string,
-    attachedFilesDataParam?: AttachedFile[],
+    attachedFilesDataParam?: AttachedFile[], // For regeneration, uses previously processed files
     isRegenerationCall: boolean = false,
     messageIdToUpdate?: string // For overwriting on regeneration
   ) => {
@@ -377,7 +387,7 @@ export default function ChatPage() {
     }
 
     if (!isRegenerationCall) {
-        currentApiKeyIndexRef.current = 0;
+        currentApiKeyIndexRef.current = 0; // Reset for new user actions
     }
 
     const userProfile = profile;
@@ -387,15 +397,17 @@ export default function ChatPage() {
     if (currentApiKeyIndexRef.current < availableUserApiKeys.length) {
         apiKeyToUseThisTurn = availableUserApiKeys[currentApiKeyIndexRef.current];
     } else {
-        apiKeyToUseThisTurn = undefined;
-        if (!process.env.GOOGLE_API_KEY && availableUserApiKeys.length > 0) {
-            console.warn(`All ${availableUserApiKeys.length} user-provided API keys have been tried or failed. Attempting fallback if global key is set.`);
+        apiKeyToUseThisTurn = undefined; // Will fallback to GOOGLE_API_KEY from .env if available
+        if (availableUserApiKeys.length > 0) {
+            console.warn(`All ${availableUserApiKeys.length} user-provided API keys have been tried or failed. Attempting fallback to global key if set.`);
         }
     }
 
     const currentMessageText = messageTextParam.trim();
     const currentActionType = actionTypeParam;
     const currentNotes = notesParam;
+    
+    // Determine files to use: new ones if not regenerating, or existing ones if regenerating
     const filesToSendWithThisMessage = attachedFilesDataParam || [...currentAttachedFilesData];
 
     if (currentActionType === 'checkMadeDesigns' && filesToSendWithThisMessage.length === 0) {
@@ -408,25 +420,26 @@ export default function ChatPage() {
 
     const requestParamsForRegeneration: ChatMessage['originalRequest'] = {
         actionType: currentActionType,
-        messageText: currentMessageText,
+        messageText: currentMessageText, // Store the actual text used for this request
         notes: currentNotes,
-        attachedFilesData: filesToSendWithThisMessage,
-        messageIdToRegenerate: messageIdToUpdate // Pass this down for future regenerations of the *new* message
+        attachedFilesData: filesToSendWithThisMessage, // Store processed files used for this request
+        messageIdToRegenerate: messageIdToUpdate // Pass this down; it's only set IF this call itself is a regen of another
     };
 
-    let assistantMessageId: string;
-    if (messageIdToUpdate) { // This is a regeneration, update existing message
-        assistantMessageId = messageIdToUpdate;
-        updateMessageById(assistantMessageId, 'Processing...', true, false, requestParamsForRegeneration);
-    } else { // New message
+    let assistantMessageIdToUpdate: string;
+    if (isRegenerationCall && messageIdToUpdate) {
+        assistantMessageIdToUpdate = messageIdToUpdate;
+        updateMessageById(assistantMessageIdToUpdate, 'Processing...', true, false, requestParamsForRegeneration);
+    } else { 
         if (userMessageContent.trim() !== '' || filesToSendWithThisMessage.length > 0) {
           addMessage('user', userMessageContent, filesToSendWithThisMessage);
         }
-        assistantMessageId = addMessage('assistant', 'Processing...', [], true, false, requestParamsForRegeneration);
+        // Create a new placeholder for the assistant's response
+        assistantMessageIdToUpdate = addMessage('assistant', 'Processing...', [], true, false, requestParamsForRegeneration);
     }
 
     setIsLoading(true);
-    if (!attachedFilesDataParam && !messageIdToUpdate) { // Clear inputs only for brand new messages
+    if (!isRegenerationCall && !attachedFilesDataParam) { // Clear inputs only for brand new messages, not for regenerations
         setInputMessage('');
         setSelectedFiles([]);
         setCurrentAttachedFilesData([]);
@@ -444,7 +457,7 @@ export default function ChatPage() {
       const filesForFlow = filesToSendWithThisMessage.map(f => ({ name: f.name, type: f.type, dataUri: f.dataUri, textContent: f.textContent }));
       
       const chatHistoryForAI = messages
-        .filter(msg => msg.id !== assistantMessageId) // Exclude the current "Processing..." message
+        .filter(msg => msg.id !== assistantMessageIdToUpdate) 
         .slice(-10) 
         .map(msg => ({
           role: msg.role as 'user' | 'assistant',
@@ -495,7 +508,7 @@ export default function ChatPage() {
       } else if (currentActionType === 'generateDesignIdeas') {
         const ideasInput: GenerateDesignIdeasInput = {
             ...baseInput,
-            designInputText: currentMessageText || "general creative designs",
+            designInputText: currentMessageText || "general creative designs", // Ensure designInputText is not empty
             attachedFiles: filesForFlow,
             chatHistory: chatHistoryForAI
         };
@@ -529,7 +542,7 @@ export default function ChatPage() {
         const designFile = filesForFlow.find(f => f.type?.startsWith('image/') && f.dataUri);
         if (!designFile || !designFile.dataUri) {
           toast({ title: "Design Image Missing", description: "Please attach the design image you want to check.", variant: "destructive" });
-          updateMessageById(assistantMessageId, [{type: 'text', text: "Please attach a design image to check."}], false, true, requestParamsForRegeneration);
+          updateMessageById(assistantMessageIdToUpdate, [{type: 'text', text: "Please attach a design image to check."}], false, true, requestParamsForRegeneration);
           setIsLoading(false);
           return;
         }
@@ -575,36 +588,43 @@ export default function ChatPage() {
         }
       }
 
-      updateMessageById(assistantMessageId, aiResponseContent.length > 0 ? aiResponseContent : [{type: 'text', text: "Done."}], false, false, requestParamsForRegeneration);
+      updateMessageById(assistantMessageIdToUpdate, aiResponseContent.length > 0 ? aiResponseContent : [{type: 'text', text: "Done."}], false, false, requestParamsForRegeneration);
       if (!isRegenerationCall) { 
         currentApiKeyIndexRef.current = 0; 
       }
 
     } catch (error: any) {
       console.error("Error processing AI request:", error);
-      const isRateLimitError = error.message?.includes('429') || error.message?.toLowerCase().includes('quota');
+      const availableUserApiKeys = userProfile.geminiApiKeys?.filter(key => key && key.trim() !== '') || [];
       let errorMessageText = `Sorry, I couldn't process that. AI Error: ${error.message || 'Unknown error'}`;
+      const isRateLimitError = error.message?.includes('429') || error.message?.toLowerCase().includes('quota') || error.message?.toLowerCase().includes('rate limit');
+      const isInternalServerError = error.message?.includes('500') || error.message?.toLowerCase().includes('internal server error');
 
       if (isRateLimitError && availableUserApiKeys.length > 0) {
         if (currentApiKeyIndexRef.current < availableUserApiKeys.length - 1) {
           currentApiKeyIndexRef.current++;
-          errorMessageText = `The current API key may be rate-limited. You can try regenerating to use the next key (${currentApiKeyIndexRef.current + 1}/${availableUserApiKeys.length}).`;
-          toast({ title: "Rate Limit Possible", description: `Key ${currentApiKeyIndexRef.current} (attempted) might be limited. Regenerate to try key ${currentApiKeyIndexRef.current + 1}.`, variant: "default", duration: 6000 });
+          const nextKeyAttempt = currentApiKeyIndexRef.current + 1;
+          errorMessageText = `The current API key may be rate-limited. Click 'Regenerate' to try the next available key (${nextKeyAttempt}/${availableUserApiKeys.length}).`;
+          toast({ title: "Rate Limit Possible", description: `Key ${nextKeyAttempt -1} might be limited. Regenerate to try key ${nextKeyAttempt}.`, variant: "default", duration: 7000 });
         } else {
           errorMessageText = "All your configured API keys may have hit rate limits, or the global key is limited. Please check your quotas or try again later.";
-          toast({ title: "All API Keys Tried/Rate Limited", description: "All available API keys may have hit rate limits.", variant: "destructive", duration: 6000 });
+          toast({ title: "All API Keys Tried/Rate Limited", description: "All available API keys may have hit rate limits, or the global key (from .env) is limited.", variant: "destructive", duration: 7000 });
         }
-      } else if (isRateLimitError) { // Rate limit on global key or single user key
+      } else if (isRateLimitError) { 
         errorMessageText = `The API request was rate-limited (${error.message}). Please try again later or check your API key quotas.`;
-        toast({ title: "Rate Limit Hit", description: error.message || "The request was rate-limited.", variant: "destructive", duration: 6000 });
-      } else if (error.message?.toLowerCase().includes('api key not valid') || error.message?.toLowerCase().includes('invalid api key')) {
+        toast({ title: "Rate Limit Hit", description: error.message || "The request was rate-limited.", variant: "destructive", duration: 7000 });
+      } else if (isInternalServerError) {
+        errorMessageText = `An internal error occurred with the AI service. Please try regenerating the response. Error: ${error.message || 'Internal Server Error'}`;
+        toast({ title: "AI Internal Error", description: "The AI service encountered an internal error. Please try regenerating.", variant: "destructive", duration: 7000 });
+      }
+       else if (error.message?.toLowerCase().includes('api key not valid') || error.message?.toLowerCase().includes('invalid api key')) {
          errorMessageText = `The API key used is invalid. Please check your profile settings or the GOOGLE_API_KEY environment variable. Error: ${error.message}`;
-         toast({ title: "Invalid API Key", description: "The API key is invalid. Check settings.", variant: "destructive", duration: 6000 });
+         toast({ title: "Invalid API Key", description: "The API key is invalid. Check settings.", variant: "destructive", duration: 7000 });
       }
       else {
         toast({ title: "AI Error", description: error.message || "Failed to get response from AI.", variant: "destructive" });
       }
-      updateMessageById(assistantMessageId, [{ type: 'text', text: errorMessageText }], false, true, requestParamsForRegeneration);
+      updateMessageById(assistantMessageIdToUpdate, [{ type: 'text', text: errorMessageText }], false, true, requestParamsForRegeneration);
     } finally {
       setIsLoading(false);
     }
@@ -635,23 +655,26 @@ export default function ChatPage() {
         originalRequest.actionType,
         originalRequest.notes,
         originalRequest.attachedFilesData,
-        true, // Indicate this is a regeneration call
-        messageIdToRegenerate // Pass the ID of the message to update
+        true, 
+        messageIdToRegenerate 
     );
-  }, [profileLoading, profile, currentSession, handleSendMessage]);
+  }, [profileLoading, profile, currentSession, handleSendMessage]); // Removed addMessage, updateMessageById from here
 
   const handleAction = (action: ActionType) => {
     if (action === 'generateDeliveryTemplates' || action === 'generateRevision') {
       setModalActionType(action);
       setShowNotesModal(true);
     } else {
-      handleSendMessage(inputMessage || '', action, undefined, undefined, false);
+      // For other actions, call handleSendMessage directly
+      // The messageIdToUpdate is undefined here, so it will create a new assistant message
+      handleSendMessage(inputMessage || '', action, undefined, undefined, false, undefined);
     }
   };
 
   const submitModalNotes = () => {
     if (modalActionType) {
-      handleSendMessage(inputMessage || '', modalActionType, modalNotes, undefined, false);
+      // Call handleSendMessage with the modal notes, also no messageIdToUpdate for new message
+      handleSendMessage(inputMessage || '', modalActionType, modalNotes, undefined, false, undefined);
     }
     setShowNotesModal(false);
     setModalNotes('');
@@ -659,19 +682,19 @@ export default function ChatPage() {
   };
 
   const handleFileSelectAndProcess = async (newFiles: File[]) => {
-    const combinedFiles = [...selectedFiles, ...newFiles].slice(0, 5);
+    const combinedFiles = [...selectedFiles, ...newFiles].slice(0, 5); // Limit to 5 files total
     setSelectedFiles(combinedFiles);
 
     const processedNewFiles = await processFilesForAI(newFiles);
     setCurrentAttachedFilesData(prev =>
         [...prev, ...processedNewFiles]
-        .reduce((acc, current) => {
+        .reduce((acc, current) => { // Deduplicate based on name & size
             if (!acc.find(item => item.name === current.name && item.size === current.size)) {
                 acc.push(current);
             }
             return acc;
         }, [] as AttachedFile[])
-        .slice(0,5)
+        .slice(0,5) // Ensure total processed files also respects the limit
     );
   };
 
@@ -691,7 +714,8 @@ export default function ChatPage() {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       if (!isLoading && (inputMessage.trim() || currentAttachedFilesData.length > 0)) {
-        handleSendMessage(inputMessage, 'processMessage', undefined, undefined, false);
+        // No messageIdToUpdate for new message from Enter key
+        handleSendMessage(inputMessage, 'processMessage', undefined, undefined, false, undefined);
       }
     }
   };
@@ -708,6 +732,7 @@ export default function ChatPage() {
   const handleDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
+    // Check if leaving to outside the window or to a child element
     if (dropZoneRef.current && !dropZoneRef.current.contains(event.relatedTarget as Node)) {
       setIsDragging(false);
     }
@@ -753,7 +778,7 @@ export default function ChatPage() {
             isHistoryPanelOpen ? "w-[280px] border-r" : "w-0 border-r-0 opacity-0"
           )}
         >
-          {isHistoryPanelOpen && (
+          {isHistoryPanelOpen && ( // Only render if open to prevent rendering in 0-width container
             <HistoryPanel
               sessions={historyMetadata}
               activeSessionId={currentSession?.id || null}
@@ -802,7 +827,7 @@ export default function ChatPage() {
         </ScrollArea>
 
         {isDragging && (
-          <div className="absolute inset-x-4 bottom-[160px] md:bottom-[150px] top-16 md:top-[calc(var(--header-height)_+_0.5rem)] border-4 border-dashed border-primary bg-primary/10 rounded-lg flex items-center justify-center pointer-events-none z-20 animate-fadeIn">
+          <div className="absolute inset-x-4 bottom-[160px] md:bottom-[150px] top-16 md:top-[calc(var(--header-height)_+_1rem)] border-4 border-dashed border-primary bg-primary/10 rounded-lg flex items-center justify-center pointer-events-none z-20 animate-fadeIn">
             <p className="text-primary font-semibold text-lg">Drop files here</p>
           </div>
         )}
@@ -824,15 +849,15 @@ export default function ChatPage() {
               rows={Math.max(1, Math.min(5, inputMessage.split('\n').length))}
             />
           </div>
-           <div className="flex flex-wrap items-center justify-between mt-2 gap-y-2">
-             <div className="flex-shrink-0">
+           <div className="flex flex-wrap items-center justify-between mt-2 gap-y-2"> {/* Added flex-wrap and gap-y-2 */}
+             <div className="flex-shrink-0"> {/* Ensures attach button doesn't shrink too much */}
                 <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => fileInputRef.current?.click()}
                     className={cn(
                         "text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors",
-                        isMobile ? "px-2 py-2" : ""
+                        isMobile ? "px-2 py-2" : "" 
                     )}
                     aria-label="Attach files"
                 >
@@ -848,7 +873,7 @@ export default function ChatPage() {
                     accept="image/*,application/pdf,.txt,.md,.json"
                 />
              </div>
-             <div className="flex-1 flex justify-end">
+             <div className="flex-1 flex justify-end"> {/* Panel takes remaining space and aligns its content to end */}
                 <ActionButtonsPanel
                     onAction={handleAction}
                     isLoading={isLoading}
@@ -894,3 +919,6 @@ export default function ChatPage() {
   );
 }
 
+    
+
+    
