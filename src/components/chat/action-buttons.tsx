@@ -2,7 +2,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { BotMessageSquare, Plane, RotateCcw, ListChecks, ClipboardList, Sparkles, MessageSquarePlus, Palette, Lightbulb, Terminal, SearchCheck, ClipboardSignature } from 'lucide-react';
+import { BotMessageSquare, Plane, RotateCcw, ListChecks, ClipboardList, Sparkles, MessageSquarePlus, Palette, Lightbulb, Terminal, SearchCheck, ClipboardSignature, Edit3 } from 'lucide-react'; // Added Edit3
 import type { UserProfile } from '@/lib/types';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -21,7 +21,8 @@ export type ActionType =
   | 'generateDesignPrompts'
   | 'checkMadeDesigns'
   | 'generateDeliveryTemplates' // For actual delivery messages
-  | 'generateRevision';
+  | 'generateRevision'
+  | 'generateEditingPrompts'; // Added new action type
 
 interface ActionButtonConfig {
   id: ActionType;
@@ -29,17 +30,16 @@ interface ActionButtonConfig {
   shortLabel: string;
   icon: React.ElementType;
   description: string;
-  isPrimaryAction?: boolean; // True for top-level buttons, false for dropdown items
+  isPrimaryAction?: boolean;
 }
 
-// New structure for dropdowns
 interface DropdownActionConfig {
-    id: string; // e.g., 'designActions', 'deliveryActions'
-    label: string; // Tooltip for the main dropdown button
-    shortLabel: string; // Visible label for the main dropdown button (on desktop)
-    icon: React.ElementType; // Icon for the main dropdown button
-    description: string; // Tooltip description
-    subActions: ActionButtonConfig[]; // Array of actions within this dropdown
+    id: string;
+    label: string;
+    shortLabel: string;
+    icon: React.ElementType;
+    description: string;
+    subActions: ActionButtonConfig[];
 }
 
 export type AnyActionConfig = ActionButtonConfig | DropdownActionConfig;
@@ -50,7 +50,7 @@ const actionButtonsConfig: AnyActionConfig[] = [
   { id: 'analyzeRequirements', label: 'Analyze Requirements', shortLabel: 'Requirements', icon: ListChecks, description: 'Detailed analysis of requirements, prioritization, Bangla translation, and design message.', isPrimaryAction: true },
   { id: 'generateEngagementPack', label: 'Generate Engagement Pack', shortLabel: 'Brief', icon: ClipboardList, description: 'Generates a personalized intro, job reply, budget/timeline/software ideas, and clarifying questions.', isPrimaryAction: true },
   {
-    id: 'designActions', // Unique ID for the dropdown itself
+    id: 'designActions',
     label: 'Design Tools',
     shortLabel: 'Design',
     icon: Palette,
@@ -61,13 +61,14 @@ const actionButtonsConfig: AnyActionConfig[] = [
     ]
   },
   {
-    id: 'deliveryActions', // Unique ID for the dropdown itself
+    id: 'deliveryActions',
     label: 'Delivery Tools',
     shortLabel: 'Delivery',
     icon: Plane,
     description: 'Tools for checking designs and generating delivery messages.',
     subActions: [
-      { id: 'checkMadeDesigns', label: 'Check Made Designs', shortLabel: 'Check', icon: SearchCheck, description: 'AI review of your design for mistakes (Bangla). Requires attached design.', isPrimaryAction: false },
+      { id: 'checkMadeDesigns', label: 'Check Designs', shortLabel: 'Check', icon: SearchCheck, description: 'AI review of your design for mistakes (Bangla). Requires attached design.', isPrimaryAction: false },
+      { id: 'generateEditingPrompts', label: 'Editing Prompts', shortLabel: 'Edit', icon: Edit3, description: 'Generate prompts to edit a design based on prior feedback. Requires image attachment.', isPrimaryAction: false },
       { id: 'generateDeliveryTemplates', label: 'Delivery Templates', shortLabel: 'Templates', icon: ClipboardSignature, description: 'Generate Fiverr delivery messages and follow-ups.', isPrimaryAction: false },
     ]
   },
@@ -80,7 +81,7 @@ interface ActionButtonsPanelProps {
   currentUserMessage: string;
   profile: UserProfile | null;
   currentAttachedFilesDataLength: number;
-  isMobile: boolean; // New prop
+  isMobile: boolean;
 }
 
 export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, profile, currentAttachedFilesDataLength, isMobile }: ActionButtonsPanelProps) {
@@ -89,12 +90,16 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
     if (isLoading || !profile) {
       return true;
     }
-    // Specific logic for 'checkMadeDesigns'
-    if (actionId === 'checkMadeDesigns' && currentAttachedFilesDataLength === 0) {
+    // Specific logic for actions requiring attachments
+    if ((actionId === 'checkMadeDesigns' || actionId === 'generateEditingPrompts') && currentAttachedFilesDataLength === 0) {
       return true;
     }
-    // Other buttons are generally active unless globally disabled
-    return false;
+    // General disable if no message and no files for certain actions (can be adjusted)
+    // if (!currentUserMessage && currentAttachedFilesDataLength === 0 &&
+    //     (actionId === 'processMessage' || actionId === 'analyzeRequirements' || actionId === 'generateEngagementPack' || actionId === 'generateDesignIdeas' || actionId === 'generateDesignPrompts') ) {
+    //   return true;
+    // }
+    return false; // Default to active unless loading or profile missing
   };
 
   return (
@@ -106,7 +111,7 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
       {actionButtonsConfig.map((actionConfig) => {
         const baseButtonClasses = cn(
             "h-auto transition-all duration-150 ease-in-out hover:scale-105 active:scale-95 focus-visible:ring-primary",
-            isMobile ? "p-2" : "px-2.5 py-1.5 md:px-3 md:py-2" // Conditional padding
+            isMobile ? "p-2" : "px-2.5 py-1.5 md:px-3 md:py-2"
         );
 
         if ('isPrimaryAction' in actionConfig && actionConfig.isPrimaryAction) {
@@ -117,7 +122,7 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
                 <TooltipTrigger asChild>
                   <Button
                     variant="outline"
-                    size="sm" // Base size, padding adjusted by className
+                    size="sm"
                     onClick={() => onAction(btn.id)}
                     disabled={isActionDisabled(btn.id)}
                     className={baseButtonClasses}
@@ -129,14 +134,14 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
                 <TooltipContent side="top" align="center" className="bg-popover text-popover-foreground shadow-lg rounded-md p-2">
                   <p className="font-semibold">{btn.label}</p>
                   <p className="text-xs text-muted-foreground max-w-xs">{btn.description}</p>
-                   {btn.id === 'checkMadeDesigns' && currentAttachedFilesDataLength === 0 && (
+                   { (btn.id === 'checkMadeDesigns' || btn.id === 'generateEditingPrompts') && currentAttachedFilesDataLength === 0 && (
                      <p className="text-xs text-destructive mt-1">Requires an image file to be attached.</p>
                    )}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           );
-        } else { // This is a DropdownActionConfig
+        } else {
           const dropdown = actionConfig as DropdownActionConfig;
           return (
             <DropdownMenu key={dropdown.id}>
@@ -146,8 +151,8 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
                      <DropdownMenuTrigger asChild>
                         <Button
                             variant="outline"
-                            size="sm" // Base size
-                            disabled={isLoading || !profile} // General disable for dropdown trigger
+                            size="sm"
+                            disabled={isLoading || !profile}
                             className={baseButtonClasses}
                         >
                             <dropdown.icon className={cn("h-4 w-4 shrink-0", !isMobile && "mr-1 md:mr-1.5")} />
@@ -166,7 +171,7 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
                   <DropdownMenuItem
                     key={subAction.id}
                     onClick={() => onAction(subAction.id)}
-                    disabled={isActionDisabled(subAction.id)} // Disable based on specific sub-action logic
+                    disabled={isActionDisabled(subAction.id)}
                     className="text-sm cursor-pointer hover:bg-accent focus:bg-accent data-[disabled]:opacity-50 data-[disabled]:pointer-events-none"
                   >
                     <subAction.icon className="h-4 w-4 mr-2 shrink-0" />

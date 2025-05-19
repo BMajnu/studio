@@ -10,7 +10,6 @@ import '@/ai/flows/analyze-client-requirements.ts';
 import '@/ai/flows/generate-engagement-pack-flow.ts';
 import '@/ai/flows/generate-design-ideas-flow.ts';
 import '@/ai/flows/generate-design-prompts-flow.ts';
-import '@/ai/flows/check-made-designs-flow.ts'; 
-
-
-    
+import '@/ai/flows/check-made-designs-flow.ts';
+import '@/ai/flows/generate-editing-prompts-flow.ts'; // Added new flow
+import '@/ai/flows/generate-brief-flow.ts'; // Keep for now, though deprecated

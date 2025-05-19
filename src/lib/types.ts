@@ -27,7 +27,8 @@ export type ActionType =
   | 'checkMadeDesigns'
   | 'generateRevision'
   | 'generateDesignIdeas'
-  | 'generateDesignPrompts';
+  | 'generateDesignPrompts'
+  | 'generateEditingPrompts'; // Added new action type
 
 export interface ChatMessageContentPart {
   type: 'text' | 'code' | 'list' | 'translation_group';
@@ -98,4 +99,3 @@ export interface ChatSession {
   updatedAt: number; // Timestamp
   userId: string; // Associate with a user
 }
-
