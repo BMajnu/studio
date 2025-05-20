@@ -150,7 +150,7 @@ export default function ChatPage() {
 
   const userIdForHistory = useMemo(() => {
     if (!authLoading && authUser) return authUser.uid;
-    if (!profileLoading && profile?.userId) return profile.userId;
+    if (!profileLoading && profile?.userId) return profile.userId; // Fallback for profile while auth might be slightly delayed
     return DEFAULT_USER_ID; 
   }, [authLoading, authUser, profileLoading, profile?.userId]);
 
@@ -184,63 +184,64 @@ export default function ChatPage() {
 
   useEffect(() => {
     const loadOrCreateSession = async () => {
-        if (authLoading || profileLoading || historyHookLoading || !userIdForHistory ) {
-            console.log(`ChatPage SessionInitEffect: Deferred. Loadings: auth=${authLoading}, profile=${profileLoading}, history=${historyHookLoading}. UserID: ${userIdForHistory}`);
-            return;
+      // Wait for all essential loading states to be false and userIdForHistory to be stable.
+      if (authLoading || profileLoading || historyHookLoading || !userIdForHistory) {
+        console.log(`ChatPage SessionInitEffect: Deferred. Loadings: auth=${authLoading}, profile=${profileLoading}, history=${historyHookLoading}. UserID: ${userIdForHistory}`);
+        return;
+      }
+
+      console.log(`ChatPage SessionInitEffect: Running. UserID: ${userIdForHistory}. History Metadata Count: ${historyMetadata.length}`);
+      const currentUserIdToUse = userIdForHistory;
+      const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + currentUserIdToUse;
+      let lastActiveSessionId = localStorage.getItem(lastActiveSessionIdKey);
+      let sessionToLoad: ChatSession | null = null;
+
+      if (lastActiveSessionId && lastActiveSessionId.startsWith(currentUserIdToUse + '_')) {
+        console.log(`ChatPage SessionInitEffect: Attempting to load session ${lastActiveSessionId} for user ${currentUserIdToUse}.`);
+        // getSession depends on historyMetadata being populated. This effect runs after historyHookLoading is false.
+        sessionToLoad = await getSession(lastActiveSessionId);
+        if (sessionToLoad && sessionToLoad.userId !== currentUserIdToUse) {
+          console.warn(`ChatPage SessionInitEffect: Loaded session ${lastActiveSessionId} belongs to a different user (${sessionToLoad.userId}). Discarding.`);
+          sessionToLoad = null;
+          localStorage.removeItem(lastActiveSessionIdKey);
+          lastActiveSessionId = null;
+        } else if (!sessionToLoad) {
+          console.warn(`ChatPage SessionInitEffect: Last active session ID ${lastActiveSessionId} found but getSession returned null (might not exist in current metadata or failed to load). Clearing ID from LS.`);
+          localStorage.removeItem(lastActiveSessionIdKey);
+          lastActiveSessionId = null;
         }
+      } else if (lastActiveSessionId) {
+        console.warn(`ChatPage SessionInitEffect: lastActiveSessionId ${lastActiveSessionId} does not match user ${currentUserIdToUse}. Clearing ID from LS.`);
+        localStorage.removeItem(lastActiveSessionIdKey);
+        lastActiveSessionId = null;
+      }
 
-        console.log(`ChatPage SessionInitEffect: Running. UserID: ${userIdForHistory}. History Metadata Count: ${historyMetadata.length}`);
-        const currentUserIdToUse = userIdForHistory; 
-        const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + currentUserIdToUse;
-        let lastActiveSessionId = localStorage.getItem(lastActiveSessionIdKey);
-        let sessionToLoad: ChatSession | null = null;
-
-        if (lastActiveSessionId && lastActiveSessionId.startsWith(currentUserIdToUse + '_')) {
-            console.log(`ChatPage SessionInitEffect: Attempting to load session ${lastActiveSessionId} for user ${currentUserIdToUse}.`);
-            sessionToLoad = await getSession(lastActiveSessionId); // getSession relies on historyMetadata
-            if (sessionToLoad && sessionToLoad.userId !== currentUserIdToUse) {
-                console.warn(`ChatPage SessionInitEffect: Loaded session ${lastActiveSessionId} belongs to a different user (${sessionToLoad.userId}). Discarding.`);
-                sessionToLoad = null; 
-                localStorage.removeItem(lastActiveSessionIdKey);
-                lastActiveSessionId = null;
-            } else if (!sessionToLoad) {
-                 console.warn(`ChatPage SessionInitEffect: Last active session ID ${lastActiveSessionId} found but getSession returned null. Clearing ID from LS.`);
-                 localStorage.removeItem(lastActiveSessionIdKey);
-                 lastActiveSessionId = null;
-            }
-        } else if (lastActiveSessionId) { 
-            console.warn(`ChatPage SessionInitEffect: lastActiveSessionId ${lastActiveSessionId} does not match user ${currentUserIdToUse}. Clearing ID from LS.`);
-            localStorage.removeItem(lastActiveSessionIdKey);
-            lastActiveSessionId = null;
-        }
-
-        if (sessionToLoad) {
-            console.log(`ChatPage SessionInitEffect: Loaded last active session ${sessionToLoad.id}. Migrating message IDs.`);
-            const migratedMessages = ensureMessagesHaveUniqueIds(sessionToLoad.messages);
-            const updatedSession = { ...sessionToLoad, messages: migratedMessages };
-            setCurrentSession(updatedSession);
-            setMessages(updatedSession.messages);
+      if (sessionToLoad) {
+        console.log(`ChatPage SessionInitEffect: Loaded last active session ${sessionToLoad.id}. Migrating message IDs.`);
+        const migratedMessages = ensureMessagesHaveUniqueIds(sessionToLoad.messages);
+        const updatedSession = { ...sessionToLoad, messages: migratedMessages };
+        setCurrentSession(updatedSession);
+        setMessages(updatedSession.messages);
+      } else {
+        console.log(`ChatPage SessionInitEffect: No valid last active session for user ${currentUserIdToUse}. Creating new.`);
+        const userApiKeyForNameGen = (profile?.geminiApiKeys && profile.geminiApiKeys.length > 0 && profile.geminiApiKeys[0]) ? profile.geminiApiKeys[0] : undefined;
+        const newSession = createNewSession([], profile?.selectedGenkitModelId || DEFAULT_MODEL_ID, userApiKeyForNameGen);
+        setCurrentSession(newSession);
+        setMessages(newSession.messages);
+        if (newSession.id && newSession.id.startsWith(currentUserIdToUse + '_')) {
+          localStorage.setItem(lastActiveSessionIdKey, newSession.id);
         } else {
-            console.log(`ChatPage SessionInitEffect: No valid last active session for user ${currentUserIdToUse}. Creating new.`);
-            const userApiKeyForNameGen = (profile?.geminiApiKeys && profile.geminiApiKeys.length > 0 && profile.geminiApiKeys[0]) ? profile.geminiApiKeys[0] : undefined;
-            const newSession = createNewSession([], profile?.selectedGenkitModelId || DEFAULT_MODEL_ID, userApiKeyForNameGen);
-            setCurrentSession(newSession);
-            setMessages(newSession.messages);
-            if (newSession.id && newSession.id.startsWith(currentUserIdToUse + '_')) { 
-                localStorage.setItem(lastActiveSessionIdKey, newSession.id);
-            } else {
-                console.warn("ChatPage SessionInitEffect (New Session): New session ID mismatch or null.", newSession?.id, currentUserIdToUse);
-            }
+          console.warn("ChatPage SessionInitEffect (New Session): New session ID mismatch or null.", newSession?.id, currentUserIdToUse);
         }
+      }
     };
 
     loadOrCreateSession();
   }, [
-    authLoading, profileLoading, historyHookLoading, 
-    userIdForHistory, 
-    historyMetadata.length, // Re-evaluate if history itself changes
+    authLoading, profileLoading, historyHookLoading,
+    userIdForHistory, historyMetadata.length, // Important: re-run if historyMetadata changes length
     profile?.selectedGenkitModelId, profile?.geminiApiKeys,
-    // getSession, createNewSession, ensureMessagesHaveUniqueIds are from useChatHistory and stable
+    getSession, createNewSession, ensureMessagesHaveUniqueIds // These are stable callbacks
   ]);
 
 
@@ -265,12 +266,13 @@ export default function ChatPage() {
 
   const updateMessageById = useCallback((messageId: string, content: string | ChatMessageContentPart[], isLoadingParam: boolean = false, isErrorParam: boolean = false, originalRequestDetails?: ChatMessage['originalRequest']) => {
     setMessages(prev => {
-      if (prev.length === 0) return prev;
+      if (prev.length === 0) return prev; // Should not happen if we are updating
       const updatedMessages = prev.map(msg =>
         msg.id === messageId ? {
             ...msg, content, isLoading: isLoadingParam, isError: isErrorParam,
-            timestamp: Date.now(), canRegenerate: !!originalRequestDetails, 
-            originalRequest: originalRequestDetails 
+            timestamp: Date.now(), 
+            canRegenerate: !!originalRequestDetails, // Update canRegenerate status
+            originalRequest: originalRequestDetails // Update originalRequest
         } : msg
       );
       return ensureMessagesHaveUniqueIds(updatedMessages);
@@ -329,7 +331,7 @@ export default function ChatPage() {
 
   const handleDeleteSession = useCallback((sessionId: string) => {
     console.log(`ChatPage (handleDeleteSession): Deleting session ${sessionId}.`);
-    deleteSession(sessionId);
+    deleteSession(sessionId); // This is async but we don't need to await it for UI updates
     if (currentSession?.id === sessionId) {
       console.log(`ChatPage (handleDeleteSession): Current session ${sessionId} was deleted. Creating new chat.`);
       handleNewChat();
@@ -414,13 +416,13 @@ export default function ChatPage() {
     }
     
     if (actionTypeParam === 'generateEditingPrompts') {
-      const designFileIsPresent = filesToSendWithThisMessage.some(f => f.type?.startsWith('image/') && f.dataUri);
-      if (!designFileIsPresent && !isRegenerationCall) {
-        // Flow will check history or report error. Let it proceed.
-      } else if (!designFileIsPresent && isRegenerationCall && (!attachedFilesDataParam || attachedFilesDataParam.filter(f => f.type?.startsWith('image/') && f.dataUri).length === 0)) {
-          toast({ title: "No Design Available", description: "Original message had no image for editing regeneration.", variant: "destructive" });
-          return;
-      }
+        const designFileIsPresent = filesToSendWithThisMessage.some(f => f.type?.startsWith('image/') && f.dataUri);
+        // For generateEditingPrompts, the flow will handle if an image is missing (by checking history or reporting an error).
+        // No explicit client-side block here anymore, unless it's a regeneration and the original had no image.
+        if (isRegenerationCall && !designFileIsPresent && (!attachedFilesDataParam || attachedFilesDataParam.filter(f => f.type?.startsWith('image/') && f.dataUri).length === 0)) {
+            toast({ title: "No Design Available", description: "Original message for editing regeneration had no image.", variant: "destructive" });
+            return;
+        }
     }
 
     const modelIdToUse = userProfile.selectedGenkitModelId || DEFAULT_MODEL_ID;
@@ -448,7 +450,7 @@ export default function ChatPage() {
     }
 
     setIsLoading(true);
-    if (!isRegenerationCall && !messageIdToUpdate) { // Clear input only for new user messages
+    if (!isRegenerationCall && !messageIdToUpdate) {
         setInputMessage('');
         setSelectedFiles([]);
         setCurrentAttachedFilesData([]);
@@ -597,7 +599,7 @@ export default function ChatPage() {
         };
         const platformMessagesOutput = await generatePlatformMessages(platformInput);
         if (platformMessagesOutput.messages && platformMessagesOutput.messages.length > 0) {
-            platformMessagesOutput.messages.forEach(m => {
+             platformMessagesOutput.messages.forEach(m => {
                 const messageTitle = m.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                 finalAiResponseContent.push({ type: 'code', title: messageTitle, code: m.message });
             });
@@ -621,7 +623,10 @@ export default function ChatPage() {
       const isInternalServerError = errorMsgLower.includes('500') || errorMsgLower.includes('internal server error');
       const isInvalidApiKey = errorMsgLower.includes('api key not valid') || errorMsgLower.includes('invalid api key');
 
-      if (isRateLimit && availableUserApiKeys.length > 0) {
+      if (isInternalServerError) {
+         errorMessageText = `An internal error occurred with the AI service. Please try regenerating the response. Error: ${aiCallError.message || 'Internal Server Error'}`;
+         toast({ title: "AI Internal Error", description: "The AI service encountered an internal error. Please try regenerating.", variant: "destructive", duration: 7000 });
+      } else if (isRateLimit && availableUserApiKeys.length > 0) {
         const currentAttemptedKeyIndex = currentApiKeyIndexRef.current;
         if (currentAttemptedKeyIndex < availableUserApiKeys.length - 1) {
           currentApiKeyIndexRef.current++; 
@@ -635,9 +640,6 @@ export default function ChatPage() {
       } else if (isRateLimit) { 
         errorMessageText = `The API request was rate-limited (${aiCallError.message}). This usually means the global API key (from your .env file) has hit its limits. Please try again later or check your API key quotas.`;
         toast({ title: "Rate Limit Hit", description: aiCallError.message || "The request was rate-limited.", variant: "destructive", duration: 7000 });
-      } else if (isInternalServerError) {
-         errorMessageText = `An internal error occurred with the AI service. Please try regenerating the response. Error: ${aiCallError.message || 'Internal Server Error'}`;
-         toast({ title: "AI Internal Error", description: "The AI service encountered an internal error. Please try regenerating.", variant: "destructive", duration: 7000 });
       } else if (isInvalidApiKey) {
          errorMessageText = `The API key used is invalid. Please check your profile settings or the GOOGLE_API_KEY environment variable. Error: ${aiCallError.message}`;
          toast({ title: "Invalid API Key", description: "The API key is invalid. Check settings.", variant: "destructive", duration: 7000 });
@@ -648,11 +650,14 @@ export default function ChatPage() {
     }
       
     if (currentSession && userIdForHistory) { 
+        // After message processing, save the session state
+        // The setMessages in updateMessageById will trigger this through its dependency if needed
+        // But to ensure it's always saved after an AI op:
         setMessages(prevMessages => {
             const latestMessages = prevMessages.map(m => 
                 m.id === assistantMessageIdToUse ? 
                 {...m, content: finalAiResponseContent, isLoading: false, isError: !!aiCallError, originalRequest: requestParamsForRegeneration, timestamp: Date.now()} :
-                (userMessageId && m.id === userMessageId) ? 
+                (userMessageId && m.id === userMessageId && (!isRegenerationCall && !messageIdToUpdate) ) ?  // Only update user message if it was newly added
                 {...m, content: userMessageContent, attachedFiles: filesToSendWithThisMessage } :
                 m 
             );
@@ -661,7 +666,7 @@ export default function ChatPage() {
                 ...currentSession,
                 messages: ensureMessagesHaveUniqueIds(latestMessages),
                 updatedAt: Date.now(),
-                userId: userIdForHistory, // ensure userId is correct
+                userId: userIdForHistory, 
             };
             
             const shouldAttemptNameGeneration = !messageIdToUpdate && 
@@ -673,8 +678,9 @@ export default function ChatPage() {
                 modelIdToUse,
                 apiKeyToUseThisTurn 
             ).then(savedSessionWithPotentialNewName => {
-                if (savedSessionWithPotentialNewName && savedSessionWithPotentialNewName.id === currentSession.id) { // Check if it's the same session
-                    setCurrentSession(savedSessionWithPotentialNewName); 
+                // currentSession is updated via its own useEffect if the ID matches
+                if (savedSessionWithPotentialNewName && savedSessionWithPotentialNewName.id === currentSession.id) {
+                    setCurrentSession(prev => ({...prev!, ...savedSessionWithPotentialNewName}));
                 }
             });
             return latestMessages;
@@ -708,9 +714,10 @@ export default function ChatPage() {
     handleSendMessage(
         originalRequest.messageText, originalRequest.actionType,
         originalRequest.notes, originalRequest.attachedFilesData, 
-        true, messageIdToRegenerate 
+        true, // isRegenerationCall = true
+        messageIdToRegenerate 
     );
-  }, [profileLoading, profile, currentSession, toast, handleSendMessage]); 
+  }, [profileLoading, profile, currentSession, toast, handleSendMessage]); // ensure handleSendMessage is stable or included
 
 
   const handleAction = (action: ActionType) => {
@@ -780,11 +787,11 @@ export default function ChatPage() {
       await handleFileSelectAndProcess(Array.from(event.dataTransfer.files));
       event.dataTransfer.clearData(); 
     }
-  }, [handleFileSelectAndProcess]); 
+  }, [handleFileSelectAndProcess]); // Added dependency
 
 
   const handleSyncWithDriveClick = async () => {
-    if (!authUser) { // Ensure user is logged in with Firebase
+    if (!authUser) {
         toast({ title: "Login Required", description: "Please log in with Google to sync with Drive.", variant: "default" });
         return;
     }
@@ -793,6 +800,7 @@ export default function ChatPage() {
         try {
             await triggerGoogleSignIn(); 
             toast({ title: "Google Sign-In Successful", description: "Attempting to sync with Drive again shortly..." });
+            // Wait for AuthContext to potentially update googleAccessToken
             setTimeout(async () => { 
                  const finalResult = await syncWithDrive();
                  if (finalResult === 'SUCCESS') toast({ title: "Drive Sync Successful", description: "History synced with Google Drive." });
@@ -811,7 +819,7 @@ export default function ChatPage() {
 
   const isGoogleUser = useMemo(() => authUser?.providerData.some(p => p.providerId === 'google.com'), [authUser]);
 
-  if (authLoading || (!currentSession && !profileLoading && !historyHookLoading) ) { 
+  if (authLoading || profileLoading || historyHookLoading || !userIdForHistory || !currentSession ) { 
     return <div className="flex items-center justify-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary" /> <p className="ml-4 text-lg">Loading DesAInR...</p></div>;
   }
 
@@ -907,7 +915,7 @@ export default function ChatPage() {
               rows={Math.max(1, Math.min(5, inputMessage.split('\n').length))}
             />
           </div>
-           <div className="flex flex-wrap items-center justify-between mt-2 gap-x-2 gap-y-2"> {/* Added gap-x-2 for horizontal spacing */}
+           <div className="flex flex-wrap items-center justify-between mt-2 gap-x-2 gap-y-2">
              <div className="flex-shrink-0">
                 <Button
                     variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()}
