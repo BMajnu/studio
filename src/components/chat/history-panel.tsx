@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { PlusCircle, Trash2, MessageSquare, Loader2, Search, XIcon } from 'lucide-react';
+// Using existing icon instead of MagnifyingGlassIcon from radix-ui
 import { formatDistanceToNow } from 'date-fns';
 import {
   AlertDialog,
@@ -19,7 +20,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import React, { useState, useMemo } from 'react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -30,6 +37,8 @@ interface HistoryPanelProps {
   onNewChat: () => void;
   onDeleteSession: (sessionId: string) => void;
   isLoading: boolean;
+  isLoggedIn: boolean;
+  className?: string;
 }
 
 export function HistoryPanel({
@@ -39,22 +48,27 @@ export function HistoryPanel({
   onNewChat,
   onDeleteSession,
   isLoading,
+  isLoggedIn,
+  className,
 }: HistoryPanelProps) {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [animateItems, setAnimateItems] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
 
+  useEffect(() => {
+    const timer = setTimeout(() => setAnimateItems(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
   const displayedSessions = useMemo(() => {
-    // First filter out empty chat sessions with no messages
     const nonEmptySessions = sessions.filter(session => 
-      // Only show sessions with actual message content
       session.messageCount > 0 && 
-      // Make sure preview is not empty or just whitespace
       session.preview && 
       session.preview.trim() !== ''
     );
     
     if (!searchQuery.trim()) {
-      // Sort by lastMessageTimestamp descending by default
       return [...nonEmptySessions].sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
     }
     
@@ -65,40 +79,50 @@ export function HistoryPanel({
         (session.preview && session.preview.toLowerCase().includes(lowerCaseQuery))
     );
     
-    // Sort filtered results as well
     return filtered.sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
   }, [sessions, searchQuery]);
 
   return (
-    <div className="h-full flex flex-col border-r bg-background/70 backdrop-blur-sm shadow-lg overflow-hidden" style={{ display: 'flex', flexDirection: 'column', height: '100%', maxHeight: '100vh' }}>
-      <div className="p-4 flex justify-between items-center border-b shrink-0">
-        <h3 className="text-lg font-semibold">Chat History</h3>
+    <div className={cn("flex h-full flex-col", className)}>
+      <div className="flex items-center gap-3 p-4 bg-card/50 backdrop-blur-sm border-b animate-fade-in">
+        <h2 className="text-lg font-semibold text-gradient">Chat History</h2>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="btn-glow"
+                onClick={() => searchInputRef.current?.focus()}
+              >
+                <Search className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="animate-fade-in">Search</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <Button variant="ghost" size="icon" onClick={onNewChat} title="New Chat" className="hover:bg-primary/10 hover:text-primary transition-colors">
           <PlusCircle className="h-5 w-5" />
         </Button>
       </div>
-      <div className="p-2 border-b">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search history..."
-            className="w-full rounded-lg bg-background pl-8 pr-8 h-9 focus-visible:ring-primary"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          {searchQuery && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              onClick={() => setSearchQuery('')}
-            >
-              <XIcon className="h-4 w-4" />
-              <span className="sr-only">Clear search</span>
-            </Button>
-          )}
-        </div>
+      <div className="relative animate-slide-in-right" style={{animationDelay: '0.1s'}}>
+        <Input
+          ref={searchInputRef}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full rounded-none border-x-0 focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:ring-offset-0 transition-all duration-300"
+          placeholder="Search chats..."
+        />
+        {searchQuery && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-1 top-1/2 h-6 w-6 -translate-y-1/2 transition-all duration-200 hover:bg-destructive/10"
+            onClick={() => setSearchQuery("")}
+          >
+            <XIcon className="h-3 w-3" />
+          </Button>
+        )}
       </div>
       {isLoading && (
         <div className="flex-1 flex items-center justify-center">
@@ -106,12 +130,14 @@ export function HistoryPanel({
         </div>
       )}
       {!isLoading && displayedSessions.length === 0 && (
-        <div className="flex-1 flex flex-col items-center justify-center text-center p-4 animate-fadeIn">
-          <MessageSquare className="h-12 w-12 text-muted-foreground mb-3" />
-          <p className="text-sm text-muted-foreground">
-            {searchQuery ? 'No sessions match your search.' : 'No chat history yet.'}
+        <div className="flex h-full flex-col items-center justify-center p-4 text-center text-muted-foreground animate-fade-in" style={{animationDelay: '0.2s'}}>
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted/80 backdrop-blur-sm animate-pulse-slow shadow-lg">
+            <MessageSquare className="h-10 w-10" />
+          </div>
+          <h3 className="mt-4 text-lg font-semibold text-gradient">No chats found</h3>
+          <p className="mt-2 text-sm">
+            {searchQuery ? "Try a different search term" : "Start a new chat to get started"}
           </p>
-          {!searchQuery && <p className="text-xs text-muted-foreground">Start a new chat to see it here.</p>}
         </div>
       )}
       {!isLoading && displayedSessions.length > 0 && (
@@ -121,29 +147,29 @@ export function HistoryPanel({
               <div
                 key={session.id}
                 className={cn(
-                  `group flex items-center p-2.5 rounded-md cursor-pointer transition-all duration-200 ease-in-out animate-slideUpSlightly hover:shadow-lg hover:-translate-y-0.5`,
-                  session.id === activeSessionId ? 'bg-accent text-accent-foreground shadow-md' : 'text-foreground hover:bg-accent/10'
+                  `group flex items-center p-2.5 rounded-md cursor-pointer transition-all duration-300 ease-in-out hover:shadow-lg hover:-translate-y-0.5`,
+                  animateItems ? 'animate-fade-in' : 'opacity-0',
+                  session.id === activeSessionId ? 'bg-accent/90 text-accent-foreground shadow-md backdrop-blur-sm' : 'text-foreground hover:bg-accent/10'
                 )}
-                style={{ animationDelay: `${index * 30}ms` }}
+                style={{ animationDelay: `${0.1 + index * 0.05}s` }}
                 onClick={() => onSelectSession(session.id)}
               >
-                {/* Delete button moved to the left */}
                 <div className="flex-shrink-0 mr-2">
-                    <AlertDialog>
+                  <AlertDialog>
                     <AlertDialogTrigger asChild>
-                        <Button
+                      <Button
                         variant="ghost"
                         size="icon"
                         className={cn(
-                            "h-7 w-7",
-                            "text-slate-500 dark:text-slate-400",
-                            "hover:text-destructive hover:bg-destructive/10"
+                          "h-7 w-7",
+                          "text-slate-500 dark:text-slate-400",
+                          "hover:text-destructive hover:bg-destructive/10"
                         )}
                         onClick={(e) => e.stopPropagation()} 
                         title="Delete chat"
-                        >
+                      >
                         <Trash2 className="h-4 w-4" />
-                        </Button>
+                      </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                         <AlertDialogHeader>

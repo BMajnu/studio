@@ -12,6 +12,7 @@ interface CopyToClipboardProps {
   title?: string;
   language?: string;
   className?: string;
+  style?: React.CSSProperties;
 }
 
 export function CopyToClipboard({
@@ -20,6 +21,7 @@ export function CopyToClipboard({
   title,
   language,
   className,
+  style,
 }: CopyToClipboardProps) {
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
@@ -39,7 +41,7 @@ export function CopyToClipboard({
   const displayContent = displayText || textToCopy;
 
   return (
-    <div className={cn("relative rounded-md border bg-card/50 shadow-sm my-2", className)}>
+    <div className={cn("relative rounded-md border bg-card/50 shadow-sm my-2", className)} style={style}>
       {(title || language) && (
         <div className="flex items-center justify-between px-4 py-2 border-b">
           {title && <h4 className="text-sm font-semibold text-muted-foreground">{title}</h4>}
@@ -64,14 +66,27 @@ export function CopyToClipboard({
   );
 }
 
-export function CopyableText({ text, title }: { text: string | undefined; title?: string }) {
-  if (!text) return null;
-  return <CopyToClipboard textToCopy={text} title={title} />;
+interface CopyableTextProps {
+  text: string | undefined;
+  title?: string;
+  className?: string;
+  style?: React.CSSProperties;
 }
 
-export function CopyableList({ items, title }: { items: string[] | undefined; title?: string }) {
+export function CopyableText({ text, title, className, style }: CopyableTextProps) {
+  if (!text) return null;
+  return <CopyToClipboard textToCopy={text} title={title} className={className} style={style} />;
+}
+
+interface CopyableListProps {
+  items: string[] | undefined;
+  title?: string;
+  className?: string;
+  style?: React.CSSProperties;
+}
+
+export function CopyableList({ items, title, className, style }: CopyableListProps) {
   if (!items || items.length === 0) return null;
-  const textToCopy = items.join('\n');
-  const displayText = items.map((item, index) => `${index + 1}. ${item}`).join('\n');
-  return <CopyToClipboard textToCopy={textToCopy} displayText={displayText} title={title} />;
+  const formattedItems = items.map((item, idx) => `${idx + 1}. ${item}`).join('\n');
+  return <CopyToClipboard textToCopy={formattedItems} title={title} className={className} style={style} />;
 }

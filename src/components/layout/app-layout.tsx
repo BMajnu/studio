@@ -78,8 +78,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const storedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
-    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const initialTheme = storedTheme || (systemPrefersDark ? 'dark' : 'light'); 
+    // Default to dark mode instead of checking system preference
+    const initialTheme = storedTheme || 'dark'; 
+    
+    // Set the theme in localStorage if it's not already set
+    if (!storedTheme) {
+      localStorage.setItem('theme', 'dark');
+    }
     
     setEffectiveTheme(initialTheme);
     if (initialTheme === 'dark') {
@@ -118,38 +123,51 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     }
   };
   
-  const renderNavItem = (item: NavItem, isMobile: boolean = false) => {
+  const handleItemClick = (item: NavItem) => {
+    if (item.action) item.action();
+    if (item.href && !item.isModalTrigger) {
+      setIsMobileSheetOpen(false);
+    }
+    // For modal triggers, handle opening the correct modal
+    if (item.isModalTrigger && item.modalType === 'login') setIsLoginModalOpen(true);
+    if (item.isModalTrigger && item.modalType === 'signup') setIsSignupModalOpen(true);
+  };
+
+  const renderNavItem = (item: NavItem, isMobile = false) => {
     if (item.requiresAuth && !user && !authLoading) return null;
     if (item.requiresAuth && authLoading) return null; 
     if (item.hideWhenAuth && user) return null;
-
+    
     const itemLabel = getLabel(item.label);
-    const itemDialogTitle = item.dialogTitle ? getLabel(item.dialogTitle) : itemLabel;
     const guideTextToShow = currentLanguage === 'bn' ? APP_FEATURES_GUIDE_BN : APP_FEATURES_GUIDE;
 
-    const commonButtonProps = {
-      variant: (item.href && pathname === item.href) ? "default" : "ghost" as "default" | "ghost",
-      className: `font-medium transition-all duration-200 ease-in-out hover:text-primary ${isMobile ? "w-full justify-start text-base py-3 h-auto" : "hover:bg-primary/10"}`,
-      onClick: () => {
-        if (item.action) item.action();
-        if (isMobile && item.href && !item.isModalTrigger) {
-          setIsMobileSheetOpen(false);
-        }
-        // For modal triggers, handle opening the correct modal
-        if (item.isModalTrigger && item.modalType === 'login') setIsLoginModalOpen(true);
-        if (item.isModalTrigger && item.modalType === 'signup') setIsSignupModalOpen(true);
-        // Features modal is handled by its own trigger logic if it's a direct child
-      },
-    };
-
+    // Enhanced button content with consistent styling
     const buttonContent = (
       <>
-        <item.icon className={isMobile ? "h-5 w-5 mr-3" : "h-5 w-5 mr-2"} /> {itemLabel}
+        <item.icon className={isMobile ? "h-5 w-5 mr-3" : "h-5 w-5 mr-2"} /> 
+        {itemLabel}
       </>
     );
+    
+    // Common button props with modern styling
+    const commonButtonProps = {
+      onClick: () => handleItemClick(item),
+      variant: (item.href && pathname === item.href) ? "default" : "ghost" as "default" | "ghost",
+      rounded: "full" as "full",
+      glow: true,
+      animate: true,
+      className: `font-medium transition-all duration-300 ease-in-out ${isMobile ? "w-full justify-start text-base py-3 h-auto" : ""}`
+    };
 
     if (item.isModalTrigger && item.modalType === 'features') {
-       const TriggerButton = <Button {...commonButtonProps}>{buttonContent}</Button>;
+       const TriggerButton = (
+         <Button 
+           {...commonButtonProps} 
+           className={`${commonButtonProps.className} hover:text-primary hover:bg-primary/10 shadow-sm`}
+         >
+           {buttonContent}
+         </Button>
+       );
        return (
          <FeaturesGuideModal
             key={itemLabel} // Use itemLabel as key for consistency
@@ -161,14 +179,26 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     
     if (item.isModalTrigger && (item.modalType === 'login' || item.modalType === 'signup')) {
         return (
-            <Button key={itemLabel} {...commonButtonProps}>
+            <Button 
+                key={itemLabel} 
+                {...commonButtonProps} 
+                variant={item.modalType === 'signup' ? "default" : "outline"}
+                className={`${commonButtonProps.className} ${item.modalType === 'signup' ? "bg-primary text-primary-foreground shadow-md" : "hover:text-primary hover:bg-primary/10 shadow-sm"}`}
+            >
                 {buttonContent}
             </Button>
         );
     }
 
     if (item.href) {
-      const ButtonComponent = <Button {...commonButtonProps}>{buttonContent}</Button>;
+      const ButtonComponent = (
+        <Button 
+          {...commonButtonProps} 
+          className={`${commonButtonProps.className} hover:text-primary hover:bg-primary/10 shadow-sm`}
+        >
+          {buttonContent}
+        </Button>
+      );
       if (isMobile) {
         return (
           <SheetClose asChild key={itemLabel}>
@@ -185,7 +215,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       );
     }
 
-     const ActionButtonComponent = <Button {...commonButtonProps}>{buttonContent}</Button>;
+     const ActionButtonComponent = (
+       <Button 
+         {...commonButtonProps} 
+         className={`${commonButtonProps.className} hover:text-primary hover:bg-primary/10 shadow-sm`}
+       >
+         {buttonContent}
+       </Button>
+     );
      if (isMobile) {
         // If it's an action button in mobile sheet, ensure SheetClose wraps it if no modal handling
         if (!item.isModalTrigger) {
@@ -206,67 +243,162 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col" style={{ "--header-height": "4rem" } as React.CSSProperties}>
-      <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b bg-background/80 px-4 backdrop-blur-md shrink-0 shadow-sm">
-        <Link href="/" className="flex items-center gap-2 transition-transform duration-200 ease-in-out hover:opacity-80 hover:scale-105">
-          <DesAInRLogo />
+      <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b bg-background/60 px-4 backdrop-blur-xl shrink-0 shadow-lg glass-panel animate-fade-in">
+        <Link href="/" className="flex items-center gap-2 transition-all duration-300 ease-in-out hover:opacity-90 hover:scale-110 group">
+          <div className="relative overflow-hidden rounded-full p-1 transition-all duration-300 group-hover:shadow-md group-hover:shadow-primary/20">
+            <DesAInRLogo className="animate-pulse-slow" />
+          </div>
         </Link>
 
-        <div className="flex items-center">
-          {user && <span className="text-sm text-muted-foreground mr-4 hidden md:inline">{welcomeMessageText}</span>}
-          <nav className="hidden md:flex items-center space-x-1">
-            {navItems.map(item => renderNavItem(item, false))}
+        <div className="flex items-center gap-2">
+          {user && (
+            <div className="text-sm font-medium bg-gradient-to-r from-primary/20 to-secondary/20 px-4 py-1.5 rounded-full mr-2 hidden md:flex items-center animate-fade-in shadow-sm">
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+                {welcomeMessageText}
+              </span>
+            </div>
+          )}
+          <nav className="hidden md:flex items-center space-x-2 animate-fade-in">
+            {navItems.map((item, index) => (
+              <div key={`nav-${index}`} className="animate-stagger" style={{ animationDelay: `${index * 100}ms` }}>
+                {renderNavItem(item, false)}
+              </div>
+            ))}
           </nav>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="ml-2 transition-colors hover:bg-primary/10" aria-label={srChangeLanguage}>
-                <Languages className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => changeLanguage('en')} disabled={currentLanguage === 'en'}>
-                English
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => changeLanguage('bn')} disabled={currentLanguage === 'bn'}>
-                বাংলা (Bangla)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleTheme}
-            aria-label={srToggleTheme}
-            className="ml-1 transition-colors hover:bg-primary/10" 
-          >
-            {effectiveTheme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          </Button>
-
-          <div className="md:hidden">
-            <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="ml-1">
-                  {isMobileSheetOpen ? <XIcon className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-                  <span className="sr-only">{srToggleMenu}</span>
+          
+          <div className="flex items-center space-x-2 ml-4 animate-fade-in">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  rounded="full" 
+                  glow
+                  animate
+                  className="backdrop-blur-sm border border-border/20 shadow-sm hover:shadow-md hover:bg-primary/10 transition-all duration-300 ease-in-out" 
+                  aria-label={srChangeLanguage}
+                >
+                  <Languages className="h-5 w-5 text-foreground/80 hover:text-primary transition-colors" />
                 </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-72 bg-background p-0">
-                <SheetHeader className="p-4 border-b">
-                   <SheetTitle className="sr-only">{srMainMenu}</SheetTitle>
-                   <Link href="/" onClick={() => setIsMobileSheetOpen(false)} className="flex items-center gap-2">
-                      <DesAInRLogo />
-                   </Link>
-                </SheetHeader>
-                <div className="p-4">
-                  {user && <div className="text-sm text-muted-foreground mb-4 px-2">{welcomeMessageText}</div>}
-                  <nav className="flex flex-col space-y-2">
-                     {navItems.map(item => renderNavItem(item, true))}
-                  </nav>
-                </div>
-              </SheetContent>
-            </Sheet>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="glass-panel backdrop-blur-md border-border/30 shadow-lg animate-fade-in">
+                <DropdownMenuItem 
+                  onClick={() => changeLanguage('en')} 
+                  className={`${currentLanguage === 'en' ? "bg-primary/20 text-primary" : ""} transition-colors hover:text-primary hover:bg-primary/10`}
+                >
+                  English
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => changeLanguage('bn')} 
+                  className={`${currentLanguage === 'bn' ? "bg-primary/20 text-primary" : ""} transition-colors hover:text-primary hover:bg-primary/10`}
+                >
+                  বাংলা (Bengali)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              rounded="full" 
+              glow
+              animate
+              className="backdrop-blur-sm border border-border/20 shadow-sm hover:shadow-md hover:bg-primary/10 transition-all duration-300 ease-in-out" 
+              onClick={toggleTheme} 
+              aria-label={srToggleTheme}
+            >
+              {effectiveTheme === 'dark' ? 
+                <Moon className="h-5 w-5 text-foreground/80 hover:text-primary transition-colors" /> : 
+                <Sun className="h-5 w-5 text-foreground/80 hover:text-primary transition-colors" />}
+            </Button>
           </div>
+          
+          <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
+            <SheetTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                rounded="full" 
+                glow
+                animate
+                className="md:hidden backdrop-blur-sm border border-border/20 shadow-sm hover:shadow-md hover:bg-primary/10 transition-all duration-300 ease-in-out" 
+                aria-label={srToggleMenu}
+              >
+                <span className="sr-only">{srMainMenu}</span>
+                <Menu className="h-5 w-5 text-foreground/80 hover:text-primary transition-colors" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-72 glass-panel backdrop-blur-lg border-r border-border/20 shadow-xl">
+              <SheetHeader className="space-y-1">
+                <SheetTitle className="text-left text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+                  {currentLanguage === 'bn' ? 'মেনু' : 'Menu'}
+                </SheetTitle>
+              </SheetHeader>
+              <nav className="flex flex-col space-y-3 mt-8">
+                {navItems.map((item, index) => (
+                  <div key={`mobile-nav-${index}`} className="animate-stagger" style={{ animationDelay: `${index * 150}ms` }}>
+                    {renderNavItem(item, true)}
+                  </div>
+                ))}
+              </nav>
+              <div className="flex flex-col space-y-4 mt-8 px-1">
+                <div className="text-sm font-medium bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+                  {currentLanguage === 'bn' ? 'ভাষা' : 'Language'}
+                </div>
+                <div className="flex space-x-3">
+                  <Button onClick={() => changeLanguage('en')} 
+                    variant={currentLanguage === 'en' ? "default" : "outline"} 
+                    size="sm"
+                    rounded="full"
+                    glow
+                    animate
+                    className="flex-1 transition-all duration-300 ease-in-out hover:shadow-md"
+                  >
+                    English
+                  </Button>
+                  <Button onClick={() => changeLanguage('bn')} 
+                    variant={currentLanguage === 'bn' ? "default" : "outline"} 
+                    size="sm"
+                    rounded="full"
+                    glow
+                    animate
+                    className="flex-1 transition-all duration-300 ease-in-out hover:shadow-md"
+                  >
+                    বাংলা
+                  </Button>
+                </div>
+                <div className="text-sm font-medium bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary mt-2">
+                  {currentLanguage === 'bn' ? 'থিম' : 'Theme'}
+                </div>
+                <div className="flex space-x-3">
+                  <Button 
+                    onClick={() => { toggleTheme(); setEffectiveTheme('light'); }} 
+                    variant={effectiveTheme === 'light' ? "default" : "outline"} 
+                    size="sm"
+                    rounded="full"
+                    glow
+                    animate
+                    className="flex-1 transition-all duration-300 ease-in-out hover:shadow-md"
+                  >
+                    <Sun className="h-4 w-4 mr-2" />
+                    {currentLanguage === 'bn' ? 'লাইট' : 'Light'}
+                  </Button>
+                  <Button 
+                    onClick={() => { toggleTheme(); setEffectiveTheme('dark'); }} 
+                    variant={effectiveTheme === 'dark' ? "default" : "outline"} 
+                    size="sm"
+                    rounded="full"
+                    glow
+                    animate
+                    className="flex-1 transition-all duration-300 ease-in-out hover:shadow-md"
+                  >
+                    <Moon className="h-4 w-4 mr-2" />
+                    {currentLanguage === 'bn' ? 'ডার্ক' : 'Dark'}
+                  </Button>
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </header>
       <main className="flex-1 flex flex-col overflow-hidden">

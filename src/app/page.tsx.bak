@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Paperclip, Loader2, BotIcon, Menu, XIcon, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw, PlusCircle, Edit3, RefreshCw, X } from 'lucide-react';
+import { Paperclip, Loader2, BotIcon, Menu, XIcon, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw, PlusCircle, Edit3, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -672,25 +672,17 @@ export default function ChatPage() {
             const shouldAttemptNameGeneration = !messageIdToUpdate && 
                 (sessionToSave.messages.length <= (userMessageId ? 2 : 1) || !currentSession.name || currentSession.name === "New Chat");
 
-            // Use setTimeout to avoid React state updates during rendering
-            setTimeout(() => {
-              saveSession(
-                  sessionToSave,
-                  shouldAttemptNameGeneration,
-                  modelIdToUse,
-                  apiKeyToUseThisTurn 
-              ).then(savedSessionWithPotentialNewName => {
-                  // currentSession is updated via its own useEffect if the ID matches
-                  if (savedSessionWithPotentialNewName && savedSessionWithPotentialNewName.id === currentSession.id) {
-                      setCurrentSession(prev => ({...prev!, ...savedSessionWithPotentialNewName}));
-                  }
-              })
-              .catch(error => {
-                  console.error("Error saving session or generating chat name:", error);
-                  // Still update the session even if name generation fails
-                  setCurrentSession(prev => ({...prev!, ...sessionToSave}));
-              });
-            }, 0);
+            saveSession(
+                sessionToSave,
+                shouldAttemptNameGeneration,
+                modelIdToUse,
+                apiKeyToUseThisTurn 
+            ).then(savedSessionWithPotentialNewName => {
+                // currentSession is updated via its own useEffect if the ID matches
+                if (savedSessionWithPotentialNewName && savedSessionWithPotentialNewName.id === currentSession.id) {
+                    setCurrentSession(prev => ({...prev!, ...savedSessionWithPotentialNewName}));
+                }
+            });
             return latestMessages;
         });
     }
@@ -828,32 +820,20 @@ export default function ChatPage() {
   const isGoogleUser = useMemo(() => authUser?.providerData.some(p => p.providerId === 'google.com'), [authUser]);
 
   if (authLoading || profileLoading || historyHookLoading || !userIdForHistory || !currentSession ) { 
-    return (
-      <div className="flex items-center justify-center h-screen bg-gradient-to-b from-background-start to-background-end">
-        <div className="glass-panel p-8 rounded-xl shadow-2xl flex flex-col items-center animate-float">
-          <div className="relative">
-            <div className="absolute inset-0 rounded-full bg-primary/20 blur-xl animate-pulse-slow"></div>
-            <Loader2 className="h-16 w-16 animate-spin text-primary relative z-10" />
-          </div>
-          <p className="mt-6 text-xl font-semibold text-gradient">Loading DesAInR Pro...</p>
-          <p className="text-sm text-muted-foreground mt-2">Preparing your design assistant</p>
-        </div>
-      </div>
-    );
+    return <div className="flex items-center justify-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary" /> <p className="ml-4 text-lg">Loading DesAInR...</p></div>;
   }
 
   const currentAttachedFilesDataLength = currentAttachedFilesData.length;
 
   return (
-    <div className="flex h-[calc(100vh-var(--header-height,0px))] bg-gradient-to-br from-background-start to-background-end">
+    <div className="flex h-[calc(100vh-var(--header-height,0px))]">
       {isMobile && isHistoryPanelOpen && (
-        <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={() => setIsHistoryPanelOpen(false)}>
-          <div className="absolute left-0 top-0 h-full w-4/5 max-w-xs glass-panel border-r shadow-2xl animate-slide-in-left" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm animate-fadeIn" onClick={() => setIsHistoryPanelOpen(false)}>
+          <div className="absolute left-0 top-0 h-full w-4/5 max-w-xs bg-background shadow-xl animate-fadeIn" onClick={(e) => e.stopPropagation()}>
             <HistoryPanel
               sessions={historyMetadata} activeSessionId={currentSession?.id || null}
               onSelectSession={handleSelectSession} onNewChat={handleNewChat}
               onDeleteSession={handleDeleteSession} isLoading={historyHookLoading}
-              isLoggedIn={!!authUser}
             />
           </div>
         </div>
@@ -861,18 +841,16 @@ export default function ChatPage() {
       {!isMobile && (
         <div
           className={cn(
-            "glass-panel border-r shrink-0 transition-all duration-500 ease-in-out h-full",
-            isHistoryPanelOpen ? "w-[300px]" : "w-0 border-r-0 opacity-0"
+            "bg-background shrink-0 transition-all duration-300 ease-in-out h-full",
+            isHistoryPanelOpen ? "w-[280px] border-r" : "w-0 border-r-0 opacity-0"
           )}
         >
           {isHistoryPanelOpen && (
-            <div className="h-full overflow-hidden animate-fade-in">
+            <div className="h-full overflow-hidden">
               <HistoryPanel
                 sessions={historyMetadata} activeSessionId={currentSession?.id || null}
                 onSelectSession={handleSelectSession} onNewChat={handleNewChat}
                 onDeleteSession={handleDeleteSession} isLoading={historyHookLoading}
-                isLoggedIn={!!authUser}
-                className="animate-fade-in"
               />
             </div>
           )}
@@ -880,209 +858,149 @@ export default function ChatPage() {
       )}
 
       <div className="flex-1 flex flex-col bg-transparent overflow-hidden" ref={dropZoneRef} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
-        <div className="px-4 py-3 border-b flex items-center justify-between sticky top-0 bg-card/30 backdrop-blur-md z-10 shadow-md min-h-[57px] animate-fade-in transition-all duration-300">
+        <div className="p-2 border-b flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-sm z-10 shadow-sm min-h-[57px]">
           <div className="flex items-center">
-            <Button variant="ghost" size="icon" onClick={() => setIsHistoryPanelOpen(prev => !prev)} aria-label="Toggle history panel" className="hover:bg-primary/20 btn-glow rounded-full">
+            <Button variant="ghost" size="icon" onClick={() => setIsHistoryPanelOpen(prev => !prev)} aria-label="Toggle history panel" className="hover:bg-primary/10">
               {isMobile ? (isHistoryPanelOpen ? <XIcon className="h-5 w-5" /> : <Menu className="h-5 w-5" />) 
                        : (isHistoryPanelOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />)}
             </Button>
-            <h2 className="ml-3 font-semibold text-xl truncate text-gradient" title={currentSession?.name || "Chat"}>{currentSession?.name || "Chat"}</h2>
+            <h2 className="ml-2 font-semibold text-lg truncate" title={currentSession?.name || "Chat"}>{currentSession?.name || "Chat"}</h2>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
              { authUser && isGoogleUser && ( 
-                <Button variant="outline" size="sm" onClick={handleSyncWithDriveClick} disabled={isSyncing} className="hover:bg-primary/10 hover:text-primary transition-all duration-300 rounded-full shadow-md btn-glow">
+                <Button variant="outline" size="sm" onClick={handleSyncWithDriveClick} disabled={isSyncing} className="hover:bg-primary/10 hover:text-primary transition-colors">
                     {isSyncing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                     Sync with Drive
                 </Button>
             )}
-            <Button variant="secondary" size="sm" onClick={handleNewChat} className="hover:bg-accent hover:text-accent-foreground transition-all duration-300 rounded-full shadow-md btn-glow">
+            <Button variant="outline" size="sm" onClick={handleNewChat} className="hover:bg-primary/10 hover:text-primary transition-colors">
                 <PlusCircle className="h-4 w-4 mr-2" /> New Chat
             </Button>
           </div>
         </div>
 
-        <ScrollArea className="flex-1 p-2 md:p-4" ref={chatAreaRef}>
-          <div className="space-y-4 w-full stagger-animation">
+        <ScrollArea className="flex-1 p-1 md:p-4" ref={chatAreaRef}>
+          <div className="space-y-2">
             {messages.map((msg) => (
               <ChatMessageDisplay key={msg.id} message={msg} onRegenerate={handleRegenerateMessage} />
             ))}
              {messages.length === 0 && !isLoading && (
-                <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 animate-fade-in w-full">
-                    <div className="relative mb-6">
-                      <div className="absolute inset-0 rounded-full bg-accent/20 blur-xl animate-pulse-slow"></div>
-                      <BotIcon className="w-20 h-20 text-accent relative z-10 animate-float" />
-                    </div>
-                    <h2 className="text-3xl font-bold mb-3 text-gradient">Welcome to DesAInR Pro</h2>
-                    <p className="text-xl text-foreground/80 mb-6">
-                        Your AI-powered design assistant
+                <div className="flex flex-col items-center justify-center h-full text-center p-8 animate-fadeIn">
+                    <BotIcon className="w-16 h-16 text-accent mb-4" />
+                    <h2 className="text-2xl font-semibold mb-2">Welcome to DesAInR!</h2>
+                    <p className="text-muted-foreground max-w-md">
+                        Type a client message, or drag & drop files below. Then use the action buttons to get started.
                     </p>
-                    <div className="glass-panel p-6 rounded-xl w-full max-w-3xl mx-auto">
-                      <p className="text-foreground/90">
-                          Type a client message, or drag & drop files below. Then use the action buttons to get started.
-                      </p>
-                    </div>
                 </div>
             )}
           </div>
         </ScrollArea>
 
         {isDragging && (
-          <div className="absolute inset-x-4 bottom-[160px] md:bottom-[150px] top-16 md:top-[calc(var(--header-height)_+_1rem)] border-4 border-dashed border-primary/70 bg-primary/10 backdrop-blur-sm rounded-xl flex items-center justify-center pointer-events-none z-20 animate-fade-in shadow-2xl">
-            <div className="glass-panel p-8 rounded-full animate-pulse-slow">
-              <p className="text-primary font-bold text-xl">Drop files here</p>
-            </div>
-          </div>
-        )}
 
-        <div className={cn("relative border-t p-4 md:p-5 glass-panel bg-background/60 backdrop-blur-xl shadow-xl", isDragging && "opacity-50")}>
-          {/* Gradient border effect */}
-          <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-primary/10 via-primary/40 to-primary/10"></div>
-          
-          {/* Attached files display with enhanced styling */}
-          {currentAttachedFilesData.length > 0 && (
-            <div className="mt-1 mb-3 text-xs glass-panel bg-background/80 p-3 rounded-xl border border-primary/10 shadow-md animate-fade-in flex items-center">
-              <div className="flex-1 truncate">
-                <span className="font-medium bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">Attached:</span> 
-                <span className="ml-1 text-foreground/80">{currentAttachedFilesData.map(f => f.name).join(', ')}</span>
+        <div className={cn("border-t p-2 md:p-4 bg-background/80 backdrop-blur-sm shadow-t-lg", isDragging && "opacity-50")}>
+          {!authUser ? (
+            // Authentication required overlay
+            <div className="flex flex-col items-center justify-center py-6 px-4 animate-fade-in">
+              <div className="glass-panel p-5 rounded-xl border border-primary/10 shadow-lg w-full max-w-xl mx-auto text-center">
+                <div className="relative mb-4 w-16 h-16 mx-auto">
+                  <div className="absolute inset-0 rounded-full bg-primary/20 blur-lg animate-pulse"></div>
+                  <div className="w-10 h-10 mx-auto text-primary relative z-10"><LogIn size={40} /></div>
+                </div>
+                <h3 className="text-xl font-bold mb-2 text-primary dark:bg-clip-text dark:text-transparent dark:bg-gradient-to-r dark:from-primary dark:to-secondary">
+                  Authentication Required
+                </h3>
+                <p className="text-muted-foreground mb-5">
+                  Please log in or create an account to access DesAInR Pro's chat features.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Button 
+                    variant="outline" 
+                    rounded="full"
+                    className="bg-background hover:bg-primary/10 transition-all duration-300 ease-in-out shadow-md hover:shadow-lg"
+                    onClick={() => {
+                      const loginButton = document.querySelector('[data-modal-type="login"]') as HTMLButtonElement;
+                      if (loginButton) loginButton.click();
+                    }}
+                  >
+                    <div className="mr-2 h-4 w-4"><LogIn size={16} /></div>
+                    Log In
+                  </Button>
+                  <Button 
+                    variant="default" 
+                    rounded="full"
+                    className="bg-primary dark:bg-gradient-to-r dark:from-primary dark:to-secondary hover:shadow-lg transition-all duration-300 ease-in-out"
+                    onClick={() => {
+                      const signupButton = document.querySelector('[data-modal-type="signup"]') as HTMLButtonElement;
+                      if (signupButton) signupButton.click();
+                    }}
+                  >
+                    <div className="mr-2 h-4 w-4"><UserPlus size={16} /></div>
+                    Sign Up
+                  </Button>
+                </div>
               </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                rounded="full"
-                glow
-                animate
-                className="ml-2 h-7 text-destructive/80 hover:text-destructive hover:bg-destructive/10 transition-all duration-300" 
-                onClick={clearSelectedFiles}
-              >
-                <XIcon className="h-3.5 w-3.5 mr-1" /> Clear
-              </Button>
             </div>
+          ) : (
+            // Normal chat input for authenticated users
+            <>
+              {currentAttachedFilesData.length > 0 && (
+                <div className="mt-1 mb-2 text-xs text-muted-foreground animate-fadeIn">
+                  Attached: {currentAttachedFilesData.map(f => f.name).join(', ')}
+                  <Button variant="link" size="sm" className="ml-2 h-auto p-0 text-primary hover:text-primary/80" onClick={clearSelectedFiles}>Clear</Button>
+                </div>
+              )}
+              <div className="flex items-end gap-2">
+                <Textarea
+                  value={inputMessage} onChange={(e) => setInputMessage(e.target.value)}
+                  onKeyDown={handleKeyDown} placeholder="Type your client's message or your query here... (or drag & drop files)"
+                  className="flex-1 resize-none min-h-[60px] max-h-[150px] rounded-lg shadow-sm focus-visible:ring-2 focus-visible:ring-primary bg-background"
+                  rows={Math.max(1, Math.min(5, inputMessage.split('\n').length))}
+                />
+              </div>
+              <div className="flex flex-wrap items-center justify-between mt-2 gap-x-2 gap-y-2">
+                <div className="flex-shrink-0">
+                  <Button
+                    variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()}
+                    className={cn("text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors", isMobile ? "px-2 py-2" : "")}
+                    aria-label="Attach files"
+                  >
+                    <Paperclip className={cn("h-4 w-4", !isMobile && "mr-2")} />
+                    {!isMobile && "Attach Files"}
+                  </Button>
+                  <input type="file" ref={fileInputRef} multiple onChange={handleFileChange} className="hidden" accept="image/*,application/pdf,.txt,.md,.json"/>
+                </div>
+                <div className="flex-1 flex justify-end">
+                  <ActionButtonsPanel
+                    onAction={handleAction} isLoading={isLoading}
+                    currentUserMessage={inputMessage} profile={profile}
+                    currentAttachedFilesDataLength={currentAttachedFilesDataLength} isMobile={isMobile}
+                  />
+                </div>
+              </div>
+            </>
           )}
-          
-          {/* Enhanced input area with animated effects */}
-          <div className="flex items-end gap-2 animate-fade-in transition-all duration-300">
-            <div className="relative w-full group">
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 rounded-xl blur opacity-30 group-hover:opacity-70 transition-opacity duration-500"></div>
-              <Textarea
-                value={inputMessage} 
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyDown={handleKeyDown} 
-                placeholder="Type your client's message or your query here... (or drag & drop files)"
-                className="relative flex-1 resize-none min-h-[65px] max-h-[150px] rounded-xl shadow-lg focus-visible:ring-2 focus-visible:ring-primary glass-panel border-primary/20 transition-all duration-300 w-full pr-14 z-10 bg-background/60 backdrop-blur-lg"
-                rows={Math.max(1, Math.min(5, inputMessage.split('\n').length))}
-              />
-              <div className="absolute bottom-3 right-3 opacity-60 group-hover:opacity-90 transition-opacity duration-300 z-20">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-primary/10 rounded-full blur-sm animate-pulse-slow"></div>
-                  <BotIcon className="h-5 w-5 text-primary relative" />
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Enhanced action buttons area */}
-          <div className="flex flex-wrap items-center justify-between mt-4 gap-x-3 gap-y-3 stagger-animation">
-            <div className="flex-shrink-0 animate-stagger" style={{ animationDelay: '100ms' }}>
-              <Button
-                variant="outline" 
-                size="sm" 
-                rounded="full"
-                glow
-                animate
-                onClick={() => fileInputRef.current?.click()}
-                className={cn("backdrop-blur-sm border border-primary/20 shadow-sm hover:shadow-md hover:scale-105 hover:text-primary hover:bg-primary/10 transition-all duration-300", isMobile ? "px-3 py-2" : "")}
-                aria-label="Attach files"
-              >
-                <div className="relative">
-                  <div className="absolute inset-0 bg-primary/10 rounded-full blur-sm group-hover:animate-pulse-slow"></div>
-                  <Paperclip className={cn("h-4 w-4 relative z-10", !isMobile && "mr-2")} />
-                </div>
-                {!isMobile && "Attach Files"}
-              </Button>
-              <input type="file" ref={fileInputRef} multiple onChange={handleFileChange} className="hidden" accept="image/*,application/pdf,.txt,.md,.json"/>
-            </div>
-            <div className="flex-1 flex justify-end animate-stagger" style={{ animationDelay: '200ms' }}>
-              <ActionButtonsPanel
-                onAction={handleAction} 
-                isLoading={isLoading}
-                currentUserMessage={inputMessage} 
-                profile={profile}
-                currentAttachedFilesDataLength={currentAttachedFilesDataLength} 
-                isMobile={isMobile}
-              />
-            </div>
-          </div>
         </div>
       </div>
 
       <Dialog open={showNotesModal} onOpenChange={setShowNotesModal}>
-        <DialogContent className="animate-fade-in bg-background/95 dark:bg-background/80 backdrop-blur-xl border border-border dark:border-primary/20 shadow-xl dark:shadow-2xl rounded-xl">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-xl opacity-30 pointer-events-none"></div>
-          
-          <DialogHeader className="mb-2 relative z-10">
-            <div className="flex items-center justify-between">
-              <DialogTitle className="text-xl font-bold text-primary dark:bg-clip-text dark:text-transparent dark:bg-gradient-to-r dark:from-primary dark:to-secondary">
-                Additional Notes for {modalActionType === 'generateDeliveryTemplates' ? 'Delivery' : modalActionType === 'generateRevision' ? 'Revision' : 'Action'}
-              </DialogTitle>
-              <DialogClose asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  rounded="full" 
-                  glow
-                  className="absolute right-0 top-0 h-8 w-8 border border-border/30 dark:border-primary/10 hover:bg-primary/10 transition-all duration-300"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </DialogClose>
-            </div>
-            <DialogDescription className="text-muted-foreground mt-2">
-              Provide any specific notes or details for the AI to consider.
-            </DialogDescription>
+        <DialogContent className="animate-fadeIn">
+          {/* ... (rest of the code remains the same) */}
+            <DialogTitle>Additional Notes for {modalActionType === 'generateDeliveryTemplates' ? 'Delivery' : modalActionType === 'generateRevision' ? 'Revision' : 'Action'}</DialogTitle>
+            <DialogDescription>Provide any specific notes or details for the AI to consider.</DialogDescription>
           </DialogHeader>
-          
-          <div className="grid gap-4 py-4 relative z-10">
-            <div className="grid grid-cols-1 items-center gap-4">
-              <Label htmlFor="notes" className="font-medium text-foreground/90">Notes</Label>
-              <div className="relative group">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/10 via-secondary/10 to-primary/10 rounded-xl blur opacity-20 group-hover:opacity-40 transition-opacity duration-500 pointer-events-none"></div>
-                <Textarea 
-                  id="notes" 
-                  value={modalNotes} 
-                  onChange={(e) => setModalNotes(e.target.value)}
-                  className="w-full h-40 resize-none bg-card dark:glass-panel border border-border dark:border-primary/20 shadow-md dark:shadow-lg rounded-xl relative z-10"
-                  placeholder={modalActionType === 'generateDeliveryTemplates' ? "e.g., All final files attached, 2 concepts included..." : modalActionType === 'generateRevision' ? "e.g., Client requested color changes, updated logo attached..." : "Enter notes here..."}
-                />
-              </div>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="notes" className="text-right col-span-1">Notes</Label>
+              <Textarea id="notes" value={modalNotes} onChange={(e) => setModalNotes(e.target.value)}
+                className="col-span-3 h-32 resize-none bg-background"
+                placeholder={modalActionType === 'generateDeliveryTemplates' ? "e.g., All final files attached, 2 concepts included..." : modalActionType === 'generateRevision' ? "e.g., Client requested color changes, updated logo attached..." : "Enter notes here..."}
+              />
             </div>
           </div>
-          
-          <DialogFooter className="gap-3 relative z-10 mt-2 pt-3 border-t border-border/30 dark:border-primary/10">
-            <DialogClose asChild>
-              <Button 
-                variant="outline" 
-                rounded="full"
-                glow
-                animate
-                className="bg-background hover:bg-destructive/10 hover:text-destructive transition-all duration-300 ease-in-out shadow-sm hover:shadow-md"
-              >
-                Cancel
-              </Button>
-            </DialogClose>
-            <Button 
-              onClick={submitModalNotes} 
-              variant="default"
-              rounded="full"
-              glow
-              animate
-              className="bg-primary dark:bg-gradient-to-r dark:from-primary dark:to-secondary text-primary-foreground hover:shadow-lg transition-all duration-300 ease-in-out"
-            >
-              <div className="relative mr-2">
-                <div className="absolute inset-0 rounded-full bg-primary-foreground/20 blur-sm opacity-70"></div>
-                <Plane className="h-4 w-4 relative z-10" />
-              </div>
-              Generate
-            </Button>
+          <DialogFooter>
+            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+            <Button onClick={submitModalNotes}>Generate</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -2,7 +2,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { BotMessageSquare, Plane, RotateCcw, ListChecks, ClipboardList, Sparkles, MessageSquarePlus, Palette, Lightbulb, Terminal, SearchCheck, ClipboardSignature, Edit3 } from 'lucide-react';
+import { BotMessageSquare, Plane, RotateCcw, ListChecks, ClipboardList, Sparkles, MessageSquarePlus, Palette, Lightbulb, Terminal, SearchCheck, ClipboardSignature, Edit3, AlertTriangle } from 'lucide-react';
 import type { UserProfile } from '@/lib/types';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -102,14 +102,14 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
 
   return (
     <div className={cn(
-        "flex flex-wrap items-center justify-end gap-1.5 md:gap-2",
+        "flex flex-wrap items-center justify-end gap-2 md:gap-3 stagger-animation",
         isLoading && "opacity-60 pointer-events-none"
       )}
     >
       {actionButtonsConfig.map((actionConfig) => {
         const baseButtonClasses = cn(
-            "h-auto transition-all duration-150 ease-in-out hover:scale-105 active:scale-95 focus-visible:ring-primary",
-            isMobile ? "p-2" : "px-2.5 py-1.5 md:px-3 md:py-2"
+            "h-auto transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 focus-visible:ring-primary rounded-full shadow-md btn-glow",
+            isMobile ? "p-2" : "px-3 py-1.5 md:px-3.5 md:py-2"
         );
 
         if ('isPrimaryAction' in actionConfig && actionConfig.isPrimaryAction) {
@@ -119,21 +119,29 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    variant="outline"
+                    variant={btn.id === 'processMessage' ? "secondary" : "outline"}
                     size="sm"
                     onClick={() => onAction(btn.id)}
                     disabled={isActionDisabled(btn.id)}
-                    className={baseButtonClasses}
+                    className={cn(
+                      baseButtonClasses,
+                      btn.id === 'processMessage' ? "bg-primary text-primary-foreground hover:bg-primary-light" : "",
+                      btn.id === 'analyzeRequirements' ? "hover:border-secondary hover:text-secondary" : "",
+                      btn.id === 'generateEngagementPack' ? "hover:border-accent hover:text-accent" : "",
+                      btn.id === 'generateRevision' ? "hover:border-info hover:text-info" : ""
+                    )}
                   >
-                    <btn.icon className={cn("h-4 w-4 shrink-0", !isMobile && "mr-1 md:mr-1.5")} />
-                    {!isMobile && <span className="text-xs md:text-sm whitespace-nowrap">{btn.shortLabel}</span>}
+                    <btn.icon className={cn("h-4 w-4 shrink-0", !isMobile && "mr-1.5 md:mr-2")} />
+                    {!isMobile && <span className="text-xs md:text-sm font-medium whitespace-nowrap">{btn.shortLabel}</span>}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="top" align="center" className="bg-popover text-popover-foreground shadow-lg rounded-md p-2">
-                  <p className="font-semibold">{btn.label}</p>
-                  <p className="text-xs text-muted-foreground max-w-xs">{btn.description}</p>
+                <TooltipContent side="top" align="center" className="glass-panel text-foreground shadow-xl rounded-lg p-3 animate-fade-in border border-primary/10">
+                  <p className="font-semibold text-gradient">{btn.label}</p>
+                  <p className="text-xs text-foreground/80 max-w-xs mt-1">{btn.description}</p>
                    { btn.id === 'checkMadeDesigns' && currentAttachedFilesDataLength === 0 && (
-                     <p className="text-xs text-destructive mt-1">Requires an image file to be attached.</p>
+                     <p className="text-xs text-destructive mt-1 bg-destructive/10 p-1 rounded">
+                       <span className="flex items-center"><AlertTriangle className="h-3 w-3 mr-1" /> Requires an image file to be attached.</span>
+                     </p>
                    )}
                 </TooltipContent>
               </Tooltip>
@@ -151,33 +159,44 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
                             variant="outline"
                             size="sm"
                             disabled={isLoading || !profile} // General disable for dropdown trigger
-                            className={baseButtonClasses}
+                            className={cn(
+                              baseButtonClasses,
+                              dropdown.id === 'designActions' ? "hover:border-success hover:text-success" : "",
+                              dropdown.id === 'deliveryActions' ? "hover:border-warning hover:text-warning" : ""
+                            )}
                         >
-                            <dropdown.icon className={cn("h-4 w-4 shrink-0", !isMobile && "mr-1 md:mr-1.5")} />
-                            {!isMobile && <span className="text-xs md:text-sm whitespace-nowrap">{dropdown.shortLabel}</span>}
+                            <dropdown.icon className={cn("h-4 w-4 shrink-0", !isMobile && "mr-1.5 md:mr-2")} />
+                            {!isMobile && <span className="text-xs md:text-sm font-medium whitespace-nowrap">{dropdown.shortLabel}</span>}
                         </Button>
                      </DropdownMenuTrigger>
                   </TooltipTrigger>
-                  <TooltipContent side="top" align="center" className="bg-popover text-popover-foreground shadow-lg rounded-md p-2">
-                    <p className="font-semibold">{dropdown.label}</p>
-                    <p className="text-xs text-muted-foreground max-w-xs">{dropdown.description}</p>
+                  <TooltipContent side="top" align="center" className="glass-panel text-foreground shadow-xl rounded-lg p-3 animate-fade-in border border-primary/10">
+                    <p className="font-semibold text-gradient">{dropdown.label}</p>
+                    <p className="text-xs text-foreground/80 max-w-xs mt-1">{dropdown.description}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              <DropdownMenuContent align="end" className="bg-popover border-border shadow-xl rounded-md">
-                <DropdownMenuLabel className="text-xs px-2 py-1.5 text-muted-foreground">{dropdown.label}</DropdownMenuLabel>
-                <DropdownMenuSeparator />
+              <DropdownMenuContent align="end" className="glass-panel border-primary/10 shadow-2xl rounded-lg animate-fade-in">
+                <DropdownMenuLabel className="text-sm px-3 py-2 text-gradient font-semibold">{dropdown.label}</DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-primary/10" />
                 {dropdown.subActions.map(subAction => (
                   <DropdownMenuItem
                     key={subAction.id}
                     onClick={() => onAction(subAction.id)}
                     disabled={isActionDisabled(subAction.id)}
-                    className="text-sm cursor-pointer hover:bg-accent focus:bg-accent data-[disabled]:opacity-50 data-[disabled]:pointer-events-none flex items-center gap-2"
+                    className="text-sm cursor-pointer hover:bg-primary/10 focus:bg-primary/10 data-[disabled]:opacity-50 data-[disabled]:pointer-events-none flex items-center gap-2 px-3 py-2 transition-all duration-200 rounded-md mx-1 my-0.5"
                   >
-                    <subAction.icon className="h-4 w-4 shrink-0" />
+                    <div className={cn(
+                      "p-1.5 rounded-full",
+                      dropdown.id === 'designActions' ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
+                    )}>
+                      <subAction.icon className="h-3.5 w-3.5 shrink-0" />
+                    </div>
                     <span>{subAction.label}</span>
                      { (subAction.id === 'checkMadeDesigns' && currentAttachedFilesDataLength === 0) && (
-                       <span className="ml-auto text-xs text-destructive/70">(Needs Image)</span>
+                       <span className="ml-auto text-xs text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full">
+                         Needs Image
+                       </span>
                      )}
                      {/* Removed (Needs Image) hint for generateEditingPrompts as per new requirement */}
                   </DropdownMenuItem>

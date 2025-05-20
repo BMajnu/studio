@@ -2,39 +2,167 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom animations and effects */
+.btn-glow {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-glow::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  transform: scale(0.5);
+}
+
+.btn-glow:hover::after {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Glass panel effect */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+/* Animation classes */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Staggered animation for child elements */
+.stagger-animation > * {
+  opacity: 0;
+  animation: staggerFadeIn 0.5s ease forwards;
+}
+
+.stagger-animation > *:nth-child(1) { animation-delay: 0.05s; }
+.stagger-animation > *:nth-child(2) { animation-delay: 0.1s; }
+.stagger-animation > *:nth-child(3) { animation-delay: 0.15s; }
+.stagger-animation > *:nth-child(4) { animation-delay: 0.2s; }
+.stagger-animation > *:nth-child(5) { animation-delay: 0.25s; }
+.stagger-animation > *:nth-child(6) { animation-delay: 0.3s; }
+.stagger-animation > *:nth-child(7) { animation-delay: 0.35s; }
+
+@keyframes staggerFadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Text gradient effect */
+.text-gradient {
+  background: linear-gradient(90deg, #4F46E5 0%, #7C3AED 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
 body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Custom animation keyframes */
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(30px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideInLeft {
+  from { transform: translateX(-30px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @layer base {
   :root {
-    --background-start-hsl: 0 0% 100%; /* Pure White */
-    --background-end-hsl: 240 10% 96%; /* Very Light Blue/Gray */
+    /* Modern gradient background */
+    --background-start-hsl: 220 30% 99%; /* Almost white with slight blue tint */
+    --background-end-hsl: 240 20% 96%; /* Light lavender-blue */
     --background: var(--background-start-hsl); /* Fallback for no gradient support */
     --foreground: 222.2 84% 4.9%; /* Dark text for light background */
+    
+    /* Enhanced card styles */
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
+    --card-shadow: 0px 8px 24px rgba(0, 0, 0, 0.08);
+    
+    /* Enhanced popover */
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221 89% 60%; /* Saturated Blue #4285F4 */
+    
+    /* Vibrant primary colors */
+    --primary: 221 89% 60%; /* Vibrant blue #4285F4 */
+    --primary-light: 221 89% 70%; /* Lighter version for hover states */
+    --primary-dark: 221 89% 50%; /* Darker version for active states */
     --primary-foreground: 210 40% 98%; /* White/very light text for primary */
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    
+    /* Secondary and accent colors */
+    --secondary: 250 95% 65%;
+    --secondary-foreground: 210 40% 98%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 265 79% 70%; /* Purple #A275ED */
+    --accent: 271 91% 65%; /* Vibrant pink/magenta #ED4B9E */
     --accent-foreground: 210 40% 98%; /* White/very light text for accent */
+    
+    /* Additional accent colors */
+    --success: 142 76% 45%; /* Vibrant green */
+    --success-foreground: 0 0% 98%;
+    --warning: 35 92% 58%; /* Vibrant amber */
+    --warning-foreground: 0 0% 98%;
+    --info: 199 89% 48%; /* Vibrant cyan */
+    --info-foreground: 0 0% 98%;
+    
+    /* Action colors */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
+    
+    /* Subtle UI elements */
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 221 89% 60%; /* Primary for ring */
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    
+    /* Chart colors - more vibrant and diverse */
+    --chart-1: 221 89% 60%; /* Blue */
+    --chart-2: 262 83% 62%; /* Purple */
+    --chart-3: 342 89% 65%; /* Pink */
+    --chart-4: 38 92% 50%;  /* Amber */
+    --chart-5: 142 70% 45%; /* Green */
+    
     --radius: 0.5rem;
+    --animation-duration: 0.3s;
 
     /* Sidebar variables for light theme (can be same as main if sidebar isn't distinct) */
     --sidebar-background: 0 0% 98%; /* Slightly off-white for light sidebar */
@@ -48,33 +176,58 @@ body {
   }
 
   .dark {
-    --background-start-hsl: 220 26% 12%; /* Dark Navy Blue #1A202C */
-    --background-end-hsl: 220 26% 16%;   /* Slightly Lighter Navy Blue */
+    /* Rich dark mode gradient background */
+    --background-start-hsl: 224 32% 10%; /* Deep blue-gray */
+    --background-end-hsl: 240 30% 14%;   /* Deep indigo */
     --background: var(--background-start-hsl); /* Fallback */
-    --foreground: 215 20% 90%; /* Light color for text on dark bg */
-    --card: 220 26% 16%; /* Slightly lighter than main dark bg for cards - MODIFIED for more contrast */
-    --card-foreground: 215 20% 90%;
-    --popover: 220 26% 10%; /* Darker for popovers */
-    --popover-foreground: 215 20% 90%;
-    --primary: 221 89% 60%; /* Saturated Blue #4285F4 */
-    --primary-foreground: 210 40% 98%; /* White/very light text for primary */
-    --secondary: 220 26% 20%; /* Darker secondary */
-    --secondary-foreground: 210 40% 98%;
-    --muted: 220 26% 20%;
-    --muted-foreground: 215 20% 65%; /* Lighter muted text */
-    --accent: 265 79% 70%; /* Purple #A275ED */
-    --accent-foreground: 210 40% 98%; /* White/very light text for accent */
-    --destructive: 0 72.2% 50.6%; /* Adjusted destructive for dark */
-    --destructive-foreground: 0 0% 98%;
-    --border: 220 26% 25%; /* Slightly more visible border */
-    --input: 220 26% 18%; /* Darker input fields */
-    --ring: 221 89% 60%; /* Primary for ring */
+    --foreground: 215 20% 93%; /* Very light color for text on dark bg */
     
-    --chart-1: 221 89% 60%; /* Saturated Blue */
-    --chart-2: 265 79% 70%; /* Purple */
-    --chart-3: 173 58% 45%; /* Teal/Green (example) */
-    --chart-4: 30 90% 60%;  /* Orange (example) */
-    --chart-5: 330 80% 65%; /* Pink (example) */
+    /* Enhanced card styles */
+    --card: 230 25% 18%; /* Slightly elevated surfaces for better distinction */
+    --card-foreground: 213 20% 93%;
+    --card-shadow: 0px 8px 16px rgba(0, 0, 0, 0.25);
+    
+    /* Enhanced popover */
+    --popover: 228 26% 12%; /* Deeper for popovers */
+    --popover-foreground: 213 20% 93%;
+    
+    /* Vibrant primary colors - slightly adjusted for dark mode */
+    --primary: 221 89% 65%; /* Slightly brighter blue in dark mode #4D90F5 */
+    --primary-light: 221 89% 75%; /* Lighter version for hover states */
+    --primary-dark: 221 89% 55%; /* Darker version for active states */
+    --primary-foreground: 210 40% 98%;
+    
+    /* Secondary and accent colors */
+    --secondary: 262 83% 67%; /* Brighter purple for dark mode #9B75DE */
+    --secondary-foreground: 210 40% 98%;
+    --muted: 230 25% 25%;
+    --muted-foreground: 215 20% 70%; /* Lighter muted text */
+    --accent: 342 89% 70%; /* Brighter pink/magenta for dark mode #F56DAF */
+    --accent-foreground: 210 40% 98%;
+    
+    /* Additional accent colors */
+    --success: 142 70% 50%; /* Brighter green for dark mode */
+    --success-foreground: 0 0% 98%;
+    --warning: 38 92% 55%; /* Brighter amber for dark mode */
+    --warning-foreground: 0 0% 98%;
+    --info: 198 93% 65%; /* Brighter cyan for dark mode */
+    --info-foreground: 0 0% 98%;
+    
+    /* Action colors */
+    --destructive: 0 84% 65%; /* Brighter red for dark mode */
+    --destructive-foreground: 0 0% 98%;
+    
+    /* Subtle UI elements */
+    --border: 230 25% 28%; /* More visible border */
+    --input: 230 25% 20%; /* Darker input fields */
+    --ring: 221 89% 65%; /* Primary for ring */
+    
+    /* Chart colors - more vibrant for dark mode */
+    --chart-1: 221 89% 65%; /* Blue */
+    --chart-2: 262 83% 67%; /* Purple */
+    --chart-3: 342 89% 70%; /* Pink */
+    --chart-4: 38 92% 55%;  /* Amber */
+    --chart-5: 142 70% 50%; /* Green */
 
     /* Sidebar variables for dark theme */
     --sidebar-background: 220 26% 10%; /* Slightly darker than main dark bg for sidebar */
@@ -94,8 +247,98 @@ body {
   }
   body {
     @apply bg-background text-foreground;
-    background-image: linear-gradient(to bottom, hsl(var(--background-start-hsl)), hsl(var(--background-end-hsl)));
+    background-image: linear-gradient(140deg, hsl(var(--background-start-hsl)), hsl(var(--background-end-hsl)));
     min-height: 100vh;
+  }
+}
+
+@layer components {
+  /* Professional card styles */
+  .card-elevated {
+    @apply bg-card text-card-foreground rounded-lg transition-all duration-300;
+    box-shadow: var(--card-shadow);
+  }
+  
+  .card-elevated:hover {
+    transform: translateY(-2px);
+    box-shadow: 0px 12px 28px rgba(0, 0, 0, 0.12);
+  }
+  
+  /* Animation utility classes */
+  .animate-float {
+    animation: float 5s ease-in-out infinite;
+  }
+  
+  .animate-pulse-slow {
+    animation: pulse 3s ease-in-out infinite;
+  }
+  
+  .animate-slide-in-right {
+    animation: slideInRight 0.5s ease forwards;
+  }
+  
+  .animate-slide-in-left {
+    animation: slideInLeft 0.5s ease forwards;
+  }
+  
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease forwards;
+  }
+  
+  /* Staggered animations */
+  .stagger-animation > * {
+    opacity: 0;
+  }
+  
+  .stagger-animation > *:nth-child(1) { animation: fadeIn 0.3s ease forwards 0.1s; }
+  .stagger-animation > *:nth-child(2) { animation: fadeIn 0.3s ease forwards 0.2s; }
+  .stagger-animation > *:nth-child(3) { animation: fadeIn 0.3s ease forwards 0.3s; }
+  .stagger-animation > *:nth-child(4) { animation: fadeIn 0.3s ease forwards 0.4s; }
+  .stagger-animation > *:nth-child(5) { animation: fadeIn 0.3s ease forwards 0.5s; }
+  
+  /* Button effects */
+  .btn-glow {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .btn-glow::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%);
+    opacity: 0;
+    transform: scale(0.5);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+  
+  .btn-glow:hover::after {
+    opacity: 1;
+    transform: scale(1);
+  }
+  
+  /* Gradient text */
+  .text-gradient {
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    background-image: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--secondary)));
+  }
+  
+  /* Glass morphism effect */
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .dark .glass-panel {
+    background: rgba(20, 20, 40, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.05);
   }
 }
 
