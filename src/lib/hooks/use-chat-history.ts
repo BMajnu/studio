@@ -56,7 +56,7 @@ const isQuotaExceededError = (error: any): boolean => {
   ];
   return (
     knownErrorCodes.some(code => name.includes(code) || message.includes(code)) ||
-    (error.code === 22 && name.includes('datacloneerror')) // Safari specific?
+    (error.code === 22 && name.includes('datacloneerror')) 
   );
 };
 
@@ -78,7 +78,7 @@ function deduplicateMetadata(metadataList: ChatSessionMetadata[]): ChatSessionMe
 
 
 export function useChatHistory(userIdFromProfile: string | undefined) {
-  const { user: authUser, googleAccessToken } = useAuth();
+  const { user: authUser, googleAccessToken, signInWithGoogle: triggerGoogleSignIn } = useAuth();
   const { toast } = useToast();
   const [historyMetadata, setHistoryMetadata] = useState<ChatSessionMetadata[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -87,41 +87,42 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
 
   const effectiveUserId = authUser?.uid || userIdFromProfile || DEFAULT_USER_ID;
 
-  const initializeDriveFolder = useCallback(async () => {
-    if (googleAccessToken && authUser) { // No longer check appDriveFolderId here, let it re-ensure
-      console.log("useChatHistory (initializeDriveFolder): Ensuring app folder exists.");
-      try {
-        const folderId = await ensureAppFolderExists(googleAccessToken);
-        if (folderId) {
-          setAppDriveFolderId(folderId);
-          console.log("useChatHistory (initializeDriveFolder): App Drive folder ID set:", folderId);
-          return folderId;
-        } else {
-          console.warn("useChatHistory (initializeDriveFolder): Could not obtain App Drive folder ID.");
-          toast({
-            title: "Google Drive Error",
-            description: "Could not access or create the app folder in Google Drive. History may not be synced to Drive.",
-            variant: "destructive",
-          });
-          setAppDriveFolderId(null); // Explicitly set to null if failed
-        }
-      } catch (error: any) {
-          console.error("useChatHistory (initializeDriveFolder): Error ensuring app folder exists:", error);
-          toast({
-            title: "Google Drive Setup Failed",
-            description: `Failed to set up app folder in Google Drive: ${error.message}. Drive features may be unavailable.`,
-            variant: "destructive",
-          });
-          setAppDriveFolderId(null); // Explicitly set to null on error
-      }
-    } else {
-      setAppDriveFolderId(null); // Clear folderId if no token/user
+  const initializeDriveFolder = useCallback(async (token: string): Promise<string | null> => {
+    if (!token) {
+      console.warn("useChatHistory (initializeDriveFolder): No Google access token provided.");
+      setAppDriveFolderId(null);
+      return null;
     }
-    return null; // Return null if not initialized
-  }, [googleAccessToken, authUser, toast]); // Removed appDriveFolderId from deps to allow re-check
+    console.log("useChatHistory (initializeDriveFolder): Ensuring app folder exists with provided token.");
+    try {
+      const folderId = await ensureAppFolderExists(token);
+      if (folderId) {
+        setAppDriveFolderId(folderId);
+        console.log("useChatHistory (initializeDriveFolder): App Drive folder ID set:", folderId);
+        return folderId;
+      } else {
+        console.warn("useChatHistory (initializeDriveFolder): Could not obtain App Drive folder ID.");
+        toast({
+          title: "Google Drive Error",
+          description: "Could not access or create the app folder in Google Drive. History may not be synced to Drive.",
+          variant: "destructive",
+        });
+        setAppDriveFolderId(null);
+      }
+    } catch (error: any) {
+        console.error("useChatHistory (initializeDriveFolder): Error ensuring app folder exists:", error);
+        toast({
+          title: "Google Drive Setup Failed",
+          description: `Failed to set up app folder in Google Drive: ${error.message}. Drive features may be unavailable.`,
+          variant: "destructive",
+        });
+        setAppDriveFolderId(null);
+    }
+    return null;
+  }, [toast]); 
 
 
-  const loadHistoryIndex = useCallback(async () => {
+  const loadHistoryIndex = useCallback(async (currentDriveFolderId: string | null, currentGoogleAccessToken: string | null) => {
     if (!effectiveUserId) {
       console.warn("useChatHistory (loadHistoryIndex): No effectiveUserId, cannot load history.");
       setIsLoading(false);
@@ -129,7 +130,7 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
       return;
     }
     setIsLoading(true);
-    console.log(`useChatHistory (loadHistoryIndex): Loading history for user ${effectiveUserId}. Drive Token: ${!!googleAccessToken}, Current Drive Folder ID: ${appDriveFolderId}`);
+    console.log(`useChatHistory (loadHistoryIndex): Loading history for user ${effectiveUserId}. Drive Token: ${!!currentGoogleAccessToken}, Current Drive Folder ID: ${currentDriveFolderId}`);
 
     let localParsedIndex: ChatSessionMetadata[] = [];
     try {
@@ -159,19 +160,18 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
     const combinedMetadataMap = new Map<string, ChatSessionMetadata>();
     userSpecificLocalMetadata.forEach(meta => combinedMetadataMap.set(meta.id, meta));
     
-    if (googleAccessToken && appDriveFolderId && authUser?.uid === effectiveUserId) {
-      console.log("useChatHistory (loadHistoryIndex): Attempting to load and merge session list from Google Drive. Folder ID:", appDriveFolderId);
-      const driveFiles = await listSessionFilesFromDrive(googleAccessToken, appDriveFolderId);
+    if (currentGoogleAccessToken && currentDriveFolderId && authUser?.uid === effectiveUserId) {
+      console.log("useChatHistory (loadHistoryIndex): Attempting to load and merge session list from Google Drive. Folder ID:", currentDriveFolderId);
+      const driveFiles = await listSessionFilesFromDrive(currentGoogleAccessToken, currentDriveFolderId);
       
       if (driveFiles) {
         const driveMetadataPromises = driveFiles.map(async (file) => {
           if (!file || !file.name || !file.id || !file.name.startsWith(`session_${effectiveUserId}_`)) {
             return null;
           }
-          const sessionIdFromFile = file.name.replace('session_', '').replace('.json', '');
-
-          const fullSession = await getSessionFromDrive(googleAccessToken, file.id);
-          if (fullSession) {
+          
+          const fullSession = await getSessionFromDrive(currentGoogleAccessToken, file.id);
+          if (fullSession && fullSession.id === file.name.replace('session_', '').replace('.json', '')) {
             return {
               id: fullSession.id,
               name: fullSession.name || `Drive: ${new Date(fullSession.createdAt).toLocaleDateString()}`,
@@ -181,14 +181,7 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
               isDriveSession: true,
             } as ChatSessionMetadata;
           }
-          return { // Fallback if full session fetch fails
-            id: sessionIdFromFile,
-            name: `Drive: ${sessionIdFromFile.substring(0, 20)}... (Content Error)`,
-            lastMessageTimestamp: file.modifiedTime ? new Date(file.modifiedTime).getTime() : Date.now(),
-            preview: "Error fetching details from Drive",
-            messageCount: 0,
-            isDriveSession: true,
-          } as ChatSessionMetadata;
+          return null; // Return null if session fetch failed or ID mismatch
         });
         
         const driveMetadataEntries = (await Promise.all(driveMetadataPromises)).filter(Boolean) as ChatSessionMetadata[];
@@ -196,11 +189,9 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
         driveMetadataEntries.forEach(driveMeta => {
           const existingMeta = combinedMetadataMap.get(driveMeta.id);
           if (existingMeta) {
-            // Prioritize Drive if its timestamp is newer or if its name isn't a content error
-            if (driveMeta.lastMessageTimestamp >= existingMeta.lastMessageTimestamp || (driveMeta.name && !driveMeta.name.includes("(Content Error)"))) {
+            if (driveMeta.lastMessageTimestamp >= existingMeta.lastMessageTimestamp) {
                combinedMetadataMap.set(driveMeta.id, { ...driveMeta, isDriveSession: true });
             } else {
-               // Keep local if newer, but mark as Drive synced
                combinedMetadataMap.set(driveMeta.id, { ...existingMeta, isDriveSession: true, lastMessageTimestamp: Math.max(driveMeta.lastMessageTimestamp, existingMeta.lastMessageTimestamp) });
             }
           } else { 
@@ -214,7 +205,7 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
     setHistoryMetadata(finalDedupedAndSortedMetadata);
     console.log(`useChatHistory (loadHistoryIndex): Final history metadata count: ${finalDedupedAndSortedMetadata.length} for user ${effectiveUserId}.`);
     setIsLoading(false);
-  }, [effectiveUserId, googleAccessToken, appDriveFolderId, authUser?.uid]);
+  }, [effectiveUserId, authUser?.uid, toast]);
 
 
   // Main effect to orchestrate initialization
@@ -222,32 +213,32 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
     const orchestrateLoad = async () => {
       if (!effectiveUserId) {
         console.warn("useChatHistory (Main Effect): No effectiveUserId, cannot proceed.");
-        setIsLoading(false); // Ensure loading stops if no user
+        setIsLoading(false); 
         setHistoryMetadata([]);
         return;
       }
       
-      setIsLoading(true); // Start loading
-      let currentFolderId = appDriveFolderId;
+      setIsLoading(true);
+      let currentFolderId = null; // Start with null, it might be set by initializeDriveFolder
 
       if (googleAccessToken && authUser && authUser.uid === effectiveUserId) {
         console.log("useChatHistory (Main Effect): Google user detected. Ensuring Drive folder exists.");
-        currentFolderId = await initializeDriveFolder(); // Await this
-        // appDriveFolderId state will be set by initializeDriveFolder if successful
-        // No need to set it here again directly unless initializeDriveFolder doesn't set state itself
+        // We pass googleAccessToken directly to initializeDriveFolder.
+        // setAppDriveFolderId will be called within initializeDriveFolder.
+        currentFolderId = await initializeDriveFolder(googleAccessToken); 
+      } else {
+         console.log("useChatHistory (Main Effect): Not a Google user or no access token. Skipping Drive folder init.");
+         setAppDriveFolderId(null); // Ensure it's null if no Google auth
       }
       
       // After folder initialization (or if not a Google user), load history
-      console.log(`useChatHistory (Main Effect): Proceeding to load history. UserID: ${effectiveUserId}, Token: ${!!googleAccessToken}, Resolved FolderID: ${currentFolderId}`);
-      await loadHistoryIndex();
-      // setIsLoading(false) is now handled by loadHistoryIndex
+      // Pass the potentially updated appDriveFolderId and googleAccessToken
+      console.log(`useChatHistory (Main Effect): Proceeding to load history. UserID: ${effectiveUserId}, Token: ${!!googleAccessToken}, Resolved FolderID for loadHistoryIndex: ${currentFolderId}`);
+      await loadHistoryIndex(currentFolderId, googleAccessToken);
     };
 
     orchestrateLoad();
-  // Key dependencies: if effectiveUserId, googleAccessToken, or authUser changes,
-  // this whole sequence should re-evaluate.
-  // initializeDriveFolder & loadHistoryIndex are useCallback-wrapped.
-  }, [effectiveUserId, googleAccessToken, authUser, initializeDriveFolder, loadHistoryIndex, appDriveFolderId]);
+  }, [effectiveUserId, googleAccessToken, authUser, initializeDriveFolder, loadHistoryIndex]);
 
 
   const getSession = useCallback(async (sessionId: string): Promise<ChatSession | null> => {
@@ -260,35 +251,29 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
 
     if (metadataEntry?.isDriveSession && googleAccessToken && appDriveFolderId && authUser?.uid === effectiveUserId) {
         console.log(`getSession: Attempting to fetch session ${sessionId} from Google Drive.`);
-        const driveFiles = await listSessionFilesFromDrive(googleAccessToken, appDriveFolderId);
-        const targetDriveFile = driveFiles?.find(f => f.name === `session_${sessionId}.json`);
-
-        if (targetDriveFile?.id) {
-            const driveSession = await getSessionFromDrive(googleAccessToken, targetDriveFile.id);
-            if (driveSession) {
-                console.log(`getSession: Successfully fetched session ${sessionId} from Drive.`);
-                try { // Attempt to cache to localStorage
-                    const leanSessionForStorage = {
-                        ...driveSession,
-                        messages: driveSession.messages.map(msg => ({
-                            ...msg,
-                            attachedFiles: msg.attachedFiles?.map(file => ({
-                                name: file.name,
-                                type: file.type,
-                                size: file.size,
-                                textContent: file.textContent ? file.textContent.substring(0, 500) + (file.textContent.length > 500 ? '...' : '') : undefined,
-                                dataUri: undefined, // Don't cache dataUris
-                            })) || [],
-                        }))
-                    };
-                    localStorage.setItem(`${CHAT_SESSION_PREFIX_LS}${sessionId}`, JSON.stringify(leanSessionForStorage));
-                } catch (e) { console.error("Error caching Drive session to localStorage", e); }
-                return driveSession;
-            }
-            console.warn(`getSession: Failed to fetch session ${sessionId} from Drive using file ID ${targetDriveFile.id}. Trying localStorage.`);
-        } else {
-             console.warn(`getSession: Could not find Drive file ID for session ${sessionId} name. Trying localStorage fallback.`);
+        const driveSession = await getSessionFromDrive(googleAccessToken, metadataEntry.id.replace(`session_${effectiveUserId}_`, '').replace('.json', '')); // Assuming ID in metadata is file ID for Drive
+        
+        if (driveSession) {
+            console.log(`getSession: Successfully fetched session ${sessionId} from Drive.`);
+             try { 
+                const leanSessionForStorage = {
+                    ...driveSession,
+                    messages: driveSession.messages.map(msg => ({
+                        ...msg,
+                        attachedFiles: msg.attachedFiles?.map(file => ({
+                            name: file.name,
+                            type: file.type,
+                            size: file.size,
+                            textContent: file.textContent ? file.textContent.substring(0, 500) + (file.textContent.length > 500 ? '...' : '') : undefined,
+                            dataUri: undefined,
+                        })) || [],
+                    }))
+                };
+                localStorage.setItem(`${CHAT_SESSION_PREFIX_LS}${sessionId}`, JSON.stringify(leanSessionForStorage));
+            } catch (e) { console.error("Error caching Drive session to localStorage", e); }
+            return driveSession;
         }
+        console.warn(`getSession: Failed to fetch session ${sessionId} from Drive using ID ${metadataEntry.id}. Trying localStorage.`);
     }
 
     console.log(`getSession: Attempting to fetch session ${sessionId} from localStorage.`);
@@ -468,6 +453,7 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
             }
         } else {
             console.warn(`deleteSession: Could not find session file for ${sessionId} on Google Drive to delete.`);
+            // Proceed with local deletion even if Drive file isn't found, as the 'isDriveSession' flag might be stale.
         }
     }
 
@@ -488,7 +474,10 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
         return finalHistory;
       });
       if (!sessionMetaToDelete?.isDriveSession || !googleAccessToken || !driveDeleteSuccess) { 
-        toast({ title: "Session Deleted", description: `Session "${sessionMetaToDelete?.name || sessionId}" removed locally.`});
+        // Avoid double-toasting if Drive deletion succeeded
+        if (!(sessionMetaToDelete?.isDriveSession && driveDeleteSuccess)) {
+            toast({ title: "Session Deleted", description: `Session "${sessionMetaToDelete?.name || sessionId}" removed locally.`});
+        }
       }
     } catch (error) {
       console.error(`deleteSession: Failed to delete session ${sessionId} from localStorage:`, error);
@@ -526,52 +515,54 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
   }, [effectiveUserId, saveSession]);
 
 
-  const syncWithDrive = useCallback(async () => {
-    if (!authUser || !googleAccessToken) {
-        toast({ title: "Sync Unavailable", description: "Please log in with Google to sync.", variant: "default" });
+  const syncWithDrive = useCallback(async (): Promise<'SUCCESS' | 'TOKEN_REFRESH_NEEDED' | 'FAILED'> => {
+    setIsSyncing(true);
+    if (!authUser || !authUser.uid) {
+        toast({ title: "Sync Unavailable", description: "Please log in to sync with Google Drive.", variant: "default" });
         setIsSyncing(false);
-        return;
+        return 'FAILED';
     }
     if (authUser.uid !== effectiveUserId) {
         toast({ title: "Sync User Mismatch", description: "Cannot sync, active user differs from Google authenticated user.", variant: "destructive" });
         setIsSyncing(false);
-        return;
+        return 'FAILED';
+    }
+    if (!googleAccessToken) {
+        console.warn("syncWithDrive: Google access token not available. Requesting re-authentication.");
+        toast({ title: "Google Sign-In Required", description: "Please sign in with Google again to enable Drive sync.", variant: "default" });
+        setIsSyncing(false);
+        return 'TOKEN_REFRESH_NEEDED';
     }
 
-    setIsSyncing(true);
     toast({ title: "Syncing with Google Drive...", description: "Please wait." });
 
     let currentAppDriveFolderId = appDriveFolderId;
     if (!currentAppDriveFolderId) {
         console.log("syncWithDrive: appDriveFolderId not set, attempting to initialize.");
         try {
-            const folderId = await initializeDriveFolder(); 
+            const folderId = await initializeDriveFolder(googleAccessToken); 
             if (folderId) {
-                currentAppDriveFolderId = folderId; // This state update will trigger the main effect to load history
+                currentAppDriveFolderId = folderId;
                 console.log("syncWithDrive: appDriveFolderId successfully initialized:", folderId);
             } else { 
                 toast({ title: "Drive Folder Error", description: "Could not initialize Drive folder. Sync aborted.", variant: "destructive" });
                 setIsSyncing(false);
-                return;
+                return 'FAILED';
             }
         } catch (error: any) {
             toast({ title: "Drive Folder Error", description: `Could not initialize Drive folder: ${error.message || 'Unknown error'}. Sync aborted.`, variant: "destructive" });
             setIsSyncing(false);
-            return;
+            return 'FAILED';
         }
     }
     
-    // Since initializeDriveFolder might set appDriveFolderId and trigger the main useEffect,
-    // which in turn calls loadHistoryIndex, we might not need to do a full manual merge here
-    // if loadHistoryIndex is already robust.
-    // For simplicity now, we will rely on the main useEffect to call loadHistoryIndex after folder ID is set.
-    // We can still force a loadHistoryIndex call here if needed.
     try {
       console.log("syncWithDrive: Folder ID confirmed. Re-triggering history load for full sync effect.");
-      await loadHistoryIndex(); // This will re-fetch and merge Drive/local data.
+      await loadHistoryIndex(currentAppDriveFolderId, googleAccessToken); 
 
       toast({ title: "Sync Complete", description: "Checked for updates with Google Drive." });
-      
+      setIsSyncing(false);
+      return 'SUCCESS';
     } catch (error: any) {
       console.error("Error during Sync with Drive (post-folder check):", error);
       toast({
@@ -579,13 +570,14 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
         description: error.message || "An unknown error occurred during sync.",
         variant: "destructive",
       });
-    } finally {
       setIsSyncing(false);
+      return 'FAILED';
     }
   }, [googleAccessToken, appDriveFolderId, authUser, effectiveUserId, toast, initializeDriveFolder, loadHistoryIndex]);
 
 
-  return { historyMetadata, isLoading, getSession, saveSession, deleteSession, createNewSession, loadHistoryIndex, appDriveFolderId, initializeDriveFolder, syncWithDrive, isSyncing };
+  return { historyMetadata, isLoading, getSession, saveSession, deleteSession, createNewSession, loadHistoryIndex, appDriveFolderId, initializeDriveFolder, syncWithDrive, isSyncing, triggerGoogleSignIn };
 }
 
     
+

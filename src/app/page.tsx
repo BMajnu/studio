@@ -59,11 +59,9 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
         if (part.english?.stepByStepApproach) tgContent += `**English Step-by-Step Approach:**\n${part.english.stepByStepApproach}\n\n`;
         
         let bengaliCombined = "";
-        // Check if part.bengali.analysis exists and is truthy before using it
         if (part.bengali?.analysis) { 
-          bengaliCombined = part.bengali.analysis; // This now implies bengaliCombined contains all three if analysis is present.
+          bengaliCombined = part.bengali.analysis; 
         } else if (part.bengali?.simplifiedRequest || part.bengali?.stepByStepApproach) {
-          // Handle cases where only simplifiedRequest or stepByStepApproach might exist for Bengali
           let tempBengali = "";
           if(part.bengali.simplifiedRequest) tempBengali += `সরলীকৃত অনুরোধ (Simplified Request):\n${part.bengali.simplifiedRequest}\n\n`;
           if(part.bengali.stepByStepApproach) tempBengali += `ধাপে ধাপে পদ্ধতি (Step-by-Step Approach):\n${part.bengali.stepByStepApproach}`;
@@ -81,7 +79,6 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
         fullText += tgContent;
         break;
       default:
-        // Ensure part is correctly typed or cast for exhaustive check, or handle 'any' more safely
         const unknownPart = part as any; 
         let unknownTextContent = '';
         if (unknownPart.text) unknownTextContent = String(unknownPart.text);
@@ -116,7 +113,6 @@ const baseEnsureMessagesHaveUniqueIds = (messagesToProcess: ChatMessage[]): Chat
   const seenIds = new Set<string>();
   return messagesToProcess.map(msg => {
     let newId = msg.id;
-    // More robust check for potentially invalid IDs (e.g. simple timestamps or non-prefixed)
     const isInvalidOldId = typeof newId !== 'string' || !newId.startsWith('msg-') || newId.split('-').length < 3 || isNaN(Number(newId.split('-')[1]));
 
     if (isInvalidOldId || seenIds.has(newId)) {
@@ -140,7 +136,7 @@ export default function ChatPage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { user: authUser, loading: authLoading, googleAccessToken } = useAuth();
+  const { user: authUser, loading: authLoading, googleAccessToken, signInWithGoogle } = useAuth();
   const { profile, isLoading: profileLoading } = useUserProfile();
   const chatAreaRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -153,7 +149,7 @@ export default function ChatPage() {
     if (!authLoading && authUser) {
       return authUser.uid;
     }
-    return profile?.userId || DEFAULT_USER_ID; // Fallback carefully
+    return profile?.userId || DEFAULT_USER_ID; 
   }, [authLoading, authUser, profile?.userId]);
 
 
@@ -166,6 +162,7 @@ export default function ChatPage() {
     createNewSession,
     syncWithDrive,
     isSyncing,
+    triggerGoogleSignIn, 
   } = useChatHistory(userIdForHistory); 
 
   const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
@@ -243,10 +240,10 @@ export default function ChatPage() {
     historyHookLoading, 
     userIdForHistory, 
     profile?.selectedGenkitModelId, 
-    profile?.geminiApiKeys, // Added this
+    profile?.geminiApiKeys, 
     getSession, 
     createNewSession, 
-    ensureMessagesHaveUniqueIds // Added this
+    ensureMessagesHaveUniqueIds
   ]);
 
 
@@ -297,7 +294,7 @@ export default function ChatPage() {
     const userApiKeyForNewChatNameGen = (profile?.geminiApiKeys && profile.geminiApiKeys.length > 0 && profile.geminiApiKeys[0]) ? profile.geminiApiKeys[0] : undefined;
     const newSession = createNewSession([], modelIdToUse, userApiKeyForNewChatNameGen);
     setCurrentSession(newSession);
-    setMessages(newSession.messages); // Messages should be empty [] from createNewSession
+    setMessages(newSession.messages); 
     setInputMessage('');
     setSelectedFiles([]);
     setCurrentAttachedFilesData([]);
@@ -430,8 +427,8 @@ export default function ChatPage() {
         const designFileExists = filesToSendWithThisMessage.some(f => f.type?.startsWith('image/') && f.dataUri);
         if (!designFileExists) {
           const hasRecentImageInHistory = messages.slice().reverse().find(msg => msg.role === 'user' && msg.attachedFiles && msg.attachedFiles.some(f => f.type?.startsWith('image/') && f.dataUri));
-          if (!hasRecentImageInHistory) {
-             toast({ title: "No Image Found", description: "Please attach an image or ensure a recent image exists in chat history for 'Editing Prompts'.", variant: "destructive" });
+          if (!hasRecentImageInHistory && !isRegenerationCall) { // Check !isRegenerationCall, flow will handle historical search if regenerating
+             toast({ title: "No Image Found For Editing", description: "Please attach an image, or ensure a recent image exists in chat history.", variant: "destructive" });
              return;
           }
         }
@@ -696,11 +693,9 @@ export default function ChatPage() {
       }
     }
       
-    if (currentSession && userIdForHistory && !aiCallError) { // Only save if there was no AI call error
+    if (currentSession && userIdForHistory && !aiCallError) { 
         setMessages(prevMessages => {
             let updatedMessagesList = prevMessages;
-            // Ensure the target message (the one being updated by the AI) exists.
-            // This is important especially for regeneration scenarios.
             const targetMessageIndex = updatedMessagesList.findIndex(m => m.id === (messageIdToUpdate || assistantMessageIdToUse));
 
             if (targetMessageIndex !== -1) {
@@ -710,11 +705,9 @@ export default function ChatPage() {
                     m 
                 );
             } else if (!messageIdToUpdate && assistantMessageIdToUse) {
-                 // This case should ideally not happen if addMessage correctly adds the assistant placeholder.
-                 // But as a fallback, if the placeholder wasn't found, we add the final response as a new message.
                 console.warn(`saveSession: Assistant message ID ${assistantMessageIdToUse} not found for update. Adding as new message.`);
                 const newAssistantMessage: ChatMessage = {
-                    id: assistantMessageIdToUse, // Use the intended ID
+                    id: assistantMessageIdToUse, 
                     role: 'assistant',
                     content: finalAiResponseContent,
                     timestamp: Date.now(),
@@ -779,7 +772,7 @@ export default function ChatPage() {
         true, 
         messageIdToRegenerate 
     );
-  }, [profileLoading, profile, currentSession, toast]); // Removed handleSendMessage from deps as it causes loops
+  }, [profileLoading, profile, currentSession, toast]); 
 
 
   const handleAction = (action: ActionType) => {
@@ -863,7 +856,39 @@ export default function ChatPage() {
       await handleFileSelectAndProcess(Array.from(event.dataTransfer.files));
       event.dataTransfer.clearData();
     }
-  }, []); // Added handleFileSelectAndProcess to deps
+  }, [handleFileSelectAndProcess]); 
+
+
+  const handleSyncWithDriveClick = async () => {
+    const result = await syncWithDrive();
+    if (result === 'TOKEN_REFRESH_NEEDED' && triggerGoogleSignIn) {
+        try {
+            await triggerGoogleSignIn(); // Attempt to re-authenticate
+            // After successful re-auth, the AuthContext will update googleAccessToken,
+            // which should trigger effects in useChatHistory to re-initialize Drive folder and history.
+            // Optionally, you could call syncWithDrive() again here, but it might be redundant
+            // if the effects in useChatHistory are set up correctly.
+            toast({ title: "Google Sign-In Successful", description: "Attempting to sync with Drive again..." });
+            // A small delay to allow AuthContext to propagate token before re-syncing
+            setTimeout(async () => {
+                 const finalResult = await syncWithDrive();
+                 if (finalResult === 'SUCCESS') {
+                     toast({ title: "Drive Sync Successful", description: "History synced with Google Drive." });
+                 } else if (finalResult === 'FAILED') {
+                     toast({ title: "Drive Sync Failed", description: "Could not sync with Google Drive after re-authentication.", variant: "destructive" });
+                 }
+            }, 1000);
+
+        } catch (error) {
+            console.error("Error during Google re-authentication for sync:", error);
+            toast({ title: "Google Sign-In Failed", description: "Could not re-authenticate with Google for Drive sync.", variant: "destructive" });
+        }
+    } else if (result === 'SUCCESS') {
+        toast({ title: "Drive Sync Successful", description: "History synced with Google Drive." });
+    } else if (result === 'FAILED') {
+         toast({ title: "Drive Sync Failed", description: "Could not sync with Google Drive. Check console for details.", variant: "destructive" });
+    }
+  };
 
 
   if (authLoading || (!currentSession && !profileLoading && !historyHookLoading) ) { 
@@ -922,9 +947,15 @@ export default function ChatPage() {
           </div>
           <div className="flex items-center gap-2">
              { authUser && googleAccessToken && (
-                <Button variant="outline" size="sm" onClick={syncWithDrive} disabled={isSyncing} className="hover:bg-primary/10 hover:text-primary transition-colors">
+                <Button variant="outline" size="sm" onClick={handleSyncWithDriveClick} disabled={isSyncing} className="hover:bg-primary/10 hover:text-primary transition-colors">
                     {isSyncing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                     Sync
+                </Button>
+            )}
+             { authUser && !googleAccessToken && ( // Show sync button even if token is missing, to trigger re-auth
+                <Button variant="outline" size="sm" onClick={handleSyncWithDriveClick} disabled={isSyncing} className="hover:bg-primary/10 hover:text-primary transition-colors">
+                    {isSyncing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                    Sync with Drive
                 </Button>
             )}
             <Button variant="outline" size="sm" onClick={handleNewChat} className="hover:bg-primary/10 hover:text-primary transition-colors">
@@ -1045,3 +1076,4 @@ export default function ChatPage() {
 }
 
     
+

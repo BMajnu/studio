@@ -12,16 +12,10 @@ export interface DriveFile {
   id: string;
   name: string;
   mimeType: string;
-  modifiedTime?: string; // Useful for sync logic
-  // Add other relevant fields if needed
+  modifiedTime?: string; 
 }
 
-/**
- * Ensures the application-specific folder exists in the user's Google Drive appDataFolder.
- * Creates it if it doesn't exist.
- * @param accessToken Google OAuth2 access token.
- * @returns Promise resolving to the ID of the appDataFolder.
- */
+
 export async function ensureAppFolderExists(accessToken: string): Promise<string | null> {
   if (!accessToken) {
     console.error('DriveService: ensureAppFolderExists called without an access token.');
@@ -103,14 +97,6 @@ export async function ensureAppFolderExists(accessToken: string): Promise<string
 }
 
 
-/**
- * Saves or updates a session JSON file in the specified Google Drive folder.
- * @param accessToken Google OAuth2 access token.
- * @param appFolderId The ID of the folder where the session should be saved.
- * @param sessionId The ID of the chat session.
- * @param sessionData The chat session data object to save.
- * @returns Promise resolving to the DriveFile object if successful, or null otherwise.
- */
 export async function saveSessionToDrive(
   accessToken: string,
   appFolderId: string,
@@ -119,7 +105,7 @@ export async function saveSessionToDrive(
 ): Promise<DriveFile | null> {
   const functionName = "saveSessionToDrive";
   if (!accessToken || !appFolderId || !sessionId || !sessionData) {
-    console.error(`DriveService (${functionName}): Called with missing parameters. Token, folderId, sessionId, or sessionData might be null/undefined.`);
+    console.error(`DriveService (${functionName}): Called with missing parameters. Token: ${!!accessToken}, FolderID: ${appFolderId}, SessionID: ${sessionId}, HasData: ${!!sessionData}`);
     return null;
   }
 
@@ -203,22 +189,16 @@ export async function saveSessionToDrive(
 }
 
 
-/**
- * Lists all session files (session_*.json) from the app's dedicated folder on Google Drive.
- * @param accessToken Google OAuth2 access token.
- * @param appFolderId The ID of the app's folder on Google Drive.
- * @returns Promise resolving to an array of DriveFile objects or null on error.
- */
 export async function listSessionFilesFromDrive(accessToken: string, appFolderId: string): Promise<DriveFile[] | null> {
   const functionName = "listSessionFilesFromDrive";
   if (!accessToken || !appFolderId) {
-    console.error(`DriveService (${functionName}): Missing accessToken or appFolderId.`);
+    console.error(`DriveService (${functionName}): Missing accessToken or appFolderId. Token: ${!!accessToken}, FolderID: ${appFolderId}`);
     return null;
   }
 
   console.log(`DriveService (${functionName}): Listing session files from folder ID ${appFolderId}...`);
   const query = `'${appFolderId}' in parents and mimeType='application/json' and name contains 'session_' and trashed=false`;
-  const fields = "files(id,name,mimeType,modifiedTime)"; // Add modifiedTime
+  const fields = "files(id,name,mimeType,modifiedTime)"; 
   const url = `${DRIVE_API_BASE_URL}/files?spaces=appDataFolder&q=${encodeURIComponent(query)}&fields=${encodeURIComponent(fields)}`;
 
   try {
@@ -242,16 +222,11 @@ export async function listSessionFilesFromDrive(accessToken: string, appFolderId
   }
 }
 
-/**
- * Fetches a specific session file content from Google Drive by its file ID.
- * @param accessToken Google OAuth2 access token.
- * @param fileId The Drive ID of the session file.
- * @returns Promise resolving to the parsed ChatSession object or null on error.
- */
+
 export async function getSessionFromDrive(accessToken: string, fileId: string): Promise<ChatSession | null> {
   const functionName = "getSessionFromDrive";
   if (!accessToken || !fileId) {
-    console.error(`DriveService (${functionName}): Missing accessToken or fileId.`);
+    console.error(`DriveService (${functionName}): Missing accessToken or fileId. Token: ${!!accessToken}, FileID: ${fileId}`);
     return null;
   }
 
@@ -279,16 +254,11 @@ export async function getSessionFromDrive(accessToken: string, fileId: string): 
   }
 }
 
-/**
- * Deletes a file from Google Drive by its file ID.
- * @param accessToken Google OAuth2 access token.
- * @param fileId The Drive ID of the file to delete.
- * @returns Promise resolving to true if successful, false otherwise.
- */
+
 export async function deleteFileFromDrive(accessToken: string, fileId: string): Promise<boolean> {
   const functionName = "deleteFileFromDrive";
   if (!accessToken || !fileId) {
-    console.error(`DriveService (${functionName}): Missing accessToken or fileId.`);
+    console.error(`DriveService (${functionName}): Missing accessToken or fileId. Token: ${!!accessToken}, FileID: ${fileId}`);
     return false;
   }
 
@@ -301,7 +271,7 @@ export async function deleteFileFromDrive(accessToken: string, fileId: string): 
       headers: { 'Authorization': `Bearer ${accessToken}` },
     });
 
-    if (response.ok) { // HTTP 204 No Content on successful deletion
+    if (response.ok) { 
       console.log(`DriveService (${functionName}): File ${fileId} deleted successfully from Drive.`);
       return true;
     } else {
@@ -316,6 +286,4 @@ export async function deleteFileFromDrive(accessToken: string, fileId: string): 
     return false;
   }
 }
-// Placeholder for future functions
-// export async function uploadGeneralFileToDrive(accessToken: string, appFolderId: string, file: File, desiredName?: string): Promise<DriveFile | null> { ... }
 
