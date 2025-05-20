@@ -128,8 +128,9 @@ export function HistoryPanel({
                       variant="ghost"
                       size="icon"
                       className={cn(
-                        "h-7 w-7 flex-shrink-0 hover:text-destructive hover:bg-destructive/10", // Removed transition-opacity and conditional opacity
-                        session.id === activeSessionId ? "text-accent-foreground/70 hover:text-destructive" : "text-muted-foreground"
+                        "h-7 w-7 flex-shrink-0", // Base classes for size and shrink behavior
+                        "text-slate-500 dark:text-slate-400", // Default icon color for light/dark mode
+                        "hover:text-destructive hover:bg-destructive/10" // Hover state
                       )}
                       onClick={(e) => e.stopPropagation()} // Prevent session selection
                       title="Delete chat"
