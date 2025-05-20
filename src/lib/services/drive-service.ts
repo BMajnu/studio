@@ -2,18 +2,11 @@
 // src/lib/services/drive-service.ts
 'use client';
 
-import type { ChatSession } from '@/lib/types'; // Assuming ChatSession is defined
+import type { ChatSession, DriveFile } from '@/lib/types'; 
 
 const DRIVE_API_BASE_URL = 'https://www.googleapis.com/drive/v3';
 const DRIVE_UPLOAD_API_BASE_URL = 'https://www.googleapis.com/upload/drive/v3';
-const APP_DATA_FOLDER_NAME = 'DesAInR_AppData'; // Name of the folder in appDataFolder
-
-export interface DriveFile {
-  id: string;
-  name: string;
-  mimeType: string;
-  modifiedTime?: string; 
-}
+const APP_DATA_FOLDER_NAME = 'DesAInR_AppData'; 
 
 
 export async function ensureAppFolderExists(accessToken: string): Promise<string | null> {
@@ -96,45 +89,76 @@ export async function ensureAppFolderExists(accessToken: string): Promise<string
   }
 }
 
+// Helper to find an existing Drive file by appSessionId (stored in appProperties)
+async function findDriveFileByAppSessionId(accessToken: string, appFolderId: string, appSessionId: string): Promise<DriveFile | null> {
+  const functionName = "findDriveFileByAppSessionId";
+  const fileName = `session_${appSessionId}.json`; // Match by filename as a primary way
+  const query = `name='${fileName}' and '${appFolderId}' in parents and trashed=false`;
+  const fields = "files(id,name,mimeType,modifiedTime,appProperties)";
+  const url = `${DRIVE_API_BASE_URL}/files?spaces=appDataFolder&q=${encodeURIComponent(query)}&fields=${encodeURIComponent(fields)}`;
+
+  try {
+    const response = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    if (!response.ok) {
+      // Log error but don't throw, let the caller decide if it's critical
+      console.warn(`DriveService (${functionName}): Error listing files to find existing session by name '${fileName}'. Status: ${response.status}`);
+      return null;
+    }
+    const result = await response.json();
+    if (result.files && result.files.length > 0) {
+      // If multiple files have the same name (shouldn't happen often with unique session IDs),
+      // prefer the one with matching appProperty if available, or take the first one.
+      const matchedFile = result.files.find((f: DriveFile) => f.appProperties?.appSessionId === appSessionId) || result.files[0];
+      console.log(`DriveService (${functionName}): Found existing Drive file for appSessionId '${appSessionId}' by name. Drive File ID: ${matchedFile.id}`);
+      return matchedFile;
+    }
+  } catch (error: any) {
+    console.error(`DriveService (${functionName}): Exception while trying to find file by name for ${appSessionId}:`, error);
+  }
+  return null;
+}
+
 
 export async function saveSessionToDrive(
   accessToken: string,
   appFolderId: string,
-  sessionId: string,
-  sessionData: any
+  appSessionId: string, // This is the app's internal session ID
+  sessionData: ChatSession
 ): Promise<DriveFile | null> {
   const functionName = "saveSessionToDrive";
-  if (!accessToken || !appFolderId || !sessionId || !sessionData) {
-    console.error(`DriveService (${functionName}): Called with missing parameters. Token: ${!!accessToken}, FolderID: ${appFolderId}, SessionID: ${sessionId}, HasData: ${!!sessionData}`);
+  if (!accessToken || !appFolderId || !appSessionId || !sessionData) {
+    console.error(`DriveService (${functionName}): Called with missing parameters. Token: ${!!accessToken}, FolderID: ${appFolderId}, AppSessionID: ${appSessionId}, HasData: ${!!sessionData}`);
     return null;
   }
 
-  const fileName = `session_${sessionId}.json`;
+  // The filename on Drive will include the app's session ID for easier identification.
+  const fileNameOnDrive = `session_${appSessionId}.json`;
   
   try {
-    console.log(`DriveService (${functionName}): Checking for existing file '${fileName}' in folder '${appFolderId}'.`);
-    const listResponse = await fetch(`${DRIVE_API_BASE_URL}/files?spaces=appDataFolder&q=name='${fileName}' and '${appFolderId}' in parents and trashed=false&fields=files(id)`, {
-        headers: { 'Authorization': `Bearer ${accessToken}` },
-    });
+    console.log(`DriveService (${functionName}): Checking for existing file for appSessionId '${appSessionId}' (filename: '${fileNameOnDrive}') in folder '${appFolderId}'.`);
+    const existingDriveFile = await findDriveFileByAppSessionId(accessToken, appFolderId, appSessionId);
+    const existingDriveFileId = existingDriveFile?.id;
 
-    if (!listResponse.ok) {
-        let errorDetailsMessage = `Status: ${listResponse.status} ${listResponse.statusText}.`;
-        try { const errorData = await listResponse.json(); errorDetailsMessage += ` Body: ${JSON.stringify(errorData)}`; }
-        catch (e) { try { const textError = await listResponse.text(); errorDetailsMessage += ` Body: ${textError}`; } catch (fe) {errorDetailsMessage += " Could not parse error body."} }
-        console.error(`DriveService (${functionName}): Error checking for existing session file. ${errorDetailsMessage}`);
-        throw new Error(`Failed to check for existing session file. ${errorDetailsMessage}`);
-    }
-    const listResult = await listResponse.json();
-    const existingFileId = listResult.files && listResult.files.length > 0 ? listResult.files[0].id : null;
-
-    const content = JSON.stringify(sessionData);
+    // Ensure sessionData includes its own appSessionId and the driveFileId if known
+    const dataToSave: ChatSession = {
+      ...sessionData,
+      id: appSessionId, // Ensure app's session ID is part of the saved data
+      driveFileId: existingDriveFileId || sessionData.driveFileId, // Keep existing driveFileId or update if found
+    };
+    const content = JSON.stringify(dataToSave);
     const blob = new Blob([content], { type: 'application/json' });
 
     const fileMetadataForUpload: any = {
-        name: fileName,
+        name: fileNameOnDrive,
         mimeType: 'application/json',
+        appProperties: { // Store app's session ID in appProperties for reliable lookup
+          appSessionId: appSessionId,
+        }
     };
-    if (!existingFileId) {
+    // Only set parents if creating a new file
+    if (!existingDriveFileId) {
         fileMetadataForUpload.parents = [appFolderId];
     }
 
@@ -145,14 +169,14 @@ export async function saveSessionToDrive(
     let url: string;
     let method: string;
 
-    if (existingFileId) {
-      url = `${DRIVE_UPLOAD_API_BASE_URL}/files/${existingFileId}?uploadType=multipart`;
+    if (existingDriveFileId) {
+      url = `${DRIVE_UPLOAD_API_BASE_URL}/files/${existingDriveFileId}?uploadType=multipart&supportsAllDrives=true`;
       method = 'PATCH';
-      console.log(`DriveService (${functionName}): Attempting to update existing session file ${fileName} (ID: ${existingFileId}) in Drive.`);
+      console.log(`DriveService (${functionName}): Attempting to update existing session file ${fileNameOnDrive} (Drive ID: ${existingDriveFileId}) in Drive.`);
     } else {
-      url = `${DRIVE_UPLOAD_API_BASE_URL}/files?uploadType=multipart`;
+      url = `${DRIVE_UPLOAD_API_BASE_URL}/files?uploadType=multipart&supportsAllDrives=true`;
       method = 'POST';
-      console.log(`DriveService (${functionName}): Attempting to create new session file ${fileName} in Drive folder ${appFolderId}.`);
+      console.log(`DriveService (${functionName}): Attempting to create new session file ${fileNameOnDrive} in Drive folder ${appFolderId}.`);
     }
     
     let response: Response;
@@ -171,19 +195,32 @@ export async function saveSessionToDrive(
 
     if (!response.ok) {
       let errorDetailsMessage = `Status: ${response.status} ${response.statusText}.`;
-      try { const errorData = await response.json(); errorDetailsMessage += ` Body: ${JSON.stringify(errorData)}`; }
-      catch (e) { try { const textError = await response.text(); errorDetailsMessage += ` Body: ${textError}`; } catch (fe) {errorDetailsMessage += " Could not parse error body."} }
-      console.error(`DriveService (${functionName}): Error ${existingFileId ? 'updating' : 'creating'} session file ${fileName}. ${errorDetailsMessage}`);
-      throw new Error(`Failed to ${existingFileId ? 'update' : 'create'} session file in Drive. ${errorDetailsMessage}`);
+      try { 
+        const errorData = await response.json(); 
+        errorDetailsMessage += ` Body: ${JSON.stringify(errorData)}`; 
+      } catch (e) { 
+        try { 
+          const textError = await response.text(); 
+          errorDetailsMessage += ` Body: ${textError}`; 
+        } catch (fe) {
+          errorDetailsMessage += " Could not parse error body."
+        } 
+      }
+      console.error(`DriveService (${functionName}): Error ${existingDriveFileId ? 'updating' : 'creating'} session file ${fileNameOnDrive}. ${errorDetailsMessage}`);
+      throw new Error(`Failed to ${existingDriveFileId ? 'update' : 'create'} session file in Drive. ${errorDetailsMessage}`);
     }
 
     const savedFile: DriveFile = await response.json();
-    console.log(`DriveService (${functionName}): Session file ${fileName} ${existingFileId ? 'updated' : 'created'} successfully in Drive. ID: ${savedFile.id}`);
+    // Ensure appProperties are part of the returned file object if possible for consistency
+    if (!savedFile.appProperties) {
+        savedFile.appProperties = { appSessionId: appSessionId };
+    }
+    console.log(`DriveService (${functionName}): Session file ${fileNameOnDrive} ${existingDriveFileId ? 'updated' : 'created'} successfully in Drive. ID: ${savedFile.id}`);
     return savedFile;
 
   } catch (error: any) { 
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`DriveService (${functionName}): Overall exception for ${fileName}:`, errorMessage, error);
+    console.error(`DriveService (${functionName}): Overall exception for ${fileNameOnDrive}:`, errorMessage, error);
     return null;
   }
 }
@@ -198,8 +235,9 @@ export async function listSessionFilesFromDrive(accessToken: string, appFolderId
 
   console.log(`DriveService (${functionName}): Listing session files from folder ID ${appFolderId}...`);
   const query = `'${appFolderId}' in parents and mimeType='application/json' and name contains 'session_' and trashed=false`;
-  const fields = "files(id,name,mimeType,modifiedTime)"; 
-  const url = `${DRIVE_API_BASE_URL}/files?spaces=appDataFolder&q=${encodeURIComponent(query)}&fields=${encodeURIComponent(fields)}`;
+  // Request appProperties to get our appSessionId
+  const fields = "files(id,name,mimeType,modifiedTime,appProperties)"; 
+  const url = `${DRIVE_API_BASE_URL}/files?spaces=appDataFolder&q=${encodeURIComponent(query)}&fields=${encodeURIComponent(fields)}&supportsAllDrives=true`;
 
   try {
     const response = await fetch(url, {
@@ -222,16 +260,16 @@ export async function listSessionFilesFromDrive(accessToken: string, appFolderId
   }
 }
 
-
-export async function getSessionFromDrive(accessToken: string, fileId: string): Promise<ChatSession | null> {
+// Fetches a session using its Google Drive file ID
+export async function getSessionFromDrive(accessToken: string, driveFileId: string): Promise<ChatSession | null> {
   const functionName = "getSessionFromDrive";
-  if (!accessToken || !fileId) {
-    console.error(`DriveService (${functionName}): Missing accessToken or fileId. Token: ${!!accessToken}, FileID: ${fileId}`);
+  if (!accessToken || !driveFileId) {
+    console.error(`DriveService (${functionName}): Missing accessToken or driveFileId. Token: ${!!accessToken}, DriveFileID: ${driveFileId}`);
     return null;
   }
 
-  console.log(`DriveService (${functionName}): Fetching session file with ID ${fileId}...`);
-  const url = `${DRIVE_API_BASE_URL}/files/${fileId}?alt=media&spaces=appDataFolder`;
+  console.log(`DriveService (${functionName}): Fetching session file with Drive ID ${driveFileId}...`);
+  const url = `${DRIVE_API_BASE_URL}/files/${driveFileId}?alt=media&spaces=appDataFolder&supportsAllDrives=true`;
 
   try {
     const response = await fetch(url, {
@@ -242,28 +280,30 @@ export async function getSessionFromDrive(accessToken: string, fileId: string): 
       let errorDetailsMessage = `Status: ${response.status} ${response.statusText}.`;
       try { const errorData = await response.json(); errorDetailsMessage += ` Body: ${JSON.stringify(errorData)}`; } 
       catch (e) { try { const textError = await response.text(); errorDetailsMessage += ` Body: ${textError}`; } catch (fe) {errorDetailsMessage += " Could not parse error body."} }
-      console.error(`DriveService (${functionName}): Error fetching file content for ${fileId}. ${errorDetailsMessage}`);
-      throw new Error(`Failed to fetch file content from Drive for ${fileId}. ${errorDetailsMessage}`);
+      console.error(`DriveService (${functionName}): Error fetching file content for Drive ID ${driveFileId}. ${errorDetailsMessage}`);
+      // Do not throw here, return null to allow fallback if desired by caller
+      return null; 
     }
-    const sessionData = await response.json();
-    console.log(`DriveService (${functionName}): Successfully fetched and parsed session file ${fileId}.`);
-    return sessionData as ChatSession;
+    const sessionData: ChatSession = await response.json();
+    console.log(`DriveService (${functionName}): Successfully fetched and parsed session file with Drive ID ${driveFileId}. App Session ID: ${sessionData.id}`);
+    // Ensure the session data has the driveFileId if it was fetched from Drive
+    return { ...sessionData, driveFileId: driveFileId };
   } catch (error: any) {
-    console.error(`DriveService (${functionName}): General exception for file ${fileId}:`, error.message, error);
+    console.error(`DriveService (${functionName}): General exception for Drive file ID ${driveFileId}:`, error.message, error);
     return null;
   }
 }
 
-
-export async function deleteFileFromDrive(accessToken: string, fileId: string): Promise<boolean> {
+// Deletes a file using its Google Drive file ID
+export async function deleteFileFromDrive(accessToken: string, driveFileId: string): Promise<boolean> {
   const functionName = "deleteFileFromDrive";
-  if (!accessToken || !fileId) {
-    console.error(`DriveService (${functionName}): Missing accessToken or fileId. Token: ${!!accessToken}, FileID: ${fileId}`);
+  if (!accessToken || !driveFileId) {
+    console.error(`DriveService (${functionName}): Missing accessToken or driveFileId. Token: ${!!accessToken}, DriveFileID: ${driveFileId}`);
     return false;
   }
 
-  console.log(`DriveService (${functionName}): Attempting to delete file with ID ${fileId} from Drive...`);
-  const url = `${DRIVE_API_BASE_URL}/files/${fileId}`;
+  console.log(`DriveService (${functionName}): Attempting to delete file with Drive ID ${driveFileId} from Drive...`);
+  const url = `${DRIVE_API_BASE_URL}/files/${driveFileId}?supportsAllDrives=true`;
 
   try {
     const response = await fetch(url, {
@@ -272,18 +312,17 @@ export async function deleteFileFromDrive(accessToken: string, fileId: string): 
     });
 
     if (response.ok) { 
-      console.log(`DriveService (${functionName}): File ${fileId} deleted successfully from Drive.`);
+      console.log(`DriveService (${functionName}): File with Drive ID ${driveFileId} deleted successfully from Drive.`);
       return true;
     } else {
       let errorDetailsMessage = `Status: ${response.status} ${response.statusText}.`;
       try { const errorData = await response.json(); errorDetailsMessage += ` Body: ${JSON.stringify(errorData)}`; }
       catch (e) { try { const textError = await response.text(); errorDetailsMessage += ` Body: ${textError}`; } catch (fe) {errorDetailsMessage += " Could not parse error body."} }
-      console.error(`DriveService (${functionName}): Error deleting file ${fileId} from Drive. ${errorDetailsMessage}`);
+      console.error(`DriveService (${functionName}): Error deleting file with Drive ID ${driveFileId} from Drive. ${errorDetailsMessage}`);
       return false;
     }
   } catch (error: any) {
-    console.error(`DriveService (${functionName}): General exception deleting file ${fileId}:`, error.message, error);
+    console.error(`DriveService (${functionName}): General exception deleting file with Drive ID ${driveFileId}:`, error.message, error);
     return false;
   }
 }
-

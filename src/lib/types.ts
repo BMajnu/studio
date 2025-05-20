@@ -8,7 +8,7 @@ export interface UserProfile {
   communicationStyleNotes?: string;
   services: string[];
   fiverrUsername?: string;
-  geminiApiKeys?: string[]; // Changed from geminiApiKey: string to string[]
+  geminiApiKeys?: string[]; 
   selectedGenkitModelId?: string;
   customSellerFeedbackTemplate?: string;
   customClientFeedbackResponseTemplate?: string;
@@ -62,40 +62,46 @@ export interface ChatMessage {
     actionType: ActionType;
     messageText: string;
     notes?: string;
-    attachedFilesData?: AttachedFile[]; // These are the processed files used for the original request
+    attachedFilesData?: AttachedFile[]; 
     messageIdToRegenerate?: string; 
   };
 }
 
-// AI Flow input/output types (re-exporting or extending if needed)
 export interface ProcessedClientMessageOutput {
   analysis?: string;
   simplifiedRequest?: string;
   stepByStepApproach?: string;
-  bengaliTranslation?: string; // This likely contains the combined Bengali text
-  // englishReplies and bengaliReplies were part of an older version, keep for reference if needed by other parts, but processMessage might not directly output them now
+  bengaliTranslation?: string; 
 }
 
 export interface PlatformMessagesOutput {
-  messages: { message: string, type: string }[]; // Changed structure based on recent flow updates
+  messages: { message: string, type: string }[]; 
 }
 
-// Chat History Types
 export interface ChatSessionMetadata {
-  id: string;
+  id: string; // App's internal session ID
   name: string;
   lastMessageTimestamp: number;
   preview: string; 
   messageCount: number;
-  isDriveSession?: boolean; // To indicate if it was primarily sourced/synced from Drive
+  isDriveSession?: boolean; 
+  driveFileId?: string; // Actual Google Drive file ID
 }
 
 export interface ChatSession {
-  id: string;
+  id: string; // App's internal session ID
   name: string;
   messages: ChatMessage[];
   createdAt: number; 
   updatedAt: number; 
   userId: string; 
+  driveFileId?: string; // Optional: Actual Google Drive file ID if synced
 }
 
+export interface DriveFile {
+  id: string; // Google Drive's file ID
+  name: string; // Filename on Google Drive
+  mimeType: string;
+  modifiedTime?: string;
+  appProperties?: Record<string, string>; // To store app's session ID
+}
