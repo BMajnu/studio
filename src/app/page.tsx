@@ -59,11 +59,9 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
         if (part.english?.stepByStepApproach) tgContent += `**English Step-by-Step Approach:**\n${part.english.stepByStepApproach}\n\n`;
         
         let bengaliCombined = "";
-        // Updated logic to use the single 'analysis' field from bengali for the combined translation
         if (part.bengali?.analysis) { 
           bengaliCombined = part.bengali.analysis;
         } else if (part.bengali?.simplifiedRequest && part.bengali?.stepByStepApproach) {
-          // Fallback if old structure is somehow present, though flow should give combined in analysis
           bengaliCombined = `বিশ্লেষণ (Analysis):\n${part.bengali.analysis || 'N/A'}\n\nসরলীকৃত অনুরোধ (Simplified Request):\n${part.bengali.simplifiedRequest}\n\nধাপে ধাপে পদ্ধতি (Step-by-Step Approach):\n${part.bengali.stepByStepApproach}`;
         } else if (part.bengali?.simplifiedRequest) {
           bengaliCombined = `সরলীকৃত অনুরোধ (Simplified Request):\n${part.bengali.simplifiedRequest}`;
@@ -117,7 +115,6 @@ const baseEnsureMessagesHaveUniqueIds = (messagesToProcess: ChatMessage[]): Chat
   return messagesToProcess.map(msg => {
     let newId = msg.id;
     const idParts = typeof newId === 'string' ? newId.split('-') : [];
-    // Check if ID is invalid (not string, not starting with msg-, seen before, or malformed old ID)
     const isInvalidOldId = idParts.length < 3 || idParts[0] !== 'msg' || isNaN(Number(idParts[1])) || typeof idParts[2] !== 'string' || idParts[2].length < 5;
 
     if (typeof newId !== 'string' || !newId.startsWith('msg-') || seenIds.has(newId) || isInvalidOldId) {
@@ -165,8 +162,8 @@ export default function ChatPage() {
     saveSession,
     deleteSession,
     createNewSession,
-    syncWithDrive, // Added from hook
-    isSyncing,     // Added from hook
+    syncWithDrive,
+    isSyncing,
   } = useChatHistory(userIdForHistory); 
 
   const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
@@ -206,16 +203,16 @@ export default function ChatPage() {
             console.warn(`ChatPage SessionInitEffect: Loaded session ${lastActiveSessionId} belongs to a different user (${sessionToLoad.userId}). Discarding.`);
             sessionToLoad = null; 
             localStorage.removeItem(lastActiveSessionIdKey);
-            lastActiveSessionId = null; // Clear it so we create a new one below
+            lastActiveSessionId = null;
         } else if (!sessionToLoad) {
             console.warn(`ChatPage SessionInitEffect: Last active session ID ${lastActiveSessionId} found but getSession returned null. Clearing ID from LS.`);
             localStorage.removeItem(lastActiveSessionIdKey);
-            lastActiveSessionId = null; // Clear it
+            lastActiveSessionId = null;
         }
       } else if (lastActiveSessionId) {
         console.warn(`ChatPage SessionInitEffect: lastActiveSessionId ${lastActiveSessionId} does not match current user ${currentUserIdToUse} prefix. Clearing ID from LS.`);
         localStorage.removeItem(lastActiveSessionIdKey);
-        lastActiveSessionId = null; // Clear it
+        lastActiveSessionId = null;
       }
   
       if (sessionToLoad) {
@@ -247,7 +244,7 @@ export default function ChatPage() {
     historyHookLoading, 
     userIdForHistory, 
     profile?.selectedGenkitModelId, 
-    profile?.geminiApiKeys, // Add this because userApiKeyForNameGen depends on it
+    profile?.geminiApiKeys,
     getSession, 
     createNewSession, 
     ensureMessagesHaveUniqueIds
@@ -428,10 +425,18 @@ export default function ChatPage() {
       toast({ title: "No Design Attached", description: `Please attach a design image to use the 'Check Designs' feature.`, variant: "destructive" });
       return;
     }
-     if (actionTypeParam === 'generateEditingPrompts' && !filesToSendWithThisMessage.find(f => f.type?.startsWith('image/') && f.dataUri)) {
-      // If generateEditingPrompts is triggered and no *current* image is attached,
-      // we'll let the flow handle trying to find one in history.
-      // No client-side block here, but the flow needs to handle the 'no image' case.
+     if (actionTypeParam === 'generateEditingPrompts') {
+        const designFileExists = filesToSendWithThisMessage.some(f => f.type?.startsWith('image/') && f.dataUri);
+        if (!designFileExists) {
+          // Check if a recent image exists in chat history, if not, prompt user.
+          // This logic is now primarily handled within the AI flow itself.
+          // However, a client-side pre-check can be useful.
+          const hasRecentImageInHistory = messages.slice().reverse().find(msg => msg.role === 'user' && msg.attachedFiles && msg.attachedFiles.some(f => f.type?.startsWith('image/') && f.dataUri));
+          if (!hasRecentImageInHistory) {
+             toast({ title: "No Image Found", description: "Please attach an image or ensure a recent image exists in chat history for 'Editing Prompts'.", variant: "destructive" });
+             return;
+          }
+        }
     }
 
 
@@ -449,7 +454,7 @@ export default function ChatPage() {
     };
 
     let assistantMessageIdToUse: string;
-    let userMessageId: string | null = null; // For saving session after user message
+    let userMessageId: string | null = null;
 
 
     if (messageIdToUpdate) { 
@@ -597,7 +602,7 @@ export default function ChatPage() {
         
         const editingInput: GenerateEditingPromptsInput = {
             ...baseInput,
-            designToEditDataUri: designToEditDataUriForFlow, // Pass undefined if no current file attached
+            designToEditDataUri: designToEditDataUriForFlow,
             clientInstructionForEditingTheme: currentMessageText,
             chatHistory: chatHistoryForAI,
         };
@@ -662,22 +667,23 @@ export default function ChatPage() {
 
     if (aiCallError) {
       let errorMessageText = `Sorry, I couldn't process that. AI Error: ${aiCallError.message || 'Unknown error'}`;
-      const isRateLimit = aiCallError.message?.includes('429') || aiCallError.message?.toLowerCase().includes('quota') || aiCallError.message?.toLowerCase().includes('rate limit');
-      const isInternalServerError = aiCallError.message?.includes('500') || aiCallError.message?.toLowerCase().includes('internal server error');
-      const isInvalidApiKey = aiCallError.message?.toLowerCase().includes('api key not valid') || aiCallError.message?.toLowerCase().includes('invalid api key');
+      const errorMsgLower = String(aiCallError.message).toLowerCase();
+      const isRateLimit = errorMsgLower.includes('429') || errorMsgLower.includes('quota') || errorMsgLower.includes('rate limit');
+      const isInternalServerError = errorMsgLower.includes('500') || errorMsgLower.includes('internal server error');
+      const isInvalidApiKey = errorMsgLower.includes('api key not valid') || errorMsgLower.includes('invalid api key');
 
       if (isRateLimit && availableUserApiKeys.length > 0) {
         const currentAttemptIndex = currentApiKeyIndexRef.current;
         if (currentAttemptIndex < availableUserApiKeys.length - 1) {
           currentApiKeyIndexRef.current++; 
-          const nextKeyAttempt = currentApiKeyIndexRef.current + 1; // For display
+          const nextKeyAttempt = currentApiKeyIndexRef.current + 1;
           errorMessageText = `The current API key (attempt ${currentAttemptIndex + 1}/${availableUserApiKeys.length}) may be rate-limited. Click 'Regenerate' to try the next available key (${nextKeyAttempt}/${availableUserApiKeys.length}). Original error: ${aiCallError.message}`;
           toast({ title: "Rate Limit Possible", description: `Key ${currentAttemptIndex + 1} might be limited. Regenerate to try key ${nextKeyAttempt}.`, variant: "default", duration: 7000 });
         } else {
           errorMessageText = `All configured API keys (${availableUserApiKeys.length}) may have hit rate limits, or the global key is limited. Please check your quotas or try again later. Original error: ${aiCallError.message}`;
           toast({ title: "All API Keys Tried/Rate Limited", description: "All available API keys may have hit rate limits, or the global key (from .env) is limited.", variant: "destructive", duration: 7000 });
         }
-      } else if (isRateLimit) { // Rate limit but no user keys to cycle, or global key limited
+      } else if (isRateLimit) {
         errorMessageText = `The API request was rate-limited (${aiCallError.message}). Please try again later or check your API key quotas.`;
         toast({ title: "Rate Limit Hit", description: aiCallError.message || "The request was rate-limited.", variant: "destructive", duration: 7000 });
       } else if (isInternalServerError) {
@@ -697,42 +703,34 @@ export default function ChatPage() {
       }
     }
       
-    if (currentSession && userIdForHistory) {
-        // Ensure a slight delay for setMessages to propagate before saving
-        // This is a bit of a workaround for state updates not being immediately available
-        // for saveSession if it was called too quickly.
-        setTimeout(() => {
-            setMessages(prevMessages => { // Use functional update to get the latest state
-                const updatedMessagesList = prevMessages.map(m => 
-                    m.id === (messageIdToUpdate || assistantMessageIdToUse) ? 
-                    {...m, content: aiCallError ? [{ type: 'text', text: finalAiResponseContent[0]?.text || errorMessageText || 'Error processing request.' }] : finalAiResponseContent, isLoading: false, isError: !!aiCallError, originalRequest: requestParamsForRegeneration, timestamp: Date.now()} :
-                    m 
-                );
-                
-                const sessionToSave: ChatSession = {
-                    ...currentSession,
-                    messages: ensureMessagesHaveUniqueIds(updatedMessagesList)
-                };
-                
-                // Determine if name generation should be attempted.
-                // Only for new messages being sent, not for regenerations,
-                // and only if the session is effectively new or unnamed.
-                const shouldAttemptNameGeneration = !messageIdToUpdate &&
-                    (sessionToSave.messages.length <= (userMessageId ? 2 : 1) || !currentSession.name || currentSession.name === "New Chat");
+    if (currentSession && userIdForHistory && !aiCallError) {
+        setMessages(prevMessages => {
+            const updatedMessagesList = prevMessages.map(m => 
+                m.id === (messageIdToUpdate || assistantMessageIdToUse) ? 
+                {...m, content: finalAiResponseContent, isLoading: false, isError: !!aiCallError, originalRequest: requestParamsForRegeneration, timestamp: Date.now()} :
+                m 
+            );
+            
+            const sessionToSave: ChatSession = {
+                ...currentSession,
+                messages: ensureMessagesHaveUniqueIds(updatedMessagesList)
+            };
+            
+            const shouldAttemptNameGeneration = !messageIdToUpdate &&
+                (sessionToSave.messages.length <= (userMessageId ? 2 : 1) || !currentSession.name || currentSession.name === "New Chat");
 
-                saveSession(
-                    sessionToSave,
-                    shouldAttemptNameGeneration,
-                    modelIdToUse,
-                    apiKeyToUseThisTurn
-                ).then(savedSession => {
-                    if (savedSession) {
-                        setCurrentSession(savedSession); // Update currentSession with potentially new name from saveSession
-                    }
-                });
-                return updatedMessagesList;
+            saveSession(
+                sessionToSave,
+                shouldAttemptNameGeneration,
+                modelIdToUse,
+                apiKeyToUseThisTurn
+            ).then(savedSession => {
+                if (savedSession) {
+                    setCurrentSession(savedSession); 
+                }
             });
-        }, 100); // 100ms delay
+            return updatedMessagesList;
+        });
     }
 
     setIsLoading(false);
@@ -763,10 +761,10 @@ export default function ChatPage() {
         originalRequest.actionType,
         originalRequest.notes,
         originalRequest.attachedFilesData,
-        true, // isRegenerationCall = true
+        true, 
         messageIdToRegenerate 
     );
-  }, [profileLoading, profile, currentSession, toast]); // Removed handleSendMessage from deps to break cycle
+  }, [profileLoading, profile, currentSession, toast]);
 
 
   const handleAction = (action: ActionType) => {
