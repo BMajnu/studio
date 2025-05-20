@@ -107,13 +107,13 @@ export function HistoryPanel({
               <div
                 key={session.id}
                 className={cn(
-                  `group flex items-center justify-between p-2.5 rounded-md cursor-pointer transition-all duration-200 ease-in-out animate-slideUpSlightly hover:shadow-lg hover:-translate-y-0.5`,
+                  `group flex items-center p-2.5 rounded-md cursor-pointer transition-all duration-200 ease-in-out animate-slideUpSlightly hover:shadow-lg hover:-translate-y-0.5`, // Removed justify-between
                   session.id === activeSessionId ? 'bg-accent text-accent-foreground shadow-md' : 'text-foreground hover:bg-accent/10'
                 )}
                 style={{ animationDelay: `${index * 30}ms` }}
                 onClick={() => onSelectSession(session.id)}
               >
-                <div className="flex-1 min-w-0 overflow-hidden">
+                <div className="flex-1 min-w-0 overflow-hidden"> {/* This div wraps the text content */}
                   <p className="text-sm font-medium truncate" title={session.name}>{session.name}</p>
                   <p className={cn("text-xs truncate", session.id === activeSessionId ? "text-accent-foreground/80" : "text-muted-foreground" )} title={session.preview}>
                     {session.messageCount} msg - {session.preview}
@@ -128,11 +128,11 @@ export function HistoryPanel({
                       variant="ghost"
                       size="icon"
                       className={cn(
-                        "h-7 w-7 flex-shrink-0", // Base classes for size and shrink behavior
-                        "text-slate-500 dark:text-slate-400", // Default icon color for light/dark mode
-                        "hover:text-destructive hover:bg-destructive/10" // Hover state
+                        "ml-auto h-7 w-7 flex-shrink-0", // Added ml-auto
+                        "text-slate-500 dark:text-slate-400", 
+                        "hover:text-destructive hover:bg-destructive/10"
                       )}
-                      onClick={(e) => e.stopPropagation()} // Prevent session selection
+                      onClick={(e) => e.stopPropagation()} 
                       title="Delete chat"
                     >
                       <Trash2 className="h-4 w-4" />
