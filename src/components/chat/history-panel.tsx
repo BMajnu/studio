@@ -45,14 +45,17 @@ export function HistoryPanel({
 
   const displayedSessions = useMemo(() => {
     if (!searchQuery.trim()) {
-      return sessions;
+      // Sort by lastMessageTimestamp descending by default
+      return [...sessions].sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
     }
     const lowerCaseQuery = searchQuery.toLowerCase();
-    return sessions.filter(
+    const filtered = sessions.filter(
       (session) =>
         (session.name && session.name.toLowerCase().includes(lowerCaseQuery)) ||
         (session.preview && session.preview.toLowerCase().includes(lowerCaseQuery))
     );
+    // Sort filtered results as well
+    return filtered.sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
   }, [sessions, searchQuery]);
 
   return (
@@ -107,13 +110,13 @@ export function HistoryPanel({
               <div
                 key={session.id}
                 className={cn(
-                  `group flex items-center p-2.5 rounded-md cursor-pointer transition-all duration-200 ease-in-out animate-slideUpSlightly hover:shadow-lg hover:-translate-y-0.5`, // Removed justify-between
+                  `group flex items-center p-2.5 rounded-md cursor-pointer transition-all duration-200 ease-in-out animate-slideUpSlightly hover:shadow-lg hover:-translate-y-0.5`,
                   session.id === activeSessionId ? 'bg-accent text-accent-foreground shadow-md' : 'text-foreground hover:bg-accent/10'
                 )}
                 style={{ animationDelay: `${index * 30}ms` }}
                 onClick={() => onSelectSession(session.id)}
               >
-                <div className="flex-1 min-w-0 overflow-hidden"> {/* This div wraps the text content */}
+                <div className="flex-1 min-w-0 overflow-hidden"> {/* Text content container */}
                   <p className="text-sm font-medium truncate" title={session.name}>{session.name}</p>
                   <p className={cn("text-xs truncate", session.id === activeSessionId ? "text-accent-foreground/80" : "text-muted-foreground" )} title={session.preview}>
                     {session.messageCount} msg - {session.preview}
@@ -122,37 +125,40 @@ export function HistoryPanel({
                     {formatDistanceToNow(new Date(session.lastMessageTimestamp), { addSuffix: true })}
                   </p>
                 </div>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className={cn(
-                        "ml-auto h-7 w-7 flex-shrink-0", // Added ml-auto
-                        "text-slate-500 dark:text-slate-400", 
-                        "hover:text-destructive hover:bg-destructive/10"
-                      )}
-                      onClick={(e) => e.stopPropagation()} 
-                      title="Delete chat"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete the chat session "{session.name}".
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => onDeleteSession(session.id)} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                {/* Wrapper div for the delete button mechanism */}
+                <div className="ml-auto flex-shrink-0">
+                    <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button
+                        variant="ghost"
+                        size="icon"
+                        className={cn(
+                            "h-7 w-7", // Removed ml-auto from here, wrapper handles it
+                            "text-slate-500 dark:text-slate-400",
+                            "hover:text-destructive hover:bg-destructive/10"
+                        )}
+                        onClick={(e) => e.stopPropagation()} 
+                        title="Delete chat"
+                        >
+                        <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the chat session "{session.name}".
+                        </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => onDeleteSession(session.id)} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                            Delete
+                        </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                    </AlertDialog>
+                </div>
               </div>
             ))}
           </div>
