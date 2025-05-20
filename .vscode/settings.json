@@ -1,4 +1,16 @@
 {
     "IDX.aI.enableInlineCompletion": true,
-    "IDX.aI.enableCodebaseIndexing": true
+    "IDX.aI.enableCodebaseIndexing": true,
+    "amp.commands.allowlist": [
+        "npm install",
+        "npm i -g next",
+        "npm ci",
+        "npx next dev -p 9002",
+        "npx kill-port 9002",
+        "findstr .env",
+        "npx --no-install next dev -p 9002",
+        "npm start",
+        "rm -rf node_modules",
+        "npx rimraf node_modules"
+    ]
 }

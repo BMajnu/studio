@@ -472,7 +472,7 @@ export default function ChatPage() {
         .filter(msg => msg.id !== assistantMessageIdToUse && (!userMessageId || msg.id !== userMessageId) )
         .slice(-10) 
         .map(msg => ({
-          role: msg.role === 'user' ? 'user' : 'assistant', 
+          role: msg.role === 'user' ? ('user' as const) : ('assistant' as const), 
           text: getMessageText(msg.content)
         }))
         .filter(msg => msg.text.trim() !== '' && (msg.role === 'user' || msg.role === 'assistant'));
@@ -841,22 +841,24 @@ export default function ChatPage() {
       {!isMobile && (
         <div
           className={cn(
-            "bg-background shrink-0 transition-all duration-300 ease-in-out overflow-hidden",
+            "bg-background shrink-0 transition-all duration-300 ease-in-out h-full",
             isHistoryPanelOpen ? "w-[280px] border-r" : "w-0 border-r-0 opacity-0"
           )}
         >
-          {isHistoryPanelOpen && ( 
-            <HistoryPanel
-              sessions={historyMetadata} activeSessionId={currentSession?.id || null}
-              onSelectSession={handleSelectSession} onNewChat={handleNewChat}
-              onDeleteSession={handleDeleteSession} isLoading={historyHookLoading}
-            />
+          {isHistoryPanelOpen && (
+            <div className="h-full overflow-hidden">
+              <HistoryPanel
+                sessions={historyMetadata} activeSessionId={currentSession?.id || null}
+                onSelectSession={handleSelectSession} onNewChat={handleNewChat}
+                onDeleteSession={handleDeleteSession} isLoading={historyHookLoading}
+              />
+            </div>
           )}
         </div>
       )}
 
       <div className="flex-1 flex flex-col bg-transparent overflow-hidden" ref={dropZoneRef} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
-        <div className="p-2 border-b flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-sm z-10 shadow-sm min-h-[57px]"> 
+        <div className="p-2 border-b flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-sm z-10 shadow-sm min-h-[57px]">
           <div className="flex items-center">
             <Button variant="ghost" size="icon" onClick={() => setIsHistoryPanelOpen(prev => !prev)} aria-label="Toggle history panel" className="hover:bg-primary/10">
               {isMobile ? (isHistoryPanelOpen ? <XIcon className="h-5 w-5" /> : <Menu className="h-5 w-5" />) 

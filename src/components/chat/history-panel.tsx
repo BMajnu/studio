@@ -44,23 +44,34 @@ export function HistoryPanel({
   const isMobile = useIsMobile();
 
   const displayedSessions = useMemo(() => {
+    // First filter out empty chat sessions with no messages
+    const nonEmptySessions = sessions.filter(session => 
+      // Only show sessions with actual message content
+      session.messageCount > 0 && 
+      // Make sure preview is not empty or just whitespace
+      session.preview && 
+      session.preview.trim() !== ''
+    );
+    
     if (!searchQuery.trim()) {
       // Sort by lastMessageTimestamp descending by default
-      return [...sessions].sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
+      return [...nonEmptySessions].sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
     }
+    
     const lowerCaseQuery = searchQuery.toLowerCase();
-    const filtered = sessions.filter(
+    const filtered = nonEmptySessions.filter(
       (session) =>
         (session.name && session.name.toLowerCase().includes(lowerCaseQuery)) ||
         (session.preview && session.preview.toLowerCase().includes(lowerCaseQuery))
     );
+    
     // Sort filtered results as well
     return filtered.sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
   }, [sessions, searchQuery]);
 
   return (
-    <div className="h-full flex flex-col border-r bg-background/70 backdrop-blur-sm shadow-lg">
-      <div className="p-4 flex justify-between items-center border-b">
+    <div className="h-full flex flex-col border-r bg-background/70 backdrop-blur-sm shadow-lg overflow-hidden" style={{ display: 'flex', flexDirection: 'column', height: '100%', maxHeight: '100vh' }}>
+      <div className="p-4 flex justify-between items-center border-b shrink-0">
         <h3 className="text-lg font-semibold">Chat History</h3>
         <Button variant="ghost" size="icon" onClick={onNewChat} title="New Chat" className="hover:bg-primary/10 hover:text-primary transition-colors">
           <PlusCircle className="h-5 w-5" />
@@ -104,8 +115,8 @@ export function HistoryPanel({
         </div>
       )}
       {!isLoading && displayedSessions.length > 0 && (
-        <ScrollArea className="flex-1">
-          <div className="p-2 space-y-1">
+        <ScrollArea className="flex-1 overflow-y-auto" style={{ height: 'calc(100vh - 130px)', minHeight: '200px' }}>
+          <div className="p-2 space-y-1 pb-10">
             {displayedSessions.map((session, index) => (
               <div
                 key={session.id}
@@ -116,24 +127,15 @@ export function HistoryPanel({
                 style={{ animationDelay: `${index * 30}ms` }}
                 onClick={() => onSelectSession(session.id)}
               >
-                <div className="flex-1 min-w-0 overflow-hidden"> {/* Text content container */}
-                  <p className="text-sm font-medium truncate" title={session.name}>{session.name}</p>
-                  <p className={cn("text-xs truncate", session.id === activeSessionId ? "text-accent-foreground/80" : "text-muted-foreground" )} title={session.preview}>
-                    {session.messageCount} msg - {session.preview}
-                  </p>
-                  <p className={cn("text-xs", session.id === activeSessionId ? "text-accent-foreground/70" : "text-muted-foreground/70")}>
-                    {formatDistanceToNow(new Date(session.lastMessageTimestamp), { addSuffix: true })}
-                  </p>
-                </div>
-                {/* Wrapper div for the delete button mechanism */}
-                <div className="ml-auto flex-shrink-0">
+                {/* Delete button moved to the left */}
+                <div className="flex-shrink-0 mr-2">
                     <AlertDialog>
                     <AlertDialogTrigger asChild>
                         <Button
                         variant="ghost"
                         size="icon"
                         className={cn(
-                            "h-7 w-7", // Removed ml-auto from here, wrapper handles it
+                            "h-7 w-7",
                             "text-slate-500 dark:text-slate-400",
                             "hover:text-destructive hover:bg-destructive/10"
                         )}
@@ -158,6 +160,15 @@ export function HistoryPanel({
                         </AlertDialogFooter>
                     </AlertDialogContent>
                     </AlertDialog>
+                </div>
+                <div className="flex-1 min-w-0 overflow-hidden"> {/* Text content container */}
+                  <p className="text-sm font-medium truncate" title={session.name}>{session.name}</p>
+                  <p className={cn("text-xs truncate", session.id === activeSessionId ? "text-accent-foreground/80" : "text-muted-foreground" )} title={session.preview}>
+                    {session.messageCount} msg - {session.preview}
+                  </p>
+                  <p className={cn("text-xs", session.id === activeSessionId ? "text-accent-foreground/70" : "text-muted-foreground/70")}>
+                    {formatDistanceToNow(new Date(session.lastMessageTimestamp), { addSuffix: true })}
+                  </p>
                 </div>
               </div>
             ))}
