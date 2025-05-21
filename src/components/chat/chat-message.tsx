@@ -1,9 +1,8 @@
-
 'use client';
 
 import type { ChatMessage, MessageRole, ChatMessageContentPart, AttachedFile, ActionType } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Bot, User, AlertTriangle, Paperclip, FileText, Image as ImageIcon, RotateCcw, Loader2 } from 'lucide-react';
+import { Bot, User, AlertTriangle, Paperclip, FileText, Image as ImageIcon, RotateCcw, Loader2, Edit3 } from 'lucide-react';
 import { CopyToClipboard, CopyableText, CopyableList } from '@/components/copy-to-clipboard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +14,7 @@ import { Button } from '@/components/ui/button';
 interface ChatMessageProps {
   message: ChatMessage;
   onRegenerate?: (requestDetails: ChatMessage['originalRequest'] & { messageIdToRegenerate: string }) => void;
+  onRepostUserMessage?: (message: ChatMessage) => void; // New prop
 }
 
 function MessageAvatar({ role }: { role: MessageRole }) {
@@ -79,18 +79,17 @@ function AttachedFileDisplay({ file }: { file: AttachedFile }) {
 
 function RenderContentPart({ part, index }: { part: ChatMessageContentPart; index: number }) {
   const animationDelay = `${index * 80}ms`; // Increased delay for more noticeable staggered effect
-  const commonClasses = "my-2 animate-fade-in w-full";
+  const commonClasses = "my-2 animate-slideUpSlightly w-full"; // Changed to slideUpSlightly
 
   switch (part.type) {
     case 'text':
       if (part.title) {
-        return <CopyableText key={index} text={part.text} title={part.title} className={cn(commonClasses, "card-elevated")} style={{ animationDelay }} />;
+        return <CopyableText key={index} text={part.text} title={part.title} className={cn(commonClasses, "bg-card/80 backdrop-blur-sm border border-border rounded-lg shadow-md")} style={{ animationDelay }} />;
       }
-      return <p key={index} className="whitespace-pre-wrap leading-relaxed w-full" style={{ animationDelay }}>{part.text}</p>;
+      return <p key={index} className="whitespace-pre-wrap leading-relaxed w-full animate-slideUpSlightly" style={{ animationDelay }}>{part.text}</p>;
     case 'code':
       return <CopyToClipboard key={index} textToCopy={part.code || ''} title={part.title} language={part.language} className={cn(commonClasses, "shadow-lg hover:shadow-xl transition-all duration-300 w-full")} style={{ animationDelay }} />;
     case 'list':
-      // Enhanced list with better styling and animations
       return (
         <div key={index} className={cn(commonClasses, "bg-muted/30 rounded-lg p-3 backdrop-blur-sm")} style={{ animationDelay }}>
           {part.title && <h4 className="font-semibold mb-2 text-base text-gradient">{part.title}</h4>}
@@ -112,10 +111,9 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
               (part.bengali?.analysis || part.bengali?.simplifiedRequest || part.bengali?.stepByStepApproach) &&
               <Separator className="my-3 opacity-50" />
             }
-
-            {part.bengali?.analysis && <CopyableText title="বিশ্লেষণ (Bengali Analysis/Combined)" text={part.bengali.analysis} className="bg-primary/5 rounded-lg p-2" />}
-            {part.bengali?.simplifiedRequest && <CopyableText title="সরলীকৃত অনুরোধ (Bengali Simplified Request)" text={part.bengali.simplifiedRequest} className="bg-secondary/5 rounded-lg p-2" />}
-            {part.bengali?.stepByStepApproach && <CopyableText title="ধাপে ধাপে পদ্ধতি (Bengali Step-by-Step)" text={part.bengali.stepByStepApproach} className="bg-accent/5 rounded-lg p-2" />}
+            
+            {/* Use part.bengali.analysis as it seems to contain the full combined translation */}
+            {part.bengali?.analysis && <CopyableText title="বিশ্লেষণ ও পরিকল্পনা (Bengali)" text={part.bengali.analysis} className="bg-primary/5 rounded-lg p-2" />}
           </CardContent>
         </Card>
       );
@@ -125,21 +123,21 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
 }
 
 
-export function ChatMessageDisplay({ message, onRegenerate }: ChatMessageProps) {
+export function ChatMessageDisplay({ message, onRegenerate, onRepostUserMessage }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
 
-  if (message.isLoading && !message.content) { // Show skeleton only if no content yet
+  if (message.isLoading && !message.content) { 
     return (
       <div className={cn(
-        "flex items-start gap-4 p-4 md:p-5 w-full animate-pulse-slow",
+        "flex items-start gap-4 p-4 md:p-5 w-full animate-slideUpSlightly",
         isUser ? "justify-end" : ""
       )}>
         {!isUser && <MessageAvatar role="assistant" />}
         <div className={cn(
           "relative flex flex-col gap-3 rounded-2xl p-5",
-          isUser ? "max-w-[85%] md:max-w-[70%]" : "flex-1",
-          isAssistant ? "glass-panel shadow-xl border border-primary/10" : 
+          "w-full", // Removed max-w constraints
+          isAssistant ? "bg-card/80 backdrop-blur-sm shadow-xl border border-primary/10" : 
                        "bg-gradient-to-br from-primary/90 to-primary/80 text-primary-foreground shadow-xl",
           isUser ? 'rounded-tr-none' : 'rounded-tl-none'
         )}>
@@ -156,22 +154,26 @@ export function ChatMessageDisplay({ message, onRegenerate }: ChatMessageProps) 
 
   const handleRegenerateClick = () => {
     if (onRegenerate && message.originalRequest) {
-      // Pass the full originalRequest and the ID of the message to be regenerated
       onRegenerate({ ...message.originalRequest, messageIdToRegenerate: message.id });
     }
   };
 
-  // Add timestamp display
+  const handleRepostClick = () => {
+    if (onRepostUserMessage && message.role === 'user') {
+      onRepostUserMessage(message);
+    }
+  };
+
   const messageTime = new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   const displayContent = message.isLoading && typeof message.content === 'string' && message.content.startsWith('Processing...')
-    ? [{ type: 'text' as const, text: message.content }] // Ensure type is literal for discrimination
+    ? [{ type: 'text' as const, text: message.content }] 
     : (typeof message.content === 'string' ? [{ type: 'text' as const, text: message.content }] : message.content);
 
 
   return (
     <div className={cn(
-        "flex items-start gap-4 p-4 md:p-5 w-full animate-fade-in hover:shadow-sm transition-all duration-300", 
+        "flex items-start gap-4 p-4 md:p-5 w-full animate-slideUpSlightly hover:shadow-sm transition-all duration-300", 
         isUser ? 'justify-end' : ''
       )}
     >
@@ -179,14 +181,13 @@ export function ChatMessageDisplay({ message, onRegenerate }: ChatMessageProps) 
       <div
         className={cn(
           "relative flex flex-col gap-3 rounded-2xl p-5 shadow-lg text-sm transition-all duration-300",
-          isUser ? "max-w-[85%] md:max-w-[70%]" : "flex-1",
-          isAssistant ? 'glass-panel backdrop-blur-md border border-primary/10' : 
+          "w-full", // Removed max-w constraints
+          isAssistant ? 'bg-card/80 backdrop-blur-sm border border-primary/10' : 
                        'bg-gradient-to-br from-primary/90 to-primary/80 text-primary-foreground',
           message.isError ? 'border-destructive border-2' : isAssistant ? 'border-primary/10' : 'border-transparent',
           isUser ? 'rounded-tr-none' : 'rounded-tl-none'
         )}
       >
-        {/* Subtle gradient background effect */}
         <div className={cn(
           "absolute inset-0 rounded-2xl opacity-30",
           isAssistant ? "bg-gradient-to-br from-primary/5 to-secondary/5 blur-md" : 
@@ -224,14 +225,33 @@ export function ChatMessageDisplay({ message, onRegenerate }: ChatMessageProps) 
               </span>
             </div>
             {message.attachedFiles.map((file, index) => 
-              <div key={`${file.name}-${file.size || 0}`} className="animate-stagger" style={{ animationDelay: `${index * 100}ms` }}>
+              <div key={`${file.name}-${file.size || 0}-${index}`} className="animate-stagger" style={{ animationDelay: `${index * 100}ms` }}>
                 <AttachedFileDisplay file={file} />
               </div>
             )}
           </div>
         )}
-        {isAssistant && message.canRegenerate && message.originalRequest && onRegenerate && (
-          <div className="mt-3 pt-2 border-t border-primary/10 flex justify-end animate-fade-in relative z-10" style={{ animationDelay: '0.5s' }}>
+
+        <div className="mt-3 pt-2 border-t border-primary/10 flex justify-end animate-fade-in relative z-10" style={{ animationDelay: '0.5s' }}>
+          {isUser && onRepostUserMessage && (
+            <Button
+              variant="ghost"
+              size="sm"
+              rounded="full"
+              glow
+              animate
+              onClick={handleRepostClick}
+              className="text-xs backdrop-blur-sm border border-primary/10 shadow-sm hover:shadow-md hover:scale-105 hover:text-primary hover:bg-primary/10 transition-all duration-300"
+              title="Edit &amp; Resend this message"
+            >
+              <div className="relative mr-1.5">
+                <div className="absolute inset-0 bg-primary/10 rounded-full blur-sm animate-pulse-slow opacity-70"></div>
+                <Edit3 className="h-3.5 w-3.5 relative z-10" />
+              </div>
+              Edit &amp; Resend
+            </Button>
+          )}
+          {isAssistant && message.canRegenerate && message.originalRequest && onRegenerate && (
             <Button
               variant="ghost"
               size="sm"
@@ -241,7 +261,7 @@ export function ChatMessageDisplay({ message, onRegenerate }: ChatMessageProps) 
               onClick={handleRegenerateClick}
               className="text-xs backdrop-blur-sm border border-primary/10 shadow-sm hover:shadow-md hover:scale-105 hover:text-primary hover:bg-primary/10 transition-all duration-300"
               title="Regenerate response"
-              disabled={message.isLoading} // Disable if the message itself is currently loading (being regenerated)
+              disabled={message.isLoading} 
             >
               <div className="relative mr-1.5">
                 <div className="absolute inset-0 bg-primary/10 rounded-full blur-sm animate-pulse-slow opacity-70"></div>
@@ -249,8 +269,8 @@ export function ChatMessageDisplay({ message, onRegenerate }: ChatMessageProps) 
               </div>
               Regenerate
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
       {isUser && <MessageAvatar role={message.role} />}
     </div>
