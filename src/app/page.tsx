@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Paperclip, Loader2, BotIcon, Menu, XIcon, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw, PlusCircle, Edit3, RefreshCw, Send, LogIn, UserPlus, Languages } from 'lucide-react';
+import { Paperclip, Loader2, BotIcon, Menu, XIcon, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw, PlusCircle, Edit3, RefreshCw, Send, LogIn, UserPlus, Languages, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -158,8 +158,7 @@ export default function ChatPage() {
 
   const userIdForHistory = useMemo(() => {
     if (!authLoading && authUser) return authUser.uid;
-    // if (!profileLoading && profile?.userId) return profile.userId; // This line might cause issues if profile loads after auth
-    return DEFAULT_USER_ID; // Fallback to default, useChatHistory will handle its own logic
+    return DEFAULT_USER_ID; 
   }, [authLoading, authUser]);
 
 
@@ -172,7 +171,7 @@ export default function ChatPage() {
     createNewSession,
     syncWithDrive,
     isSyncing,
-    triggerGoogleSignIn: triggerGoogleSignInForHistory, // Get it from useChatHistory
+    triggerGoogleSignIn: triggerGoogleSignInForHistory, 
   } = useChatHistory(userIdForHistory); 
 
   const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
@@ -197,23 +196,30 @@ export default function ChatPage() {
         console.log(`ChatPage SessionInitEffect: Deferred. Loadings: auth=${authLoading}, profile=${profileLoading}, history=${historyHookLoading}. UserID: ${userIdForHistory}`);
         return;
       }
-
+  
       console.log(`ChatPage SessionInitEffect: Running for user ${userIdForHistory}. History Metadata Count: ${historyMetadata.length}`);
       const currentUserIdToUse = userIdForHistory;
       const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + currentUserIdToUse;
       let lastActiveSessionId = localStorage.getItem(lastActiveSessionIdKey);
       let sessionToLoad: ChatSession | null = null;
-
+  
       if (lastActiveSessionId && lastActiveSessionId.startsWith(currentUserIdToUse + '_')) {
         console.log(`ChatPage SessionInitEffect: Attempting to load session ${lastActiveSessionId} for user ${currentUserIdToUse}.`);
         sessionToLoad = await getSession(lastActiveSessionId);
+        
         if (sessionToLoad && sessionToLoad.userId !== currentUserIdToUse) {
           console.warn(`ChatPage SessionInitEffect: Loaded session ${lastActiveSessionId} belongs to a different user (${sessionToLoad.userId}). Discarding.`);
           sessionToLoad = null; 
           localStorage.removeItem(lastActiveSessionIdKey); 
           lastActiveSessionId = null;
+        } else if (sessionToLoad && !historyMetadata.some(m => m.id === lastActiveSessionId)) {
+            // Session loaded from LS, but not in current historyMetadata (could be from a different user context if LS wasn't cleared, or a race condition)
+            console.warn(`ChatPage SessionInitEffect: Loaded session ${lastActiveSessionId} from LS, but it's not in the current historyMetadata from useChatHistory. Re-evaluating.`);
+            // This might happen if historyMetadata is still being updated from Drive after local load.
+            // Let's check if it's in the historyMetadata *after* historyHookLoading is false.
+            // For now, we'll proceed, but if it's still not found by getSession via metadata, getSession will return null.
         } else if (!sessionToLoad && historyMetadata.some(m => m.id === lastActiveSessionId)) {
-           console.warn(`ChatPage SessionInitEffect: Last active session ID ${lastActiveSessionId} found in metadata but getSession returned null. Possibly a Drive session not yet cached or fetch error. Clearing ID from LS to retry fresh or new.`);
+           console.warn(`ChatPage SessionInitEffect: Last active session ID ${lastActiveSessionId} found in metadata but getSession returned null. Possibly a Drive session not yet cached locally or fetch error. Clearing ID from LS to retry fresh or new.`);
            localStorage.removeItem(lastActiveSessionIdKey);
            lastActiveSessionId = null;
         } else if (!sessionToLoad && !historyMetadata.some(m => m.id === lastActiveSessionId)) {
@@ -226,18 +232,22 @@ export default function ChatPage() {
         localStorage.removeItem(lastActiveSessionIdKey);
         lastActiveSessionId = null;
       }
+  
+      // Final check for sessionToLoad's validity against current historyMetadata
+      if (sessionToLoad && !historyMetadata.some(m => m.id === sessionToLoad!.id)) {
+          console.warn(`ChatPage SessionInitEffect: Loaded session ${sessionToLoad.id} is no longer in final historyMetadata. Discarding.`);
+          sessionToLoad = null;
+          localStorage.removeItem(lastActiveSessionIdKey);
+          lastActiveSessionId = null;
+      }
 
-      if (sessionToLoad && sessionToLoad.id && historyMetadata.some(m => m.id === sessionToLoad!.id)) {
+      if (sessionToLoad) {
         console.log(`ChatPage SessionInitEffect: Loaded last active session ${sessionToLoad.id}. Migrating message IDs.`);
         const migratedMessages = ensureMessagesHaveUniqueIds(sessionToLoad.messages);
         const updatedSession = { ...sessionToLoad, messages: migratedMessages };
         setCurrentSession(updatedSession);
         setMessages(updatedSession.messages);
       } else {
-        if (sessionToLoad && sessionToLoad.id) { 
-             console.warn(`ChatPage SessionInitEffect: Loaded session ${sessionToLoad.id} was not found in final history metadata. Clearing ID from LS.`);
-             localStorage.removeItem(lastActiveSessionIdKey);
-        }
         console.log(`ChatPage SessionInitEffect: No valid last active session for user ${currentUserIdToUse}. Creating new.`);
         const userApiKeyForNameGen = (profile?.geminiApiKeys && profile.geminiApiKeys.length > 0 && profile.geminiApiKeys[0]) ? profile.geminiApiKeys[0] : undefined;
         const newSession = createNewSession([], profile?.selectedGenkitModelId || DEFAULT_MODEL_ID, userApiKeyForNameGen);
@@ -250,13 +260,13 @@ export default function ChatPage() {
         }
       }
     };
-
+  
     loadOrCreateSession();
   }, [
-    authLoading, profileLoading, historyHookLoading, userIdForHistory, 
-    profile?.selectedGenkitModelId, profile?.geminiApiKeys, // Ensure profile data is a dependency
-    historyMetadata.length, // React to changes in history length which might mean new sessions are available
-    getSession, createNewSession, ensureMessagesHaveUniqueIds // Callbacks from useChatHistory
+      authLoading, profileLoading, historyHookLoading, userIdForHistory, 
+      profile?.selectedGenkitModelId, profile?.geminiApiKeys, 
+      historyMetadata.length, // React to changes in history length which might mean new sessions are available
+      getSession, createNewSession, ensureMessagesHaveUniqueIds // Callbacks from useChatHistory
   ]);
 
 
@@ -425,17 +435,17 @@ export default function ChatPage() {
     const currentNotes = notesParam;
     const filesToSendWithThisMessage = isRegenerationCall && attachedFilesDataParam ? attachedFilesDataParam : [...currentAttachedFilesData];
     
-    if (actionTypeParam === 'checkMadeDesigns' && filesToSendWithThisMessage.filter(f => f.type?.startsWith('image/') && f.dataUri).length === 0) {
-      toast({ title: "No Design Attached", description: `Please attach a design image to use the 'Check Designs' feature.`, variant: "destructive" });
-      return;
+     if (actionTypeParam === 'checkMadeDesigns' && filesToSendWithThisMessage.filter(f => f.type?.startsWith('image/') && f.dataUri).length === 0) {
+        toast({ title: "No Design Attached", description: `Please attach a design image to use the 'Check Designs' feature.`, variant: "destructive" });
+        return;
     }
     
     if (actionTypeParam === 'generateEditingPrompts') {
-      const designFileIsPresent = filesToSendWithThisMessage.some(f => f.type?.startsWith('image/') && f.dataUri);
-      if (!designFileIsPresent) {
-        // For generateEditingPrompts, if no file is currently attached, the flow will try to find one in history.
-        // So, no client-side error toast here, let the flow handle it.
-      }
+        const designFileIsPresent = filesToSendWithThisMessage.some(f => f.type?.startsWith('image/') && f.dataUri);
+        if (!designFileIsPresent) {
+            // No client-side toast if file is not present for 'generateEditingPrompts'
+            // The flow itself will handle trying to find an image in history or reporting an error.
+        }
     }
 
     const modelIdToUse = userProfile.selectedGenkitModelId || DEFAULT_MODEL_ID;
@@ -482,13 +492,13 @@ export default function ChatPage() {
       
       const currentMessagesState = messages; 
       const chatHistoryForAI = currentMessagesState 
-        .filter(msg => msg.id !== assistantMessageIdToUse && (!userMessageId || msg.id !== userMessageId) ) // Exclude current processing messages
-        .slice(-10) // Take last 10 messages for context
+        .filter(msg => msg.id !== assistantMessageIdToUse && (!userMessageId || msg.id !== userMessageId) ) 
+        .slice(-10) 
         .map(msg => ({
-          role: msg.role === 'user' ? ('user' as const) : ('assistant' as const), // Ensure role is 'user' or 'assistant'
+          role: msg.role === 'user' ? ('user' as const) : ('assistant' as const), 
           text: getMessageText(msg.content)
         }))
-        .filter(msg => msg.text.trim() !== '' && (msg.role === 'user' || msg.role === 'assistant')); // Filter out empty or system messages
+        .filter(msg => msg.text.trim() !== '' && (msg.role === 'user' || msg.role === 'assistant')); 
 
 
       if (currentActionType === 'processMessage') {
@@ -664,6 +674,7 @@ export default function ChatPage() {
       
     if (currentSession && userIdForHistory) { 
         setMessages(prevMessages => {
+            let sessionAfterUpdate: ChatSession | undefined;
             const latestMessages = prevMessages.map(m => {
                 if (m.id === assistantMessageIdToUse) {
                     return {...m, content: finalAiResponseContent, isLoading: false, isError: !!aiCallError, originalRequest: requestParamsForRegeneration, timestamp: Date.now()};
@@ -679,12 +690,11 @@ export default function ChatPage() {
                 updatedAt: Date.now(),
                 userId: userIdForHistory, 
             };
+            sessionAfterUpdate = sessionToSave; // Capture the updated session for setting state
             
             const shouldAttemptNameGeneration = (!messageIdToUpdate && !isRegenerationCall) && 
                 (sessionToSave.messages.length <= (userMessageId ? 2 : 1) || !currentSession.name || currentSession.name === "New Chat");
 
-            // Save session after message processing is complete
-            // Use setTimeout to allow React to batch state updates before saving
             setTimeout(() => {
               const userApiKeyForSaveOp = (profile?.geminiApiKeys && profile.geminiApiKeys.length > 0 && profile.geminiApiKeys[0]) ? profile.geminiApiKeys[0] : undefined;
               saveSession(
@@ -699,7 +709,6 @@ export default function ChatPage() {
               })
               .catch(error => {
                   console.error("Error saving session or generating chat name:", error);
-                  // Even if save fails, update currentSession with the latest messages for UI consistency
                   setCurrentSession(prev => ({...prev!, ...sessionToSave}));
               });
             }, 0);
@@ -725,15 +734,15 @@ export default function ChatPage() {
         ...targetMessage,
         content: newContent,
         timestamp: Date.now(),
-        attachedFiles: originalAttachments, // Keep original attachments for this version
+        attachedFiles: originalAttachments, 
         editHistory: [...(targetMessage.editHistory || []), newEditHistoryEntry],
       };
 
-      // Truncate messages after the edited one
-      const updatedMessages = [...prevMessages.slice(0, messageIndex), updatedMessage];
+      const updatedMessages = [
+        ...prevMessages.slice(0, messageIndex), 
+        updatedMessage
+      ];
       
-      // Trigger AI with the new content
-      // Note: handleSendMessage will add a new assistant "Processing..." message
       handleSendMessage(newContent, 'processMessage', undefined, originalAttachments, false, undefined);
       
       return ensureMessagesHaveUniqueIds(updatedMessages);
@@ -766,10 +775,10 @@ export default function ChatPage() {
     handleSendMessage(
         originalRequest.messageText, originalRequest.actionType,
         originalRequest.notes, originalRequest.attachedFilesData, 
-        true, // isRegenerationCall = true
+        true, 
         messageIdToRegenerate 
     );
-  }, [profileLoading, profile, currentSession, toast, handleSendMessage]); 
+  }, [profileLoading, profile, currentSession, toast, handleSendMessage]); // handleSendMessage added
 
   const handleAction = (action: ActionType) => {
     if (action === 'generateDeliveryTemplates' || action === 'generateRevision') {
@@ -842,7 +851,7 @@ export default function ChatPage() {
 
 
   const handleSyncWithDriveClick = async () => {
-    if (!authUser || !isGoogleUser) { // Check if it's a Google user specifically
+    if (!authUser || !isGoogleUser) { 
         toast({ title: "Login with Google Required", description: "Please log in with your Google account to sync with Google Drive.", variant: "default" });
         return;
     }
@@ -850,29 +859,24 @@ export default function ChatPage() {
     const result = await syncWithDrive(); 
     
     if (result === 'SUCCESS') {
-        // Toast is now handled within syncWithDrive
     } else if (result === 'TOKEN_REFRESH_NEEDED') {
         toast({ title: "Google Re-authentication Needed", description: "Please sign in with Google again to refresh Drive access.", variant: "default" });
         try {
-            await triggerGoogleSignInForHistory(); // Use the one from useChatHistory to ensure context
-            // After successful re-auth, the useEffect in useChatHistory for googleAccessToken change should trigger a sync/load.
-            // Optionally, could call syncWithDrive() again after a delay.
+            await triggerGoogleSignInForHistory(); 
             setTimeout(async () => { 
               const secondAttempt = await syncWithDrive();
-              // Toasts for secondAttempt are handled inside syncWithDrive
-            }, 1500); // Delay to allow AuthContext to update and propagate token
+            }, 1500); 
         } catch (error) {
             console.error("ChatPage (handleSyncWithDriveClick): Error during Google re-authentication:", error);
             toast({ title: "Google Sign-In Failed", description: "Could not re-authenticate with Google for Drive sync.", variant: "destructive" });
         }
     } else if (result === 'FAILED') {
-         // Toast for FAILED is handled inside syncWithDrive
     }
   };
 
   const currentAttachedFilesDataLength = currentAttachedFilesData.length;
 
-  if (authLoading || profileLoading || historyHookLoading || !userIdForHistory || !currentSession) { 
+  if (authLoading || (!currentSession && !profileLoading && !historyHookLoading) || !userIdForHistory) { 
     return (
       <div className="flex items-center justify-center h-[calc(100vh-var(--header-height,0px))] bg-gradient-to-b from-background-start-hsl to-background-end-hsl">
         <div className="glass-panel p-8 rounded-xl shadow-2xl flex flex-col items-center animate-float">
@@ -903,10 +907,10 @@ export default function ChatPage() {
                   <p className="text-md text-foreground/70 mb-6">
                       Please log in to start creating amazing designs.
                   </p>
-                  <DialogTrigger asChild>
+                   <DialogTrigger asChild>
                       <Button 
                           variant="default" 
-                          className="w-full text-base py-6 max-w-xs" 
+                          className="w-full text-base py-6 max-w-xs mb-3" 
                           glow 
                           animate
                           onClick={() => setIsWelcomeLoginModalOpen(true)}
@@ -1069,7 +1073,7 @@ export default function ChatPage() {
           
           <div className={cn(
               "flex flex-wrap items-center justify-between mt-4 gap-x-3 gap-y-2 stagger-animation",
-               isMobile ? "flex-col items-stretch gap-y-3" : "" // Stack items vertically on mobile with more gap
+               isMobile ? "flex-col items-stretch gap-y-3" : "" 
             )}>
             <div className={cn("flex-shrink-0 animate-stagger", isMobile ? "w-full" : "")} style={{ animationDelay: '100ms' }}>
               <Button
@@ -1081,7 +1085,7 @@ export default function ChatPage() {
                 onClick={() => fileInputRef.current?.click()}
                 className={cn(
                     "backdrop-blur-sm border border-primary/20 shadow-sm hover:shadow-md hover:scale-105 hover:text-primary hover:bg-primary/10 transition-all duration-300",
-                    isMobile ? "w-full py-3 text-sm" : "text-xs" 
+                    isMobile ? "w-full py-3 text-sm flex items-center justify-center" : "text-xs" 
                 )}
                 aria-label="Attach files"
               >
@@ -1180,3 +1184,6 @@ export default function ChatPage() {
     </div>
   );
 }
+
+
+    
