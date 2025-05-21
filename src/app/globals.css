@@ -27,13 +27,22 @@
   transform: scale(1);
 }
 
-/* Glass panel effect */
+/* Glass panel effect - Updated for theme awareness */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  /* Light mode: Use card color (typically white) with high opacity */
+  background-color: hsl(var(--card) / 0.9); /* More opaque for light mode */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  /* Border can also use theme variable or be applied by component */
+  /* border: 1px solid hsl(var(--border) / 0.3); */
 }
+
+.dark .glass-panel {
+  /* Dark mode: Use card color (typically dark) with good opacity */
+  background-color: hsl(var(--card) / 0.85); /* More opaque for dark mode */
+  /* border: 1px solid hsl(var(--border) / 0.2); */
+}
+
 
 /* Animation classes */
 .animate-fade-in {
@@ -66,7 +75,7 @@
 
 /* Text gradient effect */
 .text-gradient {
-  background: linear-gradient(90deg, #4F46E5 0%, #7C3AED 100%);
+  background: linear-gradient(90deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -101,10 +110,7 @@ body {
   to { transform: translateX(0); opacity: 1; }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
+/* @keyframes fadeIn defined above */
 
 @layer base {
   :root {
@@ -281,9 +287,7 @@ body {
     animation: slideInLeft 0.5s ease forwards;
   }
   
-  .animate-fade-in {
-    animation: fadeIn 0.5s ease forwards;
-  }
+  /* .animate-fade-in defined above in base animations */
   
   /* Staggered animations */
   .stagger-animation > * {
@@ -328,18 +332,7 @@ body {
     background-image: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--secondary)));
   }
   
-  /* Glass morphism effect */
-  .glass-panel {
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-  
-  .dark .glass-panel {
-    background: rgba(20, 20, 40, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-  }
+  /* .glass-panel definition updated above */
 }
 
 /* Custom scrollbar for webkit browsers */
@@ -360,10 +353,7 @@ body {
 }
 
 /* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
+/* @keyframes fadeIn defined above */
 
 @keyframes slideUpSlightly {
   from { transform: translateY(10px); opacity: 0; }

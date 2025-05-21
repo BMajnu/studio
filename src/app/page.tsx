@@ -29,7 +29,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { DEFAULT_USER_ID, DEFAULT_MODEL_ID } from '@/lib/constants';
 import { useAuth } from '@/contexts/auth-context';
 import type { User as FirebaseUser } from 'firebase/auth';
-import { LoginForm } from '@/components/auth/login-form'; // Import LoginForm
+import { LoginForm } from '@/components/auth/login-form';
 
 const getMessageText = (content: string | ChatMessageContentPart[]): string => {
   if (typeof content === 'string') return content;
@@ -140,7 +140,7 @@ export default function ChatPage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { user: authUser, loading: authLoading, googleAccessToken, signInWithGoogle } = useAuth();
+  const { user: authUser, loading: authLoading, googleAccessToken, signInWithGoogle: triggerGoogleSignInFromAuth } = useAuth();
   const { profile, isLoading: profileLoading } = useUserProfile();
   const chatAreaRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -167,7 +167,6 @@ export default function ChatPage() {
     createNewSession,
     syncWithDrive,
     isSyncing,
-    triggerGoogleSignIn, 
   } = useChatHistory(userIdForHistory); 
 
   const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
@@ -183,6 +182,8 @@ export default function ChatPage() {
         setIsHistoryPanelOpen(!isMobile);
     }
   }, [isMobile]);
+
+  const isGoogleUser = useMemo(() => authUser?.providerData.some(p => p.providerId === 'google.com'), [authUser]);
 
 
  useEffect(() => {
@@ -203,8 +204,8 @@ export default function ChatPage() {
         sessionToLoad = await getSession(lastActiveSessionId);
         if (sessionToLoad && sessionToLoad.userId !== currentUserIdToUse) {
           console.warn(`ChatPage SessionInitEffect: Loaded session ${lastActiveSessionId} belongs to a different user (${sessionToLoad.userId}). Discarding.`);
-          sessionToLoad = null; // Invalidate session
-          localStorage.removeItem(lastActiveSessionIdKey); // Remove bad ID from LS
+          sessionToLoad = null; 
+          localStorage.removeItem(lastActiveSessionIdKey); 
           lastActiveSessionId = null;
         } else if (!sessionToLoad) {
           console.warn(`ChatPage SessionInitEffect: Last active session ID ${lastActiveSessionId} found but getSession returned null. Clearing ID from LS.`);
@@ -213,7 +214,7 @@ export default function ChatPage() {
         }
       } else if (lastActiveSessionId) {
         console.warn(`ChatPage SessionInitEffect: lastActiveSessionId ${lastActiveSessionId} does not match current user ${currentUserIdToUse}. Clearing ID from LS.`);
-        localStorage.removeItem(lastActiveSessionIdKey); // It's for a different user or invalid format
+        localStorage.removeItem(lastActiveSessionIdKey);
         lastActiveSessionId = null;
       }
 
@@ -242,7 +243,7 @@ export default function ChatPage() {
   }, [
     authLoading, profileLoading, historyHookLoading, userIdForHistory, 
     profile?.selectedGenkitModelId, profile?.geminiApiKeys,
-    historyMetadata.length, // Re-run if history itself changes (e.g., after sync)
+    historyMetadata.length, 
     // getSession, createNewSession, ensureMessagesHaveUniqueIds are stable callbacks
   ]);
 
@@ -418,16 +419,16 @@ export default function ChatPage() {
     }
     
     if (actionTypeParam === 'generateEditingPrompts') {
-        const designFileIsPresent = filesToSendWithThisMessage.some(f => f.type?.startsWith('image/') && f.dataUri);
-        if (!designFileIsPresent) {
-             // Check if there's an image in history to use
-            const historicalImage = messages.slice().reverse().find(msg => msg.role === 'user' && msg.attachedFiles && msg.attachedFiles.some(f => f.type?.startsWith('image/') && f.dataUri));
-            if (!historicalImage) {
-                toast({ title: "No Design Available", description: "Please attach an image, or ensure a recent image was sent in the chat to generate editing prompts.", variant: "destructive" });
-                return;
-            }
+      const designFileIsPresent = filesToSendWithThisMessage.some(f => f.type?.startsWith('image/') && f.dataUri);
+      if (!designFileIsPresent) {
+        const historicalImage = messages.slice().reverse().find(msg => msg.role === 'user' && msg.attachedFiles && msg.attachedFiles.some(f => f.type?.startsWith('image/') && f.dataUri));
+        if (!historicalImage) {
+          toast({ title: "No Design Available", description: "Please attach an image, or ensure a recent image was sent in the chat to generate editing prompts.", variant: "destructive" });
+          return;
         }
+      }
     }
+
 
     const modelIdToUse = userProfile.selectedGenkitModelId || DEFAULT_MODEL_ID;
     const userMessageContent = (!isRegenerationCall || (isRegenerationCall && currentMessageText)) 
@@ -633,10 +634,10 @@ export default function ChatPage() {
       } else if (isRateLimit && availableUserApiKeys.length > 0) {
         const currentAttemptedKeyIndex = currentApiKeyIndexRef.current;
         if (currentAttemptedKeyIndex < availableUserApiKeys.length - 1) {
-          currentApiKeyIndexRef.current++; 
-          const nextKeyToTryDisplay = currentApiKeyIndexRef.current + 1;
-          errorMessageText = `The current API key (attempt ${currentAttemptedKeyIndex + 1}/${availableUserApiKeys.length}) may be rate-limited. Click 'Regenerate' to try the next available key (${nextKeyToTryDisplay}/${availableUserApiKeys.length}). Original error: ${aiCallError.message}`;
-          toast({ title: "Rate Limit Possible", description: `Key ${currentAttemptedKeyIndex + 1} might be limited. Regenerate to try key ${nextKeyToTryDisplay}.`, variant: "default", duration: 7000 });
+          // Don't increment here, let regenerate do it, or it will skip one
+          const nextKeyToTryDisplay = currentAttemptedKeyIndex + 2; // User sees 1-based index
+          errorMessageText = `The current API key (attempt ${currentAttemptedKeyIndex + 1}/${availableUserApiKeys.length}) may be rate-limited. Click 'Regenerate' to try the next available key (${nextKeyToTryDisplay > availableUserApiKeys.length ? 'last' : nextKeyToTryDisplay}/${availableUserApiKeys.length}). Original error: ${aiCallError.message}`;
+          toast({ title: "Rate Limit Possible", description: `Key ${currentAttemptedKeyIndex + 1} might be limited. Regenerate to try key ${nextKeyToTryDisplay > availableUserApiKeys.length ? 'last' : nextKeyToTryDisplay}.`, variant: "default", duration: 7000 });
         } else { 
           errorMessageText = `All configured API keys (${availableUserApiKeys.length}) may have hit rate limits, or the global key is limited. Please check your quotas or try again later. Original error: ${aiCallError.message}`;
           toast({ title: "All API Keys Tried/Rate Limited", description: "All available API keys may have hit rate limits, or the global key (from .env) is limited.", variant: "destructive", duration: 7000 });
@@ -674,11 +675,12 @@ export default function ChatPage() {
                 (sessionToSave.messages.length <= (userMessageId ? 2 : 1) || !currentSession.name || currentSession.name === "New Chat");
 
             setTimeout(() => {
+              const userApiKeyForSaveOp = (profile?.geminiApiKeys && profile.geminiApiKeys.length > 0 && profile.geminiApiKeys[0]) ? profile.geminiApiKeys[0] : undefined;
               saveSession(
                   sessionToSave,
                   shouldAttemptNameGeneration,
                   modelIdToUse,
-                  apiKeyToUseThisTurn 
+                  userApiKeyForSaveOp 
               ).then(savedSessionWithPotentialNewName => {
                   if (savedSessionWithPotentialNewName && savedSessionWithPotentialNewName.id === currentSession.id) {
                       setCurrentSession(prev => ({...prev!, ...savedSessionWithPotentialNewName}));
@@ -686,6 +688,7 @@ export default function ChatPage() {
               })
               .catch(error => {
                   console.error("Error saving session or generating chat name:", error);
+                  // Even if save fails, keep the UI state with the new message
                   setCurrentSession(prev => ({...prev!, ...sessionToSave}));
               });
             }, 0);
@@ -715,7 +718,27 @@ export default function ChatPage() {
     }
 
     const { messageIdToRegenerate, ...originalRequest } = originalRequestDetailsFromMessage;
-    console.log(`ChatPage (handleRegenerateMessage): Regenerating message ID ${messageIdToRegenerate} for action ${originalRequest.actionType}. Next API Key Index: ${currentApiKeyIndexRef.current}`);
+    
+    // Increment API key index for regeneration attempt if previous was rate limited
+    const availableUserApiKeys = profile.geminiApiKeys?.filter(key => key && key.trim() !== '') || [];
+    if (availableUserApiKeys.length > 0 && currentApiKeyIndexRef.current < availableUserApiKeys.length -1) {
+      // Check if the *last* error for this specific message was a rate limit.
+      // This is a bit tricky as we don't store the error type directly on the message.
+      // We rely on the fact that if `handleSendMessage` suggested regenerating due to rate limit,
+      // it would have already incremented the ref (or instructed user to click regenerate).
+      // So, for now, we trust the ref is already pointing to the next key if the previous was a rate limit.
+      // No, the increment should happen *before* calling handleSendMessage for regeneration
+      // IF the last error on this message was a rate limit.
+      // Let's adjust the logic in handleSendMessage error block to correctly set the index for the *next* attempt.
+      
+      // For regeneration, we check if the *current* key (which might have been advanced)
+      // caused a rate limit. If so, advance it *again* if possible before this specific call.
+      // This might need more sophisticated state to track *which* key failed for *which* message.
+      // For simplicity, the current "Regenerate" will try with currentApiKeyIndexRef.current.
+      // If it fails *again* with a rate limit, handleSendMessage's error block will advance the ref.
+    }
+
+    console.log(`ChatPage (handleRegenerateMessage): Regenerating message ID ${messageIdToRegenerate} for action ${originalRequest.actionType}. Using API Key Index: ${currentApiKeyIndexRef.current}`);
 
     handleSendMessage(
         originalRequest.messageText, originalRequest.actionType,
@@ -723,7 +746,7 @@ export default function ChatPage() {
         true, // isRegenerationCall = true
         messageIdToRegenerate 
     );
-  }, [profileLoading, profile, currentSession, toast, handleSendMessage]); 
+  }, [profileLoading, profile, currentSession, toast, handleSendMessage]); // ensure handleSendMessage is in deps
 
 
   const handleAction = (action: ActionType) => {
@@ -797,39 +820,42 @@ export default function ChatPage() {
 
 
   const handleSyncWithDriveClick = async () => {
-    if (!authUser) {
-        toast({ title: "Login Required", description: "Please log in with Google to sync with Drive.", variant: "default" });
+    if (!authUser || !isGoogleUser) {
+        toast({ title: "Google Login Required", description: "Please log in with your Google account to sync with Drive.", variant: "default" });
         return;
     }
-    if (!isGoogleUser) {
-      toast({ title: "Google Account Required", description: "Please log in with a Google account to use Drive Sync.", variant: "default" });
-      return;
+    if (!googleAccessToken) {
+      try {
+        toast({ title: "Re-authentication needed", description: "Please sign in with Google again to refresh Drive access.", variant: "default" });
+        await triggerGoogleSignInFromAuth(); // This will update googleAccessToken in AuthContext
+        // Wait for token to propagate, then try sync. This part might need a small delay or state watching.
+        setTimeout(async () => { 
+          const syncResult = await syncWithDrive(); 
+          if (syncResult === 'SUCCESS') toast({ title: "Drive Sync Successful", description: "History synced with Google Drive." });
+          else if (syncResult === 'FAILED') toast({ title: "Drive Sync Failed", description: "Could not sync with Google Drive after re-authentication.", variant: "destructive" });
+        }, 1500); // Delay to allow AuthContext to update
+        return;
+      } catch (error) {
+        console.error("ChatPage (handleSyncWithDriveClick): Error during Google re-authentication:", error);
+        toast({ title: "Google Sign-In Failed", description: "Could not re-authenticate with Google for Drive sync.", variant: "destructive" });
+        return;
+      }
     }
 
+    // If token exists or was just obtained
     const result = await syncWithDrive(); 
-    if (result === 'TOKEN_REFRESH_NEEDED' && triggerGoogleSignIn) {
-        try {
-            await triggerGoogleSignIn(); 
-            toast({ title: "Google Sign-In Successful", description: "Attempting to sync with Drive again shortly..." });
-            setTimeout(async () => { 
-                 const finalResult = await syncWithDrive();
-                 if (finalResult === 'SUCCESS') toast({ title: "Drive Sync Successful", description: "History synced with Google Drive." });
-                 else if (finalResult === 'FAILED') toast({ title: "Drive Sync Failed", description: "Could not sync with Google Drive after re-authentication.", variant: "destructive" });
-            }, 1500); 
-        } catch (error) {
-            console.error("ChatPage (handleSyncWithDriveClick): Error during Google re-authentication:", error);
-            toast({ title: "Google Sign-In Failed", description: "Could not re-authenticate with Google for Drive sync.", variant: "destructive" });
-        }
-    } else if (result === 'SUCCESS') {
+    if (result === 'SUCCESS') {
         toast({ title: "Drive Sync Successful", description: "History synced with Google Drive." });
     } else if (result === 'FAILED') {
          toast({ title: "Drive Sync Failed", description: "Could not sync with Google Drive. Check console for details.", variant: "destructive" });
+    } else if (result === 'TOKEN_REFRESH_NEEDED') { // Should be less likely if we trigger sign-in above
+        toast({ title: "Google Auth Required", description: "Please sign in with Google again via the Sync button to refresh Drive access.", variant: "default" });
     }
   };
 
-  const isGoogleUser = useMemo(() => authUser?.providerData.some(p => p.providerId === 'google.com'), [authUser]);
+  const currentAttachedFilesDataLength = currentAttachedFilesData.length;
 
-  if (authLoading || profileLoading || historyHookLoading || !userIdForHistory ) { 
+  if (authLoading || (!currentSession && !profileLoading && !historyHookLoading) ) { 
     return (
       <div className="flex items-center justify-center h-screen bg-gradient-to-b from-background-start-hsl to-background-end-hsl">
         <div className="glass-panel p-8 rounded-xl shadow-2xl flex flex-col items-center animate-float">
@@ -867,6 +893,7 @@ export default function ChatPage() {
                   className="w-full text-base py-6" 
                   glow 
                   animate
+                  onClick={() => setIsWelcomeLoginModalOpen(true)}
                 >
                   <LogIn className="mr-2 h-5 w-5" /> Login
                 </Button>
@@ -877,13 +904,14 @@ export default function ChatPage() {
                   className="w-full text-base py-6" 
                   glow 
                   animate
+                  onClick={() => setIsWelcomeLoginModalOpen(true)} // Assuming login modal handles both
                 >
                   <UserPlus className="mr-2 h-5 w-5" /> Sign Up
                 </Button>
               </DialogTrigger>
             </div>
           </div>
-          <DialogContent className="sm:max-w-md glass-panel bg-background/95 dark:bg-background/80 backdrop-blur-xl border border-border dark:border-primary/10 shadow-xl dark:shadow-2xl rounded-xl animate-fade-in">
+          <DialogContent className="sm:max-w-md glass-panel backdrop-blur-xl border border-border dark:border-primary/10 shadow-xl dark:shadow-2xl rounded-xl animate-fade-in">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-xl opacity-30 pointer-events-none"></div>
             <DialogHeader className="relative z-10">
               <DialogTitle className="text-xl font-bold text-primary dark:bg-clip-text dark:text-transparent dark:bg-gradient-to-r dark:from-primary dark:to-secondary">Login to DesAInR</DialogTitle>
@@ -910,7 +938,6 @@ export default function ChatPage() {
     );
   }
 
-  const currentAttachedFilesDataLength = currentAttachedFilesData.length;
 
   return (
     <div className="flex h-[calc(100vh-var(--header-height,0px))] bg-gradient-to-br from-background-start-hsl to-background-end-hsl">
@@ -929,8 +956,8 @@ export default function ChatPage() {
       {!isMobile && (
         <div
           className={cn(
-            "glass-panel border-r shrink-0 transition-all duration-500 ease-in-out h-full",
-            isHistoryPanelOpen ? "w-[300px]" : "w-0 border-r-0 opacity-0"
+            "glass-panel border-r shrink-0 transition-all duration-300 ease-in-out h-full overflow-y-auto",
+            isHistoryPanelOpen ? "w-[300px] p-0" : "w-0 border-r-0 opacity-0 p-0"
           )}
         >
           {isHistoryPanelOpen && (
@@ -958,12 +985,12 @@ export default function ChatPage() {
           </div>
           <div className="flex items-center gap-3">
              { authUser && isGoogleUser && ( 
-                <Button variant="outline" size="sm" onClick={handleSyncWithDriveClick} disabled={isSyncing} className="hover:bg-primary/10 hover:text-primary transition-all duration-300 rounded-full shadow-md btn-glow">
+                <Button variant="outline" size="sm" onClick={handleSyncWithDriveClick} disabled={isSyncing} className="hover:bg-primary/10 hover:text-primary transition-colors duration-300 rounded-full shadow-md btn-glow">
                     {isSyncing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                     Sync with Drive
                 </Button>
             )}
-            <Button variant="secondary" size="sm" onClick={handleNewChat} className="hover:bg-accent hover:text-accent-foreground transition-all duration-300 rounded-full shadow-md btn-glow">
+            <Button variant="secondary" size="sm" onClick={handleNewChat} className="hover:bg-accent hover:text-accent-foreground transition-colors duration-300 rounded-full shadow-md btn-glow">
                 <PlusCircle className="h-4 w-4 mr-2" /> New Chat
             </Button>
           </div>

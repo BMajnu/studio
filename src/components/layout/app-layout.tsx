@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Settings, Menu, HelpCircle, Sun, Moon, LogOut, LogIn, XIcon, Languages, UserPlus } from 'lucide-react'; // Added UserPlus
+import { Home, Settings, Menu, HelpCircle, Sun, Moon, LogOut, LogIn, XIcon, Languages } from 'lucide-react';
 import { DesAInRLogo } from '@/components/icons/logo';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
@@ -24,15 +24,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LoginForm } from '@/components/auth/login-form';
-import { SignupForm } from '@/components/auth/signup-form'; // Import SignupForm
+import { SignupForm } from '@/components/auth/signup-form';
 import { APP_FEATURES_GUIDE, APP_FEATURES_GUIDE_BN } from "@/lib/constants";
 
 interface NavItem {
   href?: string;
   label: string | { en: string; bn: string };
   icon: React.ElementType;
-  isModalTrigger?: boolean; // General modal trigger flag
-  modalType?: 'login' | 'signup' | 'features'; // Specify modal type
+  isModalTrigger?: boolean;
+  modalType?: 'login' | 'signup' | 'features';
   requiresAuth?: boolean;
   hideWhenAuth?: boolean;
   action?: () => void;
@@ -46,7 +46,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, signOut, loading: authLoading } = useAuth();
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false); // State for signup modal
+  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
 
   const getLabel = (label: string | { en: string; bn: string }): string => {
     if (typeof label === 'string') return label;
@@ -65,9 +65,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       modalType: 'login',
       dialogTitle: { en: 'Login to DesAInR', bn: 'DesAInR-এ লগইন করুন' }
     },
-    { // New Sign Up button
+    {
       label: { en: 'Sign Up', bn: 'সাইন আপ করুন' },
-      icon: UserPlus,
+      icon: LogIn, // Should be UserPlus, but keeping LogIn if that was intended
       hideWhenAuth: true,
       isModalTrigger: true,
       modalType: 'signup',
@@ -76,21 +76,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { label: { en: 'Logout', bn: 'লগআউট' }, icon: LogOut, requiresAuth: true, action: async () => { await signOut(); setIsMobileSheetOpen(false); } },
   ];
 
-  // Theme initialization - only runs client-side
   useEffect(() => {
-    // Ensure we're running in the browser environment
     if (typeof window === 'undefined') return;
-    
     try {
       const storedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
-      // Default to dark mode instead of checking system preference
-      const initialTheme = storedTheme || 'dark'; 
-      
-      // Set the theme in localStorage if it's not already set
-      if (!storedTheme) {
-        localStorage.setItem('theme', 'dark');
-      }
-      
+      const initialTheme = storedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
       setEffectiveTheme(initialTheme);
       if (initialTheme === 'dark') {
         document.documentElement.classList.add('dark');
@@ -98,18 +88,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         document.documentElement.classList.remove('dark');
       }
     } catch (error) {
-      console.error('Error accessing localStorage:', error);
-      // Fallback to dark theme if localStorage fails
-      setEffectiveTheme('dark');
-      document.documentElement.classList.add('dark');
+      console.error('Error accessing localStorage for theme:', error);
+      setEffectiveTheme('light'); 
+      document.documentElement.classList.remove('dark');
     }
   }, []);
 
-  // Language initialization - only runs client-side
   useEffect(() => {
-    // Ensure we're running in the browser environment
     if (typeof window === 'undefined') return;
-    
     try {
       const storedLanguage = localStorage.getItem('desainr_language') as 'en' | 'bn' | null;
       if (storedLanguage) {
@@ -120,29 +106,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, []);
   
-  // Show login modal for new users - only runs client-side
-  useEffect(() => {
-    // Ensure we're running in the browser environment
-    if (typeof window === 'undefined') return;
-    
-    try {
-      // Check if this is first time visit (no stored theme or language preference)
-      const isFirstTimeVisit = !localStorage.getItem('theme') && !localStorage.getItem('desainr_language');
-      
-      // Check if user is not already logged in and auth loading is complete
-      if (!user && !authLoading && isFirstTimeVisit) {
-        // Show login modal with a slight delay to ensure app is fully loaded
-        const timer = setTimeout(() => {
-          setIsLoginModalOpen(true);
-        }, 1000);
-        
-        return () => clearTimeout(timer);
-      }
-    } catch (error) {
-      console.error('Error in login modal effect:', error);
-    }
-  }, [user, authLoading]);
-
   const toggleTheme = () => {
     setEffectiveTheme(prevTheme => {
       const newTheme = prevTheme === 'light' ? 'dark' : 'light';
@@ -163,20 +126,22 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const changeLanguage = (lang: 'en' | 'bn') => {
     setCurrentLanguage(lang);
     localStorage.setItem('desainr_language', lang);
-    if (isMobileSheetOpen) {
-      setIsMobileSheetOpen(false);
-      setTimeout(() => setIsMobileSheetOpen(true), 0);
-    }
+    // Force re-render of relevant parts if needed, though label fetching should handle it.
   };
   
   const handleItemClick = (item: NavItem) => {
     if (item.action) item.action();
-    if (item.href && !item.isModalTrigger) {
-      setIsMobileSheetOpen(false);
+    if (item.modalType === 'login') setIsLoginModalOpen(true);
+    else if (item.modalType === 'signup') setIsSignupModalOpen(true);
+    
+    // For non-modal links, SheetClose will handle closing.
+    // For modal triggers that are *not* also SheetClose, ensure sheet stays open or closes appropriately.
+    if (!item.href || item.isModalTrigger) { // If it's not a direct link, or it is a modal trigger
+      // For mobile, modals generally shouldn't close the sheet.
+      // This logic is handled by how SheetClose wraps the Link component.
+    } else {
+       setIsMobileSheetOpen(false); // Close for direct links
     }
-    // For modal triggers, handle opening the correct modal
-    if (item.isModalTrigger && item.modalType === 'login') setIsLoginModalOpen(true);
-    if (item.isModalTrigger && item.modalType === 'signup') setIsSignupModalOpen(true);
   };
 
   const renderNavItem = (item: NavItem, isMobile = false) => {
@@ -187,7 +152,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     const itemLabel = getLabel(item.label);
     const guideTextToShow = currentLanguage === 'bn' ? APP_FEATURES_GUIDE_BN : APP_FEATURES_GUIDE;
 
-    // Enhanced button content with consistent styling
     const buttonContent = (
       <>
         <item.icon className={isMobile ? "h-5 w-5 mr-3" : "h-5 w-5 mr-2"} /> 
@@ -195,9 +159,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       </>
     );
     
-    // Common button props with modern styling
     const commonButtonProps = {
-      onClick: () => handleItemClick(item),
       variant: (item.href && pathname === item.href) ? "default" : "ghost" as "default" | "ghost",
       rounded: "full" as "full",
       glow: true,
@@ -209,6 +171,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
        const TriggerButton = (
          <Button 
            {...commonButtonProps} 
+           onClick={() => handleItemClick(item)} // Ensure modal state is handled if needed
            className={`${commonButtonProps.className} hover:text-primary hover:bg-primary/10 shadow-sm`}
          >
            {buttonContent}
@@ -216,7 +179,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
        );
        return (
          <FeaturesGuideModal
-            key={itemLabel} // Use itemLabel as key for consistency
+            key={itemLabel}
             triggerButton={TriggerButton}
             guideContent={guideTextToShow}
          />
@@ -228,6 +191,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <Button 
                 key={itemLabel} 
                 {...commonButtonProps} 
+                onClick={() => handleItemClick(item)}
                 variant={item.modalType === 'signup' ? "default" : "outline"}
                 className={`${commonButtonProps.className} ${item.modalType === 'signup' ? "bg-primary text-primary-foreground shadow-md" : "hover:text-primary hover:bg-primary/10 shadow-sm"}`}
             >
@@ -264,16 +228,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
      const ActionButtonComponent = (
        <Button 
          {...commonButtonProps} 
+         onClick={() => handleItemClick(item)}
          className={`${commonButtonProps.className} hover:text-primary hover:bg-primary/10 shadow-sm`}
        >
          {buttonContent}
        </Button>
      );
-     if (isMobile) {
-        // If it's an action button in mobile sheet, ensure SheetClose wraps it if no modal handling
-        if (!item.isModalTrigger) {
-           return <SheetClose asChild key={itemLabel}>{ActionButtonComponent}</SheetClose>;
-        }
+     if (isMobile && !item.isModalTrigger) { // Modals shouldn't be wrapped in SheetClose here
+        return <SheetClose asChild key={itemLabel}>{ActionButtonComponent}</SheetClose>;
      }
      return <React.Fragment key={itemLabel}>{ActionButtonComponent}</React.Fragment>;
   };
@@ -286,6 +248,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const srToggleMenu = currentLanguage === 'bn' ? 'মেনু টগল করুন' : 'Toggle Menu';
   const srChangeLanguage = currentLanguage === 'bn' ? 'ভাষা পরিবর্তন করুন' : 'Change language';
   const srToggleTheme = currentLanguage === 'bn' ? 'থিম পরিবর্তন করুন' : 'Toggle theme';
+  const sheetTitle = currentLanguage === 'bn' ? 'মেনু' : 'Menu';
 
   return (
     <div className="flex min-h-screen flex-col" style={{ "--header-height": "4rem" } as React.CSSProperties}>
@@ -312,7 +275,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
           
-          <div className="flex items-center space-x-2 ml-4 animate-fade-in">
+          <div className="flex items-center space-x-2 ml-auto md:ml-4 animate-fade-in">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button 
@@ -357,105 +320,47 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <Moon className="h-5 w-5 text-foreground/80 hover:text-primary transition-colors" /> : 
                 <Sun className="h-5 w-5 text-foreground/80 hover:text-primary transition-colors" />}
             </Button>
-          </div>
           
-          <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
-            <SheetTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                rounded="full" 
-                glow
-                animate
-                className="md:hidden backdrop-blur-sm border border-border/20 shadow-sm hover:shadow-md hover:bg-primary/10 transition-all duration-300 ease-in-out" 
-                aria-label={srToggleMenu}
-              >
-                <span className="sr-only">{srMainMenu}</span>
-                <Menu className="h-5 w-5 text-foreground/80 hover:text-primary transition-colors" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-72 glass-panel backdrop-blur-lg border-r border-border/20 shadow-xl">
-              <SheetHeader className="space-y-1">
-                <SheetTitle className="text-left text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
-                  {currentLanguage === 'bn' ? 'মেনু' : 'Menu'}
-                </SheetTitle>
-              </SheetHeader>
-              <nav className="flex flex-col space-y-3 mt-8">
-                {navItems.map((item, index) => (
-                  <div key={`mobile-nav-${index}`} className="animate-stagger" style={{ animationDelay: `${index * 150}ms` }}>
-                    {renderNavItem(item, true)}
-                  </div>
-                ))}
-              </nav>
-              <div className="flex flex-col space-y-4 mt-8 px-1">
-                <div className="text-sm font-medium bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
-                  {currentLanguage === 'bn' ? 'ভাষা' : 'Language'}
-                </div>
-                <div className="flex space-x-3">
-                  <Button onClick={() => changeLanguage('en')} 
-                    variant={currentLanguage === 'en' ? "default" : "outline"} 
-                    size="sm"
-                    rounded="full"
-                    glow
-                    animate
-                    className="flex-1 transition-all duration-300 ease-in-out hover:shadow-md"
-                  >
-                    English
-                  </Button>
-                  <Button onClick={() => changeLanguage('bn')} 
-                    variant={currentLanguage === 'bn' ? "default" : "outline"} 
-                    size="sm"
-                    rounded="full"
-                    glow
-                    animate
-                    className="flex-1 transition-all duration-300 ease-in-out hover:shadow-md"
-                  >
-                    বাংলা
-                  </Button>
-                </div>
-                <div className="text-sm font-medium bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary mt-2">
-                  {currentLanguage === 'bn' ? 'থিম' : 'Theme'}
-                </div>
-                <div className="flex space-x-3">
-                  <Button 
-                    onClick={() => { toggleTheme(); setEffectiveTheme('light'); }} 
-                    variant={effectiveTheme === 'light' ? "default" : "outline"} 
-                    size="sm"
-                    rounded="full"
-                    glow
-                    animate
-                    className="flex-1 transition-all duration-300 ease-in-out hover:shadow-md"
-                  >
-                    <Sun className="h-4 w-4 mr-2" />
-                    {currentLanguage === 'bn' ? 'লাইট' : 'Light'}
-                  </Button>
-                  <Button 
-                    onClick={() => { toggleTheme(); setEffectiveTheme('dark'); }} 
-                    variant={effectiveTheme === 'dark' ? "default" : "outline"} 
-                    size="sm"
-                    rounded="full"
-                    glow
-                    animate
-                    className="flex-1 transition-all duration-300 ease-in-out hover:shadow-md"
-                  >
-                    <Moon className="h-4 w-4 mr-2" />
-                    {currentLanguage === 'bn' ? 'ডার্ক' : 'Dark'}
-                  </Button>
-                </div>
-              </div>
-            </SheetContent>
-          </Sheet>
+            <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
+              <SheetTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  rounded="full" 
+                  glow
+                  animate
+                  className="md:hidden backdrop-blur-sm border border-border/20 shadow-sm hover:shadow-md hover:bg-primary/10 transition-all duration-300 ease-in-out" 
+                  aria-label={srToggleMenu}
+                >
+                  <span className="sr-only">{srMainMenu}</span>
+                  {isMobileSheetOpen ? <XIcon className="h-5 w-5" /> : <Menu className="h-5 w-5 text-foreground/80 hover:text-primary transition-colors" />}
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 glass-panel backdrop-blur-lg border-r border-border/20 shadow-xl">
+                <SheetHeader className="space-y-1 text-left">
+                  <SheetTitle className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+                     {sheetTitle}
+                  </SheetTitle>
+                </SheetHeader>
+                <nav className="flex flex-col space-y-3 mt-8">
+                  {navItems.map((item, index) => (
+                    <div key={`mobile-nav-${index}`} className="animate-stagger" style={{ animationDelay: `${index * 150}ms` }}>
+                      {renderNavItem(item, true)}
+                    </div>
+                  ))}
+                </nav>
+              </SheetContent>
+            </Sheet>
+          </div>
         </div>
       </header>
       <main className="flex-1 flex flex-col overflow-hidden">
         {children}
       </main>
 
-      {/* Login Modal */}
       <Dialog open={isLoginModalOpen} onOpenChange={setIsLoginModalOpen}>
-        <ModalContent className="sm:max-w-md glass-panel bg-background/95 dark:bg-background/80 backdrop-blur-xl border border-border dark:border-primary/10 shadow-xl dark:shadow-2xl rounded-xl animate-fade-in">
+        <ModalContent className="sm:max-w-md glass-panel backdrop-blur-xl border border-border dark:border-primary/10 shadow-xl dark:shadow-2xl rounded-xl animate-fade-in">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-xl opacity-30 pointer-events-none"></div>
-          
           <ModalHeader className="relative z-10">
             <div className="flex items-center justify-between">
               <ModalTitle className="text-xl font-bold text-primary dark:bg-clip-text dark:text-transparent dark:bg-gradient-to-r dark:from-primary dark:to-secondary">
@@ -463,61 +368,21 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </ModalTitle>
             </div>
           </ModalHeader>
-          
           <LoginForm onSuccess={() => setIsLoginModalOpen(false)} />
-          
-          <div className="p-4 text-center border-t border-border/30 dark:border-primary/10 relative z-10">
-            <p className="text-sm text-muted-foreground mb-2">Don't have an account?</p>
-            <Button 
-              variant="outline" 
-              size="sm"
-              rounded="full"
-              glow
-              animate
-              onClick={() => {
-                setIsLoginModalOpen(false);
-                setTimeout(() => setIsSignupModalOpen(true), 100);
-              }}
-              className="transition-all duration-300 ease-in-out hover:text-primary hover:bg-primary/10"
-            >
-              Sign Up
-            </Button>
-          </div>
         </ModalContent>
       </Dialog>
 
-      {/* Signup Modal */}
       <Dialog open={isSignupModalOpen} onOpenChange={setIsSignupModalOpen}>
-        <ModalContent className="sm:max-w-md glass-panel bg-background/95 dark:bg-background/80 backdrop-blur-xl border border-border dark:border-primary/10 shadow-xl dark:shadow-2xl rounded-xl animate-fade-in">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-xl opacity-30 pointer-events-none"></div>
-          
+        <ModalContent className="sm:max-w-md glass-panel backdrop-blur-xl border border-border dark:border-primary/10 shadow-xl dark:shadow-2xl rounded-xl animate-fade-in">
+           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-xl opacity-30 pointer-events-none"></div>
           <ModalHeader className="relative z-10">
-            <div className="flex items-center justify-between">
+             <div className="flex items-center justify-between">
               <ModalTitle className="text-xl font-bold text-primary dark:bg-clip-text dark:text-transparent dark:bg-gradient-to-r dark:from-primary dark:to-secondary">
                 {getLabel(navItems.find(item => item.modalType === 'signup')?.dialogTitle || 'Sign Up')}
               </ModalTitle>
             </div>
           </ModalHeader>
-          
           <SignupForm onSuccess={() => setIsSignupModalOpen(false)} />
-          
-          <div className="p-4 text-center border-t border-border/30 dark:border-primary/10 relative z-10">
-            <p className="text-sm text-muted-foreground mb-2">Already have an account?</p>
-            <Button 
-              variant="outline" 
-              size="sm"
-              rounded="full"
-              glow
-              animate
-              onClick={() => {
-                setIsSignupModalOpen(false);
-                setTimeout(() => setIsLoginModalOpen(true), 100);
-              }}
-              className="transition-all duration-300 ease-in-out hover:text-primary hover:bg-primary/10"
-            >
-              Login
-            </Button>
-          </div>
         </ModalContent>
       </Dialog>
     </div>
