@@ -2,7 +2,7 @@
 
 import type { ChatMessage, MessageRole, ChatMessageContentPart, AttachedFile, ActionType } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Bot, User, AlertTriangle, Paperclip, FileText, Image as ImageIcon, RotateCcw, Loader2, Edit3 } from 'lucide-react';
+import { Bot, User, AlertTriangle, Paperclip, FileText, Image as ImageIcon, RotateCcw, Loader2, Edit3, Send, X } from 'lucide-react';
 import { CopyToClipboard, CopyableText, CopyableList } from '@/components/copy-to-clipboard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,11 +10,13 @@ import { Separator } from '@/components/ui/separator';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import React, { useState } from 'react'; // Import useState
+import { Textarea } from '@/components/ui/textarea'; // Import Textarea
 
 interface ChatMessageProps {
   message: ChatMessage;
   onRegenerate?: (requestDetails: ChatMessage['originalRequest'] & { messageIdToRegenerate: string }) => void;
-  onRepostUserMessage?: (message: ChatMessage) => void; // New prop
+  onConfirmEditAndResend?: (messageId: string, newContent: string, originalAttachments?: AttachedFile[]) => void;
 }
 
 function MessageAvatar({ role }: { role: MessageRole }) {
@@ -77,9 +79,23 @@ function AttachedFileDisplay({ file }: { file: AttachedFile }) {
   );
 }
 
+// Helper to extract simple text content from a message for editing
+const getSimpleTextContent = (content: string | ChatMessageContentPart[]): string => {
+  if (typeof content === 'string') {
+    return content;
+  }
+  if (Array.isArray(content)) {
+    // For user messages, we typically expect a single text part
+    const textPart = content.find(part => part.type === 'text');
+    return textPart?.text || '';
+  }
+  return '';
+};
+
+
 function RenderContentPart({ part, index }: { part: ChatMessageContentPart; index: number }) {
-  const animationDelay = `${index * 80}ms`; // Increased delay for more noticeable staggered effect
-  const commonClasses = "my-2 animate-slideUpSlightly w-full"; // Changed to slideUpSlightly
+  const animationDelay = `${index * 80}ms`; 
+  const commonClasses = "my-2 animate-slideUpSlightly w-full"; 
 
   switch (part.type) {
     case 'text':
@@ -112,7 +128,6 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
               <Separator className="my-3 opacity-50" />
             }
             
-            {/* Use part.bengali.analysis as it seems to contain the full combined translation */}
             {part.bengali?.analysis && <CopyableText title="বিশ্লেষণ ও পরিকল্পনা (Bengali)" text={part.bengali.analysis} className="bg-primary/5 rounded-lg p-2" />}
           </CardContent>
         </Card>
@@ -123,7 +138,10 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
 }
 
 
-export function ChatMessageDisplay({ message, onRegenerate, onRepostUserMessage }: ChatMessageProps) {
+export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndResend }: ChatMessageProps) {
+  const [isEditingThisMessage, setIsEditingThisMessage] = useState(false);
+  const [editedText, setEditedText] = useState(getSimpleTextContent(message.content));
+
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
 
@@ -136,7 +154,7 @@ export function ChatMessageDisplay({ message, onRegenerate, onRepostUserMessage 
         {!isUser && <MessageAvatar role="assistant" />}
         <div className={cn(
           "relative flex flex-col gap-3 rounded-2xl p-5",
-          "w-full", // Removed max-w constraints
+          "w-full", 
           isAssistant ? "bg-card/80 backdrop-blur-sm shadow-xl border border-primary/10" : 
                        "bg-gradient-to-br from-primary/90 to-primary/80 text-primary-foreground shadow-xl",
           isUser ? 'rounded-tr-none' : 'rounded-tl-none'
@@ -153,15 +171,27 @@ export function ChatMessageDisplay({ message, onRegenerate, onRepostUserMessage 
   }
 
   const handleRegenerateClick = () => {
-    if (onRegenerate && message.originalRequest) {
+    if (onRegenerate && message.originalRequest && message.id) {
       onRegenerate({ ...message.originalRequest, messageIdToRegenerate: message.id });
     }
   };
+  
+  const handleStartEdit = () => {
+    setEditedText(getSimpleTextContent(message.content));
+    setIsEditingThisMessage(true);
+  };
 
-  const handleRepostClick = () => {
-    if (onRepostUserMessage && message.role === 'user') {
-      onRepostUserMessage(message);
+  const handleCancelEdit = () => {
+    setIsEditingThisMessage(false);
+    // Optionally reset editedText to original if needed, but not strictly necessary
+    // setEditedText(getSimpleTextContent(message.content)); 
+  };
+
+  const handleSaveAndSendEdited = () => {
+    if (onConfirmEditAndResend) {
+      onConfirmEditAndResend(message.id, editedText, message.attachedFiles);
     }
+    setIsEditingThisMessage(false);
   };
 
   const messageTime = new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -181,7 +211,7 @@ export function ChatMessageDisplay({ message, onRegenerate, onRepostUserMessage 
       <div
         className={cn(
           "relative flex flex-col gap-3 rounded-2xl p-5 shadow-lg text-sm transition-all duration-300",
-          "w-full", // Removed max-w constraints
+          "w-full", 
           isAssistant ? 'bg-card/80 backdrop-blur-sm border border-primary/10' : 
                        'bg-gradient-to-br from-primary/90 to-primary/80 text-primary-foreground',
           message.isError ? 'border-destructive border-2' : isAssistant ? 'border-primary/10' : 'border-transparent',
@@ -195,7 +225,7 @@ export function ChatMessageDisplay({ message, onRegenerate, onRepostUserMessage 
         )}></div>
         <div className="flex justify-between items-center mb-2 relative z-10">
           <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-background/30 backdrop-blur-sm">{messageTime}</span>
-          {message.isError && (
+          {message.isError && !isEditingThisMessage && (
             <div className="flex items-center gap-2 text-destructive bg-destructive/10 px-2 py-1 rounded-full animate-pulse-slow">
               <AlertTriangle className="h-4 w-4" />
               <span className="font-medium text-xs">Error processing request</span>
@@ -203,21 +233,40 @@ export function ChatMessageDisplay({ message, onRegenerate, onRepostUserMessage 
           )}
         </div>
         
-        {message.isLoading && typeof message.content === 'string' && message.content.startsWith('Processing...')
-          ? <div className="relative z-10 whitespace-pre-wrap animate-pulse-slow glass-panel bg-background/40 p-3 rounded-xl border border-primary/10 shadow-inner">
+        {isEditingThisMessage && isUser ? (
+          <div className="space-y-2 relative z-10">
+            <Textarea
+              value={editedText}
+              onChange={(e) => setEditedText(e.target.value)}
+              className="w-full resize-none min-h-[60px] bg-background/70 text-foreground focus-visible:ring-primary"
+              rows={Math.max(2, editedText.split('\n').length)}
+            />
+            <div className="flex justify-end gap-2 mt-2">
+              <Button variant="ghost" size="sm" onClick={handleCancelEdit} rounded="full" className="hover:bg-muted/50">
+                <X className="h-4 w-4 mr-1" /> Cancel
+              </Button>
+              <Button variant="default" size="sm" onClick={handleSaveAndSendEdited} rounded="full" className="bg-primary hover:bg-primary/90">
+                <Send className="h-4 w-4 mr-1" /> Save & Send
+              </Button>
+            </div>
+          </div>
+        ) : message.isLoading && typeof message.content === 'string' && message.content.startsWith('Processing...') ? (
+            <div className="relative z-10 whitespace-pre-wrap animate-pulse-slow glass-panel bg-background/40 p-3 rounded-xl border border-primary/10 shadow-inner">
               <div className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin text-primary" />
                 <p>{message.content}</p>
               </div>
             </div>
-          : <div className="stagger-animation relative z-10">
+          ) : (
+            <div className="stagger-animation relative z-10">
               {displayContent.map((part, index) => 
                 <RenderContentPart part={part} index={index} key={`${message.id}-part-${index}`}/>
               )}
             </div>
+          )
         }
 
-        {message.attachedFiles && message.attachedFiles.length > 0 && (
+        {message.attachedFiles && message.attachedFiles.length > 0 && !isEditingThisMessage && (
           <div className="mt-3 space-y-2 relative z-10">
             <div className="text-xs font-medium px-2 py-0.5 rounded-full bg-background/30 backdrop-blur-sm w-fit mb-2">
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
@@ -232,48 +281,49 @@ export function ChatMessageDisplay({ message, onRegenerate, onRepostUserMessage 
           </div>
         )}
 
-        <div className="mt-3 pt-2 border-t border-primary/10 flex justify-end animate-fade-in relative z-10" style={{ animationDelay: '0.5s' }}>
-          {isUser && onRepostUserMessage && (
-            <Button
-              variant="ghost"
-              size="sm"
-              rounded="full"
-              glow
-              animate
-              onClick={handleRepostClick}
-              className="text-xs backdrop-blur-sm border border-primary/10 shadow-sm hover:shadow-md hover:scale-105 hover:text-primary hover:bg-primary/10 transition-all duration-300"
-              title="Edit &amp; Resend this message"
-            >
-              <div className="relative mr-1.5">
-                <div className="absolute inset-0 bg-primary/10 rounded-full blur-sm animate-pulse-slow opacity-70"></div>
-                <Edit3 className="h-3.5 w-3.5 relative z-10" />
-              </div>
-              Edit &amp; Resend
-            </Button>
-          )}
-          {isAssistant && message.canRegenerate && message.originalRequest && onRegenerate && (
-            <Button
-              variant="ghost"
-              size="sm"
-              rounded="full"
-              glow
-              animate
-              onClick={handleRegenerateClick}
-              className="text-xs backdrop-blur-sm border border-primary/10 shadow-sm hover:shadow-md hover:scale-105 hover:text-primary hover:bg-primary/10 transition-all duration-300"
-              title="Regenerate response"
-              disabled={message.isLoading} 
-            >
-              <div className="relative mr-1.5">
-                <div className="absolute inset-0 bg-primary/10 rounded-full blur-sm animate-pulse-slow opacity-70"></div>
-                <RotateCcw className="h-3.5 w-3.5 relative z-10" />
-              </div>
-              Regenerate
-            </Button>
-          )}
-        </div>
+        {!isEditingThisMessage && (
+          <div className="mt-3 pt-2 border-t border-primary/10 flex justify-end animate-fade-in relative z-10" style={{ animationDelay: '0.5s' }}>
+            {isUser && onConfirmEditAndResend && (
+              <Button
+                variant="ghost"
+                size="sm"
+                rounded="full"
+                glow
+                animate
+                onClick={handleStartEdit}
+                className="text-xs backdrop-blur-sm border border-primary/10 shadow-sm hover:shadow-md hover:scale-105 hover:text-primary hover:bg-primary/10 transition-all duration-300"
+                title="Edit & Resend this message"
+              >
+                <div className="relative mr-1.5">
+                  <div className="absolute inset-0 bg-primary/10 rounded-full blur-sm animate-pulse-slow opacity-70"></div>
+                  <Edit3 className="h-3.5 w-3.5 relative z-10" />
+                </div>
+                Edit & Resend
+              </Button>
+            )}
+            {isAssistant && message.canRegenerate && message.originalRequest && onRegenerate && (
+              <Button
+                variant="ghost"
+                size="sm"
+                rounded="full"
+                glow
+                animate
+                onClick={handleRegenerateClick}
+                className="text-xs backdrop-blur-sm border border-primary/10 shadow-sm hover:shadow-md hover:scale-105 hover:text-primary hover:bg-primary/10 transition-all duration-300"
+                title="Regenerate response"
+                disabled={message.isLoading} 
+              >
+                <div className="relative mr-1.5">
+                  <div className="absolute inset-0 bg-primary/10 rounded-full blur-sm animate-pulse-slow opacity-70"></div>
+                  <RotateCcw className="h-3.5 w-3.5 relative z-10" />
+                </div>
+                Regenerate
+              </Button>
+            )}
+          </div>
+        )}
       </div>
       {isUser && <MessageAvatar role={message.role} />}
     </div>
   );
 }
-
