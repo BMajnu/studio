@@ -1,7 +1,8 @@
+
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Paperclip, Loader2, BotIcon, Menu, XIcon, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw, PlusCircle, Edit3, RefreshCw, X, LogIn, UserPlus, Send } from 'lucide-react';
+import { Paperclip, Loader2, BotIcon, Menu, XIcon, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw, PlusCircle, Edit3, RefreshCw, Send, LogIn, UserPlus, Languages } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -29,6 +30,7 @@ import { DEFAULT_USER_ID, DEFAULT_MODEL_ID } from '@/lib/constants';
 import { useAuth } from '@/contexts/auth-context';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { LoginForm } from '@/components/auth/login-form';
+
 
 const getMessageText = (content: string | ChatMessageContentPart[]): string => {
   if (typeof content === 'string') return content;
@@ -60,14 +62,15 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
         if (part.english?.stepByStepApproach) tgContent += `**Step-by-Step Approach (English):**\n${part.english.stepByStepApproach}\n\n`;
         
         let bengaliCombined = "";
-        if (part.bengali?.analysis && part.bengali.analysis !== part.bengali.simplifiedRequest && part.bengali.analysis !== part.bengali.stepByStepApproach) {
+        // Prefer full Bengali text if available and distinct
+        if (part.bengali?.analysis && (part.bengali.analysis.includes(part.bengali.simplifiedRequest || "______") || part.bengali.analysis.includes(part.bengali.stepByStepApproach || "______"))) {
             bengaliCombined = part.bengali.analysis; 
         } else if (part.bengali?.simplifiedRequest || part.bengali?.stepByStepApproach) { 
             let tempBengali = "";
             if(part.bengali.simplifiedRequest) tempBengali += `সরলীকৃত অনুরোধ (Simplified Request):\n${part.bengali.simplifiedRequest}\n\n`;
             if(part.bengali.stepByStepApproach) tempBengali += `ধাপে ধাপে পদ্ধতি (Step-by-Step Approach):\n${part.bengali.stepByStepApproach}`;
             bengaliCombined = tempBengali.trim();
-        } else if (part.bengali?.analysis) { 
+        } else if (part.bengali?.analysis) { // Fallback if only analysis is present
             bengaliCombined = part.bengali.analysis;
         }
         
@@ -82,11 +85,12 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
         fullText += tgContent;
         break;
       default:
-        const unknownPart = part as any; 
+        // Attempt to extract some textual content from unknown parts for history
+        const unknownPart = part as any; // Cast to any to try accessing common text properties
         let unknownTextContent = '';
         if (unknownPart.text) unknownTextContent = String(unknownPart.text);
         else if (unknownPart.code) unknownTextContent = String(unknownPart.code);
-        else if (unknownPart.message) unknownTextContent = String(unknownPart.message); 
+        else if (unknownPart.message) unknownTextContent = String(unknownPart.message); // Common in some error structures
         else if (unknownPart.items && Array.isArray(unknownPart.items) && unknownPart.items.length > 0) { 
           unknownTextContent = unknownPart.items.join('\n');
         }
@@ -94,12 +98,13 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
         if (unknownTextContent) {
           fullText += `${titlePrefix}${unknownTextContent}\n`;
         } else {
+           // Provide a more generic fallback if no text can be extracted
            fullText += `${titlePrefix}[Unsupported Content Part: ${unknownPart.type || 'Unknown Type'}${part.title ? ` for "${part.title}"`: ''}]\n`;
         }
     }
-    fullText += '\n'; 
+    fullText += '\n'; // Add a newline after each part for better separation in raw history
   });
-  return fullText.trim() || '[Empty Message Content Parts]'; 
+  return fullText.trim() || '[Empty Message Content Parts]'; // Ensure a fallback if all parts were empty
 };
 
 
@@ -153,9 +158,9 @@ export default function ChatPage() {
 
   const userIdForHistory = useMemo(() => {
     if (!authLoading && authUser) return authUser.uid;
-    if (!profileLoading && profile?.userId) return profile.userId; 
-    return DEFAULT_USER_ID; 
-  }, [authLoading, authUser, profileLoading, profile?.userId]);
+    // if (!profileLoading && profile?.userId) return profile.userId; // This line might cause issues if profile loads after auth
+    return DEFAULT_USER_ID; // Fallback to default, useChatHistory will handle its own logic
+  }, [authLoading, authUser]);
 
 
   const {
@@ -167,6 +172,7 @@ export default function ChatPage() {
     createNewSession,
     syncWithDrive,
     isSyncing,
+    triggerGoogleSignIn: triggerGoogleSignInForHistory, // Get it from useChatHistory
   } = useChatHistory(userIdForHistory); 
 
   const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
@@ -228,7 +234,7 @@ export default function ChatPage() {
         setCurrentSession(updatedSession);
         setMessages(updatedSession.messages);
       } else {
-        if (sessionToLoad && sessionToLoad.id) { // If session was loaded but not in metadata, it's likely invalid
+        if (sessionToLoad && sessionToLoad.id) { 
              console.warn(`ChatPage SessionInitEffect: Loaded session ${sessionToLoad.id} was not found in final history metadata. Clearing ID from LS.`);
              localStorage.removeItem(lastActiveSessionIdKey);
         }
@@ -248,9 +254,9 @@ export default function ChatPage() {
     loadOrCreateSession();
   }, [
     authLoading, profileLoading, historyHookLoading, userIdForHistory, 
-    profile?.selectedGenkitModelId, profile?.geminiApiKeys,
-    historyMetadata.length, 
-    getSession, createNewSession, ensureMessagesHaveUniqueIds
+    profile?.selectedGenkitModelId, profile?.geminiApiKeys, // Ensure profile data is a dependency
+    historyMetadata.length, // React to changes in history length which might mean new sessions are available
+    getSession, createNewSession, ensureMessagesHaveUniqueIds // Callbacks from useChatHistory
   ]);
 
 
@@ -476,13 +482,13 @@ export default function ChatPage() {
       
       const currentMessagesState = messages; 
       const chatHistoryForAI = currentMessagesState 
-        .filter(msg => msg.id !== assistantMessageIdToUse && (!userMessageId || msg.id !== userMessageId) )
-        .slice(-10) 
+        .filter(msg => msg.id !== assistantMessageIdToUse && (!userMessageId || msg.id !== userMessageId) ) // Exclude current processing messages
+        .slice(-10) // Take last 10 messages for context
         .map(msg => ({
-          role: msg.role === 'user' ? ('user' as const) : ('assistant' as const), 
+          role: msg.role === 'user' ? ('user' as const) : ('assistant' as const), // Ensure role is 'user' or 'assistant'
           text: getMessageText(msg.content)
         }))
-        .filter(msg => msg.text.trim() !== '' && (msg.role === 'user' || msg.role === 'assistant'));
+        .filter(msg => msg.text.trim() !== '' && (msg.role === 'user' || msg.role === 'assistant')); // Filter out empty or system messages
 
 
       if (currentActionType === 'processMessage') {
@@ -677,6 +683,8 @@ export default function ChatPage() {
             const shouldAttemptNameGeneration = (!messageIdToUpdate && !isRegenerationCall) && 
                 (sessionToSave.messages.length <= (userMessageId ? 2 : 1) || !currentSession.name || currentSession.name === "New Chat");
 
+            // Save session after message processing is complete
+            // Use setTimeout to allow React to batch state updates before saving
             setTimeout(() => {
               const userApiKeyForSaveOp = (profile?.geminiApiKeys && profile.geminiApiKeys.length > 0 && profile.geminiApiKeys[0]) ? profile.geminiApiKeys[0] : undefined;
               saveSession(
@@ -691,6 +699,7 @@ export default function ChatPage() {
               })
               .catch(error => {
                   console.error("Error saving session or generating chat name:", error);
+                  // Even if save fails, update currentSession with the latest messages for UI consistency
                   setCurrentSession(prev => ({...prev!, ...sessionToSave}));
               });
             }, 0);
@@ -701,15 +710,36 @@ export default function ChatPage() {
   };
 
   const handleConfirmEditAndResendUserMessage = (messageId: string, newContent: string, originalAttachments?: AttachedFile[]) => {
-    setMessages(prevMessages => 
-      ensureMessagesHaveUniqueIds(
-        prevMessages.map(msg => 
-          msg.id === messageId ? { ...msg, content: newContent, timestamp: Date.now() } : msg
-        )
-      )
-    );
-    handleSendMessage(newContent, 'processMessage', undefined, originalAttachments, false, undefined);
+    setMessages(prevMessages => {
+      const messageIndex = prevMessages.findIndex(msg => msg.id === messageId);
+      if (messageIndex === -1) return prevMessages;
+
+      const targetMessage = prevMessages[messageIndex];
+      const newEditHistoryEntry = {
+        content: targetMessage.content,
+        timestamp: targetMessage.timestamp,
+        attachedFiles: targetMessage.attachedFiles,
+      };
+
+      const updatedMessage: ChatMessage = {
+        ...targetMessage,
+        content: newContent,
+        timestamp: Date.now(),
+        attachedFiles: originalAttachments, // Keep original attachments for this version
+        editHistory: [...(targetMessage.editHistory || []), newEditHistoryEntry],
+      };
+
+      // Truncate messages after the edited one
+      const updatedMessages = [...prevMessages.slice(0, messageIndex), updatedMessage];
+      
+      // Trigger AI with the new content
+      // Note: handleSendMessage will add a new assistant "Processing..." message
+      handleSendMessage(newContent, 'processMessage', undefined, originalAttachments, false, undefined);
+      
+      return ensureMessagesHaveUniqueIds(updatedMessages);
+    });
   };
+
 
   const handleRegenerateMessage = useCallback((originalRequestDetailsFromMessage?: ChatMessage['originalRequest'] & { messageIdToRegenerate: string }) => {
     if (!originalRequestDetailsFromMessage || !originalRequestDetailsFromMessage.messageIdToRegenerate) {
@@ -812,40 +842,37 @@ export default function ChatPage() {
 
 
   const handleSyncWithDriveClick = async () => {
-    if (!authUser) {
-        toast({ title: "Login Required", description: "Please log in to sync with Google Drive.", variant: "default" });
-        return;
-    }
-    if (!isGoogleUser) {
-        toast({ title: "Google Account Needed", description: "Please log in with your Google account to sync with Drive.", variant: "default" });
+    if (!authUser || !isGoogleUser) { // Check if it's a Google user specifically
+        toast({ title: "Login with Google Required", description: "Please log in with your Google account to sync with Google Drive.", variant: "default" });
         return;
     }
     
     const result = await syncWithDrive(); 
     
     if (result === 'SUCCESS') {
-        toast({ title: "Drive Sync Successful", description: "History synced with Google Drive." });
+        // Toast is now handled within syncWithDrive
     } else if (result === 'TOKEN_REFRESH_NEEDED') {
         toast({ title: "Google Re-authentication Needed", description: "Please sign in with Google again to refresh Drive access.", variant: "default" });
         try {
-            await triggerGoogleSignInFromAuth(); 
+            await triggerGoogleSignInForHistory(); // Use the one from useChatHistory to ensure context
+            // After successful re-auth, the useEffect in useChatHistory for googleAccessToken change should trigger a sync/load.
+            // Optionally, could call syncWithDrive() again after a delay.
             setTimeout(async () => { 
               const secondAttempt = await syncWithDrive();
-              if (secondAttempt === 'SUCCESS') toast({ title: "Drive Sync Successful", description: "History synced with Google Drive after re-authentication." });
-              else if (secondAttempt === 'FAILED') toast({ title: "Drive Sync Failed", description: "Could not sync with Google Drive after re-authentication.", variant: "destructive" });
-            }, 1500);
+              // Toasts for secondAttempt are handled inside syncWithDrive
+            }, 1500); // Delay to allow AuthContext to update and propagate token
         } catch (error) {
             console.error("ChatPage (handleSyncWithDriveClick): Error during Google re-authentication:", error);
             toast({ title: "Google Sign-In Failed", description: "Could not re-authenticate with Google for Drive sync.", variant: "destructive" });
         }
     } else if (result === 'FAILED') {
-         toast({ title: "Drive Sync Failed", description: "Could not sync with Google Drive. Check console for details.", variant: "destructive" });
+         // Toast for FAILED is handled inside syncWithDrive
     }
   };
 
   const currentAttachedFilesDataLength = currentAttachedFilesData.length;
 
-  if (authLoading || (!currentSession && !profileLoading && !historyHookLoading) ) { 
+  if (authLoading || profileLoading || historyHookLoading || !userIdForHistory || !currentSession) { 
     return (
       <div className="flex items-center justify-center h-[calc(100vh-var(--header-height,0px))] bg-gradient-to-b from-background-start-hsl to-background-end-hsl">
         <div className="glass-panel p-8 rounded-xl shadow-2xl flex flex-col items-center animate-float">
@@ -863,52 +890,39 @@ export default function ChatPage() {
   if (!authLoading && !authUser) {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-var(--header-height,0px))] bg-gradient-to-br from-background-start-hsl to-background-end-hsl text-center p-4">
-        <Dialog open={isWelcomeLoginModalOpen} onOpenChange={setIsWelcomeLoginModalOpen}>
-          <div className="glass-panel p-8 md:p-12 rounded-2xl shadow-2xl flex flex-col items-center animate-fade-in max-w-lg w-full">
-            <div className="relative mb-6">
-              <div className="absolute -inset-2 rounded-full bg-primary/10 blur-xl animate-pulse-slow opacity-70"></div>
-              <BotIcon className="w-20 h-20 md:w-24 md:h-24 text-primary relative z-10 animate-float" />
-            </div>
-            <h1 className="text-3xl md:text-4xl font-bold mb-4 text-gradient">Welcome to DesAInR Pro!</h1>
-            <p className="text-lg md:text-xl text-foreground/80 mb-8">
-              Your AI-powered design assistant.
-            </p>
-            <p className="text-md text-foreground/70 mb-6">
-              Please log in or sign up to start creating amazing designs.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 mt-4 w-full max-w-xs">
-              <DialogTrigger asChild>
-                <Button 
-                  variant="default" 
-                  className="w-full text-base py-6" 
-                  glow 
-                  animate
-                  onClick={() => setIsWelcomeLoginModalOpen(true)}
-                >
-                  <LogIn className="mr-2 h-5 w-5" /> Login
-                </Button>
-              </DialogTrigger>
-              {/* <DialogTrigger asChild> // Sign Up button removed as per previous request
-                <Button 
-                  variant="secondary" 
-                  className="w-full text-base py-6" 
-                  glow 
-                  animate
-                  onClick={() => setIsWelcomeLoginModalOpen(true)} 
-                >
-                  <UserPlus className="mr-2 h-5 w-5" /> Sign Up
-                </Button>
-              </DialogTrigger> */}
-            </div>
-          </div>
-          <DialogContent className="sm:max-w-md glass-panel backdrop-blur-xl border border-border dark:border-primary/10 shadow-xl dark:shadow-2xl rounded-xl animate-fade-in">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-xl opacity-30 pointer-events-none"></div>
-            <DialogHeader className="relative z-10">
-              <DialogTitle className="text-xl font-bold text-primary dark:bg-clip-text dark:text-transparent dark:bg-gradient-to-r dark:from-primary dark:to-secondary">Login to DesAInR</DialogTitle>
-            </DialogHeader>
-            <LoginForm onSuccess={() => setIsWelcomeLoginModalOpen(false)} />
-          </DialogContent>
-        </Dialog>
+          <Dialog open={isWelcomeLoginModalOpen} onOpenChange={setIsWelcomeLoginModalOpen}>
+              <div className="glass-panel p-8 md:p-12 rounded-2xl shadow-2xl flex flex-col items-center animate-fade-in max-w-lg w-full">
+                  <div className="relative mb-6">
+                      <div className="absolute -inset-2 rounded-full bg-primary/10 blur-xl animate-pulse-slow opacity-70"></div>
+                      <BotIcon className="w-20 h-20 md:w-24 md:h-24 text-primary relative z-10 animate-float" />
+                  </div>
+                  <h1 className="text-3xl md:text-4xl font-bold mb-4 text-gradient">Welcome to DesAInR Pro!</h1>
+                  <p className="text-lg md:text-xl text-foreground/80 mb-8">
+                      Your AI-powered design assistant.
+                  </p>
+                  <p className="text-md text-foreground/70 mb-6">
+                      Please log in to start creating amazing designs.
+                  </p>
+                  <DialogTrigger asChild>
+                      <Button 
+                          variant="default" 
+                          className="w-full text-base py-6 max-w-xs" 
+                          glow 
+                          animate
+                          onClick={() => setIsWelcomeLoginModalOpen(true)}
+                      >
+                          <LogIn className="mr-2 h-5 w-5" /> Login with Google
+                      </Button>
+                  </DialogTrigger>
+              </div>
+              <DialogContent className="sm:max-w-md glass-panel backdrop-blur-xl border border-border dark:border-primary/10 shadow-xl dark:shadow-2xl rounded-xl animate-fade-in">
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-xl opacity-30 pointer-events-none"></div>
+                  <DialogHeader className="relative z-10">
+                      <DialogTitle className="text-xl font-bold text-primary dark:bg-clip-text dark:text-transparent dark:bg-gradient-to-r dark:from-primary dark:to-secondary">Login to DesAInR</DialogTitle>
+                  </DialogHeader>
+                  <LoginForm onSuccess={() => setIsWelcomeLoginModalOpen(false)} />
+              </DialogContent>
+          </Dialog>
       </div>
     );
   }
@@ -1055,19 +1069,19 @@ export default function ChatPage() {
           
           <div className={cn(
               "flex flex-wrap items-center justify-between mt-4 gap-x-3 gap-y-2 stagger-animation",
-               isMobile && "flex-col items-stretch" // Stack items vertically on mobile
+               isMobile ? "flex-col items-stretch gap-y-3" : "" // Stack items vertically on mobile with more gap
             )}>
             <div className={cn("flex-shrink-0 animate-stagger", isMobile ? "w-full" : "")} style={{ animationDelay: '100ms' }}>
               <Button
                 variant="outline" 
-                size={isMobile ? "default" : "sm"} // Use default size for mobile to make it full width
+                size={isMobile ? "default" : "sm"} 
                 rounded="full"
                 glow
                 animate
                 onClick={() => fileInputRef.current?.click()}
                 className={cn(
                     "backdrop-blur-sm border border-primary/20 shadow-sm hover:shadow-md hover:scale-105 hover:text-primary hover:bg-primary/10 transition-all duration-300",
-                    isMobile ? "w-full py-3" : "" // Full width and more padding on mobile
+                    isMobile ? "w-full py-3 text-sm" : "text-xs" 
                 )}
                 aria-label="Attach files"
               >
@@ -1080,7 +1094,7 @@ export default function ChatPage() {
               </Button>
               <input type="file" ref={fileInputRef} multiple onChange={handleFileChange} className="hidden" accept="image/*,application/pdf,.txt,.md,.json"/>
             </div>
-            <div className={cn("flex-1 flex justify-end animate-stagger", isMobile ? "w-full justify-center mt-2" : "")} style={{ animationDelay: '200ms' }}>
+            <div className={cn("flex-1 flex justify-end animate-stagger", isMobile ? "w-full justify-center mt-0" : "")} style={{ animationDelay: '200ms' }}>
               <ActionButtonsPanel
                 onAction={handleAction} 
                 isLoading={isLoading}

@@ -65,6 +65,11 @@ export interface ChatMessage {
     attachedFilesData?: AttachedFile[]; 
     messageIdToRegenerate?: string; 
   };
+  editHistory?: Array<{ // Added to store previous versions of user message content
+    content: string | ChatMessageContentPart[];
+    timestamp: number;
+    attachedFiles?: AttachedFile[];
+  }>;
 }
 
 export interface ProcessedClientMessageOutput {
