@@ -22,13 +22,14 @@ import { generateDesignPrompts, type GenerateDesignPromptsInput } from '@/ai/flo
 import { checkMadeDesigns, type CheckMadeDesignsInput, type CheckMadeDesignsOutput } from '@/ai/flows/check-made-designs-flow';
 import { generateEditingPrompts, type GenerateEditingPromptsInput, type GenerateEditingPromptsOutput } from '@/ai/flows/generate-editing-prompts-flow';
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { DEFAULT_USER_ID, DEFAULT_MODEL_ID } from '@/lib/constants';
 import { useAuth } from '@/contexts/auth-context';
 import type { User as FirebaseUser } from 'firebase/auth';
+import { LoginForm } from '@/components/auth/login-form'; // Import LoginForm
 
 const getMessageText = (content: string | ChatMessageContentPart[]): string => {
   if (typeof content === 'string') return content;
@@ -147,10 +148,12 @@ export default function ChatPage() {
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [modalActionType, setModalActionType] = useState<ActionType | null>(null);
   const [modalNotes, setModalNotes] = useState('');
+  const [isWelcomeLoginModalOpen, setIsWelcomeLoginModalOpen] = useState(false);
+
 
   const userIdForHistory = useMemo(() => {
     if (!authLoading && authUser) return authUser.uid;
-    if (!profileLoading && profile?.userId) return profile.userId; // Fallback for profile while auth might be slightly delayed
+    if (!profileLoading && profile?.userId) return profile.userId; 
     return DEFAULT_USER_ID; 
   }, [authLoading, authUser, profileLoading, profile?.userId]);
 
@@ -182,15 +185,14 @@ export default function ChatPage() {
   }, [isMobile]);
 
 
-  useEffect(() => {
+ useEffect(() => {
     const loadOrCreateSession = async () => {
-      // Wait for all essential loading states to be false and userIdForHistory to be stable.
       if (authLoading || profileLoading || historyHookLoading || !userIdForHistory) {
         console.log(`ChatPage SessionInitEffect: Deferred. Loadings: auth=${authLoading}, profile=${profileLoading}, history=${historyHookLoading}. UserID: ${userIdForHistory}`);
         return;
       }
 
-      console.log(`ChatPage SessionInitEffect: Running. UserID: ${userIdForHistory}. History Metadata Count: ${historyMetadata.length}`);
+      console.log(`ChatPage SessionInitEffect: Running for user ${userIdForHistory}. History Metadata Count: ${historyMetadata.length}`);
       const currentUserIdToUse = userIdForHistory;
       const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + currentUserIdToUse;
       let lastActiveSessionId = localStorage.getItem(lastActiveSessionIdKey);
@@ -198,23 +200,23 @@ export default function ChatPage() {
 
       if (lastActiveSessionId && lastActiveSessionId.startsWith(currentUserIdToUse + '_')) {
         console.log(`ChatPage SessionInitEffect: Attempting to load session ${lastActiveSessionId} for user ${currentUserIdToUse}.`);
-        // getSession depends on historyMetadata being populated. This effect runs after historyHookLoading is false.
         sessionToLoad = await getSession(lastActiveSessionId);
         if (sessionToLoad && sessionToLoad.userId !== currentUserIdToUse) {
           console.warn(`ChatPage SessionInitEffect: Loaded session ${lastActiveSessionId} belongs to a different user (${sessionToLoad.userId}). Discarding.`);
-          sessionToLoad = null;
-          localStorage.removeItem(lastActiveSessionIdKey);
+          sessionToLoad = null; // Invalidate session
+          localStorage.removeItem(lastActiveSessionIdKey); // Remove bad ID from LS
           lastActiveSessionId = null;
         } else if (!sessionToLoad) {
-          console.warn(`ChatPage SessionInitEffect: Last active session ID ${lastActiveSessionId} found but getSession returned null (might not exist in current metadata or failed to load). Clearing ID from LS.`);
+          console.warn(`ChatPage SessionInitEffect: Last active session ID ${lastActiveSessionId} found but getSession returned null. Clearing ID from LS.`);
           localStorage.removeItem(lastActiveSessionIdKey);
           lastActiveSessionId = null;
         }
       } else if (lastActiveSessionId) {
-        console.warn(`ChatPage SessionInitEffect: lastActiveSessionId ${lastActiveSessionId} does not match user ${currentUserIdToUse}. Clearing ID from LS.`);
-        localStorage.removeItem(lastActiveSessionIdKey);
+        console.warn(`ChatPage SessionInitEffect: lastActiveSessionId ${lastActiveSessionId} does not match current user ${currentUserIdToUse}. Clearing ID from LS.`);
+        localStorage.removeItem(lastActiveSessionIdKey); // It's for a different user or invalid format
         lastActiveSessionId = null;
       }
+
 
       if (sessionToLoad) {
         console.log(`ChatPage SessionInitEffect: Loaded last active session ${sessionToLoad.id}. Migrating message IDs.`);
@@ -238,10 +240,10 @@ export default function ChatPage() {
 
     loadOrCreateSession();
   }, [
-    authLoading, profileLoading, historyHookLoading,
-    userIdForHistory, historyMetadata.length, // Important: re-run if historyMetadata changes length
+    authLoading, profileLoading, historyHookLoading, userIdForHistory, 
     profile?.selectedGenkitModelId, profile?.geminiApiKeys,
-    getSession, createNewSession, ensureMessagesHaveUniqueIds // These are stable callbacks
+    historyMetadata.length, // Re-run if history itself changes (e.g., after sync)
+    // getSession, createNewSession, ensureMessagesHaveUniqueIds are stable callbacks
   ]);
 
 
@@ -266,13 +268,13 @@ export default function ChatPage() {
 
   const updateMessageById = useCallback((messageId: string, content: string | ChatMessageContentPart[], isLoadingParam: boolean = false, isErrorParam: boolean = false, originalRequestDetails?: ChatMessage['originalRequest']) => {
     setMessages(prev => {
-      if (prev.length === 0) return prev; // Should not happen if we are updating
+      if (prev.length === 0) return prev; 
       const updatedMessages = prev.map(msg =>
         msg.id === messageId ? {
             ...msg, content, isLoading: isLoadingParam, isError: isErrorParam,
             timestamp: Date.now(), 
-            canRegenerate: !!originalRequestDetails, // Update canRegenerate status
-            originalRequest: originalRequestDetails // Update originalRequest
+            canRegenerate: !!originalRequestDetails, 
+            originalRequest: originalRequestDetails 
         } : msg
       );
       return ensureMessagesHaveUniqueIds(updatedMessages);
@@ -331,7 +333,7 @@ export default function ChatPage() {
 
   const handleDeleteSession = useCallback((sessionId: string) => {
     console.log(`ChatPage (handleDeleteSession): Deleting session ${sessionId}.`);
-    deleteSession(sessionId); // This is async but we don't need to await it for UI updates
+    deleteSession(sessionId); 
     if (currentSession?.id === sessionId) {
       console.log(`ChatPage (handleDeleteSession): Current session ${sessionId} was deleted. Creating new chat.`);
       handleNewChat();
@@ -417,11 +419,13 @@ export default function ChatPage() {
     
     if (actionTypeParam === 'generateEditingPrompts') {
         const designFileIsPresent = filesToSendWithThisMessage.some(f => f.type?.startsWith('image/') && f.dataUri);
-        // For generateEditingPrompts, the flow will handle if an image is missing (by checking history or reporting an error).
-        // No explicit client-side block here anymore, unless it's a regeneration and the original had no image.
-        if (isRegenerationCall && !designFileIsPresent && (!attachedFilesDataParam || attachedFilesDataParam.filter(f => f.type?.startsWith('image/') && f.dataUri).length === 0)) {
-            toast({ title: "No Design Available", description: "Original message for editing regeneration had no image.", variant: "destructive" });
-            return;
+        if (!designFileIsPresent) {
+             // Check if there's an image in history to use
+            const historicalImage = messages.slice().reverse().find(msg => msg.role === 'user' && msg.attachedFiles && msg.attachedFiles.some(f => f.type?.startsWith('image/') && f.dataUri));
+            if (!historicalImage) {
+                toast({ title: "No Design Available", description: "Please attach an image, or ensure a recent image was sent in the chat to generate editing prompts.", variant: "destructive" });
+                return;
+            }
         }
     }
 
@@ -650,14 +654,11 @@ export default function ChatPage() {
     }
       
     if (currentSession && userIdForHistory) { 
-        // After message processing, save the session state
-        // The setMessages in updateMessageById will trigger this through its dependency if needed
-        // But to ensure it's always saved after an AI op:
         setMessages(prevMessages => {
             const latestMessages = prevMessages.map(m => 
                 m.id === assistantMessageIdToUse ? 
                 {...m, content: finalAiResponseContent, isLoading: false, isError: !!aiCallError, originalRequest: requestParamsForRegeneration, timestamp: Date.now()} :
-                (userMessageId && m.id === userMessageId && (!isRegenerationCall && !messageIdToUpdate) ) ?  // Only update user message if it was newly added
+                (userMessageId && m.id === userMessageId && (!isRegenerationCall && !messageIdToUpdate) ) ?  
                 {...m, content: userMessageContent, attachedFiles: filesToSendWithThisMessage } :
                 m 
             );
@@ -672,7 +673,6 @@ export default function ChatPage() {
             const shouldAttemptNameGeneration = !messageIdToUpdate && 
                 (sessionToSave.messages.length <= (userMessageId ? 2 : 1) || !currentSession.name || currentSession.name === "New Chat");
 
-            // Use setTimeout to avoid React state updates during rendering
             setTimeout(() => {
               saveSession(
                   sessionToSave,
@@ -680,14 +680,12 @@ export default function ChatPage() {
                   modelIdToUse,
                   apiKeyToUseThisTurn 
               ).then(savedSessionWithPotentialNewName => {
-                  // currentSession is updated via its own useEffect if the ID matches
                   if (savedSessionWithPotentialNewName && savedSessionWithPotentialNewName.id === currentSession.id) {
                       setCurrentSession(prev => ({...prev!, ...savedSessionWithPotentialNewName}));
                   }
               })
               .catch(error => {
                   console.error("Error saving session or generating chat name:", error);
-                  // Still update the session even if name generation fails
                   setCurrentSession(prev => ({...prev!, ...sessionToSave}));
               });
             }, 0);
@@ -725,7 +723,7 @@ export default function ChatPage() {
         true, // isRegenerationCall = true
         messageIdToRegenerate 
     );
-  }, [profileLoading, profile, currentSession, toast, handleSendMessage]); // ensure handleSendMessage is stable or included
+  }, [profileLoading, profile, currentSession, toast, handleSendMessage]); 
 
 
   const handleAction = (action: ActionType) => {
@@ -795,7 +793,7 @@ export default function ChatPage() {
       await handleFileSelectAndProcess(Array.from(event.dataTransfer.files));
       event.dataTransfer.clearData(); 
     }
-  }, [handleFileSelectAndProcess]); // Added dependency
+  }, [handleFileSelectAndProcess]); 
 
 
   const handleSyncWithDriveClick = async () => {
@@ -803,12 +801,16 @@ export default function ChatPage() {
         toast({ title: "Login Required", description: "Please log in with Google to sync with Drive.", variant: "default" });
         return;
     }
+    if (!isGoogleUser) {
+      toast({ title: "Google Account Required", description: "Please log in with a Google account to use Drive Sync.", variant: "default" });
+      return;
+    }
+
     const result = await syncWithDrive(); 
     if (result === 'TOKEN_REFRESH_NEEDED' && triggerGoogleSignIn) {
         try {
             await triggerGoogleSignIn(); 
             toast({ title: "Google Sign-In Successful", description: "Attempting to sync with Drive again shortly..." });
-            // Wait for AuthContext to potentially update googleAccessToken
             setTimeout(async () => { 
                  const finalResult = await syncWithDrive();
                  if (finalResult === 'SUCCESS') toast({ title: "Drive Sync Successful", description: "History synced with Google Drive." });
@@ -828,11 +830,8 @@ export default function ChatPage() {
   const isGoogleUser = useMemo(() => authUser?.providerData.some(p => p.providerId === 'google.com'), [authUser]);
 
   if (authLoading || profileLoading || historyHookLoading || !userIdForHistory ) { 
-    // Removed !currentSession from here as it might be null initially for a new user
-    // and we want to show the login prompt, not the loader indefinitely.
-    // currentSession specific loading is handled before chat interaction UI is rendered.
     return (
-      <div className="flex items-center justify-center h-screen bg-gradient-to-b from-background-start to-background-end">
+      <div className="flex items-center justify-center h-screen bg-gradient-to-b from-background-start-hsl to-background-end-hsl">
         <div className="glass-panel p-8 rounded-xl shadow-2xl flex flex-col items-center animate-float">
           <div className="relative">
             <div className="absolute inset-0 rounded-full bg-primary/20 blur-xl animate-pulse-slow"></div>
@@ -845,35 +844,60 @@ export default function ChatPage() {
     );
   }
 
-  // If authentication is done, and user is NOT logged in, show welcome/login prompt.
   if (!authLoading && !authUser) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-var(--header-height,0px))] bg-gradient-to-br from-background-start to-background-end text-center p-4">
-        <div className="glass-panel p-8 md:p-12 rounded-2xl shadow-2xl flex flex-col items-center animate-fade-in max-w-lg w-full">
-          <div className="relative mb-6">
-            <div className="absolute -inset-2 rounded-full bg-primary/10 blur-xl animate-pulse-slow opacity-70"></div>
-            <BotIcon className="w-20 h-20 md:w-24 md:h-24 text-primary relative z-10 animate-float" />
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-var(--header-height,0px))] bg-gradient-to-br from-background-start-hsl to-background-end-hsl text-center p-4">
+        <Dialog open={isWelcomeLoginModalOpen} onOpenChange={setIsWelcomeLoginModalOpen}>
+          <div className="glass-panel p-8 md:p-12 rounded-2xl shadow-2xl flex flex-col items-center animate-fade-in max-w-lg w-full">
+            <div className="relative mb-6">
+              <div className="absolute -inset-2 rounded-full bg-primary/10 blur-xl animate-pulse-slow opacity-70"></div>
+              <BotIcon className="w-20 h-20 md:w-24 md:h-24 text-primary relative z-10 animate-float" />
+            </div>
+            <h1 className="text-3xl md:text-4xl font-bold mb-4 text-gradient">Welcome to DesAInR Pro!</h1>
+            <p className="text-lg md:text-xl text-foreground/80 mb-8">
+              Your AI-powered design assistant.
+            </p>
+            <p className="text-md text-foreground/70 mb-6">
+              Please log in or sign up to start creating amazing designs.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 mt-4 w-full max-w-xs">
+              <DialogTrigger asChild>
+                <Button 
+                  variant="default" 
+                  className="w-full text-base py-6" 
+                  glow 
+                  animate
+                >
+                  <LogIn className="mr-2 h-5 w-5" /> Login
+                </Button>
+              </DialogTrigger>
+              <DialogTrigger asChild>
+                <Button 
+                  variant="secondary" 
+                  className="w-full text-base py-6" 
+                  glow 
+                  animate
+                >
+                  <UserPlus className="mr-2 h-5 w-5" /> Sign Up
+                </Button>
+              </DialogTrigger>
+            </div>
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold mb-4 text-gradient">Welcome to DesAInR Pro!</h1>
-          <p className="text-lg md:text-xl text-foreground/80 mb-8">
-            Your AI-powered design assistant.
-          </p>
-          <p className="text-md text-foreground/70 mb-2">
-            Please log in or sign up to start creating amazing designs.
-          </p>
-          <p className="text-sm text-muted-foreground mt-4">
-            Use the <strong className="text-primary">Login</strong> or <strong className="text-primary">Sign Up</strong> buttons in the header to continue.
-          </p>
-        </div>
+          <DialogContent className="sm:max-w-md glass-panel bg-background/95 dark:bg-background/80 backdrop-blur-xl border border-border dark:border-primary/10 shadow-xl dark:shadow-2xl rounded-xl animate-fade-in">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-xl opacity-30 pointer-events-none"></div>
+            <DialogHeader className="relative z-10">
+              <DialogTitle className="text-xl font-bold text-primary dark:bg-clip-text dark:text-transparent dark:bg-gradient-to-r dark:from-primary dark:to-secondary">Login to DesAInR</DialogTitle>
+            </DialogHeader>
+            <LoginForm onSuccess={() => setIsWelcomeLoginModalOpen(false)} />
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
 
-  // If we reach here, user is authenticated. Check if currentSession is ready.
-  // This handles the case where a user logs in, and a new session needs to be initialized or loaded.
   if (!currentSession) {
      return (
-      <div className="flex items-center justify-center h-screen bg-gradient-to-b from-background-start to-background-end">
+      <div className="flex items-center justify-center h-screen bg-gradient-to-b from-background-start-hsl to-background-end-hsl">
         <div className="glass-panel p-8 rounded-xl shadow-2xl flex flex-col items-center animate-float">
           <div className="relative">
             <div className="absolute inset-0 rounded-full bg-primary/20 blur-xl animate-pulse-slow"></div>
@@ -889,7 +913,7 @@ export default function ChatPage() {
   const currentAttachedFilesDataLength = currentAttachedFilesData.length;
 
   return (
-    <div className="flex h-[calc(100vh-var(--header-height,0px))] bg-gradient-to-br from-background-start to-background-end">
+    <div className="flex h-[calc(100vh-var(--header-height,0px))] bg-gradient-to-br from-background-start-hsl to-background-end-hsl">
       {isMobile && isHistoryPanelOpen && (
         <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={() => setIsHistoryPanelOpen(false)}>
           <div className="absolute left-0 top-0 h-full w-4/5 max-w-xs glass-panel border-r shadow-2xl animate-slide-in-left" onClick={(e) => e.stopPropagation()}>
@@ -979,10 +1003,8 @@ export default function ChatPage() {
         )}
 
         <div className={cn("relative border-t p-4 md:p-5 glass-panel bg-background/60 backdrop-blur-xl shadow-xl", isDragging && "opacity-50")}>
-          {/* Gradient border effect */}
           <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-primary/10 via-primary/40 to-primary/10"></div>
           
-          {/* Attached files display with enhanced styling */}
           {currentAttachedFilesData.length > 0 && (
             <div className="mt-1 mb-3 text-xs glass-panel bg-background/80 p-3 rounded-xl border border-primary/10 shadow-md animate-fade-in flex items-center">
               <div className="flex-1 truncate">
@@ -1003,7 +1025,6 @@ export default function ChatPage() {
             </div>
           )}
           
-          {/* Enhanced input area with animated effects */}
           <div className="flex items-end gap-2 animate-fade-in transition-all duration-300">
             <div className="relative w-full group">
               <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 rounded-xl blur opacity-30 group-hover:opacity-70 transition-opacity duration-500"></div>
@@ -1024,17 +1045,16 @@ export default function ChatPage() {
             </div>
           </div>
           
-          {/* Enhanced action buttons area */}
-          <div className="flex flex-wrap items-center justify-between mt-4 gap-x-3 gap-y-3 stagger-animation">
+          <div className="flex flex-wrap items-center justify-between mt-4 gap-x-3 gap-y-2 stagger-animation">
             <div className="flex-shrink-0 animate-stagger" style={{ animationDelay: '100ms' }}>
               <Button
                 variant="outline" 
-                size="sm" 
+                size={isMobile ? "icon" : "sm"}
                 rounded="full"
                 glow
                 animate
                 onClick={() => fileInputRef.current?.click()}
-                className={cn("backdrop-blur-sm border border-primary/20 shadow-sm hover:shadow-md hover:scale-105 hover:text-primary hover:bg-primary/10 transition-all duration-300", isMobile ? "px-3 py-2" : "")}
+                className={cn("backdrop-blur-sm border border-primary/20 shadow-sm hover:shadow-md hover:scale-105 hover:text-primary hover:bg-primary/10 transition-all duration-300", isMobile ? "p-2.5" : "")}
                 aria-label="Attach files"
               >
                 <div className="relative">
@@ -1133,5 +1153,3 @@ export default function ChatPage() {
     </div>
   );
 }
-
-    
