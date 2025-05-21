@@ -76,35 +76,81 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { label: { en: 'Logout', bn: 'লগআউট' }, icon: LogOut, requiresAuth: true, action: async () => { await signOut(); setIsMobileSheetOpen(false); } },
   ];
 
+  // Theme initialization - only runs client-side
   useEffect(() => {
-    const storedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
-    // Default to dark mode instead of checking system preference
-    const initialTheme = storedTheme || 'dark'; 
+    // Ensure we're running in the browser environment
+    if (typeof window === 'undefined') return;
     
-    // Set the theme in localStorage if it's not already set
-    if (!storedTheme) {
-      localStorage.setItem('theme', 'dark');
-    }
-    
-    setEffectiveTheme(initialTheme);
-    if (initialTheme === 'dark') {
+    try {
+      const storedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
+      // Default to dark mode instead of checking system preference
+      const initialTheme = storedTheme || 'dark'; 
+      
+      // Set the theme in localStorage if it's not already set
+      if (!storedTheme) {
+        localStorage.setItem('theme', 'dark');
+      }
+      
+      setEffectiveTheme(initialTheme);
+      if (initialTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    } catch (error) {
+      console.error('Error accessing localStorage:', error);
+      // Fallback to dark theme if localStorage fails
+      setEffectiveTheme('dark');
       document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
     }
   }, []);
 
+  // Language initialization - only runs client-side
   useEffect(() => {
-    const storedLanguage = localStorage.getItem('desainr_language') as 'en' | 'bn' | null;
-    if (storedLanguage) {
-      setCurrentLanguage(storedLanguage);
+    // Ensure we're running in the browser environment
+    if (typeof window === 'undefined') return;
+    
+    try {
+      const storedLanguage = localStorage.getItem('desainr_language') as 'en' | 'bn' | null;
+      if (storedLanguage) {
+        setCurrentLanguage(storedLanguage);
+      }
+    } catch (error) {
+      console.error('Error accessing localStorage for language:', error);
     }
   }, []);
+  
+  // Show login modal for new users - only runs client-side
+  useEffect(() => {
+    // Ensure we're running in the browser environment
+    if (typeof window === 'undefined') return;
+    
+    try {
+      // Check if this is first time visit (no stored theme or language preference)
+      const isFirstTimeVisit = !localStorage.getItem('theme') && !localStorage.getItem('desainr_language');
+      
+      // Check if user is not already logged in and auth loading is complete
+      if (!user && !authLoading && isFirstTimeVisit) {
+        // Show login modal with a slight delay to ensure app is fully loaded
+        const timer = setTimeout(() => {
+          setIsLoginModalOpen(true);
+        }, 1000);
+        
+        return () => clearTimeout(timer);
+      }
+    } catch (error) {
+      console.error('Error in login modal effect:', error);
+    }
+  }, [user, authLoading]);
 
   const toggleTheme = () => {
     setEffectiveTheme(prevTheme => {
       const newTheme = prevTheme === 'light' ? 'dark' : 'light';
-      localStorage.setItem('theme', newTheme);
+      try {
+        localStorage.setItem('theme', newTheme);
+      } catch (error) {
+        console.error('Error setting theme in localStorage:', error);
+      }
       if (newTheme === 'dark') {
         document.documentElement.classList.add('dark');
       } else {
@@ -407,21 +453,71 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Login Modal */}
       <Dialog open={isLoginModalOpen} onOpenChange={setIsLoginModalOpen}>
-        <ModalContent className="sm:max-w-md">
-          <ModalHeader>
-            <ModalTitle>{getLabel(navItems.find(item => item.modalType === 'login')?.dialogTitle || 'Login')}</ModalTitle>
+        <ModalContent className="sm:max-w-md glass-panel bg-background/95 dark:bg-background/80 backdrop-blur-xl border border-border dark:border-primary/10 shadow-xl dark:shadow-2xl rounded-xl animate-fade-in">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-xl opacity-30 pointer-events-none"></div>
+          
+          <ModalHeader className="relative z-10">
+            <div className="flex items-center justify-between">
+              <ModalTitle className="text-xl font-bold text-primary dark:bg-clip-text dark:text-transparent dark:bg-gradient-to-r dark:from-primary dark:to-secondary">
+                {getLabel(navItems.find(item => item.modalType === 'login')?.dialogTitle || 'Login')}
+              </ModalTitle>
+            </div>
           </ModalHeader>
+          
           <LoginForm onSuccess={() => setIsLoginModalOpen(false)} />
+          
+          <div className="p-4 text-center border-t border-border/30 dark:border-primary/10 relative z-10">
+            <p className="text-sm text-muted-foreground mb-2">Don't have an account?</p>
+            <Button 
+              variant="outline" 
+              size="sm"
+              rounded="full"
+              glow
+              animate
+              onClick={() => {
+                setIsLoginModalOpen(false);
+                setTimeout(() => setIsSignupModalOpen(true), 100);
+              }}
+              className="transition-all duration-300 ease-in-out hover:text-primary hover:bg-primary/10"
+            >
+              Sign Up
+            </Button>
+          </div>
         </ModalContent>
       </Dialog>
 
       {/* Signup Modal */}
       <Dialog open={isSignupModalOpen} onOpenChange={setIsSignupModalOpen}>
-        <ModalContent className="sm:max-w-md">
-          <ModalHeader>
-            <ModalTitle>{getLabel(navItems.find(item => item.modalType === 'signup')?.dialogTitle || 'Sign Up')}</ModalTitle>
+        <ModalContent className="sm:max-w-md glass-panel bg-background/95 dark:bg-background/80 backdrop-blur-xl border border-border dark:border-primary/10 shadow-xl dark:shadow-2xl rounded-xl animate-fade-in">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-xl opacity-30 pointer-events-none"></div>
+          
+          <ModalHeader className="relative z-10">
+            <div className="flex items-center justify-between">
+              <ModalTitle className="text-xl font-bold text-primary dark:bg-clip-text dark:text-transparent dark:bg-gradient-to-r dark:from-primary dark:to-secondary">
+                {getLabel(navItems.find(item => item.modalType === 'signup')?.dialogTitle || 'Sign Up')}
+              </ModalTitle>
+            </div>
           </ModalHeader>
+          
           <SignupForm onSuccess={() => setIsSignupModalOpen(false)} />
+          
+          <div className="p-4 text-center border-t border-border/30 dark:border-primary/10 relative z-10">
+            <p className="text-sm text-muted-foreground mb-2">Already have an account?</p>
+            <Button 
+              variant="outline" 
+              size="sm"
+              rounded="full"
+              glow
+              animate
+              onClick={() => {
+                setIsSignupModalOpen(false);
+                setTimeout(() => setIsLoginModalOpen(true), 100);
+              }}
+              className="transition-all duration-300 ease-in-out hover:text-primary hover:bg-primary/10"
+            >
+              Login
+            </Button>
+          </div>
         </ModalContent>
       </Dialog>
     </div>

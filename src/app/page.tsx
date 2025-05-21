@@ -2,14 +2,14 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Paperclip, Loader2, BotIcon, Menu, XIcon, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw, PlusCircle, Edit3, RefreshCw, X } from 'lucide-react';
+import { Paperclip, Loader2, BotIcon, Menu, XIcon, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw, PlusCircle, Edit3, RefreshCw, X, LogIn, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChatMessageDisplay } from '@/components/chat/chat-message';
 import { ActionButtonsPanel, type ActionType } from '@/components/chat/action-buttons';
 import { HistoryPanel } from '@/components/chat/history-panel';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from "@/hooks/use-toast";
 import { useUserProfile } from '@/lib/hooks/use-user-profile';
 import { useChatHistory } from '@/lib/hooks/use-chat-history';
 import type { ChatMessage, UserProfile, ChatMessageContentPart, AttachedFile, ChatSession } from '@/lib/types';
@@ -827,7 +827,10 @@ export default function ChatPage() {
 
   const isGoogleUser = useMemo(() => authUser?.providerData.some(p => p.providerId === 'google.com'), [authUser]);
 
-  if (authLoading || profileLoading || historyHookLoading || !userIdForHistory || !currentSession ) { 
+  if (authLoading || profileLoading || historyHookLoading || !userIdForHistory ) { 
+    // Removed !currentSession from here as it might be null initially for a new user
+    // and we want to show the login prompt, not the loader indefinitely.
+    // currentSession specific loading is handled before chat interaction UI is rendered.
     return (
       <div className="flex items-center justify-center h-screen bg-gradient-to-b from-background-start to-background-end">
         <div className="glass-panel p-8 rounded-xl shadow-2xl flex flex-col items-center animate-float">
@@ -837,6 +840,47 @@ export default function ChatPage() {
           </div>
           <p className="mt-6 text-xl font-semibold text-gradient">Loading DesAInR Pro...</p>
           <p className="text-sm text-muted-foreground mt-2">Preparing your design assistant</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If authentication is done, and user is NOT logged in, show welcome/login prompt.
+  if (!authLoading && !authUser) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-var(--header-height,0px))] bg-gradient-to-br from-background-start to-background-end text-center p-4">
+        <div className="glass-panel p-8 md:p-12 rounded-2xl shadow-2xl flex flex-col items-center animate-fade-in max-w-lg w-full">
+          <div className="relative mb-6">
+            <div className="absolute -inset-2 rounded-full bg-primary/10 blur-xl animate-pulse-slow opacity-70"></div>
+            <BotIcon className="w-20 h-20 md:w-24 md:h-24 text-primary relative z-10 animate-float" />
+          </div>
+          <h1 className="text-3xl md:text-4xl font-bold mb-4 text-gradient">Welcome to DesAInR Pro!</h1>
+          <p className="text-lg md:text-xl text-foreground/80 mb-8">
+            Your AI-powered design assistant.
+          </p>
+          <p className="text-md text-foreground/70 mb-2">
+            Please log in or sign up to start creating amazing designs.
+          </p>
+          <p className="text-sm text-muted-foreground mt-4">
+            Use the <strong className="text-primary">Login</strong> or <strong className="text-primary">Sign Up</strong> buttons in the header to continue.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // If we reach here, user is authenticated. Check if currentSession is ready.
+  // This handles the case where a user logs in, and a new session needs to be initialized or loaded.
+  if (!currentSession) {
+     return (
+      <div className="flex items-center justify-center h-screen bg-gradient-to-b from-background-start to-background-end">
+        <div className="glass-panel p-8 rounded-xl shadow-2xl flex flex-col items-center animate-float">
+          <div className="relative">
+            <div className="absolute inset-0 rounded-full bg-primary/20 blur-xl animate-pulse-slow"></div>
+            <Loader2 className="h-16 w-16 animate-spin text-primary relative z-10" />
+          </div>
+          <p className="mt-6 text-xl font-semibold text-gradient">Initializing Session...</p>
+          <p className="text-sm text-muted-foreground mt-2">Getting things ready for you</p>
         </div>
       </div>
     );
