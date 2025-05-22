@@ -1,8 +1,9 @@
 
 'use client';
 
-import type { ChatMessage, MessageRole, ChatMessageContentPart, AttachedFile, ActionType } from '@/lib/types';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import type { ChatMessage, MessageRole, ChatMessageContentPart, AttachedFile } from '@/lib/types';
+// Avatar components are no longer needed if we remove user avatar too
+// import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Bot, User, AlertTriangle, Paperclip, FileText, Image as ImageIcon, RotateCcw, Loader2, Edit3, Send, X } from 'lucide-react';
 import { CopyToClipboard, CopyableText, CopyableList } from '@/components/copy-to-clipboard';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -20,36 +21,11 @@ interface ChatMessageProps {
   onConfirmEditAndResend?: (messageId: string, newContent: string, originalAttachments?: AttachedFile[]) => void;
 }
 
-function MessageAvatar({ role }: { role: MessageRole }) {
-  // This component will only be rendered for user messages now.
-  if (role !== 'user') return null;
-
-  return (
-    <div className="relative">
-      <div className={cn(
-        "absolute -inset-1 rounded-full blur-md animate-pulse-slow opacity-50",
-        "bg-accent/30" // User avatar accent
-      )} />
-      <Avatar className={cn(
-        "h-10 w-10 self-start shrink-0 shadow-lg transition-all duration-300 relative z-10",
-        "ring-2 ring-accent/40 bg-gradient-to-br from-accent/10 to-background"
-      )}>
-        <AvatarImage
-          src={`https://placehold.co/40x40.png?text=U`}
-          data-ai-hint="person silhouette"
-          alt={role}
-          className="transition-all duration-300 hover:scale-110"
-        />
-        <AvatarFallback className={cn(
-          "animate-pulse-slow",
-          "text-accent bg-accent/10"
-        )}>
-          <User className="h-5 w-5" />
-        </AvatarFallback>
-      </Avatar>
-    </div>
-  );
-}
+// MessageAvatar component is fully removed as neither AI nor User avatars are shown.
+// function MessageAvatar({ role }: { role: MessageRole }) {
+//   if (role !== 'user') return null;
+//   // ...
+// }
 
 function AttachedFileDisplay({ file }: { file: AttachedFile }) {
   return (
@@ -81,13 +57,12 @@ function AttachedFileDisplay({ file }: { file: AttachedFile }) {
   );
 }
 
-const getSimpleTextContent = (content: string | ChatMessageContentPart[]): string => {
+const getMessageText = (content: string | ChatMessageContentPart[]): string => {
   if (typeof content === 'string') {
     return content;
   }
   if (Array.isArray(content)) {
-    const textPart = content.find(part => part.type === 'text');
-    return textPart?.text || '';
+    return content.filter(part => part.type === 'text').map(part => part.text).join('\n') || '';
   }
   return '';
 };
@@ -138,7 +113,7 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
 
 export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndResend }: ChatMessageProps) {
   const [isEditingThisMessage, setIsEditingThisMessage] = useState(false);
-  const [editedText, setEditedText] = useState(getSimpleTextContent(message.content));
+  const [editedText, setEditedText] = useState(getMessageText(message.content));
 
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
@@ -146,13 +121,12 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
   if (message.isLoading && !message.content) {
     return (
       <div className={cn(
-        "flex items-start gap-4 p-4 md:p-5 w-full animate-slideUpSlightly",
-        isUser ? "justify-end" : "justify-start" // AI messages align left by default
+        "flex items-start w-full animate-slideUpSlightly",
+        isUser ? "justify-end" : "justify-start"
       )}>
-        {/* No AI avatar for loading skeleton */}
         <div className={cn(
           "relative flex flex-col gap-3 rounded-2xl p-5",
-          "w-full",
+          "w-full", 
           isAssistant ? "bg-card/80 backdrop-blur-sm shadow-xl border border-primary/10" :
                        "bg-gradient-to-br from-primary/90 to-primary/80 text-primary-foreground shadow-xl",
           isUser ? 'rounded-tr-none' : 'rounded-tl-none'
@@ -163,7 +137,6 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
           <Skeleton className="h-3 w-3/4 bg-primary/10 rounded-full" />
           <Skeleton className="h-3 w-1/2 bg-primary/10 rounded-full" />
         </div>
-        {isUser && <MessageAvatar role="user" />}
       </div>
     );
   }
@@ -175,7 +148,7 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
   };
 
   const handleStartEdit = () => {
-    setEditedText(getSimpleTextContent(message.content));
+    setEditedText(getMessageText(message.content));
     setIsEditingThisMessage(true);
   };
 
@@ -198,15 +171,15 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
 
   return (
     <div className={cn(
-        "flex items-start p-4 md:p-5 w-full animate-slideUpSlightly hover:shadow-sm transition-all duration-300",
-        isUser ? 'justify-end gap-3' : 'justify-start gap-0' // User messages justify right with gap for avatar
+        "flex items-start w-full animate-slideUpSlightly hover:shadow-sm transition-all duration-300",
+        isUser ? 'justify-end gap-0' : 'justify-start gap-0' // Changed gap-3 to gap-0 for user messages
       )}
     >
       {/* Message Bubble */}
       <div
         className={cn(
           "relative flex flex-col gap-3 rounded-2xl p-5 shadow-lg text-sm transition-all duration-300",
-          "w-full",
+          "w-full", 
           isAssistant ? 'bg-card/80 backdrop-blur-sm border border-primary/10 rounded-tl-none' :
                        'bg-gradient-to-br from-primary/90 to-primary/80 text-primary-foreground rounded-tr-none',
           message.isError ? 'border-destructive border-2' : isAssistant ? 'border-primary/10' : 'border-transparent'
@@ -318,7 +291,8 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
         )}
       </div> {/* End of Message Bubble */}
 
-      {isUser && <MessageAvatar role={message.role} />}
+      {/* User Avatar Rendering Removed */}
+      {/* {isUser && <MessageAvatar role={message.role} />} */}
     </div>
   );
 }
