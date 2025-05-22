@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Paperclip, Loader2, BotIcon, Menu, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw, PlusCircle, Edit3, RefreshCw, LogIn, UserPlus, Languages, X, AlertTriangle } from 'lucide-react'; // Added X and AlertTriangle
+import { Paperclip, Loader2, BotIcon, Menu, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw, PlusCircle, Edit3, RefreshCw, Send, LogIn, UserPlus, Languages, X, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -34,9 +34,9 @@ import { LoginForm } from '@/components/auth/login-form';
 
 
 const getMessageText = (content: string | ChatMessageContentPart[] | undefined): string => {
-  if (!content) return '[No Content]';
+  if (!content) return ''; // Return empty string for no content
   if (typeof content === 'string') return content;
-  if (!Array.isArray(content) || content.length === 0) return '[Empty Message Content]';
+  if (!Array.isArray(content) || content.length === 0) return '';
 
   let fullText = '';
   content.forEach(part => {
@@ -53,7 +53,7 @@ const getMessageText = (content: string | ChatMessageContentPart[] | undefined):
          if (part.items && part.items.length > 0) {
           fullText += part.items.map((item, index) => `${index + 1}. ${item}`).join('\n') + '\n';
          } else {
-           fullText += `[Empty List${part.title ? ` for "${part.title}"`: ''}]\n`;
+           // fullText += `[Empty List${part.title ? ` for "${part.title}"`: ''}]\n`;
          }
         break;
       case 'translation_group':
@@ -78,7 +78,7 @@ const getMessageText = (content: string | ChatMessageContentPart[] | undefined):
         }
 
         if (!tgContent.trim()) {
-            tgContent = `[Empty Translation Group${part.title ? ` for "${part.title}"`: ''}]\n`;
+            // tgContent = `[Empty Translation Group${part.title ? ` for "${part.title}"`: ''}]\n`;
         }
         fullText += tgContent;
         break;
@@ -95,12 +95,12 @@ const getMessageText = (content: string | ChatMessageContentPart[] | undefined):
         if (unknownTextContent) {
           fullText += `${titlePrefix}${unknownTextContent}\n`;
         } else {
-           fullText += `${titlePrefix}[Unsupported Content Part: ${unknownPart.type || 'Unknown Type'}${part.title ? ` for "${part.title}"`: ''}]\n`;
+           // fullText += `${titlePrefix}[Unsupported Content Part: ${unknownPart.type || 'Unknown Type'}${part.title ? ` for "${part.title}"`: ''}]\n`;
         }
     }
     fullText += '\n';
   });
-  return fullText.trim() || '[Empty Message Content Parts]';
+  return fullText.trim();
 };
 
 const LAST_ACTIVE_SESSION_ID_KEY_PREFIX = 'desainr_last_active_session_id_';
@@ -154,7 +154,7 @@ export default function ChatPage() {
     content: string;
     attachments?: AttachedFile[];
     isUserMessageEdit: boolean;
-    editedUserMessageId?: string; // ID of the user message that was edited
+    editedUserMessageId?: string; 
   } | null>(null);
 
 
@@ -248,7 +248,7 @@ export default function ChatPage() {
   }, [
       authLoading, profileLoading, historyHookLoading, userIdForHistory,
       profile?.selectedGenkitModelId, profile?.geminiApiKeys,
-      // historyMetadata.length // Removed to reduce unnecessary runs
+      // historyMetadata.length, // Removed to reduce loops
       getSession, createNewSession, ensureMessagesHaveUniqueIds
   ]);
 
@@ -259,7 +259,7 @@ export default function ChatPage() {
         setCurrentSession(prev => prev ? { ...prev, name: currentSessionMeta.name } : null);
       }
     }
-  }, [historyMetadata, currentSession?.id ]);
+  }, [historyMetadata, currentSession?.id, currentSession?.name]); // Added currentSession?.name
 
 
   useEffect(() => {
@@ -390,19 +390,19 @@ export default function ChatPage() {
     attachedFilesDataParam?: AttachedFile[],
     isUserMessageEdit: boolean = false,
     isRegenerationCall: boolean = false,
-    messageIdToUpdate?: string, // For assistant message regeneration OR to identify the edited user message
-    userMessageIdForAiPrompting?: string // Explicitly pass the ID of the user message AI should respond to
+    messageIdToUpdate?: string, 
+    userMessageIdForAiPrompting?: string 
   ) => {
     if (profileLoading) {
-        toast({ title: "Profile Loading...", description: "Please wait for your profile data to load.", variant: "default" });
+        // toast({ title: "Profile Loading...", description: "Please wait for your profile data to load.", variant: "default" });
         return;
     }
     if (!profile) {
-      toast({ title: "Profile not loaded", description: "Please set up your profile or wait for it to load.", variant: "destructive" });
+      // toast({ title: "Profile not loaded", description: "Please set up your profile or wait for it to load.", variant: "destructive" });
       return;
     }
     if (!currentSession) {
-        toast({ title: "Session not initialized", description: "Please wait or try creating a new chat.", variant: "destructive" });
+        // toast({ title: "Session not initialized", description: "Please wait or try creating a new chat.", variant: "destructive" });
         return;
     }
 
@@ -432,22 +432,28 @@ export default function ChatPage() {
             return;
         }
     }
+     if (actionTypeParam === 'generateEditingPrompts') {
+        const hasImageForEditing = filesToSendWithThisMessage.some(f => f.type?.startsWith('image/') && f.dataUri);
+        // No explicit check or toast here; the flow will handle if no image is found (current or historical)
+    }
 
     const modelIdToUse = userProfile.selectedGenkitModelId || DEFAULT_MODEL_ID;
+    
     let actualUserMessageIdForPrompting: string | undefined = userMessageIdForAiPrompting;
+    let userMessageId: string | undefined; // This will be the ID of the user message this AI interaction is related to
 
-    if (!isUserMessageEdit && !messageIdToUpdate) { // Not a user edit, not an assistant regen
-      const userMessageContent = currentMessageText ||
-                                 (filesToSendWithThisMessage.length > 0 ? `Attached ${filesToSendWithThisMessage.length} file(s)${currentNotes ? ` (Notes: ${currentNotes})` : ''}`
-                                 : `Triggered action: ${currentActionType}${currentNotes ? ` (Notes: ${currentNotes})` : ''}`);
-      if (userMessageContent.trim() !== '' || filesToSendWithThisMessage.length > 0) {
-        actualUserMessageIdForPrompting = addMessage('user', userMessageContent, filesToSendWithThisMessage);
-      }
+    if (!isUserMessageEdit && !messageIdToUpdate && (currentMessageText.trim() !== '' || filesToSendWithThisMessage.length > 0)) { 
+      userMessageId = addMessage('user', currentMessageText || `Attached ${filesToSendWithThisMessage.length} file(s)${currentNotes ? ` (Notes: ${currentNotes})` : ''}`, filesToSendWithThisMessage);
+      actualUserMessageIdForPrompting = userMessageId;
     } else if (messageIdToUpdate && !isUserMessageEdit) { // Is an assistant regeneration
         const regeneratedAssistantMsg = messages.find(m => m.id === messageIdToUpdate);
         actualUserMessageIdForPrompting = regeneratedAssistantMsg?.promptedByMessageId;
+        userMessageId = actualUserMessageIdForPrompting; // The user message that originally prompted this
+    } else if (isUserMessageEdit) {
+        actualUserMessageIdForPrompting = userMessageIdForAiPrompting; // This is the editedUserMessageId
+        userMessageId = actualUserMessageIdForPrompting;
     }
-    // If isUserMessageEdit, actualUserMessageIdForPrompting is already set by the caller (handleConfirmEdit)
+
 
     const requestParamsForRegeneration: ChatMessage['originalRequest'] = {
         actionType: currentActionType, messageText: currentMessageText,
@@ -463,7 +469,7 @@ export default function ChatPage() {
         const existingMsg = messages.find(m => m.id === assistantMessageIdToUse);
         existingPromptedById = existingMsg?.promptedByMessageId;
         updateMessageById(assistantMessageIdToUse, 'Processing...', true, false, requestParamsForRegeneration, existingPromptedById);
-    } else { // New AI response slot (either for new user msg or after user msg edit)
+    } else { 
         assistantMessageIdToUse = addMessage('assistant', 'Processing...', [], true, false, requestParamsForRegeneration, actualUserMessageIdForPrompting);
     }
 
@@ -490,15 +496,16 @@ export default function ChatPage() {
 
           const historyMessagesToConsider = messages.filter(msg => {
             if (msg.id === assistantMessageIdToUse) return false; 
+            // If it's a new message sequence, don't include the current user message that is being processed now
             if (actualUserMessageIdForPrompting && msg.id === actualUserMessageIdForPrompting && !isUserMessageEdit && !messageIdToUpdate) return false;
             return true;
           });
 
           const chatHistoryForAI = historyMessagesToConsider
-            .slice(-10)
+            .slice(-10) 
             .map(msg => ({
               role: msg.role === 'user' ? ('user'as const) : ('assistant'as const),
-              text: getMessageText(msg.content)
+              text: getMessageText(msg.content) 
             }))
             .filter(msg => msg.text.trim() !== '' && (msg.role === 'user' || msg.role === 'assistant'));
 
@@ -599,7 +606,7 @@ export default function ChatPage() {
           }
            else if (currentActionType === 'generateEditingPrompts') {
             let designToEditDataUriForFlow: string | undefined = undefined;
-            const currentDesignFile = filesToSendWithThisMessage.find(f => f.type?.startsWith('image/') && f.dataUri); // Use filesToSendWithThisMessage
+            const currentDesignFile = filesToSendWithThisMessage.find(f => f.type?.startsWith('image/') && f.dataUri); 
             if (currentDesignFile && currentDesignFile.dataUri) {
                 designToEditDataUriForFlow = currentDesignFile.dataUri;
             }
@@ -652,11 +659,10 @@ export default function ChatPage() {
 
           updateMessageById(assistantMessageIdToUse, finalAiResponseContent, false, false, requestParamsForRegeneration, actualUserMessageIdForPrompting || existingPromptedById);
           
-          // Link user message to this assistant message
           if (actualUserMessageIdForPrompting) {
             setMessages(prevMsgs => {
                 const userMsgIndex = prevMsgs.findIndex(m => m.id === actualUserMessageIdForPrompting);
-                if (userMsgIndex !== -1) {
+                if (userMsgIndex !== -1 && prevMsgs[userMsgIndex].role === 'user') { 
                     const updatedUserMsg = { ...prevMsgs[userMsgIndex], linkedAssistantMessageId: assistantMessageIdToUse };
                     const newMsgs = [...prevMsgs];
                     newMsgs[userMsgIndex] = updatedUserMsg;
@@ -669,6 +675,23 @@ export default function ChatPage() {
           if (!isRegenerationCall && !isUserMessageEdit) { 
             currentApiKeyIndexRef.current = 0;
           }
+          
+          // Save session after successful AI response
+          if (currentSession && userIdForHistory) {
+            const sessionToSave: ChatSession = {
+                ...currentSession,
+                messages: messages, // Use the 'messages' from the outer scope which will be updated
+                updatedAt: Date.now(),
+                userId: userIdForHistory,
+            };
+            saveSession(
+                sessionToSave,
+                (!messageIdToUpdate && !isUserMessageEdit) && (sessionToSave.messages.length <= 2 || !currentSession.name || currentSession.name === "New Chat"),
+                modelIdToUse,
+                (profile?.geminiApiKeys && profile.geminiApiKeys.length > 0 && profile.geminiApiKeys[0]) ? profile.geminiApiKeys[0] : undefined
+            );
+          }
+
 
         } catch (error: any) {
           aiCallError = error;
@@ -702,48 +725,27 @@ export default function ChatPage() {
           updateMessageById(assistantMessageIdToUse, [{ type: 'text', text: errorMessageText }], false, true, requestParamsForRegeneration, actualUserMessageIdForPrompting || existingPromptedById);
         }
 
-        if (currentSession && userIdForHistory) {
-            setMessages(prevMessages => {
-                const sessionToSave: ChatSession = {
-                    ...currentSession,
-                    messages: ensureMessagesHaveUniqueIds(prevMessages), 
-                    updatedAt: Date.now(),
-                    userId: userIdForHistory,
-                };
-                const shouldAttemptNameGeneration = (!messageIdToUpdate && !isUserMessageEdit) &&
-                    (sessionToSave.messages.length <= 2 || !currentSession.name || currentSession.name === "New Chat");
-
-                saveSession(
-                    sessionToSave,
-                    shouldAttemptNameGeneration,
-                    modelIdToUse,
-                    (profile?.geminiApiKeys && profile.geminiApiKeys.length > 0 && profile.geminiApiKeys[0]) ? profile.geminiApiKeys[0] : undefined
-                ).catch(error => {
-                    console.error("Error saving session or generating chat name post-send (deferred):", error);
-                });
-                return prevMessages; 
-            });
-        }
         setIsLoading(false);
     }, 0); 
   }, [
     addMessage, updateMessageById, profile, currentSession,
     currentAttachedFilesData, saveSession, ensureMessagesHaveUniqueIds,
-    userIdForHistory, profileLoading, messages, toast
+    userIdForHistory, profileLoading, messages, toast // Added messages and toast here
   ]);
 
 
   useEffect(() => {
     if (pendingAiRequestAfterEdit) {
+      const { content, attachments, isUserMessageEdit: isEdit, editedUserMessageId } = pendingAiRequestAfterEdit;
       handleSendMessage(
-        pendingAiRequestAfterEdit.content,
-        'processMessage', // Default action after edit
-        undefined, // notes
-        pendingAiRequestAfterEdit.attachments,
-        pendingAiRequestAfterEdit.isUserMessageEdit,
-        false, // isRegenerationCall
-        undefined, // messageIdToUpdate (for assistant regen)
-        pendingAiRequestAfterEdit.editedUserMessageId // Pass the ID of the user message
+        content,
+        'processMessage', 
+        undefined, 
+        attachments,
+        isEdit,
+        false, 
+        undefined, 
+        editedUserMessageId 
       );
       setPendingAiRequestAfterEdit(null);
     }
@@ -769,10 +771,10 @@ export default function ChatPage() {
         handleSendMessage(
             originalRequest.messageText, originalRequest.actionType,
             originalRequest.notes, originalRequest.attachedFilesData,
-            false, // isUserMessageEdit
-            true, // isRegenerationCall
-            messageIdToRegenerate, // messageIdToUpdate (for assistant regen)
-            undefined // userMessageIdForAiPrompting (will be derived from regenerated assistant msg)
+            false, 
+            true, 
+            messageIdToRegenerate, 
+            undefined 
         );
     }
   }, [profileLoading, profile, currentSession, handleSendMessage]);
@@ -781,12 +783,13 @@ export default function ChatPage() {
   const handleConfirmEditAndResendUserMessage = useCallback((messageId: string, newContent: string, originalAttachments?: AttachedFile[]) => {
     setMessages(prevMessages => {
         const messageIndex = prevMessages.findIndex(msg => msg.id === messageId);
-        if (messageIndex === -1) {
+        if (messageIndex === -1 || prevMessages[messageIndex].role !== 'user') {
             return prevMessages;
         }
 
         const targetMessage = { ...prevMessages[messageIndex] };
         
+        // Determine the ID of the assistant message that responded to this user message version
         let linkedAssistantIdForHistory: string | undefined = targetMessage.linkedAssistantMessageId;
 
         const currentVersionToArchive: EditHistoryEntry = {
@@ -796,20 +799,25 @@ export default function ChatPage() {
             linkedAssistantMessageId: linkedAssistantIdForHistory,
         };
 
-        targetMessage.editHistory = [...(targetMessage.editHistory || []), currentVersionToArchive];
-        targetMessage.content = newContent;
-        targetMessage.timestamp = Date.now();
-        targetMessage.attachedFiles = originalAttachments;
-        targetMessage.linkedAssistantMessageId = undefined; 
+        const updatedEditHistory = [...(targetMessage.editHistory || []), currentVersionToArchive];
+        
+        const updatedUserMessage: ChatMessage = {
+          ...targetMessage,
+          content: newContent,
+          timestamp: Date.now(),
+          attachedFiles: originalAttachments,
+          editHistory: updatedEditHistory,
+          linkedAssistantMessageId: undefined, // Will be set by the new AI response
+        };
 
         let messagesUpToEditedAndIncluding = prevMessages.slice(0, messageIndex);
-        messagesUpToEditedAndIncluding.push(targetMessage);
+        messagesUpToEditedAndIncluding.push(updatedUserMessage);
         
         setPendingAiRequestAfterEdit({
             content: newContent,
             attachments: originalAttachments,
             isUserMessageEdit: true,
-            editedUserMessageId: targetMessage.id, // Pass the ID of the user message
+            editedUserMessageId: updatedUserMessage.id,
         });
         
         return ensureMessagesHaveUniqueIds(messagesUpToEditedAndIncluding);
@@ -853,7 +861,7 @@ export default function ChatPage() {
     });
 
     setCurrentAttachedFilesData(Array.from(uniqueProcessedFiles.values()).slice(0,5));
-  }, [selectedFiles, currentAttachedFilesData]);
+  }, [selectedFiles, currentAttachedFilesData]); // Added currentAttachedFilesData
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) { handleFileSelectAndProcess(Array.from(event.target.files)); }
@@ -952,7 +960,7 @@ export default function ChatPage() {
               <p className="text-base text-foreground/70 mb-8">
                   Please log in to continue and access your chat history.
               </p>
-              <Dialog open={isWelcomeLoginModalOpen} onOpenChange={setIsWelcomeLoginModalOpen}>
+               <Dialog open={isWelcomeLoginModalOpen} onOpenChange={setIsWelcomeLoginModalOpen}>
                   <DialogTrigger asChild>
                       <Button
                           variant="default"
@@ -967,7 +975,9 @@ export default function ChatPage() {
                   <DialogContent className="sm:max-w-md glass-panel backdrop-blur-xl border border-border dark:border-primary/10 shadow-xl dark:shadow-2xl rounded-xl animate-fade-in">
                       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-xl opacity-30 pointer-events-none"></div>
                       <DialogHeader className="relative z-10">
-                          <DialogTitle className="text-xl font-bold text-primary dark:bg-clip-text dark:text-transparent dark:bg-gradient-to-r dark:from-primary dark:to-secondary">Login to DesAInR</DialogTitle>
+                           <div className="flex items-center justify-between">
+                            <DialogTitle className="text-xl font-bold text-primary dark:bg-clip-text dark:text-transparent dark:bg-gradient-to-r dark:from-primary dark:to-secondary">Login to DesAInR</DialogTitle>
+                           </div>
                       </DialogHeader>
                       <LoginForm onSuccess={() => setIsWelcomeLoginModalOpen(false)} />
                   </DialogContent>
@@ -1230,3 +1240,4 @@ export default function ChatPage() {
     </div>
   );
 }
+
