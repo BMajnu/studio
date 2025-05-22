@@ -1,0 +1,31 @@
+{
+  "name": "DesAInR Pro",
+  "short_name": "DesAInR",
+  "icons": [
+    {
+      "src": "/icon?size=64x64",
+      "sizes": "64x64",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon?size=192x192",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon?size=512x512",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#0062e3",
+  "background_color": "#101929"
+} 
