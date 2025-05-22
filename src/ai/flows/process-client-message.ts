@@ -3,7 +3,7 @@
 
 /**
  * @fileOverview Processes client messages to analyze, simplify, outline steps,
- * and provide a Bengali translation. Can also handle attached files and conversation history.
+ * provide a Bengali translation, and suggest replies. Can also handle attached files and conversation history.
  *
  * - processClientMessage - A function to process client messages.
  * - ProcessClientMessageInput - The input type for the processClientMessage function.
@@ -56,6 +56,8 @@ const ProcessClientMessageOutputSchema = z.object({
   simplifiedRequest: z.string().describe('Simplified version of the current request.'),
   stepByStepApproach: z.string().describe('Step-by-step approach to fulfill the current request.'),
   bengaliTranslation: z.string().describe('Bengali translation of the analysis, simplified request, and step-by-step approach for the current request.'),
+  suggestedEnglishReplies: z.array(z.string()).length(2).describe('Two distinct, professional English replies to the client, reflecting the user\'s style, name, and conversation context.'),
+  suggestedBengaliReplies: z.array(z.string()).length(2).optional().describe('Bengali translations of the two suggested English replies.'),
 });
 export type ProcessClientMessageOutput = z.infer<typeof ProcessClientMessageOutputSchema>;
 
@@ -90,7 +92,7 @@ export async function processClientMessage(flowInput: ProcessClientMessageInput)
     prompt: `You are a helpful AI assistant for a graphic designer named {{{userName}}}.
 Their communication style is: {{{communicationStyleNotes}}}.
 
-**Your Primary Task:** Analyze the "Client's Current Message" in the context of the "Previous conversation context" (if available) and any "Attached Files". Provide a comprehensive analysis, a simplified request, a step-by-step plan, and a Bengali translation, all focused on the *current state of the client's needs as understood from the entire interaction so far*.
+**Your Primary Task:** Analyze the "Client's Current Message" in the context of the "Previous conversation context" (if available) and any "Attached Files". Provide a comprehensive analysis, a simplified request, a step-by-step plan, and a Bengali translation of these parts, all focused on the *current state of the client's needs as understood from the entire interaction so far*. Additionally, generate two distinct, professional English replies to the client's current message and their Bengali translations.
 
 **Contextual Understanding Rules:**
 1.  **Examine History:** If "Previous conversation context" exists, review it carefully to understand the ongoing project, previous discussions, and decisions.
@@ -129,19 +131,30 @@ The client also attached the following files with their current message. Conside
 {{/each}}
 {{/if}}
 
-Based on *all available information* (latest message, full history, attachments), provide the following for the CURRENT request:
+Based on *all available information* (latest message, full history, attachments), provide the following:
 
 1.  **Analysis:** Detailed analysis of the client's *current cumulative needs and requirements*. If the latest message shifts focus, explain how it relates to or diverges from previous points.
 2.  **Simplified Request:** A concise summary of what the client is *currently asking for, considering all context*.
 3.  **Step-by-Step Approach:** A clear plan for {{{userName}}} to fulfill the *current, fully understood request*.
 4.  **Bengali Translation:** Translate the Analysis, Simplified Request, and Step-by-Step Approach for the current request into Bengali.
 
+5.  **Suggested English Replies (Two options):**
+    *   Generate two distinct, professional English replies to the "Client's Current Message".
+    *   These replies MUST reflect the designer's name ({{{userName}}}), style ({{{communicationStyleNotes}}}), and services if relevant.
+    *   They should directly address the client's current message and be contextually appropriate, considering the conversation history.
+    *   Include a relevant call to action if appropriate (e.g., asking for more details, suggesting next steps).
+
+6.  **Suggested Bengali Replies (Translations of the two English replies):**
+    *   Provide accurate Bengali translations for the two English replies generated above.
+
 Output Format (ensure your entire response is a single JSON object matching this structure):
 {
   "analysis": "...",
   "simplifiedRequest": "...",
   "stepByStepApproach": "...",
-  "bengaliTranslation": "বিশ্লেষণ: ...\nসরলীকৃত অনুরোধ: ...\nধাপে ধাপে পদ্ধতি: ..."
+  "bengaliTranslation": "বিশ্লেষণ: ...\\nসরলীকৃত অনুরোধ: ...\\nধাপে ধাপে পদ্ধতি: ...",
+  "suggestedEnglishReplies": ["Reply 1 text...", "Reply 2 text..."],
+  "suggestedBengaliReplies": ["Bengali translation of Reply 1...", "Bengali translation of Reply 2..."]
 }
 `,
   });
