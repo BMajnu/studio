@@ -2,9 +2,7 @@
 'use client';
 
 import type { ChatMessage, MessageRole, ChatMessageContentPart, AttachedFile } from '@/lib/types';
-// Avatar components are no longer needed if we remove user avatar too
-// import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Bot, User, AlertTriangle, Paperclip, FileText, Image as ImageIcon, RotateCcw, Loader2, Edit3, Send, X } from 'lucide-react';
+import { Bot, User, AlertTriangle, Paperclip, FileText, Image as ImageIcon, RotateCcw, Loader2, Edit3, Send, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { CopyToClipboard, CopyableText, CopyableList } from '@/components/copy-to-clipboard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 
 interface ChatMessageProps {
@@ -20,12 +18,6 @@ interface ChatMessageProps {
   onRegenerate?: (requestDetails: ChatMessage['originalRequest'] & { messageIdToRegenerate: string }) => void;
   onConfirmEditAndResend?: (messageId: string, newContent: string, originalAttachments?: AttachedFile[]) => void;
 }
-
-// MessageAvatar component is fully removed as neither AI nor User avatars are shown.
-// function MessageAvatar({ role }: { role: MessageRole }) {
-//   if (role !== 'user') return null;
-//   // ...
-// }
 
 function AttachedFileDisplay({ file }: { file: AttachedFile }) {
   return (
@@ -57,15 +49,22 @@ function AttachedFileDisplay({ file }: { file: AttachedFile }) {
   );
 }
 
-const getMessageText = (content: string | ChatMessageContentPart[]): string => {
+const getMessageText = (content: string | ChatMessageContentPart[] | undefined): string => {
   if (typeof content === 'string') {
     return content;
   }
   if (Array.isArray(content)) {
-    return content.filter(part => part.type === 'text').map(part => part.text).join('\n') || '';
+    // Attempt to get the first text part, or join all text parts.
+    // This might need refinement based on how user messages are structured.
+    // For user messages, content is often expected to be a simple string.
+    const textParts = content.filter(part => part.type === 'text' && part.text);
+    if (textParts.length > 0) {
+      return textParts.map(part => part.text).join('\n');
+    }
   }
-  return '';
+  return ''; // Fallback for complex or empty content
 };
+
 
 function RenderContentPart({ part, index }: { part: ChatMessageContentPart; index: number }) {
   const animationDelay = `${index * 80}ms`;
@@ -101,8 +100,11 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
               (part.bengali?.analysis || part.bengali?.simplifiedRequest || part.bengali?.stepByStepApproach) &&
               <Separator className="my-3 opacity-50" />
             }
-
-            {part.bengali?.analysis && <CopyableText title="বিশ্লেষণ ও পরিকল্পনা (Bengali)" text={part.bengali.analysis} className="bg-primary/5 rounded-lg p-2" />}
+            {/* Updated Bengali rendering for processClientMessage */}
+            {part.bengali?.analysis && !part.bengali.simplifiedRequest && !part.bengali.stepByStepApproach && <CopyableText title="বিশ্লেষণ ও পরিকল্পনা (Bengali)" text={part.bengali.analysis} className="bg-primary/5 rounded-lg p-2" />}
+            {part.bengali?.analysis && (part.bengali.simplifiedRequest || part.bengali.stepByStepApproach) && <CopyableText title="বিশ্লেষণ (Analysis in Bengali)" text={part.bengali.analysis} className="bg-primary/5 rounded-lg p-2" />}
+            {part.bengali?.simplifiedRequest && <CopyableText title="সরলীকৃত অনুরোধ (Simplified Request in Bengali)" text={part.bengali.simplifiedRequest} className="bg-secondary/5 rounded-lg p-2" />}
+            {part.bengali?.stepByStepApproach && <CopyableText title="ধাপে ধাপে পদ্ধতি (Step-by-Step Approach in Bengali)" text={part.bengali.stepByStepApproach} className="bg-accent/5 rounded-lg p-2" />}
           </CardContent>
         </Card>
       );
@@ -113,12 +115,41 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
 
 export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndResend }: ChatMessageProps) {
   const [isEditingThisMessage, setIsEditingThisMessage] = useState(false);
-  const [editedText, setEditedText] = useState(getMessageText(message.content));
+  const [editedText, setEditedText] = useState('');
+  
+  // State for viewing edit history
+  const [currentHistoryViewIndex, setCurrentHistoryViewIndex] = useState<number | null>(null);
 
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
 
-  if (message.isLoading && !message.content) {
+  // Determine content and attachments to display based on edit history view
+  const hasEditHistory = isUser && message.editHistory && message.editHistory.length > 0;
+  const totalVersions = (message.editHistory?.length || 0) + 1; // +1 for the current version
+
+  let displayContent: string | ChatMessageContentPart[];
+  let displayAttachments: AttachedFile[] | undefined;
+
+  if (isUser && hasEditHistory && currentHistoryViewIndex !== null) {
+    const historyEntry = message.editHistory![currentHistoryViewIndex];
+    displayContent = historyEntry.content;
+    displayAttachments = historyEntry.attachedFiles;
+  } else {
+    displayContent = message.content;
+    displayAttachments = message.attachedFiles;
+  }
+
+  // Convert displayContent to simple string for Textarea if user message
+  const displayContentString = isUser ? getMessageText(displayContent) : '';
+
+  useEffect(() => {
+    if (isEditingThisMessage) {
+      // When entering edit mode, populate with the currently viewed content
+      setEditedText(displayContentString);
+    }
+  }, [isEditingThisMessage, displayContentString]);
+
+  if (message.isLoading && !message.content) { // Skeleton for initial "Processing..."
     return (
       <div className={cn(
         "flex items-start w-full animate-slideUpSlightly",
@@ -148,8 +179,8 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
   };
 
   const handleStartEdit = () => {
-    setEditedText(getMessageText(message.content));
     setIsEditingThisMessage(true);
+    // `editedText` is set by the useEffect hook above
   };
 
   const handleCancelEdit = () => {
@@ -158,21 +189,52 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
 
   const handleSaveAndSendEdited = () => {
     if (onConfirmEditAndResend) {
-      onConfirmEditAndResend(message.id, editedText, message.attachedFiles);
+      // Note: We send the `message.id` of the original message being edited.
+      // `onConfirmEditAndResend` in ChatPage.tsx will handle pushing the *current message.content* to editHistory
+      // and then updating message.content with editedText.
+      onConfirmEditAndResend(message.id, editedText, displayAttachments); // Pass current displayAttachments
     }
     setIsEditingThisMessage(false);
+    setCurrentHistoryViewIndex(null); // Reset to view current version after edit
   };
 
-  const messageTime = new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const handlePrevHistory = () => {
+    if (!hasEditHistory) return;
+    if (currentHistoryViewIndex === null) { // Viewing current, go to last edit
+      setCurrentHistoryViewIndex((message.editHistory?.length || 0) - 1);
+    } else if (currentHistoryViewIndex > 0) {
+      setCurrentHistoryViewIndex(currentHistoryViewIndex - 1);
+    }
+  };
 
-  const displayContent = message.isLoading && typeof message.content === 'string' && message.content.startsWith('Processing...')
+  const handleNextHistory = () => {
+    if (!hasEditHistory) return;
+    if (currentHistoryViewIndex !== null && currentHistoryViewIndex < (message.editHistory?.length || 0) - 1) {
+      setCurrentHistoryViewIndex(currentHistoryViewIndex + 1);
+    } else if (currentHistoryViewIndex !== null && currentHistoryViewIndex === (message.editHistory?.length || 0) - 1) {
+      setCurrentHistoryViewIndex(null); // Go to current version
+    }
+  };
+
+  const messageTime = new Date(
+    isUser && hasEditHistory && currentHistoryViewIndex !== null
+      ? message.editHistory![currentHistoryViewIndex].timestamp
+      : message.timestamp
+  ).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const contentToRender = (typeof displayContent === 'string' && isUser) // Simple text for user message display (non-edit mode)
+    ? [{ type: 'text' as const, text: displayContent }]
+    : (message.isLoading && typeof message.content === 'string' && message.content.startsWith('Processing...')) // AI "Processing..." state
     ? [{ type: 'text' as const, text: message.content }]
-    : (typeof message.content === 'string' ? [{ type: 'text' as const, text: message.content }] : message.content);
+    : (Array.isArray(displayContent) ? displayContent : [{ type: 'text' as const, text: String(displayContent) }]); // AI content parts or fallback
+
+  const currentDisplayVersionNumber = currentHistoryViewIndex === null ? totalVersions : currentHistoryViewIndex + 1;
+
 
   return (
     <div className={cn(
         "flex items-start w-full animate-slideUpSlightly hover:shadow-sm transition-all duration-300",
-        isUser ? 'justify-end gap-0' : 'justify-start gap-0' // Changed gap-3 to gap-0 for user messages
+        isUser ? 'justify-end gap-0' : 'justify-start gap-0'
       )}
     >
       {/* Message Bubble */}
@@ -208,11 +270,22 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
               className="w-full resize-none min-h-[60px] bg-background/70 text-foreground focus-visible:ring-primary"
               rows={Math.max(2, editedText.split('\n').length)}
             />
+            {/* Attachments could be displayed here if editing attachments is also desired */}
+             {displayAttachments && displayAttachments.length > 0 && (
+              <div className="mt-2 space-y-1">
+                <p className="text-xs font-medium text-primary-foreground/80">Attachments (uneditable in this view):</p>
+                {displayAttachments.map((file, index) => (
+                  <div key={`${file.name}-${file.size || 0}-${index}`} className="text-xs text-primary-foreground/70 p-1 bg-primary-foreground/10 rounded-md truncate">
+                    <Paperclip className="inline h-3 w-3 mr-1" /> {file.name}
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="flex justify-end gap-2 mt-2">
-              <Button variant="ghost" size="sm" onClick={handleCancelEdit} rounded="full" className="hover:bg-muted/50">
+              <Button variant="ghost" size="sm" onClick={handleCancelEdit} rounded="full" className="hover:bg-muted/50 text-primary-foreground/80 hover:text-primary-foreground">
                 <X className="h-4 w-4 mr-1" /> Cancel
               </Button>
-              <Button variant="default" size="sm" onClick={handleSaveAndSendEdited} rounded="full" className="bg-primary hover:bg-primary/90">
+              <Button variant="default" size="sm" onClick={handleSaveAndSendEdited} rounded="full" className="bg-primary-foreground/20 hover:bg-primary-foreground/30 text-primary-foreground">
                 <Send className="h-4 w-4 mr-1" /> Save & Send
               </Button>
             </div>
@@ -226,21 +299,24 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
             </div>
           ) : (
             <div className="stagger-animation relative z-10">
-              {displayContent.map((part, index) =>
+              {contentToRender.map((part, index) =>
                 <RenderContentPart part={part} index={index} key={`${message.id}-part-${index}`}/>
               )}
             </div>
           )
         }
 
-        {message.attachedFiles && message.attachedFiles.length > 0 && !isEditingThisMessage && (
+        {displayAttachments && displayAttachments.length > 0 && !isEditingThisMessage && (
           <div className="mt-3 space-y-2 relative z-10">
-            <div className="text-xs font-medium px-2 py-0.5 rounded-full bg-background/30 backdrop-blur-sm w-fit mb-2">
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
-                {message.attachedFiles.length} {message.attachedFiles.length === 1 ? 'Attachment' : 'Attachments'}
+            <div className={cn(
+                "text-xs font-medium px-2 py-0.5 rounded-full bg-background/30 backdrop-blur-sm w-fit mb-2",
+                 isUser && "bg-primary-foreground/20 text-primary-foreground/90"
+              )}>
+              <span className={cn(isUser ? "" : "bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary")}>
+                {displayAttachments.length} {displayAttachments.length === 1 ? 'Attachment' : 'Attachments'}
               </span>
             </div>
-            {message.attachedFiles.map((file, index) =>
+            {displayAttachments.map((file, index) =>
               <div key={`${file.name}-${file.size || 0}-${index}`} className="animate-stagger" style={{ animationDelay: `${index * 100}ms` }}>
                 <AttachedFileDisplay file={file} />
               </div>
@@ -248,8 +324,37 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
           </div>
         )}
 
+        {/* Edit History Navigation & Edit Button Area */}
         {!isEditingThisMessage && (
-          <div className="mt-3 pt-2 border-t border-primary/10 flex justify-end animate-fade-in relative z-10" style={{ animationDelay: '0.5s' }}>
+          <div className="mt-3 pt-2 border-t border-primary/10 flex justify-end items-center gap-3 animate-fade-in relative z-10" style={{ animationDelay: '0.5s' }}>
+            {hasEditHistory && (
+              <div className="flex items-center gap-1 mr-auto">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("h-7 w-7", isUser ? "text-primary-foreground/70 hover:bg-primary-foreground/20 hover:text-primary-foreground" : "text-muted-foreground hover:bg-muted/50")}
+                  onClick={handlePrevHistory}
+                  disabled={currentHistoryViewIndex === 0}
+                  title="Previous edit"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className={cn("text-xs", isUser ? "text-primary-foreground/80" : "text-muted-foreground")}>
+                  {currentDisplayVersionNumber} / {totalVersions}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("h-7 w-7", isUser ? "text-primary-foreground/70 hover:bg-primary-foreground/20 hover:text-primary-foreground" : "text-muted-foreground hover:bg-muted/50")}
+                  onClick={handleNextHistory}
+                  disabled={currentHistoryViewIndex === null}
+                  title="Next edit / Current version"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+
             {isUser && onConfirmEditAndResend && (
               <Button
                 variant="ghost"
@@ -258,11 +363,11 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
                 glow
                 animate
                 onClick={handleStartEdit}
-                className="text-xs backdrop-blur-sm border border-primary/10 shadow-sm hover:shadow-md hover:scale-105 hover:text-primary hover:bg-primary/10 transition-all duration-300"
+                className="text-xs backdrop-blur-sm border border-primary/10 shadow-sm hover:shadow-md hover:scale-105 text-primary-foreground/80 hover:text-primary-foreground hover:bg-primary-foreground/10 transition-all duration-300"
                 title="Edit & Resend this message"
               >
                 <div className="relative mr-1.5">
-                  <div className="absolute inset-0 bg-primary/10 rounded-full blur-sm animate-pulse-slow opacity-70"></div>
+                  <div className="absolute inset-0 bg-primary-foreground/10 rounded-full blur-sm animate-pulse-slow opacity-70"></div>
                   <Edit3 className="h-3.5 w-3.5 relative z-10" />
                 </div>
                 Edit & Resend
@@ -289,12 +394,7 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
             )}
           </div>
         )}
-      </div> {/* End of Message Bubble */}
-
-      {/* User Avatar Rendering Removed */}
-      {/* {isUser && <MessageAvatar role={message.role} />} */}
+      </div>
     </div>
   );
 }
-
-    
