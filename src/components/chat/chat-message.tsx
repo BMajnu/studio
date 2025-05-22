@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { ChatMessage, MessageRole, ChatMessageContentPart, AttachedFile } from '@/lib/types';
@@ -119,6 +118,9 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
   
   // State for viewing edit history
   const [currentHistoryViewIndex, setCurrentHistoryViewIndex] = useState<number | null>(null);
+  
+  // State to track the corresponding AI response that should be shown/hidden
+  const [linkedAIResponseId, setLinkedAIResponseId] = useState<string | null>(null);
 
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
@@ -129,6 +131,52 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
 
   let displayContent: string | ChatMessageContentPart[];
   let displayAttachments: AttachedFile[] | undefined;
+  
+  // Track the linked AI message ID based on current view
+  useEffect(() => {
+    if (!isUser) return;
+    
+    // Get the current linkedAssistantMessageId based on which version is being viewed
+    let currentLinkedId: string | undefined;
+    
+    if (hasEditHistory && currentHistoryViewIndex !== null) {
+      // When viewing a historical version, get its linked AI response ID
+      currentLinkedId = message.editHistory![currentHistoryViewIndex].linkedAssistantMessageId;
+    } else {
+      // When viewing current version, get the current linked ID
+      currentLinkedId = message.linkedAssistantMessageId;
+    }
+    
+    // Update the state to track which AI response should be visible
+    setLinkedAIResponseId(currentLinkedId || null);
+    
+    /**
+     * This effect manages the synchronization between user message versions
+     * and their corresponding AI responses. When cycling through user message history:
+     * 
+     * 1. For the current message (currentHistoryViewIndex === null):
+     *    - Show the AI response linked to the current user message version
+     * 
+     * 2. For historical versions (currentHistoryViewIndex is a number):
+     *    - Show the AI response that was originally generated for that specific 
+     *      historical version of the user message
+     * 
+     * The actual visibility logic is handled by CSS classes in the component tree
+     * via messages passed through a custom event.
+     */
+    
+    // Emit a custom event to tell AI messages whether they should be visible or not
+    if (currentLinkedId) {
+      // Create and dispatch a custom event that AI messages can listen for
+      const event = new CustomEvent('userMessageHistoryChanged', {
+        detail: {
+          currentVisibleAIMessageId: currentLinkedId,
+        },
+        bubbles: true, // This allows the event to bubble up through the DOM
+      });
+      document.dispatchEvent(event);
+    }
+  }, [isUser, currentHistoryViewIndex, hasEditHistory, message]);
 
   if (isUser && hasEditHistory && currentHistoryViewIndex !== null) {
     const historyEntry = message.editHistory![currentHistoryViewIndex];
@@ -138,6 +186,37 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
     displayContent = message.content;
     displayAttachments = message.attachedFiles;
   }
+
+  // Add a listener for AI messages to hide/show themselves based on the user message version
+  useEffect(() => {
+    if (!isAssistant) return;
+    
+    // Function to handle the custom event
+    const handleUserMessageHistoryChange = (e: CustomEvent<{ currentVisibleAIMessageId: string }>) => {
+      // If this is the AI message that should be visible for the current user message version
+      const isVisible = e.detail.currentVisibleAIMessageId === message.id;
+      
+      // Set a CSS class on this message element to control visibility
+      const messageElement = document.getElementById(`ai-message-${message.id}`);
+      if (messageElement) {
+        if (isVisible) {
+          messageElement.classList.remove('ai-message-hidden');
+          messageElement.classList.add('ai-message-visible');
+        } else {
+          messageElement.classList.add('ai-message-hidden');
+          messageElement.classList.remove('ai-message-visible');
+        }
+      }
+    };
+    
+    // Add event listener for custom events
+    document.addEventListener('userMessageHistoryChanged', handleUserMessageHistoryChange as EventListener);
+    
+    // Clean up event listener on component unmount
+    return () => {
+      document.removeEventListener('userMessageHistoryChanged', handleUserMessageHistoryChange as EventListener);
+    };
+  }, [isAssistant, message.id]);
 
   // Convert displayContent to simple string for Textarea if user message
   const displayContentString = isUser ? getMessageText(displayContent) : '';
@@ -230,12 +309,24 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
 
   const currentDisplayVersionNumber = currentHistoryViewIndex === null ? totalVersions : currentHistoryViewIndex + 1;
 
+  // Define CSS classes for AI message visibility
+  const aiMessageVisibilityClasses = isAssistant ? {
+    // By default assistant messages are visible, but this will be dynamically updated via event listeners
+    'ai-message-visible': message.promptedByMessageId === linkedAIResponseId,
+    'ai-message-hidden': message.promptedByMessageId !== linkedAIResponseId
+  } : {};
 
   return (
-    <div className={cn(
+    <div 
+      className={cn(
         "flex items-start w-full animate-slideUpSlightly hover:shadow-sm transition-all duration-300",
-        isUser ? 'justify-end gap-0' : 'justify-start gap-0'
+        isUser ? 'justify-end gap-0' : 'justify-start gap-0',
+        // For AI messages, add show/hide classes based on which user message version is active
+        isAssistant && 'ai-message transition-opacity duration-300',
+        aiMessageVisibilityClasses
       )}
+      id={isAssistant ? `ai-message-${message.id}` : undefined}
+      data-prompted-by={isAssistant ? message.promptedByMessageId : undefined}
     >
       {/* Message Bubble */}
       <div

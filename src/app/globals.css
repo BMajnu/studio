@@ -27,6 +27,28 @@
   transform: scale(1);
 }
 
+/* AI Message version cycling visibility */
+.ai-message {
+  transition: opacity 0.3s ease, height 0.3s ease, margin 0.3s ease, transform 0.3s ease;
+}
+
+.ai-message-visible {
+  opacity: 1;
+  height: auto;
+  margin: 1rem 0;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+.ai-message-hidden {
+  opacity: 0;
+  height: 0;
+  margin: 0;
+  transform: translateY(-20px);
+  pointer-events: none;
+  overflow: hidden;
+}
+
 /* Glass panel effect - Updated for theme awareness */
 .glass-panel {
   /* Light mode: Use card color (typically white) with high opacity */

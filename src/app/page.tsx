@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
@@ -149,6 +148,32 @@ export default function ChatPage() {
     editedUserMessageId?: string;
   } | null>(null);
 
+  // State for last selected action button
+  const [lastSelectedActionButton, setLastSelectedActionButton] = useState<ActionType | null>(null);
+  // State for currently active button UI highlight
+  const [activeActionButton, setActiveActionButton] = useState<ActionType | null>(null);
+  
+  /**
+   * Button Selection Logic
+   * ---------------------
+   * We track two separate states:
+   * 1. lastSelectedActionButton: Remembers which action button logic to use when:
+   *    - User edits and resends a message
+   *    - User regenerates a message
+   *    - User sends a message without selecting an action button
+   * 
+   * 2. activeActionButton: Used only for visual UI feedback to show which button 
+   *    is currently selected. This resets after a short delay for better UX.
+   * 
+   * Message Generation Logic
+   * ----------------------
+   * - When a user explicitly clicks an action button, that action is used AND remembered
+   * - When regenerating or editing without choosing a new action, the system falls back 
+   *   to the last used action button
+   * - The "Chat" button is never automatically selected - it must be explicitly clicked
+   * - If no action button has been clicked yet in the session, all messages default to
+   *   using the "Chat" (processMessage) logic
+   */
 
   const userIdForHistory = useMemo(() => {
     if (!authLoading && authUser) return authUser.uid;
@@ -408,16 +433,71 @@ export default function ChatPage() {
     userMessageIdForAiPrompting?: string // ID of the user message that prompted this, especially for edits
   ) => {
     if (profileLoading) {
-        toast({ title: "Profile Loading...", description: "Please wait for your profile data to load.", variant: "default" });
+      toast({ title: "Profile Loading", description: "Please wait while your profile data loads.", duration: 3000 });
         return;
     }
     if (!profile) {
-      toast({ title: "Profile not loaded", description: "Please set up your profile or wait for it to load.", variant: "destructive" });
+      toast({ title: "Profile Required", description: "Please set up your profile before chatting.", duration: 3000, variant: "destructive" });
       return;
     }
     if (!currentSession) {
-        toast({ title: "Session not initialized", description: "Please wait or try creating a new chat.", variant: "destructive" });
+      toast({ title: "Session Not Ready", description: "Please wait for your session to initialize.", duration: 3000 });
         return;
+    }
+    
+    // Determine action type - use provided or fall back to last selected if available
+    // For normal messages, use the provided actionTypeParam
+    // For edited messages, regeneration, or when no actionTypeParam is provided,
+    // fall back to the last selected action button if available, otherwise default to 'processMessage'
+    const determineActionType = (): ActionType => {
+      /**
+       * Action Button Selection Logic:
+       * 
+       * 1. For direct user actions (clicking a button):
+       *    - Use the selected action type
+       *    - Remember this selection for future fallbacks
+       * 
+       * 2. For message regeneration or editing:
+       *    - If the original action was 'processMessage' (Chat), check if we have a better action to use
+       *    - If we have a remembered action button, use that instead
+       *    - This provides continuity in the conversation flow and preserves specialized behaviors
+       * 
+       * 3. Default Behavior:
+       *    - If no explicit or remembered action is available, default to 'processMessage'
+       *    - This ensures basic functionality even if no action was ever selected
+       * 
+       * 4. The 'Chat' button is never auto-selected:
+       *    - It must be explicitly clicked by the user to become the remembered action
+       */
+
+      // If an explicit action type is provided and not 'processMessage', use it and update last selected
+      if (actionTypeParam && actionTypeParam !== 'processMessage') {
+        // Only update lastSelectedActionButton if this is a direct user action (not regeneration/edit)
+        if (!isUserMessageEdit && !isRegenerationCall) {
+          setLastSelectedActionButton(actionTypeParam);
+        }
+        return actionTypeParam;
+      }
+      
+      // For regeneration or edits without explicit action type, use last selected or default
+      if (isUserMessageEdit || isRegenerationCall || actionTypeParam === 'processMessage') {
+        return lastSelectedActionButton || 'processMessage';
+      }
+      
+      // Default fallback
+      return actionTypeParam;
+    };
+    
+    const currentActionType = determineActionType();
+    
+    // Update active button for UI highlighting (only for direct user actions)
+    if (!isUserMessageEdit && !isRegenerationCall) {
+      setActiveActionButton(currentActionType);
+      
+      // Reset active button after a short delay
+      setTimeout(() => {
+        setActiveActionButton(null);
+      }, 500);
     }
 
     if (!isRegenerationCall && !isUserMessageEdit) {
@@ -433,14 +513,13 @@ export default function ChatPage() {
     }
 
     const userMessageContent = messageTextParam.trim();
-    const currentActionType = actionTypeParam;
     const currentNotes = notesParam;
 
     const filesToSendWithThisMessage = (isRegenerationCall && attachedFilesDataParam) ? attachedFilesDataParam
                                       : (isUserMessageEdit && attachedFilesDataParam) ? attachedFilesDataParam
                                       : [...currentAttachedFilesData];
 
-    if (actionTypeParam === 'checkMadeDesigns') {
+    if (currentActionType === 'checkMadeDesigns') {
         const hasImage = filesToSendWithThisMessage.some(f => f.type?.startsWith('image/') && f.dataUri);
         if(!hasImage) {
             toast({ title: "No Design Attached", description: `Please attach a design image to use the 'Check Designs' feature.`, variant: "destructive" });
@@ -744,6 +823,7 @@ export default function ChatPage() {
     addMessage, updateMessageById, profile, currentSession,
     currentAttachedFilesData, saveSession, ensureMessagesHaveUniqueIds,
     userIdForHistory, profileLoading, toast,
+    lastSelectedActionButton,
   ]);
 
 
@@ -775,16 +855,25 @@ export default function ChatPage() {
 
     if (originalRequestDetailsWithMessageId.actionType && originalRequestDetailsWithMessageId.messageText !== undefined) {
         const { messageIdToRegenerate, ...originalRequest } = originalRequestDetailsWithMessageId;
+        
+        // Use originalRequest.actionType or fall back to lastSelectedActionButton if it was processMessage
+        // This ensures the regeneration uses the most appropriate action type
+        const actionToUse = originalRequest.actionType === 'processMessage' && lastSelectedActionButton 
+          ? lastSelectedActionButton 
+          : originalRequest.actionType;
+        
         handleSendMessage(
-            originalRequest.messageText, originalRequest.actionType,
-            originalRequest.notes, originalRequest.attachedFilesData,
+            originalRequest.messageText, 
+            actionToUse,
+            originalRequest.notes, 
+            originalRequest.attachedFilesData,
             false,
             true,
             messageIdToRegenerate,
             undefined
         );
     }
-  }, [profileLoading, profile, currentSession, handleSendMessage]);
+  }, [profileLoading, profile, currentSession, handleSendMessage, lastSelectedActionButton]);
 
 
   const handleConfirmEditAndResendUserMessage = useCallback((messageId: string, newContent: string, originalAttachments?: AttachedFile[]) => {
@@ -836,6 +925,12 @@ export default function ChatPage() {
     if (!profile) {
        return;
     }
+    
+    // Set this action as the last selected
+    setLastSelectedActionButton(action);
+    // Highlight this button in the UI
+    setActiveActionButton(action);
+    
     if (action === 'generateDeliveryTemplates' || action === 'generateRevision') {
       setModalActionType(action);
       setShowNotesModal(true);
@@ -1158,6 +1253,8 @@ export default function ChatPage() {
                 profile={profile}
                 currentAttachedFilesDataLength={currentAttachedFilesDataLength}
                 isMobile={isMobile}
+                activeButton={activeActionButton}
+                lastSelectedButton={lastSelectedActionButton}
               />
             </div>
           </div>

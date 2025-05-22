@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -84,9 +83,20 @@ interface ActionButtonsPanelProps {
   profile: UserProfile | null;
   currentAttachedFilesDataLength: number;
   isMobile: boolean;
+  activeButton: ActionType | null; // Currently active button for visual feedback
+  lastSelectedButton: ActionType | null; // Last selected button for logic
 }
 
-export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, profile, currentAttachedFilesDataLength, isMobile }: ActionButtonsPanelProps) {
+export function ActionButtonsPanel({ 
+  onAction, 
+  isLoading, 
+  currentUserMessage, 
+  profile, 
+  currentAttachedFilesDataLength, 
+  isMobile,
+  activeButton,
+  lastSelectedButton
+}: ActionButtonsPanelProps) {
 
   const isActionDisabled = (actionId?: ActionType) => {
     if (isLoading || !profile) {
@@ -98,6 +108,56 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
     }
     // "Editing Prompts" no longer has this client-side check, the flow will handle it.
     return false;
+  };
+
+  // Helper function to determine if button should appear selected
+  const isButtonSelected = (buttonId: string): boolean => {
+    /**
+     * Button Selection Visual Logic:
+     * ------------------------------
+     * This determines which buttons appear visually selected in the UI, based on:
+     * 
+     * 1. Never auto-select the "Chat" button:
+     *    - Only highlight it when explicitly selected
+     * 
+     * 2. Active button feedback (immediate visual response):
+     *    - When a button is clicked, it briefly highlights (activeButton state)
+     *    - This provides immediate visual feedback to the user's action
+     * 
+     * 3. Parent dropdown highlighting:
+     *    - If any child action is the last selected action, highlight the parent dropdown
+     *    - This helps users understand which category their last action came from
+     * 
+     * 4. Persistent selection state:
+     *    - The lastSelectedButton state determines which button appears selected 
+     *    - This visually indicates which action will be used for regeneration or edit
+     */
+
+    // Don't highlight processMessage/Chat by default - only when explicitly selected
+    if (buttonId === 'processMessage' && !activeButton && !lastSelectedButton) {
+      return false;
+    }
+    
+    // Show as selected based on activeButton state (for immediate visual feedback)
+    if (activeButton === buttonId) {
+      return true;
+    }
+    
+    // Dropdown containers are selected if any of their children are the lastSelectedButton
+    if (buttonId === 'designActions' && 
+        (lastSelectedButton === 'generateDesignIdeas' || lastSelectedButton === 'generateDesignPrompts')) {
+      return true;
+    }
+    
+    if (buttonId === 'deliveryActions' && 
+        (lastSelectedButton === 'checkMadeDesigns' || 
+         lastSelectedButton === 'generateEditingPrompts' || 
+         lastSelectedButton === 'generateDeliveryTemplates')) {
+      return true;
+    }
+    
+    // Regular buttons are selected if they are the lastSelectedButton
+    return buttonId === lastSelectedButton;
   };
 
   return (
@@ -114,21 +174,24 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
 
         if ('isPrimaryAction' in actionConfig && actionConfig.isPrimaryAction) {
           const btn = actionConfig as ActionButtonConfig;
+          const isSelected = isButtonSelected(btn.id);
+          
           return (
             <TooltipProvider key={btn.id} delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    variant={btn.id === 'processMessage' ? "secondary" : "outline"}
+                    variant={isSelected ? "secondary" : "outline"}
                     size="sm"
                     onClick={() => onAction(btn.id)}
                     disabled={isActionDisabled(btn.id)}
                     className={cn(
                       baseButtonClasses,
-                      btn.id === 'processMessage' ? "bg-primary text-primary-foreground hover:bg-primary-light" : "",
-                      btn.id === 'analyzeRequirements' ? "hover:border-secondary hover:text-secondary" : "",
-                      btn.id === 'generateEngagementPack' ? "hover:border-accent hover:text-accent" : "",
-                      btn.id === 'generateRevision' ? "hover:border-info hover:text-info" : ""
+                      // Apply highlight styles based on selection state
+                      isSelected ? "bg-primary text-primary-foreground hover:bg-primary-light ring-2 ring-primary/30" : "",
+                      !isSelected && btn.id === 'analyzeRequirements' ? "hover:border-secondary hover:text-secondary" : "",
+                      !isSelected && btn.id === 'generateEngagementPack' ? "hover:border-accent hover:text-accent" : "",
+                      !isSelected && btn.id === 'generateRevision' ? "hover:border-info hover:text-info" : ""
                     )}
                   >
                     <btn.icon className={cn("h-4 w-4 shrink-0", !isMobile && "mr-1.5 md:mr-2")} />
@@ -138,17 +201,14 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
                 <TooltipContent side="top" align="center" className="glass-panel text-foreground shadow-xl rounded-lg p-3 animate-fade-in border border-primary/10">
                   <p className="font-semibold text-gradient">{btn.label}</p>
                   <p className="text-xs text-foreground/80 max-w-xs mt-1">{btn.description}</p>
-                   { btn.id === 'checkMadeDesigns' && currentAttachedFilesDataLength === 0 && (
-                     <p className="text-xs text-destructive mt-1 bg-destructive/10 p-1 rounded">
-                       <span className="flex items-center"><AlertTriangle className="h-3 w-3 mr-1" /> Requires an image file to be attached.</span>
-                     </p>
-                   )}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           );
         } else {
           const dropdown = actionConfig as DropdownActionConfig;
+          const isDropdownSelected = isButtonSelected(dropdown.id);
+          
           return (
             <DropdownMenu key={dropdown.id}>
               <TooltipProvider delayDuration={200}>
@@ -156,13 +216,14 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
                   <TooltipTrigger asChild>
                      <DropdownMenuTrigger asChild>
                         <Button
-                            variant="outline"
+                            variant={isDropdownSelected ? "secondary" : "outline"}
                             size="sm"
                             disabled={isLoading || !profile} // General disable for dropdown trigger
                             className={cn(
                               baseButtonClasses,
-                              dropdown.id === 'designActions' ? "hover:border-success hover:text-success" : "",
-                              dropdown.id === 'deliveryActions' ? "hover:border-warning hover:text-warning" : ""
+                              isDropdownSelected ? "bg-primary/90 text-primary-foreground hover:bg-primary-light ring-2 ring-primary/30" : "",
+                              !isDropdownSelected && dropdown.id === 'designActions' ? "hover:border-success hover:text-success" : "",
+                              !isDropdownSelected && dropdown.id === 'deliveryActions' ? "hover:border-warning hover:text-warning" : ""
                             )}
                         >
                             <dropdown.icon className={cn("h-4 w-4 shrink-0", !isMobile && "mr-1.5 md:mr-2")} />
@@ -179,12 +240,18 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
               <DropdownMenuContent align="end" className="glass-panel border-primary/10 shadow-2xl rounded-lg animate-fade-in">
                 <DropdownMenuLabel className="text-sm px-3 py-2 text-gradient font-semibold">{dropdown.label}</DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-primary/10" />
-                {dropdown.subActions.map(subAction => (
+                {dropdown.subActions.map(subAction => {
+                  const isSubActionSelected = lastSelectedButton === subAction.id;
+                  
+                  return (
                   <DropdownMenuItem
                     key={subAction.id}
                     onClick={() => onAction(subAction.id)}
                     disabled={isActionDisabled(subAction.id)}
-                    className="text-sm cursor-pointer hover:bg-primary/10 focus:bg-primary/10 data-[disabled]:opacity-50 data-[disabled]:pointer-events-none flex items-center gap-2 px-3 py-2 transition-all duration-200 rounded-md mx-1 my-0.5"
+                      className={cn(
+                        "text-sm cursor-pointer hover:bg-primary/10 focus:bg-primary/10 data-[disabled]:opacity-50 data-[disabled]:pointer-events-none flex items-center gap-2 px-3 py-2 transition-all duration-200 rounded-md mx-1 my-0.5",
+                        isSubActionSelected && "bg-primary/20"
+                      )}
                   >
                     <div className={cn(
                       "p-1.5 rounded-full",
@@ -198,9 +265,9 @@ export function ActionButtonsPanel({ onAction, isLoading, currentUserMessage, pr
                          Needs Image
                        </span>
                      )}
-                     {/* Removed (Needs Image) hint for generateEditingPrompts as per new requirement */}
                   </DropdownMenuItem>
-                ))}
+                  );
+                })}
               </DropdownMenuContent>
             </DropdownMenu>
           );
