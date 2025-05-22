@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { ChatMessage, MessageRole, ChatMessageContentPart, AttachedFile, ActionType } from '@/lib/types';
@@ -10,8 +11,8 @@ import { Separator } from '@/components/ui/separator';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import React, { useState } from 'react'; // Import useState
-import { Textarea } from '@/components/ui/textarea'; // Import Textarea
+import React, { useState } from 'react';
+import { Textarea } from '@/components/ui/textarea';
 
 interface ChatMessageProps {
   message: ChatMessage;
@@ -20,29 +21,30 @@ interface ChatMessageProps {
 }
 
 function MessageAvatar({ role }: { role: MessageRole }) {
+  // This component will only be rendered for user messages now.
+  if (role !== 'user') return null;
+
   return (
     <div className="relative">
-      {/* Glowing background effect */}
       <div className={cn(
         "absolute -inset-1 rounded-full blur-md animate-pulse-slow opacity-50",
-        role === 'assistant' ? "bg-primary/30" : "bg-accent/30"
+        "bg-accent/30" // User avatar accent
       )} />
       <Avatar className={cn(
         "h-10 w-10 self-start shrink-0 shadow-lg transition-all duration-300 relative z-10",
-        role === 'assistant' ? "ring-2 ring-primary/40 bg-gradient-to-br from-primary/10 to-background" : 
-                              "ring-2 ring-accent/40 bg-gradient-to-br from-accent/10 to-background"
+        "ring-2 ring-accent/40 bg-gradient-to-br from-accent/10 to-background"
       )}>
         <AvatarImage
-          src={role === 'assistant' ? `https://placehold.co/40x40.png?text=AI` : `https://placehold.co/40x40.png?text=U`}
+          src={`https://placehold.co/40x40.png?text=U`}
+          data-ai-hint="person silhouette"
           alt={role}
-          data-ai-hint={role === 'assistant' ? 'robot face' : 'person silhouette'}
           className="transition-all duration-300 hover:scale-110"
         />
         <AvatarFallback className={cn(
           "animate-pulse-slow",
-          role === 'assistant' ? "text-primary bg-primary/10" : "text-accent bg-accent/10"
+          "text-accent bg-accent/10"
         )}>
-          {role === 'user' ? <User className="h-5 w-5" /> : <Bot className="h-5 w-5" />}
+          <User className="h-5 w-5" />
         </AvatarFallback>
       </Avatar>
     </div>
@@ -79,23 +81,20 @@ function AttachedFileDisplay({ file }: { file: AttachedFile }) {
   );
 }
 
-// Helper to extract simple text content from a message for editing
 const getSimpleTextContent = (content: string | ChatMessageContentPart[]): string => {
   if (typeof content === 'string') {
     return content;
   }
   if (Array.isArray(content)) {
-    // For user messages, we typically expect a single text part
     const textPart = content.find(part => part.type === 'text');
     return textPart?.text || '';
   }
   return '';
 };
 
-
 function RenderContentPart({ part, index }: { part: ChatMessageContentPart; index: number }) {
-  const animationDelay = `${index * 80}ms`; 
-  const commonClasses = "my-2 animate-slideUpSlightly w-full"; 
+  const animationDelay = `${index * 80}ms`;
+  const commonClasses = "my-2 animate-slideUpSlightly w-full";
 
   switch (part.type) {
     case 'text':
@@ -127,7 +126,7 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
               (part.bengali?.analysis || part.bengali?.simplifiedRequest || part.bengali?.stepByStepApproach) &&
               <Separator className="my-3 opacity-50" />
             }
-            
+
             {part.bengali?.analysis && <CopyableText title="বিশ্লেষণ ও পরিকল্পনা (Bengali)" text={part.bengali.analysis} className="bg-primary/5 rounded-lg p-2" />}
           </CardContent>
         </Card>
@@ -137,7 +136,6 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
   }
 }
 
-
 export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndResend }: ChatMessageProps) {
   const [isEditingThisMessage, setIsEditingThisMessage] = useState(false);
   const [editedText, setEditedText] = useState(getSimpleTextContent(message.content));
@@ -145,17 +143,17 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
 
-  if (message.isLoading && !message.content) { 
+  if (message.isLoading && !message.content) {
     return (
       <div className={cn(
         "flex items-start gap-4 p-4 md:p-5 w-full animate-slideUpSlightly",
-        isUser ? "justify-end" : ""
+        isUser ? "justify-end" : "justify-start" // AI messages align left by default
       )}>
-        {!isUser && <MessageAvatar role="assistant" />}
+        {/* No AI avatar for loading skeleton */}
         <div className={cn(
           "relative flex flex-col gap-3 rounded-2xl p-5",
-          "w-full", 
-          isAssistant ? "bg-card/80 backdrop-blur-sm shadow-xl border border-primary/10" : 
+          "w-full",
+          isAssistant ? "bg-card/80 backdrop-blur-sm shadow-xl border border-primary/10" :
                        "bg-gradient-to-br from-primary/90 to-primary/80 text-primary-foreground shadow-xl",
           isUser ? 'rounded-tr-none' : 'rounded-tl-none'
         )}>
@@ -175,7 +173,7 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
       onRegenerate({ ...message.originalRequest, messageIdToRegenerate: message.id });
     }
   };
-  
+
   const handleStartEdit = () => {
     setEditedText(getSimpleTextContent(message.content));
     setIsEditingThisMessage(true);
@@ -183,8 +181,6 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
 
   const handleCancelEdit = () => {
     setIsEditingThisMessage(false);
-    // Optionally reset editedText to original if needed, but not strictly necessary
-    // setEditedText(getSimpleTextContent(message.content)); 
   };
 
   const handleSaveAndSendEdited = () => {
@@ -197,30 +193,28 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
   const messageTime = new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   const displayContent = message.isLoading && typeof message.content === 'string' && message.content.startsWith('Processing...')
-    ? [{ type: 'text' as const, text: message.content }] 
+    ? [{ type: 'text' as const, text: message.content }]
     : (typeof message.content === 'string' ? [{ type: 'text' as const, text: message.content }] : message.content);
-
 
   return (
     <div className={cn(
-        "flex items-start gap-4 p-4 md:p-5 w-full animate-slideUpSlightly hover:shadow-sm transition-all duration-300", 
-        isUser ? 'justify-end' : ''
+        "flex items-start p-4 md:p-5 w-full animate-slideUpSlightly hover:shadow-sm transition-all duration-300",
+        isUser ? 'justify-end gap-3' : 'justify-start gap-0' // User messages justify right with gap for avatar
       )}
     >
-      {!isUser && <MessageAvatar role={message.role} />}
+      {/* Message Bubble */}
       <div
         className={cn(
           "relative flex flex-col gap-3 rounded-2xl p-5 shadow-lg text-sm transition-all duration-300",
-          "w-full", 
-          isAssistant ? 'bg-card/80 backdrop-blur-sm border border-primary/10' : 
-                       'bg-gradient-to-br from-primary/90 to-primary/80 text-primary-foreground',
-          message.isError ? 'border-destructive border-2' : isAssistant ? 'border-primary/10' : 'border-transparent',
-          isUser ? 'rounded-tr-none' : 'rounded-tl-none'
+          "w-full",
+          isAssistant ? 'bg-card/80 backdrop-blur-sm border border-primary/10 rounded-tl-none' :
+                       'bg-gradient-to-br from-primary/90 to-primary/80 text-primary-foreground rounded-tr-none',
+          message.isError ? 'border-destructive border-2' : isAssistant ? 'border-primary/10' : 'border-transparent'
         )}
       >
         <div className={cn(
           "absolute inset-0 rounded-2xl opacity-30",
-          isAssistant ? "bg-gradient-to-br from-primary/5 to-secondary/5 blur-md" : 
+          isAssistant ? "bg-gradient-to-br from-primary/5 to-secondary/5 blur-md" :
                        "bg-gradient-to-br from-primary-foreground/5 to-primary-foreground/10 blur-md"
         )}></div>
         <div className="flex justify-between items-center mb-2 relative z-10">
@@ -232,7 +226,7 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
             </div>
           )}
         </div>
-        
+
         {isEditingThisMessage && isUser ? (
           <div className="space-y-2 relative z-10">
             <Textarea
@@ -259,7 +253,7 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
             </div>
           ) : (
             <div className="stagger-animation relative z-10">
-              {displayContent.map((part, index) => 
+              {displayContent.map((part, index) =>
                 <RenderContentPart part={part} index={index} key={`${message.id}-part-${index}`}/>
               )}
             </div>
@@ -273,7 +267,7 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
                 {message.attachedFiles.length} {message.attachedFiles.length === 1 ? 'Attachment' : 'Attachments'}
               </span>
             </div>
-            {message.attachedFiles.map((file, index) => 
+            {message.attachedFiles.map((file, index) =>
               <div key={`${file.name}-${file.size || 0}-${index}`} className="animate-stagger" style={{ animationDelay: `${index * 100}ms` }}>
                 <AttachedFileDisplay file={file} />
               </div>
@@ -311,7 +305,7 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
                 onClick={handleRegenerateClick}
                 className="text-xs backdrop-blur-sm border border-primary/10 shadow-sm hover:shadow-md hover:scale-105 hover:text-primary hover:bg-primary/10 transition-all duration-300"
                 title="Regenerate response"
-                disabled={message.isLoading} 
+                disabled={message.isLoading}
               >
                 <div className="relative mr-1.5">
                   <div className="absolute inset-0 bg-primary/10 rounded-full blur-sm animate-pulse-slow opacity-70"></div>
@@ -322,8 +316,11 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
             )}
           </div>
         )}
-      </div>
+      </div> {/* End of Message Bubble */}
+
       {isUser && <MessageAvatar role={message.role} />}
     </div>
   );
 }
+
+    
