@@ -48,6 +48,14 @@ export interface AttachedFile {
   dataUri?: string; 
   textContent?: string; 
 }
+
+export interface EditHistoryEntry {
+  content: string | ChatMessageContentPart[]; // User message content for this version
+  timestamp: number; // Timestamp of this user message version
+  attachedFiles?: AttachedFile[];
+  linkedAssistantMessageId?: string; // ID of the assistant message that responded to THIS user version
+}
+
 export interface ChatMessage {
   id: string;
   role: MessageRole;
@@ -57,26 +65,30 @@ export interface ChatMessage {
   isError?: boolean;
   profileUsed?: Partial<UserProfile>; 
   attachedFiles?: AttachedFile[]; 
-  canRegenerate?: boolean;
-  originalRequest?: {
+  canRegenerate?: boolean; // For assistant messages
+  originalRequest?: { // For assistant messages, to enable regeneration
     actionType: ActionType;
     messageText: string;
     notes?: string;
     attachedFilesData?: AttachedFile[]; 
-    messageIdToRegenerate?: string; 
+    messageIdToRegenerate?: string; // The ID of the assistant message being regenerated
   };
-  editHistory?: Array<{ // Added to store previous versions of user message content
-    content: string | ChatMessageContentPart[];
-    timestamp: number;
-    attachedFiles?: AttachedFile[];
-  }>;
+  // For user messages, to store previous versions of their own content & the AI response to that version
+  editHistory?: EditHistoryEntry[]; 
+  // For assistant messages, to link them to the user message that prompted them
+  promptedByMessageId?: string; 
+  // For user messages, to link them to the assistant message that replied to their *current* version
+  linkedAssistantMessageId?: string; 
 }
+
 
 export interface ProcessedClientMessageOutput {
   analysis?: string;
   simplifiedRequest?: string;
   stepByStepApproach?: string;
   bengaliTranslation?: string; 
+  suggestedEnglishReplies?: string[];
+  suggestedBengaliReplies?: string[];
 }
 
 export interface PlatformMessagesOutput {
@@ -108,5 +120,8 @@ export interface DriveFile {
   name: string; // Filename on Google Drive
   mimeType: string;
   modifiedTime?: string;
-  appProperties?: Record<string, string>; // To store app's session ID
+  appProperties?: { // Custom properties
+    appSessionId?: string; // To store our app's internal session ID
+    [key: string]: string | undefined; // Allow other custom properties
+  };
 }

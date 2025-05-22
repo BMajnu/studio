@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Paperclip, Loader2, BotIcon, Menu, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw, PlusCircle, Edit3, RefreshCw, Send, LogIn, UserPlus, Languages, X, AlertTriangle } from 'lucide-react';
+import { Paperclip, Loader2, BotIcon, Menu, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw, PlusCircle, Edit3, RefreshCw, LogIn, UserPlus, Languages, X, AlertTriangle } from 'lucide-react'; // Added X and AlertTriangle
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -12,7 +12,7 @@ import { HistoryPanel } from '@/components/chat/history-panel';
 import { useToast } from "@/hooks/use-toast";
 import { useUserProfile } from '@/lib/hooks/use-user-profile';
 import { useChatHistory } from '@/lib/hooks/use-chat-history';
-import type { ChatMessage, UserProfile, ChatMessageContentPart, AttachedFile, ChatSession } from '@/lib/types';
+import type { ChatMessage, UserProfile, ChatMessageContentPart, AttachedFile, ChatSession, EditHistoryEntry } from '@/lib/types';
 import { processClientMessage, type ProcessClientMessageInput, type ProcessClientMessageOutput } from '@/ai/flows/process-client-message';
 import { generatePlatformMessages, type GeneratePlatformMessagesInput } from '@/ai/flows/generate-platform-messages';
 import { analyzeClientRequirements, type AnalyzeClientRequirementsInput, type AnalyzeClientRequirementsOutput } from '@/ai/flows/analyze-client-requirements';
@@ -33,7 +33,8 @@ import type { User as FirebaseUser } from 'firebase/auth';
 import { LoginForm } from '@/components/auth/login-form';
 
 
-const getMessageText = (content: string | ChatMessageContentPart[]): string => {
+const getMessageText = (content: string | ChatMessageContentPart[] | undefined): string => {
+  if (!content) return '[No Content]';
   if (typeof content === 'string') return content;
   if (!Array.isArray(content) || content.length === 0) return '[Empty Message Content]';
 
@@ -64,8 +65,10 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
         
         let bengaliCombined = "";
         if (part.bengali?.analysis && (!part.bengali.simplifiedRequest && !part.bengali.stepByStepApproach)) {
-            bengaliCombined = part.bengali.analysis;
+            // This handles the case where bengaliTranslation was a single string
+             bengaliCombined = part.bengali.analysis;
         } else {
+            // This handles the case where bengali is an object with sub-parts
             if (part.bengali?.analysis) bengaliCombined += `বিশ্লেষণ (Analysis):\n${part.bengali.analysis}\n\n`;
             if (part.bengali?.simplifiedRequest) bengaliCombined += `সরলীকৃত অনুরোধ (Simplified Request):\n${part.bengali.simplifiedRequest}\n\n`;
             if (part.bengali?.stepByStepApproach) bengaliCombined += `ধাপে ধাপে পদ্ধতি (Step-by-Step Approach):\n${part.bengali.stepByStepApproach}`;
@@ -82,12 +85,14 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
         fullText += tgContent;
         break;
       default:
+        // Attempt to handle any other potential part structures that might have a 'text' or 'code' field
         const unknownPart = part as any;
         let unknownTextContent = '';
         if (unknownPart.text) unknownTextContent = String(unknownPart.text);
         else if (unknownPart.code) unknownTextContent = String(unknownPart.code);
-        else if (unknownPart.message) unknownTextContent = String(unknownPart.message);
+        else if (unknownPart.message) unknownTextContent = String(unknownPart.message); // For platform messages
         else if (unknownPart.items && Array.isArray(unknownPart.items) && unknownPart.items.length > 0) {
+          // Fallback for lists if not explicitly handled above (though it should be)
           unknownTextContent = unknownPart.items.join('\n');
         }
         
@@ -97,15 +102,16 @@ const getMessageText = (content: string | ChatMessageContentPart[]): string => {
            fullText += `${titlePrefix}[Unsupported Content Part: ${unknownPart.type || 'Unknown Type'}${part.title ? ` for "${part.title}"`: ''}]\n`;
         }
     }
-    fullText += '\n'; 
+    fullText += '\n'; // Add a newline after each part for better separation in history text
   });
-  return fullText.trim() || '[Empty Message Content Parts]';
+  return fullText.trim() || '[Empty Message Content Parts]'; // Fallback for an array of empty/unparseable parts
 };
 
 
 const LAST_ACTIVE_SESSION_ID_KEY_PREFIX = 'desainr_last_active_session_id_';
 
 const generateRobustMessageId = (): string => {
+  // Combines timestamp with a longer random string to minimize collision probability
   return `msg-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 };
 
@@ -116,12 +122,13 @@ const baseEnsureMessagesHaveUniqueIds = (messagesToProcess: ChatMessage[]): Chat
   const seenIds = new Set<string>();
   return messagesToProcess.map(msg => {
     let newId = msg.id;
+    // Check if ID is already seen or if it's an old-style ID (just a number string)
     const isInvalidOldId = typeof newId !== 'string' || !newId.startsWith('msg-') || newId.split('-').length < 3;
 
     if (isInvalidOldId || seenIds.has(newId)) {
       let candidateId = generateRobustMessageId();
       while (seenIds.has(candidateId)) {
-        candidateId = generateRobustMessageId();
+        candidateId = generateRobustMessageId(); // Regenerate if collision (highly unlikely with new format)
       }
       newId = candidateId;
     }
@@ -150,18 +157,19 @@ export default function ChatPage() {
   const [modalNotes, setModalNotes] = useState('');
   const [isWelcomeLoginModalOpen, setIsWelcomeLoginModalOpen] = useState(false);
 
-
-  const userIdForHistory = useMemo(() => {
-    if (!authLoading && authUser) return authUser.uid;
-    if (!profileLoading && profile) return profile.userId; 
-    return DEFAULT_USER_ID;
-  }, [authLoading, authUser, profileLoading, profile]);
-
   const [pendingAiRequestAfterEdit, setPendingAiRequestAfterEdit] = useState<{
     content: string;
     attachments?: AttachedFile[];
-    isUserMessageEdit: boolean;
+    isUserMessageEdit: boolean; 
   } | null>(null);
+
+
+  const userIdForHistory = useMemo(() => {
+    if (!authLoading && authUser) return authUser.uid;
+    // Fallback to profile.userId if authUser is not available but profile is (e.g., during initial load phase)
+    if (!authLoading && !authUser && !profileLoading && profile) return profile.userId; 
+    return DEFAULT_USER_ID;
+  }, [authLoading, authUser, profileLoading, profile]);
 
   const {
     historyMetadata,
@@ -188,6 +196,7 @@ export default function ChatPage() {
     }
   }, [isMobile, isHistoryPanelOpen]);
 
+
   useEffect(() => {
     const loadOrCreateSession = async () => {
       if (authLoading || profileLoading || historyHookLoading || !userIdForHistory) {
@@ -206,7 +215,7 @@ export default function ChatPage() {
         sessionToLoad = await getSession(lastActiveSessionId);
         
         if (sessionToLoad && !historyMetadata.some(m => m.id === sessionToLoad!.id)) {
-            console.warn(`ChatPage SessionInit: Loaded session ${sessionToLoad.id} from LS, but not in current historyMetadata. Discarding.`);
+            console.warn(`ChatPage SessionInit: Loaded session ${sessionToLoad.id} from LS, but not in current historyMetadata. This can happen if Drive sync overwrote local metadata. Discarding lastActiveSessionId.`);
             sessionToLoad = null; 
             localStorage.removeItem(lastActiveSessionIdKey);
             lastActiveSessionId = null;
@@ -216,10 +225,15 @@ export default function ChatPage() {
           localStorage.removeItem(lastActiveSessionIdKey);
           lastActiveSessionId = null;
         } else if (!sessionToLoad && lastActiveSessionId && historyMetadata.some(m => m.id === lastActiveSessionId)) {
-           console.warn(`ChatPage SessionInit: Last active session ID ${lastActiveSessionId} in metadata but getSession failed. Clearing LS key.`);
+           console.warn(`ChatPage SessionInit: Last active session ID ${lastActiveSessionId} in metadata but getSession failed (detail likely removed). Clearing LS key.`);
            localStorage.removeItem(lastActiveSessionIdKey);
            lastActiveSessionId = null;
+        } else if (!sessionToLoad && lastActiveSessionId) {
+            console.warn(`ChatPage SessionInit: Last active session ID ${lastActiveSessionId} from LS not found by getSession or in metadata. Clearing LS key.`);
+            localStorage.removeItem(lastActiveSessionIdKey);
+            lastActiveSessionId = null;
         }
+
       } else if (lastActiveSessionId) {
         console.warn(`ChatPage SessionInit: lastActiveSessionId ${lastActiveSessionId} does not match user ${currentUserIdToUse}. Clearing LS key.`);
         localStorage.removeItem(lastActiveSessionIdKey);
@@ -250,19 +264,21 @@ export default function ChatPage() {
     loadOrCreateSession();
   }, [ 
       authLoading, profileLoading, historyHookLoading, userIdForHistory, 
-      historyMetadata, // Keep this to re-evaluate if lastActiveSessionId is valid against loaded history
       profile?.selectedGenkitModelId, profile?.geminiApiKeys,
-      getSession, createNewSession, ensureMessagesHaveUniqueIds 
+      historyMetadata, getSession, createNewSession, ensureMessagesHaveUniqueIds 
   ]);
 
+
   useEffect(() => {
-    if (currentSession && historyMetadata) {
+    // This effect specifically updates the currentSession's name if it changes in historyMetadata
+    if (currentSession && currentSession.id && historyMetadata) {
       const currentSessionMeta = historyMetadata.find(meta => meta.id === currentSession.id);
       if (currentSessionMeta && currentSessionMeta.name !== currentSession.name) {
+        console.log(`ChatPage: Updating current session name from "${currentSession.name}" to "${currentSessionMeta.name}" based on historyMetadata change.`);
         setCurrentSession(prev => prev ? { ...prev, name: currentSessionMeta.name } : null);
       }
     }
-  }, [historyMetadata, currentSession?.id]); // Removed currentSession.name
+  }, [historyMetadata, currentSession?.id]);
 
 
   useEffect(() => {
@@ -271,7 +287,7 @@ export default function ChatPage() {
     }
   }, [messages]);
 
-  const addMessage = useCallback((role: 'user' | 'assistant' | 'system', content: string | ChatMessageContentPart[], currentAttachments?: AttachedFile[], isLoadingParam?: boolean, isErrorParam?: boolean, originalRequest?: ChatMessage['originalRequest']) => {
+  const addMessage = useCallback((role: 'user' | 'assistant' | 'system', content: string | ChatMessageContentPart[], currentAttachments?: AttachedFile[], isLoadingParam?: boolean, isErrorParam?: boolean, originalRequest?: ChatMessage['originalRequest'], promptedByMessageId?: string) => {
     const newMessageId = generateRobustMessageId();
     const newMessage: ChatMessage = {
       id: newMessageId, role, content, timestamp: Date.now(),
@@ -279,6 +295,7 @@ export default function ChatPage() {
       attachedFiles: role === 'user' ? currentAttachments : undefined,
       canRegenerate: role === 'assistant' && !!originalRequest,
       originalRequest: role === 'assistant' ? originalRequest : undefined,
+      promptedByMessageId: role === 'assistant' ? promptedByMessageId : undefined,
     };
     setMessages(prev => ensureMessagesHaveUniqueIds([...prev, newMessage]));
     return newMessageId;
@@ -325,6 +342,7 @@ export default function ChatPage() {
   const handleSelectSession = useCallback(async (sessionId: string) => {
     const currentUserId = userIdForHistory;
     if (!currentUserId || !sessionId.startsWith(currentUserId + '_')) {
+        console.warn(`ChatPage (handleSelectSession): Attempt to load session ${sessionId} for incorrect user context (current: ${currentUserId}). Clearing last active and creating new.`);
         localStorage.removeItem(LAST_ACTIVE_SESSION_ID_KEY_PREFIX + currentUserId);
         handleNewChat();
         return;
@@ -341,6 +359,7 @@ export default function ChatPage() {
       const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + currentUserId;
       localStorage.setItem(lastActiveSessionIdKey, sessionId);
     } else { 
+        console.warn(`ChatPage (handleSelectSession): Failed to load session ${sessionId} or session user mismatch. Clearing last active and creating new.`);
         localStorage.removeItem(LAST_ACTIVE_SESSION_ID_KEY_PREFIX + currentUserId);
         handleNewChat();
     }
@@ -392,26 +411,26 @@ export default function ChatPage() {
     messageTextParam: string,
     actionTypeParam: ActionType,
     notesParam?: string,
-    attachedFilesDataParam?: AttachedFile[], 
-    isUserMessageEdit: boolean = false,
+    attachedFilesDataParam?: AttachedFile[],
+    isUserMessageEdit: boolean = false, 
     isRegenerationCall: boolean = false,
     messageIdToUpdate?: string 
   ) => {
 
     if (profileLoading) {
-        // toast({ title: "Profile Loading...", description: "Please wait for your profile data to load.", variant: "default" });
+        toast({ title: "Profile Loading...", description: "Please wait for your profile data to load.", variant: "default" });
         return;
     }
     if (!profile) {
-      // toast({ title: "Profile not loaded", description: "Please set up your profile or wait for it to load.", variant: "destructive" });
+      toast({ title: "Profile not loaded", description: "Please set up your profile or wait for it to load.", variant: "destructive" });
       return;
     }
     if (!currentSession) {
-        // toast({ title: "Session not initialized", description: "Please wait or try creating a new chat.", variant: "destructive" });
+        toast({ title: "Session not initialized", description: "Please wait or try creating a new chat.", variant: "destructive" });
         return;
     }
 
-    if (!isRegenerationCall && !isUserMessageEdit) { 
+    if (!isRegenerationCall) { 
         currentApiKeyIndexRef.current = 0;
     }
 
@@ -433,22 +452,50 @@ export default function ChatPage() {
                                       : [...currentAttachedFilesData];
     
      if (actionTypeParam === 'checkMadeDesigns' && filesToSendWithThisMessage.filter(f => f.type?.startsWith('image/') && f.dataUri).length === 0) {
-        // toast({ title: "No Design Attached", description: `Please attach a design image to use the 'Check Designs' feature.`, variant: "destructive" });
+        toast({ title: "No Design Attached", description: `Please attach a design image to use the 'Check Designs' feature.`, variant: "destructive" });
         return;
     }
-    if (actionTypeParam === 'generateEditingPrompts' && !isRegenerationCall && !messageIdToUpdate) {
+    if (actionTypeParam === 'generateEditingPrompts' && !messageIdToUpdate) { 
         const hasCurrentlyAttachedImage = filesToSendWithThisMessage.some(f => f.type?.startsWith('image/') && f.dataUri);
-        if(!hasCurrentlyAttachedImage){
-            console.log("INFO (generateEditingPrompts): No image directly attached. AI flow will attempt to use historical image.");
+        if (!hasCurrentlyAttachedImage) {
+          console.log("INFO (generateEditingPrompts): No image currently attached. AI flow will attempt to use historical image.");
         }
     }
     
     const modelIdToUse = userProfile.selectedGenkitModelId || DEFAULT_MODEL_ID;
     
-    const userMessageContent = (!isRegenerationCall && !messageIdToUpdate && !isUserMessageEdit) 
-        ? (currentMessageText || (filesToSendWithThisMessage.length > 0 ? `Attached ${filesToSendWithThisMessage.length} file(s)${currentNotes ? ` (Notes: ${currentNotes})` : ''}` : `Triggered action: ${currentActionType}${currentNotes ? ` (Notes: ${currentNotes})` : ''}`))
-        : '';
+    let userMessageIdForPrompting: string | null = null;
 
+    // Add user message only if it's a new message, not an edit or regeneration
+    if (!isUserMessageEdit && !messageIdToUpdate) {
+      const userMessageContent = currentMessageText || 
+                                 (filesToSendWithThisMessage.length > 0 ? `Attached ${filesToSendWithThisMessage.length} file(s)${currentNotes ? ` (Notes: ${currentNotes})` : ''}` 
+                                 : `Triggered action: ${currentActionType}${currentNotes ? ` (Notes: ${currentNotes})` : ''}`);
+      if (userMessageContent.trim() !== '' || filesToSendWithThisMessage.length > 0) {
+        userMessageIdForPrompting = addMessage('user', userMessageContent, filesToSendWithThisMessage);
+      }
+    } else if (isUserMessageEdit) {
+      // For user message edits, the message is already updated in place by handleConfirmEditAndResendUserMessage.
+      // We need to find its ID to link the AI response.
+      // This relies on 'messages' state having been updated by handleConfirmEditAndResendUserMessage *before* this is called via pendingAiRequestAfterEdit
+      // It's critical that handleConfirmEditAndResendUserMessage updates `targetMessage.id` if a new ID is generated.
+      const updatedMessagesAfterEdit = messages; // Assume messages state is current
+      const editedUserMessage = updatedMessagesAfterEdit.find(msg => msg.role === 'user' && getMessageText(msg.content) === currentMessageText && msg.timestamp > (Date.now() - 15000)); // Check recent timestamp
+      
+      if (editedUserMessage) {
+        userMessageIdForPrompting = editedUserMessage.id;
+      } else {
+        // Fallback: if the message isn't found by content/timestamp (e.g., rapid edits),
+        // try to find the last user message if the `messages` array was correctly truncated.
+        if (messages.length > 0 && messages[messages.length -1].role === 'user') {
+            userMessageIdForPrompting = messages[messages.length -1].id;
+            console.warn(`ChatPage (handleSendMessage): Fallback to last user message ID for linking after edit: ${userMessageIdForPrompting}`);
+        } else {
+            console.warn("ChatPage (handleSendMessage): Could not robustly find edited user message ID for linking. AI response might not be linked.");
+        }
+      }
+    }
+    
     const requestParamsForRegeneration: ChatMessage['originalRequest'] = {
         actionType: currentActionType, messageText: currentMessageText, 
         notes: currentNotes, attachedFilesData: filesToSendWithThisMessage,
@@ -456,20 +503,15 @@ export default function ChatPage() {
     };
 
     let assistantMessageIdToUse: string;
-    let userMessageId: string | null = null;
 
-    if (!isUserMessageEdit && !messageIdToUpdate && (userMessageContent.trim() !== '' || filesToSendWithThisMessage.length > 0)) {
-      userMessageId = addMessage('user', userMessageContent, filesToSendWithThisMessage);
-    }
-    
-    if (messageIdToUpdate && !isUserMessageEdit) { 
+    if (messageIdToUpdate && !isUserMessageEdit) { // Assistant message regeneration
         assistantMessageIdToUse = messageIdToUpdate;
         updateMessageById(assistantMessageIdToUse, 'Processing...', true, false, requestParamsForRegeneration);
-    } else { 
-        assistantMessageIdToUse = addMessage('assistant', 'Processing...', [], true, false, requestParamsForRegeneration);
+    } else { // New AI call (either fresh or after user message edit)
+        assistantMessageIdToUse = addMessage('assistant', 'Processing...', [], true, false, requestParamsForRegeneration, userMessageIdForPrompting ?? undefined);
     }
 
-    if (!isRegenerationCall && !messageIdToUpdate && !isUserMessageEdit) {
+    if (!isRegenerationCall && !isUserMessageEdit) {
         setInputMessage('');
         setSelectedFiles([]);
         setCurrentAttachedFilesData([]);
@@ -488,18 +530,21 @@ export default function ChatPage() {
       };
       const filesForFlow = filesToSendWithThisMessage.map(f => ({ name: f.name, type: f.type, dataUri: f.dataUri, textContent: f.textContent, size: f.size }));
       
-      let chatHistoryForAI: { role: 'user' | 'assistant'; text: string }[] = [];
-      setMessages(prevMessages => {
-          chatHistoryForAI = prevMessages
-            .filter(msg => msg.id !== assistantMessageIdToUse && (!userMessageId || msg.id !== userMessageId) ) 
-            .slice(-10) 
-            .map(msg => ({
-              role: msg.role === 'user' ? ('user' as const) : ('assistant' as const),
-              text: getMessageText(msg.content) 
-            }))
-            .filter(msg => msg.text.trim() !== '' && (msg.role === 'user' || msg.role === 'assistant')); 
-          return prevMessages; 
+      const historyMessagesToConsider = messages.filter(msg => {
+        if (msg.id === assistantMessageIdToUse) return false; 
+        // If it's a NEW user message (not an edit, not a regeneration) and we have its ID, exclude it from history.
+        if (userMessageIdForPrompting && msg.id === userMessageIdForPrompting && !isUserMessageEdit && !messageIdToUpdate) return false; 
+        return true;
       });
+
+      const chatHistoryForAI = historyMessagesToConsider
+        .slice(-10) 
+        .map(msg => ({
+          role: msg.role === 'user' ? ('user'as const) : ('assistant'as const),
+          text: getMessageText(msg.content) 
+        }))
+        .filter(msg => msg.text.trim() !== '' && (msg.role === 'user' || msg.role === 'assistant')); 
+      
 
       if (currentActionType === 'processMessage') {
         const processInput: ProcessClientMessageInput = { ...baseInput, clientMessage: currentMessageText, attachedFiles: filesForFlow, chatHistory: chatHistoryForAI };
@@ -601,10 +646,7 @@ export default function ChatPage() {
         const currentDesignFile = filesForFlow.find(f => f.type?.startsWith('image/') && f.dataUri);
         if (currentDesignFile && currentDesignFile.dataUri) { 
             designToEditDataUriForFlow = currentDesignFile.dataUri; 
-            console.log("INFO (generateEditingPrompts): Using currently attached image for editing prompts.");
-        } else {
-            console.log("INFO (generateEditingPrompts): No image directly attached. AI flow will attempt to use historical image.");
-        }
+        } 
         
         const editingInput: GenerateEditingPromptsInput = {
             ...baseInput, designToEditDataUri: designToEditDataUriForFlow, 
@@ -615,6 +657,7 @@ export default function ChatPage() {
         if (result.editingPrompts && result.editingPrompts.length > 0) {
             if (result.editingPrompts.length === 1 && result.editingPrompts[0].type === "error_no_image_found") {
                 finalAiResponseContent.push({ type: 'text', title: 'Error', text: result.editingPrompts[0].prompt });
+                 toast({ title: "Image Needed", description: result.editingPrompts[0].prompt, variant: "default" });
             } else if (result.editingPrompts.length === 1 && result.editingPrompts[0].type === "error") {
                  finalAiResponseContent.push({ type: 'text', title: 'Error', text: result.editingPrompts[0].prompt });
                  aiCallError = new Error(result.editingPrompts[0].prompt); 
@@ -652,7 +695,7 @@ export default function ChatPage() {
       }
 
       updateMessageById(assistantMessageIdToUse, finalAiResponseContent, false, false, requestParamsForRegeneration);
-      if (!isRegenerationCall && !messageIdToUpdate && !isUserMessageEdit) { 
+      if (!isRegenerationCall) { 
         currentApiKeyIndexRef.current = 0;
       }
       
@@ -667,50 +710,59 @@ export default function ChatPage() {
 
       if (isInternalServerError) {
          errorMessageText = `An internal error occurred with the AI service. Please try regenerating the response. Error: ${aiCallError.message || 'Internal Server Error'}`;
+         toast({title: "AI Internal Error", description: "The AI service encountered an internal error. Please try regenerating.", variant: "destructive"});
       } else if (isRateLimit && availableUserApiKeys.length > 0) {
         const currentAttemptedKeyIndex = currentApiKeyIndexRef.current;
         if (currentAttemptedKeyIndex < availableUserApiKeys.length - 1) {
           currentApiKeyIndexRef.current++; 
           errorMessageText = `The current API key (attempt ${currentAttemptedKeyIndex + 1}/${availableUserApiKeys.length}) may be rate-limited. Click 'Regenerate' to try the next available key (${currentApiKeyIndexRef.current + 1}/${availableUserApiKeys.length}). Original error: ${aiCallError.message}`;
+          toast({title: "API Key Rate Limited", description: `Key ${currentAttemptedKeyIndex + 1} may be rate-limited. Regenerate to try key ${currentApiKeyIndexRef.current + 1}.`, variant: "default"});
         } else {
           errorMessageText = `All configured API keys (${availableUserApiKeys.length}) may have hit rate limits, or the global key is limited. Please check your quotas or try again later. Original error: ${aiCallError.message}`;
+          toast({title: "All API Keys Limited", description: "All configured API keys might be rate-limited. Check quotas.", variant: "destructive"});
         }
       } else if (isRateLimit) { 
         errorMessageText = `The API request was rate-limited (${aiCallError.message}). This usually means the configured API key (either from your profile or the global .env key) has hit its limits. Please try again later or check your API key quotas.`;
+         toast({title: "API Rate Limited", description: "The default API key may be rate-limited. Check quotas or add keys in profile.", variant: "destructive"});
       } else if (isInvalidApiKey) {
          errorMessageText = `The API key used is invalid. Please check your profile settings or the GOOGLE_API_KEY environment variable. Error: ${aiCallError.message}`;
+         toast({title: "Invalid API Key", description: "The API key used is invalid. Check profile or .env file.", variant: "destructive"});
       }
       updateMessageById(assistantMessageIdToUse, [{ type: 'text', text: errorMessageText }], false, true, requestParamsForRegeneration);
     }
       
+    // Save session logic
     if (currentSession && userIdForHistory) {
         setMessages(prevMessages => {
-            const assistantMessageForSave = prevMessages.find(msg => msg.id === assistantMessageIdToUse);
-            
-            let messagesToSaveInSession: ChatMessage[] = [];
-            if (isUserMessageEdit && messageIdToUpdate) { 
-                const editedUserMessageIndex = prevMessages.findIndex(msg => msg.id === messageIdToUpdate);
-                if (editedUserMessageIndex !== -1) {
-                    messagesToSaveInSession = [
-                        ...prevMessages.slice(0, editedUserMessageIndex + 1), 
-                        ...(assistantMessageForSave ? [assistantMessageForSave] : []) 
-                    ];
-                } else { messagesToSaveInSession = prevMessages; } 
-            } else if (messageIdToUpdate) { 
-                messagesToSaveInSession = prevMessages.map(msg => msg.id === messageIdToUpdate ? (assistantMessageForSave || msg) : msg);
-            } else { 
-                messagesToSaveInSession = prevMessages;
+            let updatedMessagesWithLinks = [...prevMessages]; 
+
+            const finalAssistantMessageIndex = updatedMessagesWithLinks.findIndex(msg => msg.id === assistantMessageIdToUse);
+            if (finalAssistantMessageIndex !== -1 && userMessageIdForPrompting) {
+                updatedMessagesWithLinks[finalAssistantMessageIndex] = {
+                    ...updatedMessagesWithLinks[finalAssistantMessageIndex],
+                    promptedByMessageId: userMessageIdForPrompting,
+                };
             }
 
+            if (userMessageIdForPrompting) {
+                const userMessageIndex = updatedMessagesWithLinks.findIndex(msg => msg.id === userMessageIdForPrompting);
+                if (userMessageIndex !== -1) {
+                    updatedMessagesWithLinks[userMessageIndex] = {
+                        ...updatedMessagesWithLinks[userMessageIndex],
+                        linkedAssistantMessageId: assistantMessageIdToUse,
+                    };
+                }
+            }
+            
             const sessionToSave: ChatSession = {
                 ...currentSession,
-                messages: ensureMessagesHaveUniqueIds(messagesToSaveInSession), 
+                messages: ensureMessagesHaveUniqueIds(updatedMessagesWithLinks),
                 updatedAt: Date.now(),
-                userId: userIdForHistory, 
+                userId: userIdForHistory,
             };
             
             const shouldAttemptNameGeneration = (!messageIdToUpdate && !isUserMessageEdit) && 
-                (sessionToSave.messages.length <= ((userMessageId || isUserMessageEdit) ? 2 : 1) || !currentSession.name || currentSession.name === "New Chat");
+                (sessionToSave.messages.length <= ((userMessageIdForPrompting || isUserMessageEdit) ? 2 : 1) || !currentSession.name || currentSession.name === "New Chat");
 
             saveSession(
                 sessionToSave,
@@ -721,26 +773,27 @@ export default function ChatPage() {
                 console.error("Error saving session or generating chat name post-send:", error);
             });
             
-            return messagesToSaveInSession; 
+            return updatedMessagesWithLinks;
         });
     }
     setIsLoading(false);
   }, [
     addMessage, updateMessageById, profile, currentSession, 
     currentAttachedFilesData, saveSession, ensureMessagesHaveUniqueIds, 
-    userIdForHistory, profileLoading, // toast,
+    userIdForHistory, profileLoading, messages, toast 
   ]);
+
 
   useEffect(() => {
     if (pendingAiRequestAfterEdit) {
       handleSendMessage(
         pendingAiRequestAfterEdit.content,
-        'processMessage', // Default action after user edit
-        undefined,
+        'processMessage', 
+        undefined, 
         pendingAiRequestAfterEdit.attachments,
-        pendingAiRequestAfterEdit.isUserMessageEdit,
-        false, // isRegenerationCall
-        undefined // messageIdToUpdate for AI response (will be a new one)
+        pendingAiRequestAfterEdit.isUserMessageEdit, 
+        false, 
+        undefined 
       );
       setPendingAiRequestAfterEdit(null);
     }
@@ -749,15 +802,19 @@ export default function ChatPage() {
 
   const handleRegenerateMessage = useCallback((originalRequestDetailsFromMessage?: ChatMessage['originalRequest'] & { messageIdToRegenerate: string }) => {
     if (!originalRequestDetailsFromMessage || !originalRequestDetailsFromMessage.messageIdToRegenerate) {
+        toast({ title: "Regeneration Error", description: "Cannot regenerate: original request details missing.", variant: "destructive" });
         return;
     }
     if (profileLoading) {
+      toast({ title: "Profile Loading", description: "Please wait for profile to load before regenerating.", variant: "default" });
       return;
     }
     if (!profile) {
+      toast({ title: "Profile Error", description: "Profile not available for regeneration.", variant: "destructive" });
       return;
     }
      if (!currentSession) {
+        toast({ title: "Session Error", description: "No active session for regeneration.", variant: "destructive" });
         return;
     }
     
@@ -770,57 +827,75 @@ export default function ChatPage() {
             originalRequest.messageText, originalRequest.actionType,
             originalRequest.notes, originalRequest.attachedFilesData, 
             false, 
-            true, 
+            true,  
             messageIdToRegenerate 
         );
     } else {
+        toast({ title: "Regeneration Error", description: "Original request details are incomplete.", variant: "destructive" });
     }
-  }, [profileLoading, profile, currentSession, handleSendMessage]); 
+  }, [profileLoading, profile, currentSession, handleSendMessage, toast]); 
 
 
   const handleConfirmEditAndResendUserMessage = useCallback((messageId: string, newContent: string, originalAttachments?: AttachedFile[]) => {
     setMessages(prevMessages => {
       const messageIndex = prevMessages.findIndex(msg => msg.id === messageId);
-      if (messageIndex === -1) return prevMessages; 
-
-      const targetMessage = prevMessages[messageIndex];
+      if (messageIndex === -1) {
+        toast({ title: "Edit Error", description: "Original message to edit not found.", variant: "destructive"});
+        return prevMessages; 
+      }
+  
+      const targetMessage = { ...prevMessages[messageIndex] };
       
-      const newEditHistoryEntry = {
+      let linkedAssistantIdForHistory: string | undefined = targetMessage.linkedAssistantMessageId;
+      
+      if (!linkedAssistantIdForHistory && messageIndex + 1 < prevMessages.length) {
+        const assistantMessageThatFollowed = prevMessages[messageIndex + 1];
+        if (assistantMessageThatFollowed && 
+            assistantMessageThatFollowed.role === 'assistant' && 
+            assistantMessageThatFollowed.promptedByMessageId === targetMessage.id) {
+          linkedAssistantIdForHistory = assistantMessageThatFollowed.id;
+        }
+      }
+      
+      const currentVersionToArchive: EditHistoryEntry = {
         content: targetMessage.content, 
         timestamp: targetMessage.timestamp,
         attachedFiles: targetMessage.attachedFiles,
+        linkedAssistantMessageId: linkedAssistantIdForHistory,
       };
-
-      const updatedMessage: ChatMessage = {
-        ...targetMessage,
-        content: newContent, 
-        timestamp: Date.now(), 
-        attachedFiles: originalAttachments, 
-        editHistory: [...(targetMessage.editHistory || []), newEditHistoryEntry], 
-      };
-      
+  
+      targetMessage.editHistory = [...(targetMessage.editHistory || []), currentVersionToArchive];
+      targetMessage.content = newContent; 
+      targetMessage.timestamp = Date.now(); 
+      targetMessage.attachedFiles = originalAttachments; 
+      targetMessage.linkedAssistantMessageId = undefined; 
+  
       let messagesUpToEditedAndIncluding = prevMessages.slice(0, messageIndex);
-      messagesUpToEditedAndIncluding.push(updatedMessage); 
+      messagesUpToEditedAndIncluding.push(targetMessage); 
       
       setPendingAiRequestAfterEdit({
         content: newContent,
         attachments: originalAttachments,
-        isUserMessageEdit: true,
+        isUserMessageEdit: true, 
       });
       
       return ensureMessagesHaveUniqueIds(messagesUpToEditedAndIncluding);
     });
-  }, [ensureMessagesHaveUniqueIds, setMessages]);
+  }, [ensureMessagesHaveUniqueIds, toast, setMessages]); 
 
 
   const handleAction = useCallback((action: ActionType) => {
+    if (!profile) {
+       toast({ title: "Profile Not Loaded", description: "Please wait for your profile to load or set it up.", variant: "destructive" });
+       return;
+    }
     if (action === 'generateDeliveryTemplates' || action === 'generateRevision') {
       setModalActionType(action);
       setShowNotesModal(true);
     } else {
       handleSendMessage(inputMessage || '', action, undefined, undefined, false, false, undefined);
     }
-  }, [inputMessage, handleSendMessage]);
+  }, [inputMessage, handleSendMessage, profile, toast]);
 
   const submitModalNotes = () => {
     if (modalActionType) {
@@ -839,14 +914,14 @@ export default function ChatPage() {
     
     const uniqueProcessedFiles = new Map<string, AttachedFile>();
     currentAttachedFilesData.forEach(file => { 
-        uniqueProcessedFiles.set(`${file.name}_${file.size}`, file);
+        uniqueProcessedFiles.set(`${file.name}_${file.size || 0}`, file); 
     });
     processedNewFiles.forEach(file => { 
-        uniqueProcessedFiles.set(`${file.name}_${file.size}`, file);
+        uniqueProcessedFiles.set(`${file.name}_${file.size || 0}`, file);
     });
 
     setCurrentAttachedFilesData(Array.from(uniqueProcessedFiles.values()).slice(0,5)); 
-  }, [selectedFiles, currentAttachedFilesData]);
+  }, [selectedFiles, currentAttachedFilesData]); 
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) { handleFileSelectAndProcess(Array.from(event.target.files)); }
@@ -892,26 +967,30 @@ export default function ChatPage() {
 
   const handleSyncWithDriveClick = async () => {
     if (!authUser) {
+        toast({ title: "Login Required", description: "Please log in to sync with Google Drive.", variant: "default" });
         return;
     }
     
     const result = await syncWithDrive(); 
     
     if (result === 'TOKEN_REFRESH_NEEDED') {
+        toast({ title: "Google Authentication Needed", description: "Please re-authenticate with Google to enable Drive sync.", variant: "default" });
         try {
             await triggerGoogleSignInFromAuth(); 
             setTimeout(async () => { 
+              toast({ title: "Attempting Sync Again...", description: "Re-attempting Drive sync after authentication." });
               await syncWithDrive(); 
             }, 1500);
         } catch (error) {
             console.error("ChatPage (handleSyncWithDriveClick): Error during Google re-authentication:", error);
+            toast({ title: "Google Auth Error", description: "Failed to re-authenticate with Google.", variant: "destructive" });
         }
     }
   };
 
   const currentAttachedFilesDataLength = currentAttachedFilesData.length;
 
-  if (authLoading || profileLoading || historyHookLoading || !userIdForHistory || !currentSession) {
+  if (authLoading || (!currentSession && !profileLoading && !historyHookLoading) || !userIdForHistory) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-var(--header-height,0px))] bg-gradient-to-b from-background-start-hsl to-background-end-hsl">
         <div className="glass-panel p-8 rounded-xl shadow-2xl flex flex-col items-center animate-float">
@@ -929,16 +1008,19 @@ export default function ChatPage() {
   if (!authUser) {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-var(--header-height,0px))] bg-gradient-to-br from-background-start-hsl to-background-end-hsl text-center p-4">
-          <Dialog open={isWelcomeLoginModalOpen} onOpenChange={setIsWelcomeLoginModalOpen}>
-              <div className="glass-panel p-8 md:p-12 rounded-2xl shadow-2xl flex flex-col items-center animate-fade-in max-w-lg w-full">
-                  <div className="relative mb-6">
-                      <div className="absolute -inset-2 rounded-full bg-primary/10 blur-xl animate-pulse-slow opacity-70"></div>
-                      <BotIcon className="w-20 h-20 md:w-24 md:h-24 text-primary relative z-10 animate-float" />
-                  </div>
-                  <h1 className="text-3xl md:text-4xl font-bold mb-4 text-gradient">Welcome to DesAInR Pro!</h1>
-                  <p className="text-lg md:text-xl text-foreground/80 mb-8">
-                      Your AI-powered design assistant. Please log in to continue.
-                  </p>
+          <div className="glass-panel p-8 md:p-12 rounded-2xl shadow-2xl flex flex-col items-center animate-fade-in max-w-lg w-full">
+              <div className="relative mb-6">
+                  <div className="absolute -inset-2 rounded-full bg-primary/10 blur-xl animate-pulse-slow opacity-70"></div>
+                  <BotIcon className="w-20 h-20 md:w-24 md:h-24 text-primary relative z-10 animate-float" />
+              </div>
+              <h1 className="text-3xl md:text-4xl font-bold mb-4 text-gradient">Welcome to DesAInR Pro!</h1>
+              <p className="text-lg md:text-xl text-foreground/80 mb-6">
+                  Your AI-powered design assistant.
+              </p>
+              <p className="text-base text-foreground/70 mb-8">
+                  Please log in to continue and access your chat history.
+              </p>
+              <Dialog open={isWelcomeLoginModalOpen} onOpenChange={setIsWelcomeLoginModalOpen}>
                   <DialogTrigger asChild>
                       <Button 
                           variant="default" 
@@ -950,18 +1032,18 @@ export default function ChatPage() {
                           <LogIn className="mr-2 h-5 w-5" /> Login with Google
                       </Button>
                   </DialogTrigger>
-                  <p className="text-sm text-foreground/60">
-                      New user? Login with Google will create an account for you.
-                  </p>
-              </div>
-              <DialogContent className="sm:max-w-md glass-panel backdrop-blur-xl border border-border dark:border-primary/10 shadow-xl dark:shadow-2xl rounded-xl animate-fade-in">
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-xl opacity-30 pointer-events-none"></div>
-                  <DialogHeader className="relative z-10">
-                      <DialogTitle className="text-xl font-bold text-primary dark:bg-clip-text dark:text-transparent dark:bg-gradient-to-r dark:from-primary dark:to-secondary">Login to DesAInR</DialogTitle>
-                  </DialogHeader>
-                  <LoginForm onSuccess={() => setIsWelcomeLoginModalOpen(false)} />
-              </DialogContent>
-          </Dialog>
+                  <DialogContent className="sm:max-w-md glass-panel backdrop-blur-xl border border-border dark:border-primary/10 shadow-xl dark:shadow-2xl rounded-xl animate-fade-in">
+                      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-xl opacity-30 pointer-events-none"></div>
+                      <DialogHeader className="relative z-10">
+                          <DialogTitle className="text-xl font-bold text-primary dark:bg-clip-text dark:text-transparent dark:bg-gradient-to-r dark:from-primary dark:to-secondary">Login to DesAInR</DialogTitle>
+                      </DialogHeader>
+                      <LoginForm onSuccess={() => setIsWelcomeLoginModalOpen(false)} />
+                  </DialogContent>
+              </Dialog>
+              <p className="text-sm text-foreground/60">
+                  Login with Google will create an account if you're new.
+              </p>
+          </div>
       </div>
     );
   }
@@ -1120,7 +1202,7 @@ export default function ChatPage() {
                 onClick={() => fileInputRef.current?.click()}
                 className={cn(
                     "backdrop-blur-sm border border-primary/20 shadow-sm hover:shadow-md hover:scale-105 hover:text-primary hover:bg-primary/10 transition-all duration-300",
-                    isMobile ? "w-full py-3 text-sm flex items-center justify-center" : "" 
+                    isMobile ? "w-full py-3 text-sm flex items-center justify-center p-2" : "px-3 py-1.5 md:px-3.5 md:py-2" 
                 )}
                 aria-label="Attach files"
               >
