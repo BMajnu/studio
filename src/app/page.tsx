@@ -1253,7 +1253,7 @@ export default function ChatPage() {
     <div className="flex h-[calc(100vh-var(--header-height,0px))] bg-gradient-to-br from-background-start-hsl to-background-end-hsl">
       {isMobile && isHistoryPanelOpen && (
         <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={() => setIsHistoryPanelOpen(false)}>
-          <div className="absolute left-0 top-0 h-full w-4/5 max-w-xs glass-panel border-r shadow-2xl animate-slide-in-left" onClick={(e) => e.stopPropagation()}>
+          <div className="absolute left-0 top-0 h-full w-4/5 max-w-[260px] glass-panel border-r shadow-2xl animate-slide-in-left" onClick={(e) => e.stopPropagation()}>
             <HistoryPanel
               sessions={historyMetadata} activeSessionId={currentSession?.id || null}
               onSelectSession={handleSelectSession} onNewChat={handleNewChat}
@@ -1267,7 +1267,7 @@ export default function ChatPage() {
         <div
           className={cn(
             "glass-panel shrink-0 transition-all duration-300 ease-in-out h-full overflow-y-auto",
-            isHistoryPanelOpen ? "w-[300px] p-0 border-r" : "w-0 border-r-0 opacity-0 p-0"
+            isHistoryPanelOpen ? "w-[260px] p-0 border-r" : "w-0 border-r-0 opacity-0 p-0"
           )}
         >
           {isHistoryPanelOpen && (
