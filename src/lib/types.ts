@@ -115,6 +115,7 @@ export interface ChatSession {
   updatedAt: number; 
   userId: string; 
   driveFileId?: string; // Optional: Actual Google Drive file ID if synced
+  modelId?: string; // Added for storing model used for name generation or general session model
 }
 
 export interface DriveFile {

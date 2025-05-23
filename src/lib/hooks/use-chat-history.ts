@@ -169,91 +169,165 @@ const createLeanSession = (session: ChatSession): ChatSession => {
 
 // Queue for processing name generation tasks outside React rendering
 const nameGenerationQueue = new Map<string, boolean>();
+// Track retry attempts for sessions that don't have enough messages yet
+const nameGenerationRetries = new Map<string, number>();
+const MAX_RETRIES = 3; // Maximum number of retries before proceeding anyway
 
 // Shared function to process the name generation queue
 const processNameGenerationQueue = async () => {
-  // Only process if there are items in the queue
-  if (nameGenerationQueue.size === 0) return;
+  console.log(`processNameGenerationQueue: Invoked. Current queue size: ${nameGenerationQueue.size}`);
+  if (nameGenerationQueue.size === 0) {
+    console.log("processNameGenerationQueue: Queue is empty. Returning.");
+    return;
+  }
+
+  const sessionId = nameGenerationQueue.keys().next().value; 
+  if (!sessionId) {
+    console.log("processNameGenerationQueue: Could not get sessionId from queue though size > 0. This is unexpected.");
+    return;
+  }
   
-  // Clone the queue and clear the original to prevent double processing
-  const entriesToProcess = Array.from(nameGenerationQueue.keys());
-  entriesToProcess.forEach(id => nameGenerationQueue.delete(id));
-  
-  for (const sessionId of entriesToProcess) {
-    // Extract the necessary data from localStorage
-    try {
-      const sessionJson = localStorage.getItem(`${CHAT_SESSION_PREFIX_LS_PREFIX}${sessionId}`);
-      if (!sessionJson) continue;
-      
+  console.log(`processNameGenerationQueue: Processing sessionId: ${sessionId}`);
+  try {
+    // Format is: desainr_chat_session_ls_v3_{userId}_{sessionTimestamp}_{randomId}
+    // We need just the localStorage key which is: desainr_chat_session_ls_v3_{userId}_
+    const userId = sessionId.split('_')[0]; // Extract userId from the sessionId
+    const localStorageKey = `${CHAT_SESSION_PREFIX_LS_PREFIX}${userId}_`;
+    console.log(`processNameGenerationQueue: Using localStorage key prefix: ${localStorageKey} for session ${sessionId}`);
+    
+    const sessionJson = localStorage.getItem(`${localStorageKey}${sessionId}`);
+    if (!sessionJson) {
+      console.log(`processNameGenerationQueue: No sessionJson found in localStorage for ${sessionId}. Skipping name generation for this item.`);
+    } else {
       const session = JSON.parse(sessionJson);
+      console.log(`processNameGenerationQueue: Successfully found and parsed sessionJson for ${sessionId}. Session message count: ${session.messages.length}`);
+      
       const userMessage = session.messages.find((m: ChatMessage) => m.role === 'user');
-      if (!userMessage) continue;
-      
-      const messageSummary = getMessageTextPreview(userMessage);
-      const modelId = session.modelId || DEFAULT_MODEL_ID;
-      let apiKey: string | undefined = undefined;
-      try {
-        // Try to get user API key from storage if needed
-        const userPrefs = localStorage.getItem(`user_preferences_${session.userId}`);
-        if (userPrefs) {
-          const prefs = JSON.parse(userPrefs);
-          apiKey = prefs.geminiApiKey;
-        }
-      } catch (e) {
-        console.error("Error reading API key from preferences:", e);
-      }
-      
-      try {
-        const nameResult = await generateChatName({
-          firstUserMessage: messageSummary,
-          modelId,
-          userApiKey: apiKey,
-        });
-        
-        if (nameResult.chatName) {
-          // Read the session again to ensure we have latest data
-          const currentSessionJson = localStorage.getItem(`${CHAT_SESSION_PREFIX_LS_PREFIX}${sessionId}`);
-          if (!currentSessionJson) continue;
-          
-          const currentSession = JSON.parse(currentSessionJson);
-          currentSession.name = nameResult.chatName;
-          
-          // Save the updated session
-          localStorage.setItem(`${CHAT_SESSION_PREFIX_LS_PREFIX}${sessionId}`, JSON.stringify(createLeanSession(currentSession)));
-          
-          // Update history metadata
-          const historyIndex = localStorage.getItem(`${CHAT_HISTORY_INDEX_KEY_LS_PREFIX}${session.userId}`);
-          if (historyIndex) {
-            const metadata = JSON.parse(historyIndex);
-            const metaIndex = metadata.findIndex((m: ChatSessionMetadata) => m.id === sessionId);
-            
-            if (metaIndex >= 0) {
-              metadata[metaIndex].name = nameResult.chatName;
-              localStorage.setItem(`${CHAT_HISTORY_INDEX_KEY_LS_PREFIX}${session.userId}`, JSON.stringify(metadata));
+      if (!userMessage) {
+         console.log(`processNameGenerationQueue: No user message found in session ${sessionId} from localStorage. Session messages count: ${session.messages.length}. Skipping name generation.`);
+      } else {
+          console.log(`processNameGenerationQueue: Found user message in session ${sessionId}. User message role: ${userMessage.role}, content type: ${typeof userMessage.content}`);
+          const messageSummary = getMessageTextPreview(userMessage);
+          const modelId = session.modelId || DEFAULT_MODEL_ID;
+          let apiKey: string | undefined = undefined;
+          const userPrefsKey = `user_preferences_${session.userId}`;
+          console.log(`processNameGenerationQueue: Attempting to read user preferences. Session UserID: ${session.userId}, LocalStorage Key: ${userPrefsKey}`);
+          try {
+            const userPrefs = localStorage.getItem(userPrefsKey);
+            console.log(`processNameGenerationQueue: Raw userPrefs from localStorage for key ${userPrefsKey}:`, userPrefs);
+            if (userPrefs) {
+              const prefs = JSON.parse(userPrefs);
+              console.log(`processNameGenerationQueue: Parsed userPrefs for key ${userPrefsKey}:`, prefs);
+              apiKey = prefs.geminiApiKey;
+              console.log(`processNameGenerationQueue: API key from prefs.geminiApiKey for key ${userPrefsKey}: ${apiKey === undefined ? 'undefined' : '********'}`);
+            } else {
+              console.log(`processNameGenerationQueue: No userPrefs found in localStorage for key ${userPrefsKey}.`);
             }
+          } catch (e) {
+            console.error(`processNameGenerationQueue: Error reading/parsing API key from preferences for key ${userPrefsKey}:`, e);
           }
           
-          // Dispatch a custom event to notify any active components about the name change
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('chat-name-updated', { 
-              detail: { sessionId, newName: nameResult.chatName } 
-            }));
+          console.log(`processNameGenerationQueue: About to call generateChatName for session ${sessionId}. User message summary: "${messageSummary}". Model ID: ${modelId}. API Key defined: ${!!apiKey}`);
+          try {
+            const nameResult = await generateChatName({
+              firstUserMessage: messageSummary,
+              modelId,
+              userApiKey: apiKey,
+            });
+            
+            if (nameResult.chatName) {
+              const userId = sessionId.split('_')[0]; // Extract userId from the sessionId
+              const localStorageKey = `${CHAT_SESSION_PREFIX_LS_PREFIX}${userId}_`;
+              
+              const currentSessionJson = localStorage.getItem(`${localStorageKey}${sessionId}`);
+              if (!currentSessionJson) {
+                  console.warn(`processNameGenerationQueue: Session ${sessionId} disappeared from localStorage before name could be applied.`);
+              } else {
+                  const currentSession = JSON.parse(currentSessionJson);
+                  currentSession.name = nameResult.chatName;
+                  localStorage.setItem(`${localStorageKey}${sessionId}`, JSON.stringify(createLeanSession(currentSession)));
+                  
+                  const historyIndexKey = `${CHAT_HISTORY_INDEX_KEY_LS_PREFIX}${session.userId}`;
+                  const historyIndex = localStorage.getItem(historyIndexKey);
+                  if (historyIndex) {
+                    const metadata = JSON.parse(historyIndex);
+                    const metaIndex = metadata.findIndex((m: ChatSessionMetadata) => m.id === sessionId);
+                    if (metaIndex >= 0) {
+                      metadata[metaIndex].name = nameResult.chatName;
+                      localStorage.setItem(historyIndexKey, JSON.stringify(metadata));
+                    }
+                  }
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('chat-name-updated', { 
+                      detail: { sessionId, newName: nameResult.chatName } 
+                    }));
+                  }
+                }
+            }
+          } catch (error) {
+            console.error(`processNameGenerationQueue: Error calling generateChatName for session ${sessionId}:`, error);
           }
-        }
-      } catch (error) {
-        console.error(`Error generating name for session ${sessionId}:`, error);
       }
-    } catch (error) {
-      console.error(`Error processing name generation for session ${sessionId}:`, error);
+    }
+  } catch (error) {
+    console.error(`processNameGenerationQueue: Outer error for session ${sessionId}:`, error);
+  } finally {
+    nameGenerationQueue.delete(sessionId);
+    console.log(`processNameGenerationQueue: Finished processing ${sessionId}. Queue size now: ${nameGenerationQueue.size}`);
+    if (nameGenerationQueue.size > 0) {
+      console.log("processNameGenerationQueue: More items in queue. Scheduling next run.");
+      setTimeout(processNameGenerationQueue, 0);
+    } else {
+      console.log("processNameGenerationQueue: Queue is now empty.");
     }
   }
 };
 
 // Function to queue a session for name generation
 const queueNameGeneration = (sessionId: string) => {
-  if (nameGenerationQueue.has(sessionId)) return; // Already queued
+  console.log(`queueNameGeneration: Attempting to queue session ${sessionId}. Current queue size: ${nameGenerationQueue.size}`);
+  if (nameGenerationQueue.has(sessionId)) {
+    console.log(`queueNameGeneration: Session ${sessionId} already in queue. Skipping.`);
+    return; // Already queued
+  }
+  
+  // Check if session exists and has at least one message
+  try {
+    const userId = sessionId.split('_')[0]; // Extract userId from the sessionId
+    const localStorageKey = `${CHAT_SESSION_PREFIX_LS_PREFIX}${userId}_`;
+    const sessionJson = localStorage.getItem(`${localStorageKey}${sessionId}`);
+    
+    if (sessionJson) {
+      const session = JSON.parse(sessionJson);
+      const retryCount = nameGenerationRetries.get(sessionId) || 0;
+      
+      // If session exists but has only one or no messages
+      if (!session.messages || session.messages.length <= 1) {
+        // If we've tried too many times, proceed anyway
+        if (retryCount >= MAX_RETRIES) {
+          console.log(`queueNameGeneration: Session ${sessionId} has ${session.messages?.length || 0} messages after ${retryCount} retries. Proceeding with name generation anyway.`);
+          nameGenerationRetries.delete(sessionId); // Clear retry tracking
+        } else {
+          // Increment retry count
+          nameGenerationRetries.set(sessionId, retryCount + 1);
+          console.log(`queueNameGeneration: Session ${sessionId} has ${session.messages?.length || 0} messages. Delaying name generation to wait for AI response. Retry ${retryCount + 1}/${MAX_RETRIES}`);
+          // Wait 5 seconds and try again
+          setTimeout(() => queueNameGeneration(sessionId), 5000);
+          return;
+        }
+      } else {
+        // Clean up retry tracking if it exists
+        if (nameGenerationRetries.has(sessionId)) {
+          nameGenerationRetries.delete(sessionId);
+        }
+      }
+    }
+  } catch (e) {
+    console.error(`queueNameGeneration: Error checking session message count:`, e);
+  }
   
   nameGenerationQueue.set(sessionId, true);
+  console.log(`queueNameGeneration: Session ${sessionId} added to queue. New queue size: ${nameGenerationQueue.size}`);
   
   // Process the queue on next tick
   setTimeout(processNameGenerationQueue, 0);
@@ -533,11 +607,16 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
       };
     });
     
-    let sessionToSave = { 
+    let sessionToSave: ChatSession = { 
       ...session, 
       updatedAt: Date.now(), 
       userId: effectiveUserId,
-      messages: cleanedMessages 
+      messages: cleanedMessages,
+      // If attempting name generation and a specific model is provided for it,
+      // set it on the session object. This will be picked up by processNameGenerationQueue.
+      modelId: attemptNameGeneration && modelIdForNameGeneration 
+                 ? modelIdForNameGeneration 
+                 : session.modelId, 
     };
     
     const sessionIsNewAndNeedsName = attemptNameGeneration && (sessionToSave.name === "New Chat" || !sessionToSave.name);
@@ -715,11 +794,13 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
     setIsSyncing(true);
     if (!authUser || !authUser.uid) {
         toast({ title: "Sync Unavailable", description: "Please log in with Google to sync with Google Drive.", variant: "default" });
-        setIsSyncing(false); return 'FAILED';
+        setIsSyncing(false); 
+        return 'FAILED';
     }
     if (authUser.uid !== effectiveUserId) {
         toast({ title: "Sync User Mismatch", description: "Cannot sync, active user differs from Google authenticated user.", variant: "destructive" });
-        setIsSyncing(false); return 'FAILED';
+        setIsSyncing(false); 
+        return 'FAILED';
     }
 
     let currentToken = googleAccessToken;
