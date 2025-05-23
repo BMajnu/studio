@@ -1,4 +1,3 @@
-
 // src/lib/hooks/use-chat-history.ts
 "use client";
 
@@ -19,9 +18,26 @@ const MAX_ATTACHMENT_TEXT_LENGTH = 200; // For attachment textContent
 
 const getMessageTextPreview = (message: ChatMessage | undefined): string => {
   if (!message) return 'New Chat';
+  
+  // If the message is loading and not an error, return processing status
+  if (message.isLoading === true && !message.isError) {
+    return "Processing...";
+  }
+  
+  // If message was in error state
+  if (message.isError) {
+    return "Error occurred";
+  }
+  
   if (typeof message.content === 'string') {
+    // Only treat content with the exact string "Processing..." as a placeholder
+    // This allows real content that happens to contain the word to display correctly
+    if (message.content === 'Processing...') {
+      return "Completed";
+    }
     return message.content.substring(0, 50).trim() || "Chat started";
   }
+  
   if (Array.isArray(message.content)) {
     for (const part of message.content) {
         switch (part.type) {
@@ -39,6 +55,13 @@ const getMessageTextPreview = (message: ChatMessage | undefined): string => {
             case 'translation_group':
                 if (part.title) return `Analysis: ${part.title.substring(0, 40).trim()}`;
                 if (part.english?.analysis) return `Eng Analysis: ${part.english.analysis.substring(0, 30).trim()}`;
+                break;
+            case 'custom':
+                if (part.title) return `Custom: ${part.title.substring(0, 40).trim()}`;
+                if (part.text) return `Custom instruction: ${part.text.substring(0, 40).trim()}`;
+                break;
+            case 'suggested_replies':
+                return 'Suggested Replies';
                 break;
         }
     }
@@ -144,6 +167,97 @@ const createLeanSession = (session: ChatSession): ChatSession => {
     return { ...session, messages: leanMessages };
 };
 
+// Queue for processing name generation tasks outside React rendering
+const nameGenerationQueue = new Map<string, boolean>();
+
+// Shared function to process the name generation queue
+const processNameGenerationQueue = async () => {
+  // Only process if there are items in the queue
+  if (nameGenerationQueue.size === 0) return;
+  
+  // Clone the queue and clear the original to prevent double processing
+  const entriesToProcess = Array.from(nameGenerationQueue.keys());
+  entriesToProcess.forEach(id => nameGenerationQueue.delete(id));
+  
+  for (const sessionId of entriesToProcess) {
+    // Extract the necessary data from localStorage
+    try {
+      const sessionJson = localStorage.getItem(`${CHAT_SESSION_PREFIX_LS_PREFIX}${sessionId}`);
+      if (!sessionJson) continue;
+      
+      const session = JSON.parse(sessionJson);
+      const userMessage = session.messages.find((m: ChatMessage) => m.role === 'user');
+      if (!userMessage) continue;
+      
+      const messageSummary = getMessageTextPreview(userMessage);
+      const modelId = session.modelId || DEFAULT_MODEL_ID;
+      let apiKey: string | undefined = undefined;
+      try {
+        // Try to get user API key from storage if needed
+        const userPrefs = localStorage.getItem(`user_preferences_${session.userId}`);
+        if (userPrefs) {
+          const prefs = JSON.parse(userPrefs);
+          apiKey = prefs.geminiApiKey;
+        }
+      } catch (e) {
+        console.error("Error reading API key from preferences:", e);
+      }
+      
+      try {
+        const nameResult = await generateChatName({
+          firstUserMessage: messageSummary,
+          modelId,
+          userApiKey: apiKey,
+        });
+        
+        if (nameResult.chatName) {
+          // Read the session again to ensure we have latest data
+          const currentSessionJson = localStorage.getItem(`${CHAT_SESSION_PREFIX_LS_PREFIX}${sessionId}`);
+          if (!currentSessionJson) continue;
+          
+          const currentSession = JSON.parse(currentSessionJson);
+          currentSession.name = nameResult.chatName;
+          
+          // Save the updated session
+          localStorage.setItem(`${CHAT_SESSION_PREFIX_LS_PREFIX}${sessionId}`, JSON.stringify(createLeanSession(currentSession)));
+          
+          // Update history metadata
+          const historyIndex = localStorage.getItem(`${CHAT_HISTORY_INDEX_KEY_LS_PREFIX}${session.userId}`);
+          if (historyIndex) {
+            const metadata = JSON.parse(historyIndex);
+            const metaIndex = metadata.findIndex((m: ChatSessionMetadata) => m.id === sessionId);
+            
+            if (metaIndex >= 0) {
+              metadata[metaIndex].name = nameResult.chatName;
+              localStorage.setItem(`${CHAT_HISTORY_INDEX_KEY_LS_PREFIX}${session.userId}`, JSON.stringify(metadata));
+            }
+          }
+          
+          // Dispatch a custom event to notify any active components about the name change
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('chat-name-updated', { 
+              detail: { sessionId, newName: nameResult.chatName } 
+            }));
+          }
+        }
+      } catch (error) {
+        console.error(`Error generating name for session ${sessionId}:`, error);
+      }
+    } catch (error) {
+      console.error(`Error processing name generation for session ${sessionId}:`, error);
+    }
+  }
+};
+
+// Function to queue a session for name generation
+const queueNameGeneration = (sessionId: string) => {
+  if (nameGenerationQueue.has(sessionId)) return; // Already queued
+  
+  nameGenerationQueue.set(sessionId, true);
+  
+  // Process the queue on next tick
+  setTimeout(processNameGenerationQueue, 0);
+};
 
 export function useChatHistory(userIdFromProfile: string | undefined) {
   const { user: authUser, googleAccessToken, signInWithGoogle: triggerGoogleSignInFromAuth } = useAuth();
@@ -398,7 +512,34 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
         return session;
     }
 
-    let sessionToSave = { ...session, updatedAt: Date.now(), userId: effectiveUserId };
+    // Clean up any lingering loading states before saving
+    const cleanedMessages = session.messages.map(msg => {
+      let finalContent = msg.content;
+      // If the original message was actively loading AND its content is the "Processing..." placeholder
+      if (msg.isLoading === true && typeof msg.content === 'string' && msg.content === 'Processing...') {
+        // This signifies an interrupted generation if saved in this state.
+        // Store its content as an empty array to represent this.
+        finalContent = []; 
+      }
+
+      return {
+        ...msg,
+        content: finalContent,
+        isLoading: false, // Represent saved messages as "not currently loading"
+        // Preserve error state if it's a real error, not just a "Processing..." placeholder that failed.
+        isError: (msg.isError && typeof msg.content !== 'string') ? true : // If it's a rich error object
+                 (msg.isError && typeof msg.content === 'string' && msg.content !== 'Processing...') ? true : // If it's an error string (not placeholder)
+                 false,
+      };
+    });
+    
+    let sessionToSave = { 
+      ...session, 
+      updatedAt: Date.now(), 
+      userId: effectiveUserId,
+      messages: cleanedMessages 
+    };
+    
     const sessionIsNewAndNeedsName = attemptNameGeneration && (sessionToSave.name === "New Chat" || !sessionToSave.name);
 
     // Save to localStorage first
@@ -417,110 +558,95 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
 
     // Update metadata immediately with current/placeholder name
     if (isMounted.current) {
-      setHistoryMetadata(prev => {
-        const newMeta: ChatSessionMetadata = {
-          id: sessionToSave.id,
-          name: sessionToSave.name || `Chat ${new Date(sessionToSave.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
-          lastMessageTimestamp: sessionToSave.updatedAt,
-          preview: getMessageTextPreview(sessionToSave.messages[sessionToSave.messages.length - 1]),
-          messageCount: sessionToSave.messages.length,
-          isDriveSession: prev.find(m => m.id === sessionToSave.id)?.isDriveSession || false, // Preserve existing Drive status initially
-          driveFileId: prev.find(m => m.id === sessionToSave.id)?.driveFileId,
-        };
-        const otherMeta = prev.filter(meta => meta.id !== sessionToSave.id);
-        const updatedFullHistory = deduplicateMetadata([newMeta, ...otherMeta]);
-        try {
-          localStorage.setItem(chatHistoryIndexKeyLS, JSON.stringify(updatedFullHistory));
-        } catch (error) {
-           if (isQuotaExceededError(error)) console.error("saveSession: Failed to save history index (quota).", error);
-           else console.error("saveSession: Failed to save history index.", error);
-        }
-        return updatedFullHistory;
-      });
-    }
-
-    // Asynchronous AI name generation and Drive save
-    (async () => {
-      let finalName = sessionToSave.name;
-      let driveFileIdFromSave: string | undefined = sessionToSave.driveFileId;
-      let driveSavedSuccessfully = false;
-
-      if (sessionIsNewAndNeedsName) {
-        try {
-          const nameInput: GenerateChatNameInput = {
-            firstUserMessage: getMessageTextPreview(sessionToSave.messages.find(m => m.role === 'user')) || "Chat conversation",
-            modelId: modelIdForNameGeneration || DEFAULT_MODEL_ID,
-            userApiKey: userApiKeyForNameGeneration,
-          };
-          console.log(`saveSession (async): Attempting to generate name for session ${sessionToSave.id}`);
-          const nameOutput = await generateChatName(nameInput);
-          if (nameOutput.chatName) {
-            finalName = nameOutput.chatName;
-            sessionToSave.name = finalName; // Update the session object for Drive save
-            // Update localStorage with the new name (full session)
-            try {
-              localStorage.setItem(`${chatSessionPrefixLS}${sessionToSave.id}`, JSON.stringify(createLeanSession(sessionToSave)));
-              console.log(`saveSession (async): Session ${sessionToSave.id} updated in localStorage with new name: ${finalName}.`);
-            } catch (lsError) { console.error("saveSession (async): Error updating named session in LS:", lsError); }
-
-          }
-        } catch (nameGenError: any) {
-          console.error(`saveSession (async): Failed to generate chat name for session ${sessionToSave.id}:`, nameGenError);
-          if (finalName === "New Chat" || !finalName) {
-             const date = new Date(sessionToSave.createdAt);
-             finalName = `Chat ${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-             sessionToSave.name = finalName;
-          }
-        }
-      }
-
-      if (googleAccessToken && appDriveFolderId && authUser && authUser.uid === effectiveUserId) {
-        console.log(`saveSession (async): Attempting background save of session ${sessionToSave.id} (Name: ${finalName}) to Google Drive.`);
-        try {
-          const driveFile = await saveSessionToDrive(googleAccessToken, appDriveFolderId, sessionToSave.id, sessionToSave);
-          if (driveFile && driveFile.id) {
-            console.log(`saveSession (async): Session ${sessionToSave.id} saved to Drive. Drive File ID: ${driveFile.id}`);
-            driveFileIdFromSave = driveFile.id;
-            driveSavedSuccessfully = true;
-          } else {
-            console.warn(`saveSession (async): Background save to Drive failed for ${sessionToSave.id}.`);
-            if (isMounted.current) toast({ title: "Drive Sync Warning", description: `Session "${finalName}" saved locally, but failed to sync to Google Drive.`, variant: "default"});
-          }
-        } catch (driveError: any) {
-          console.error(`saveSession (async): Error during background save of ${sessionToSave.id} to Drive:`, driveError);
-          if (isMounted.current) toast({ title: "Drive Sync Error", description: `Failed to sync session "${finalName}" to Google Drive: ${driveError.message}`, variant: "destructive"});
-        }
-      } else if (authUser && authUser.uid === effectiveUserId && !googleAccessToken) {
-          console.log(`saveSession (async): Google user, but no access token. Skipping background Drive save for ${sessionToSave.id}. Will sync on next manual 'Sync' action.`);
-      }
-
-      // Final metadata update after potential name change and Drive save
-      if (isMounted.current) {
+      setTimeout(() => {
+        if (!isMounted.current) return;
         setHistoryMetadata(prev => {
-          const existingMeta = prev.find(meta => meta.id === sessionToSave.id);
-          const updatedMeta: ChatSessionMetadata = {
+          const latestMessage = sessionToSave.messages.length > 0 ? 
+            sessionToSave.messages[sessionToSave.messages.length - 1] : undefined;
+          
+          const newMeta: ChatSessionMetadata = {
             id: sessionToSave.id,
-            name: finalName,
+            name: sessionToSave.name || `Chat ${new Date(sessionToSave.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
             lastMessageTimestamp: sessionToSave.updatedAt,
-            preview: getMessageTextPreview(sessionToSave.messages[sessionToSave.messages.length - 1]),
+            preview: getMessageTextPreview(latestMessage),
             messageCount: sessionToSave.messages.length,
-            isDriveSession: driveSavedSuccessfully || existingMeta?.isDriveSession || !!driveFileIdFromSave,
-            driveFileId: driveFileIdFromSave || existingMeta?.driveFileId,
+            isDriveSession: prev.find(m => m.id === sessionToSave.id)?.isDriveSession || false, 
+            driveFileId: prev.find(m => m.id === sessionToSave.id)?.driveFileId,
           };
           const otherMeta = prev.filter(meta => meta.id !== sessionToSave.id);
-          const updatedFullHistory = deduplicateMetadata([updatedMeta, ...otherMeta]);
+          const updatedFullHistory = deduplicateMetadata([newMeta, ...otherMeta]);
           try {
             localStorage.setItem(chatHistoryIndexKeyLS, JSON.stringify(updatedFullHistory));
           } catch (error) {
-             if (isQuotaExceededError(error)) console.error("saveSession (async): Failed to save history index after name/Drive (quota).", error);
-             else console.error("saveSession (async): Failed to save history index after name/Drive.", error);
+             if (isQuotaExceededError(error)) console.error("saveSession: Failed to save history index (quota).", error);
+             else console.error("saveSession: Failed to save history index.", error);
           }
           return updatedFullHistory;
         });
+      }, 0);
+    }
+
+    // Queue name generation as a separate process outside of React rendering
+    if (sessionIsNewAndNeedsName) {
+      queueNameGeneration(sessionToSave.id);
+    }
+
+    // Asynchronous Drive save without name generation
+    (async () => {
+      let driveFileIdToUse: string | undefined = sessionToSave.driveFileId;
+      let driveSavedSuccessFlag = false;
+
+      // Use current session name for Drive operations
+      const sessionForDriveOp = { ...sessionToSave };
+
+      if (googleAccessToken && appDriveFolderId && authUser && authUser.uid === effectiveUserId) {
+        try {
+          const driveFile = await saveSessionToDrive(googleAccessToken, appDriveFolderId, sessionForDriveOp.id, sessionForDriveOp);
+          if (driveFile && driveFile.id) {
+            driveFileIdToUse = driveFile.id;
+            driveSavedSuccessFlag = true;
+          }
+        } catch (driveError: any) {
+          console.error(`saveSession (async IIFE): Error during background save of ${sessionForDriveOp.id} to Drive:`, driveError);
+          if (isMounted.current) toast({ title: "Drive Sync Error", description: `Failed to sync session \"${sessionForDriveOp.name}\" to Google Drive: ${driveError.message}`, variant: "destructive"});
+        }
+      }
+
+      // If Drive status changed, update metadata
+      if (isMounted.current && driveSavedSuccessFlag) {
+        setTimeout(() => {
+          if (!isMounted.current) return;
+          setHistoryMetadata(prev => {
+            const existingMetaIndex = prev.findIndex(meta => meta.id === sessionToSave.id);
+            if (existingMetaIndex === -1) {
+                console.warn(`saveSession (async IIFE metadata update): session ID ${sessionToSave.id} not found in prev metadata. This might happen if it was deleted.`);
+                return prev; // Session might have been deleted in the meantime
+            }
+
+            const updatedMetaEntry = { 
+                ...prev[existingMetaIndex],
+                lastMessageTimestamp: Date.now(), // Update timestamp to reflect this change
+                isDriveSession: true, // If drive save succeeded
+                driveFileId: driveFileIdToUse, // Use new drive ID
+            };
+            
+            const updatedFullHistory = [...prev];
+            updatedFullHistory[existingMetaIndex] = updatedMetaEntry;
+            
+            const finalDedupedHistory = deduplicateMetadata(updatedFullHistory);
+            try {
+              localStorage.setItem(chatHistoryIndexKeyLS, JSON.stringify(finalDedupedHistory));
+            } catch (error) {
+               if (isQuotaExceededError(error)) console.error("saveSession (async IIFE): Failed to save updated history index (quota).", error);
+               else console.error("saveSession (async IIFE): Failed to save updated history index.", error);
+            }
+            return finalDedupedHistory;
+          });
+        }, 0);
       }
     })(); // End of async IIFE
 
-    return sessionToSave; // Return the session with potentially the old name, UI will update reactively
+    return sessionToSave;
   }, [effectiveUserId, googleAccessToken, appDriveFolderId, authUser, toast, chatHistoryIndexKeyLS, chatSessionPrefixLS, saveSessionToDrive, deduplicateMetadata]);
 
 
@@ -737,6 +863,34 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
       deduplicateMetadata, loadHistoryIndex
     ]);
 
+// Listen for chat name updates from the queue
+useEffect(() => {
+  const handleChatNameUpdated = (event: Event) => {
+    const customEvent = event as CustomEvent<{sessionId: string, newName: string}>;
+    if (!customEvent.detail) return;
+    
+    const { sessionId, newName } = customEvent.detail;
+    
+    // Update history metadata with the new name
+    setHistoryMetadata(prev => {
+      const existingIndex = prev.findIndex(meta => meta.id === sessionId);
+      if (existingIndex === -1) return prev;
+      
+      const updated = [...prev];
+      updated[existingIndex] = {
+        ...updated[existingIndex],
+        name: newName
+      };
+      
+      return deduplicateMetadata(updated);
+    });
+  };
+  
+  window.addEventListener('chat-name-updated', handleChatNameUpdated);
+  return () => {
+    window.removeEventListener('chat-name-updated', handleChatNameUpdated);
+  };
+}, [deduplicateMetadata]);
 
   return { historyMetadata, isLoading, getSession, saveSession, deleteSession, createNewSession, syncWithDrive, isSyncing, triggerGoogleSignIn: triggerGoogleSignInFromAuth };
 }

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Paperclip, Loader2, BotIcon, Menu, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw, PlusCircle, Edit3, RefreshCw, LogIn, UserPlus, Languages, X, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChatMessageDisplay } from '@/components/chat/chat-message';
 import { ActionButtonsPanel, type ActionType } from '@/components/chat/action-buttons';
@@ -13,12 +14,13 @@ import { useUserProfile } from '@/lib/hooks/use-user-profile';
 import { useChatHistory } from '@/lib/hooks/use-chat-history';
 import type { ChatMessage, UserProfile, ChatMessageContentPart, AttachedFile, ChatSession, EditHistoryEntry } from '@/lib/types';
 import { processClientMessage, type ProcessClientMessageInput, type ProcessClientMessageOutput } from '@/ai/flows/process-client-message';
-import { generatePlatformMessages, type GeneratePlatformMessagesInput } from '@/ai/flows/generate-platform-messages';
+import { processCustomInstruction, type ProcessCustomInstructionInput, type ProcessCustomInstructionOutput } from '@/ai/flows/process-custom-instruction';
 import { analyzeClientRequirements, type AnalyzeClientRequirementsInput, type AnalyzeClientRequirementsOutput } from '@/ai/flows/analyze-client-requirements';
-import { generateEngagementPack, type GenerateEngagementPackInput } from '@/ai/flows/generate-engagement-pack-flow';
-import { generateDesignIdeas, type GenerateDesignIdeasInput } from '@/ai/flows/generate-design-ideas-flow';
-import { generateDesignPrompts, type GenerateDesignPromptsInput } from '@/ai/flows/generate-design-prompts-flow';
+import { generateEngagementPack, type GenerateEngagementPackInput, type GenerateEngagementPackOutput } from '@/ai/flows/generate-engagement-pack-flow';
+import { generateDesignIdeas, type GenerateDesignIdeasInput, type GenerateDesignIdeasOutput } from '@/ai/flows/generate-design-ideas-flow';
+import { generateDesignPrompts, type GenerateDesignPromptsInput, type GenerateDesignPromptsOutput } from '@/ai/flows/generate-design-prompts-flow';
 import { checkMadeDesigns, type CheckMadeDesignsInput, type CheckMadeDesignsOutput } from '@/ai/flows/check-made-designs-flow';
+import { generatePlatformMessages, type GeneratePlatformMessagesInput, type GeneratePlatformMessagesOutput } from '@/ai/flows/generate-platform-messages';
 import { generateEditingPrompts, type GenerateEditingPromptsInput, type GenerateEditingPromptsOutput } from '@/ai/flows/generate-editing-prompts-flow';
 
 
@@ -30,6 +32,8 @@ import { DEFAULT_USER_ID, DEFAULT_MODEL_ID } from '@/lib/constants';
 import { useAuth } from '@/contexts/auth-context';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { LoginForm } from '@/components/auth/login-form';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { firebaseAppInstance } from '@/lib/firebase/clientApp'; // Import Firebase app instance
 
 
 const getMessageText = (content: string | ChatMessageContentPart[] | undefined): string => {
@@ -127,6 +131,7 @@ export default function ChatPage() {
   const [inputMessage, setInputMessage] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [currentAttachedFilesData, setCurrentAttachedFilesData] = useState<AttachedFile[]>([]);
+  const [isCustomMessage, setIsCustomMessage] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -253,10 +258,16 @@ export default function ChatPage() {
       }
 
       if (sessionToLoad && isMounted.current) {
-        const migratedMessages = ensureMessagesHaveUniqueIds(sessionToLoad.messages);
+        // Ensure no messages are in a loading state when loading initial session
+        const migratedMessages = ensureMessagesHaveUniqueIds(sessionToLoad.messages).map(msg => ({
+          ...msg,
+          isLoading: false, // Reset loading state for all messages 
+          isError: msg.isError // Preserve the error state from the saved message
+        }));
         const updatedSession = { ...sessionToLoad, messages: migratedMessages };
         setCurrentSession(updatedSession);
         setMessages(updatedSession.messages);
+        setIsLoading(false); // Ensure global loading state is reset
         console.log(`ChatPage: loadOrCreateSession - Loaded session ${updatedSession.id} with ${updatedSession.messages.length} messages.`);
       } else if (isMounted.current) {
         console.log(`ChatPage: loadOrCreateSession - No valid session found or to load, creating new for ${userIdForHistory}.`);
@@ -265,6 +276,7 @@ export default function ChatPage() {
         const newSession = createNewSession([], modelIdToUse, userApiKeyForNameGen);
         setCurrentSession(newSession);
         setMessages(newSession.messages); // Initialize with empty messages for a new session
+        setIsLoading(false); // Ensure global loading state is reset
         if (newSession.id && newSession.id.startsWith(userIdForHistory + '_')) {
           localStorage.setItem(lastActiveSessionIdKey, newSession.id);
         } else {
@@ -280,7 +292,7 @@ export default function ChatPage() {
     }
   // Reduced dependencies to prevent re-running due to minor metadata updates.
   // It primarily reacts to changes in auth/profile status and the initial history load completion.
-  }, [authLoading, profileLoading, historyHookLoading, userIdForHistory, getSession, createNewSession, ensureMessagesHaveUniqueIds, profile]);
+  }, [authLoading, profileLoading, historyHookLoading, userIdForHistory, getSession, createNewSession, ensureMessagesHaveUniqueIds, profile, currentSession]);
 
 
   // Effect to sync currentSession.name from historyMetadata if it changes (e.g., by AI naming)
@@ -364,10 +376,16 @@ export default function ChatPage() {
 
     const selected = await getSession(sessionId);
     if (selected && selected.id === sessionId && selected.userId === userIdForHistory) {
-      const migratedMessages = ensureMessagesHaveUniqueIds(selected.messages);
+      // Ensure no messages are in a loading state when loading a session from history
+      const migratedMessages = ensureMessagesHaveUniqueIds(selected.messages).map(msg => ({
+        ...msg,
+        isLoading: false, // Reset loading state for all messages in the chat history
+        isError: msg.isError // Preserve the error state from the saved message
+      }));
       const updatedSession = { ...selected, messages: migratedMessages };
       setCurrentSession(updatedSession);
       setMessages(updatedSession.messages);
+      setIsLoading(false); // Ensure global loading state is reset
       currentApiKeyIndexRef.current = 0;
       const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + userIdForHistory;
       localStorage.setItem(lastActiveSessionIdKey, sessionId);
@@ -430,7 +448,8 @@ export default function ChatPage() {
     isUserMessageEdit: boolean = false,
     isRegenerationCall: boolean = false,
     messageIdToUpdate?: string, // ID of the assistant message to update (for regeneration)
-    userMessageIdForAiPrompting?: string // ID of the user message that prompted this, especially for edits
+    userMessageIdForAiPrompting?: string, // ID of the user message that prompted this, especially for edits
+    isCustomMessageParam?: boolean // Whether this is a custom message
   ) => {
     if (profileLoading) {
       toast({ title: "Profile Loading", description: "Please wait while your profile data loads.", duration: 3000 });
@@ -514,6 +533,7 @@ export default function ChatPage() {
 
     const userMessageContent = messageTextParam.trim();
     const currentNotes = notesParam;
+    const isCustom = isCustomMessageParam ?? isCustomMessage;
 
     const filesToSendWithThisMessage = (isRegenerationCall && attachedFilesDataParam) ? attachedFilesDataParam
                                       : (isUserMessageEdit && attachedFilesDataParam) ? attachedFilesDataParam
@@ -534,7 +554,8 @@ export default function ChatPage() {
     let assistantMessageIdToUse: string;
 
     if (!isUserMessageEdit && !messageIdToUpdate && (userMessageContent.trim() !== '' || filesToSendWithThisMessage.length > 0)) {
-      userMessageIdForCurrentInteraction = addMessage('user', userMessageContent || `Attached ${filesToSendWithThisMessage.length} file(s)${currentNotes ? ` (Notes: ${currentNotes})` : ''}`, filesToSendWithThisMessage);
+      const userMessageToDisplay = isCustom ? `[Custom Message] ${userMessageContent}` : userMessageContent;
+      userMessageIdForCurrentInteraction = addMessage('user', userMessageToDisplay || `Attached ${filesToSendWithThisMessage.length} file(s)${currentNotes ? ` (Notes: ${currentNotes})` : ''}`, filesToSendWithThisMessage);
       promptedByMsgIdForNewAssistant = userMessageIdForCurrentInteraction;
     } else if (messageIdToUpdate && !isUserMessageEdit) { // Assistant regeneration
         const regeneratedAssistantMsg = messagesRef.current.find(m => m.id === messageIdToUpdate);
@@ -563,6 +584,7 @@ export default function ChatPage() {
         setInputMessage('');
         setSelectedFiles([]);
         setCurrentAttachedFilesData([]);
+        setIsCustomMessage(false); // Reset custom checkbox
         if (fileInputRef.current) fileInputRef.current.value = '';
     }
 
@@ -593,24 +615,83 @@ export default function ChatPage() {
             }))
             .filter(msg => msg.text.trim() !== '' && (msg.role === 'user' || msg.role === 'assistant'));
 
+          // Handle custom message flow if isCustom flag is true
+          if (isCustom) {
+            // Extract the original client message and custom instruction
+            // The userMessageContent is the custom instruction from the designer
+            // We need to find the client's original message that this instruction is for
+            
+            // If we have history, use the last client message as context
+            const lastClientMessageInHistory = chatHistoryForAI.filter(msg => msg.role === 'user').pop();
+            const clientMessageForContext = lastClientMessageInHistory?.text || userMessageContent;
+            
+            console.log(`Using model ID for custom instruction: ${modelIdToUse}`);
+            console.log(`Using API key (exists): ${!!apiKeyToUseThisTurn}`);
+            
+            // Custom instruction is whatever the designer entered
+            const customInstructionInput: ProcessCustomInstructionInput = {
+              ...baseInput,
+              clientMessage: clientMessageForContext,
+              customInstruction: userMessageContent,
+              attachedFiles: filesForFlow, 
+              chatHistory: chatHistoryForAI,
+              userName: userProfile.name,
+              communicationStyleNotes: userProfile.communicationStyleNotes || '',
+              userApiKey: apiKeyToUseThisTurn,
+              modelId: modelIdToUse,
+              useAlternativeImpl: userProfile.useAlternativeAiImpl || false,
+              useFirebaseAI: userProfile.useFirebaseAI || false, // Pass useFirebaseAI
+              firebaseApp: firebaseAppInstance // Pass Firebase app instance
+            };
+            
+            // Call the custom instruction flow
+            const customOutput = await processCustomInstruction(customInstructionInput);
+            
+            // Format the output as a special custom response message
+            finalAiResponseContent = [
+              { 
+                type: 'custom',  
+                title: customOutput.title,
+                text: customOutput.response 
+              }
+            ];
+          }
+          else if (currentActionType === 'processMessage') {
+            try {
+              const pmInput: ProcessClientMessageInput = {
+                ...baseInput, clientMessage: userMessageContent,
+                attachedFiles: filesForFlow, chatHistory: chatHistoryForAI
+              };
+              const pmOutput = await processClientMessage(pmInput);
+              finalAiResponseContent.push({ type: 'text', title: 'Analysis', text: pmOutput.analysis });
+              finalAiResponseContent.push({ type: 'text', title: 'Simplified Request', text: pmOutput.simplifiedRequest });
+              finalAiResponseContent.push({ type: 'text', title: 'Step-by-Step Approach', text: pmOutput.stepByStepApproach });
+              finalAiResponseContent.push({ type: 'translation_group', title: 'Bengali Translation', bengali: { analysis: pmOutput.bengaliTranslation } });
 
-          if (currentActionType === 'processMessage') {
-            const processInput: ProcessClientMessageInput = { ...baseInput, clientMessage: userMessageContent, attachedFiles: filesForFlow, chatHistory: chatHistoryForAI };
-            const processed: ProcessClientMessageOutput = await processClientMessage(processInput);
-            finalAiResponseContent.push({
-              type: 'translation_group', title: 'Client Request Analysis & Plan',
-              english: { analysis: processed.analysis, simplifiedRequest: processed.simplifiedRequest, stepByStepApproach: processed.stepByStepApproach },
-              bengali: { analysis: processed.bengaliTranslation }
-            });
-            if (processed.suggestedEnglishReplies && processed.suggestedEnglishReplies.length > 0) {
-              processed.suggestedEnglishReplies.forEach((reply, index) => {
-                finalAiResponseContent.push({ type: 'code', title: `Suggested English Reply ${index + 1}`, code: reply });
-              });
-            }
-            if (processed.suggestedBengaliReplies && processed.suggestedBengaliReplies.length > 0) {
-              processed.suggestedBengaliReplies.forEach((reply, index) => {
-                finalAiResponseContent.push({ type: 'code', title: `Suggested Bengali Reply ${index + 1}`, code: reply });
-              });
+              const repliesSection: ChatMessageContentPart = {
+                type: 'suggested_replies',
+                title: 'Suggested Replies',
+                suggestions: {
+                  english: pmOutput.suggestedEnglishReplies || [],
+                  bengali: pmOutput.suggestedBengaliReplies || []
+                }
+              };
+              finalAiResponseContent.push(repliesSection);
+            } catch (err) {
+              console.error(`Process message failed. Falling back to analyze requirements.`, err);
+              const arInput: AnalyzeClientRequirementsInput = {
+                ...baseInput, clientMessage: userMessageContent,
+                attachedFiles: filesForFlow, chatHistory: chatHistoryForAI
+              };
+              const arOutput = await analyzeClientRequirements(arInput);
+              
+              // Use the actual output structure from analyzeClientRequirements
+              finalAiResponseContent.push({ type: 'text', title: 'Requirements Analysis', text: arOutput.mainRequirementsAnalysis });
+              finalAiResponseContent.push({ type: 'text', title: 'Detailed Requirements (English)', text: arOutput.detailedRequirementsEnglish });
+              finalAiResponseContent.push({ type: 'text', title: 'Detailed Requirements (Bangla)', text: arOutput.detailedRequirementsBangla });
+              if (arOutput.designMessageOrSaying) {
+                finalAiResponseContent.push({ type: 'text', title: 'Design Message or Saying', text: arOutput.designMessageOrSaying });
+              }
             }
           } else if (currentActionType === 'analyzeRequirements') {
             const requirementsInput: AnalyzeClientRequirementsInput = { ...baseInput, clientMessage: userMessageContent, attachedFiles: filesForFlow, chatHistory: chatHistoryForAI };
@@ -793,29 +874,34 @@ export default function ChatPage() {
         if (isMounted.current) setIsLoading(false);
 
         if (currentSession && userIdForHistory && isMounted.current && !aiCallError) { // Only save if no AI error
-            const currentMessagesSnapshot = messagesRef.current;
-            const sessionToSaveInput: ChatSession = {
-                ...currentSession,
-                messages: currentMessagesSnapshot,
-                updatedAt: Date.now(),
-                userId: userIdForHistory,
-            };
-            const userApiKeyForNameGen = (profile?.geminiApiKeys && profile.geminiApiKeys.length > 0 && profile.geminiApiKeys[0]) ? profile.geminiApiKeys[0] : undefined;
+            // Use a functional update with setMessages to get the latest state
+            // and then use that latest state for saving.
+            setMessages(currentMessagesFromState => {
+              const messagesForSave = ensureMessagesHaveUniqueIds(currentMessagesFromState);
+              const sessionForSave: ChatSession = {
+                  ...currentSession,
+                  messages: messagesForSave, 
+                  updatedAt: Date.now(),
+                  userId: userIdForHistory,
+              };
+              const apiKeyForNameGen = (profile?.geminiApiKeys && profile.geminiApiKeys.length > 0 && profile.geminiApiKeys[0]) ? profile.geminiApiKeys[0] : undefined;
 
-            saveSession(
-                sessionToSaveInput,
-                (!messageIdToUpdate && !isUserMessageEdit) && (sessionToSaveInput.messages.length <= 2 || !currentSession.name || currentSession.name === "New Chat"),
-                modelIdToUse,
-                userApiKeyForNameGen
-            ).then(sessionAfterSave => {
-                if (sessionAfterSave && isMounted.current) {
-                    setCurrentSession(prev => {
-                        if (prev && prev.id === sessionAfterSave.id) {
-                            return { ...prev, name: sessionAfterSave.name, driveFileId: sessionAfterSave.driveFileId };
-                        }
-                        return prev;
-                    });
-                }
+              saveSession(
+                  sessionForSave,
+                  (!messageIdToUpdate && !isUserMessageEdit) && (sessionForSave.messages.length <= 2 || !currentSession.name || currentSession.name === "New Chat"),
+                  modelIdToUse,
+                  apiKeyForNameGen
+              ).then(sessionAfterSave => {
+                  if (sessionAfterSave && isMounted.current) {
+                      setCurrentSession(prev => {
+                          if (prev && prev.id === sessionAfterSave.id) {
+                              return { ...prev, name: sessionAfterSave.name, driveFileId: sessionAfterSave.driveFileId };
+                          }
+                          return prev;
+                      });
+                  }
+              });
+              return messagesForSave; // Return the state for setMessages
             });
         }
     }, 0);
@@ -823,7 +909,7 @@ export default function ChatPage() {
     addMessage, updateMessageById, profile, currentSession,
     currentAttachedFilesData, saveSession, ensureMessagesHaveUniqueIds,
     userIdForHistory, profileLoading, toast,
-    lastSelectedActionButton,
+    lastSelectedActionButton, messagesRef, // Added messagesRef here
   ]);
 
 
@@ -838,11 +924,12 @@ export default function ChatPage() {
         isEdit,
         false,
         undefined,
-        editedUserMessageId
+        editedUserMessageId,
+        isCustomMessage // Pass the current custom flag state
       );
       setPendingAiRequestAfterEdit(null);
     }
-  }, [pendingAiRequestAfterEdit, handleSendMessage]);
+  }, [pendingAiRequestAfterEdit, handleSendMessage, isCustomMessage]);
 
 
   const handleRegenerateMessage = useCallback((originalRequestDetailsWithMessageId?: ChatMessage['originalRequest'] & { messageIdToRegenerate: string }) => {
@@ -862,18 +949,29 @@ export default function ChatPage() {
           ? lastSelectedActionButton 
           : originalRequest.actionType;
         
+        // Check if this is a custom message by looking at the original user message format
+        // User messages that are custom instructions start with "[Custom Message]"
+        const isMessageCustom = isCustomMessage || 
+          (typeof originalRequest.messageText === 'string' && 
+           originalRequest.messageText.startsWith('[Custom Message]'));
+        
+        if (isMessageCustom) {
+          console.log('Regenerating a custom message');
+        }
+        
         handleSendMessage(
             originalRequest.messageText, 
             actionToUse,
             originalRequest.notes, 
             originalRequest.attachedFilesData,
-            false,
-            true,
-            messageIdToRegenerate,
-            undefined
+            false,  // isUserMessageEdit
+            true,   // isRegenerationCall
+            messageIdToRegenerate, // messageIdToUpdate
+            undefined, // userMessageIdForAiPrompting
+            isMessageCustom // Use custom flag based on message content or current state
         );
     }
-  }, [profileLoading, profile, currentSession, handleSendMessage, lastSelectedActionButton]);
+  }, [profileLoading, profile, currentSession, handleSendMessage, lastSelectedActionButton, isCustomMessage]);
 
 
   const handleConfirmEditAndResendUserMessage = useCallback((messageId: string, newContent: string, originalAttachments?: AttachedFile[]) => {
@@ -935,13 +1033,15 @@ export default function ChatPage() {
       setModalActionType(action);
       setShowNotesModal(true);
     } else {
-      handleSendMessage(inputMessage || '', action, undefined, undefined, false, false, undefined, undefined);
+      // Pass isCustomMessage to use custom instructions if checkbox is checked
+      handleSendMessage(inputMessage || '', action, undefined, undefined, false, false, undefined, undefined, isCustomMessage);
     }
-  }, [inputMessage, handleSendMessage, profile]);
+  }, [inputMessage, handleSendMessage, profile, isCustomMessage]);
 
   const submitModalNotes = () => {
     if (modalActionType) {
-      handleSendMessage(inputMessage || '', modalActionType, modalNotes, undefined, false, false, undefined, undefined);
+      // Pass isCustomMessage to modal actions as well
+      handleSendMessage(inputMessage || '', modalActionType, modalNotes, undefined, false, false, undefined, undefined, isCustomMessage);
     }
     setShowNotesModal(false);
     setModalNotes('');
@@ -975,7 +1075,7 @@ export default function ChatPage() {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       if (!isLoading && (inputMessage.trim() || currentAttachedFilesData.length > 0)) {
-        handleSendMessage(inputMessage, 'processMessage', undefined, undefined, false, false, undefined, undefined);
+        handleSendMessage(inputMessage, 'processMessage', undefined, undefined, false, false, undefined, undefined, isCustomMessage);
       }
     }
   };
@@ -1245,6 +1345,38 @@ export default function ChatPage() {
               </Button>
               <input type="file" ref={fileInputRef} multiple onChange={handleFileChange} className="hidden" accept="image/*,application/pdf,.txt,.md,.json"/>
             </div>
+            
+            {/* Custom Message Checkbox */}
+            <div className={cn("flex items-center gap-2 animate-stagger", isMobile ? "order-last w-full justify-center mt-2" : "")} style={{ animationDelay: '150ms' }}>
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="custom-message"
+                        checked={isCustomMessage}
+                        onCheckedChange={(checked) => setIsCustomMessage(checked as boolean)}
+                        className="data-[state=checked]:bg-accent data-[state=checked]:border-accent"
+                      />
+                      <label
+                        htmlFor="custom-message"
+                        className="text-sm font-medium cursor-pointer select-none hover:text-accent transition-colors duration-200"
+                      >
+                        Custom
+                      </label>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="glass-panel text-foreground shadow-xl rounded-lg p-3 animate-fade-in border border-accent/10 max-w-sm">
+                    <p className="font-semibold text-gradient">Custom Instructions</p>
+                    <p className="text-xs text-foreground/80 mt-1">
+                      When enabled, your message will be treated as a custom instruction for the AI. 
+                      Instead of standard analysis, you can tell the AI exactly what to generate from the client message.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            
             <div className={cn("flex-1 flex justify-end animate-stagger", isMobile ? "w-full justify-center mt-0" : "")} style={{ animationDelay: '200ms' }}>
               <ActionButtonsPanel
                 onAction={handleAction}

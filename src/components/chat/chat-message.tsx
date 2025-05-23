@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { ChatMessage, MessageRole, ChatMessageContentPart, AttachedFile } from '@/lib/types';
@@ -76,8 +75,10 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
         return <CopyableText key={index} text={part.text} title={part.title} className={cn(commonClasses, "bg-card/80 backdrop-blur-sm border border-border rounded-lg shadow-md")} style={{ animationDelay }} />;
       }
       return <p key={index} className="whitespace-pre-wrap leading-relaxed w-full animate-slideUpSlightly" style={{ animationDelay }}>{part.text}</p>;
+    
     case 'code':
       return <CopyToClipboard key={index} textToCopy={part.code || ''} title={part.title} language={part.language} className={cn(commonClasses, "shadow-lg hover:shadow-xl transition-all duration-300 w-full")} style={{ animationDelay }} />;
+    
     case 'list':
       return (
         <div key={index} className={cn(commonClasses, "bg-muted/30 rounded-lg p-3 backdrop-blur-sm")} style={{ animationDelay }}>
@@ -85,29 +86,78 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
           <CopyableList items={part.items} title={part.title ? undefined : 'List'} className="my-1 stagger-animation"/>
         </div>
       );
+    
     case 'translation_group':
       return (
-        <Card key={index} className={cn("my-4 glass-panel", commonClasses)} style={{ animationDelay }}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg text-gradient">{part.title || 'Analysis & Plan'}</CardTitle>
+        <Card key={index} className={cn(commonClasses, "shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background/95 to-muted/50 backdrop-blur-sm")} style={{ animationDelay }}>
+          <CardHeader className="py-2 px-4">
+            <CardTitle className="text-sm font-semibold text-gradient">{part.title || 'Translation Group'}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 stagger-animation">
-            {part.english?.analysis && <CopyableText title="Analysis (English)" text={part.english.analysis} className="bg-primary/5 rounded-lg p-2" />}
-            {part.english?.simplifiedRequest && <CopyableText title="Simplified Request (English)" text={part.english.simplifiedRequest} className="bg-secondary/5 rounded-lg p-2" />}
-            {part.english?.stepByStepApproach && <CopyableText title="Step-by-Step Approach (English)" text={part.english.stepByStepApproach} className="bg-accent/5 rounded-lg p-2" />}
-
-            { (part.english?.analysis || part.english?.simplifiedRequest || part.english?.stepByStepApproach) &&
-              (part.bengali?.analysis || part.bengali?.simplifiedRequest || part.bengali?.stepByStepApproach) &&
-              <Separator className="my-3 opacity-50" />
-            }
-            {/* Updated Bengali rendering for processClientMessage */}
-            {part.bengali?.analysis && !part.bengali.simplifiedRequest && !part.bengali.stepByStepApproach && <CopyableText title="বিশ্লেষণ ও পরিকল্পনা (Bengali)" text={part.bengali.analysis} className="bg-primary/5 rounded-lg p-2" />}
-            {part.bengali?.analysis && (part.bengali.simplifiedRequest || part.bengali.stepByStepApproach) && <CopyableText title="বিশ্লেষণ (Analysis in Bengali)" text={part.bengali.analysis} className="bg-primary/5 rounded-lg p-2" />}
+          <CardContent className="py-2 px-4 space-y-2">
+            {part.bengali?.analysis && <CopyableText title="বিশ্লেষণ (Analysis in Bengali)" text={part.bengali.analysis} className="bg-primary/5 rounded-lg p-2" />}
             {part.bengali?.simplifiedRequest && <CopyableText title="সরলীকৃত অনুরোধ (Simplified Request in Bengali)" text={part.bengali.simplifiedRequest} className="bg-secondary/5 rounded-lg p-2" />}
             {part.bengali?.stepByStepApproach && <CopyableText title="ধাপে ধাপে পদ্ধতি (Step-by-Step Approach in Bengali)" text={part.bengali.stepByStepApproach} className="bg-accent/5 rounded-lg p-2" />}
           </CardContent>
         </Card>
       );
+
+    case 'custom':
+      return (
+        <div key={index} className={cn(
+          commonClasses, 
+          "bg-gradient-to-br from-accent/10 to-secondary/10 rounded-lg p-4 backdrop-blur-sm border-2 border-accent/20 shadow-lg",
+          "relative overflow-hidden"
+        )} style={{ animationDelay }}>
+          {/* Special decorative element for custom responses */}
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent to-secondary"></div>
+          
+          {part.title && (
+            <h3 className="font-bold text-base mb-3 bg-clip-text text-transparent bg-gradient-to-r from-accent to-secondary flex items-center">
+              <span className="mr-2 text-lg">✨</span> {part.title}
+            </h3>
+          )}
+          
+          {part.text && (
+            <div className="whitespace-pre-wrap leading-relaxed pt-1">
+              <CopyableText text={part.text} className="bg-background/50 p-3 rounded-lg border border-accent/10 shadow-inner" />
+            </div>
+          )}
+        </div>
+      );
+      
+    case 'suggested_replies':
+      return (
+        <div key={index} className={cn(commonClasses, "space-y-3")} style={{ animationDelay }}>
+          {part.title && <h4 className="font-semibold mb-2 text-base text-gradient">{part.title}</h4>}
+          
+          {part.suggestions?.english && part.suggestions.english.length > 0 && (
+            <div className="space-y-2">
+              {part.suggestions.english.map((reply, i) => (
+                <CopyToClipboard 
+                  key={`eng-reply-${i}`} 
+                  textToCopy={reply} 
+                  title={`English Reply ${i + 1}`}
+                  className="shadow-lg hover:shadow-xl transition-all duration-300 bg-primary/5 hover:bg-primary/10" 
+                />
+              ))}
+            </div>
+          )}
+          
+          {part.suggestions?.bengali && part.suggestions.bengali.length > 0 && (
+            <div className="space-y-2 mt-3">
+              {part.suggestions.bengali.map((reply, i) => (
+                <CopyToClipboard 
+                  key={`bng-reply-${i}`} 
+                  textToCopy={reply} 
+                  title={`Bengali Reply ${i + 1}`}
+                  className="shadow-lg hover:shadow-xl transition-all duration-300 bg-secondary/5 hover:bg-secondary/10" 
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      );
+      
     default:
       return null;
   }
@@ -290,11 +340,11 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
               </Button>
             </div>
           </div>
-        ) : message.isLoading && typeof message.content === 'string' && message.content.startsWith('Processing...') ? (
+        ) : message.isLoading ? (
             <div className="relative z-10 whitespace-pre-wrap animate-pulse-slow glass-panel bg-background/40 p-3 rounded-xl border border-primary/10 shadow-inner">
               <div className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                <p>{message.content}</p>
+                <p>{typeof message.content === 'string' ? message.content : 'Processing...'}</p>
               </div>
             </div>
           ) : (

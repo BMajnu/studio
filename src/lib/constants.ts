@@ -1,4 +1,3 @@
-
 import type { UserProfile } from './types';
 
 export const DEFAULT_USER_ID = 'default-user';
@@ -14,6 +13,7 @@ export const AVAILABLE_MODELS = [
   { id: 'googleai/gemini-2.5-flash-preview-04-17', name: 'Gemini 2.5 Flash Preview (04-17)' },
   { id: 'googleai/gemini-2.5-pro-exp-03-25', name: 'Gemini 2.5 Pro Experimental (03-25)' },
   { id: 'googleai/gemini-2.5-pro-preview-05-06', name: 'Gemini 2.5 Pro Preview (05-06)' },
+  { id: 'googleai/gemini-2.5-flash-preview-05-20', name: 'Gemini 2.5 Flash Preview (05-20)' },
 ];
 export const DEFAULT_MODEL_ID = 'googleai/gemini-1.5-flash-latest';
 
@@ -44,8 +44,10 @@ export const DEFAULT_USER_PROFILE: UserProfile = {
     "...and so much more!"
   ],
   fiverrUsername: "majnu786",
-  geminiApiKey: "",
+  geminiApiKeys: [""],
   selectedGenkitModelId: DEFAULT_MODEL_ID,
+  useAlternativeAiImpl: false,
+  useFirebaseAI: false,
   customSellerFeedbackTemplate: "Great client, outstanding experience, easy requirement. [AI to suggest adding a short description about the project/order]. I love working with you and looking forward to working with you again🥰.",
   customClientFeedbackResponseTemplate: "Thanks for your great feedback. I hope we will continue doing more and more.",
   rawPersonalStatement: "I'm B. Majnu, a professional Graphic designer. I have over 6 years of experience in Graphics Design. I enjoy working on it. I'm a skilled graphic designer and offer unique, creative, and eye-catching T-shirt design as well as professional logo design, mug design, vector tracing, book cover design, business card design, etc. I am a full-time seller exclusively on Fiverr. I'm passionate about my craft, and I'm dedicated to providing high-quality work to satisfaction. Fiverr profile: www.fiverr.com/majnu786. I have 1k+ overall 5* customer feedback with 1.5k+ successfully completed orders.",

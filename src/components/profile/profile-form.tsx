@@ -1,4 +1,3 @@
-
 'use client';
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,6 +20,7 @@ import type { UserProfile } from "@/lib/types";
 import { DEFAULT_USER_PROFILE, AVAILABLE_MODELS, DEFAULT_MODEL_ID } from "@/lib/constants";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useEffect } from "react";
 
 const profileFormSchema = z.object({
@@ -35,6 +35,8 @@ const profileFormSchema = z.object({
       z.string().min(1, "API Key cannot be empty.").max(100, "API Key is too long.")
     ).min(1, "At least one Gemini API Key is required."),
   selectedGenkitModelId: z.string().optional().nullable(),
+  useAlternativeAiImpl: z.boolean().optional().default(false),
+  useFirebaseAI: z.boolean().optional(),
   customSellerFeedbackTemplate: z.string().max(1000).optional().nullable(),
   customClientFeedbackResponseTemplate: z.string().max(1000).optional().nullable(),
   rawPersonalStatement: z.string().max(2000).optional().nullable(),
@@ -62,6 +64,8 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
       fiverrUsername: initialProfile?.fiverrUsername || DEFAULT_USER_PROFILE.fiverrUsername || "",
       geminiApiKeys: initialProfile?.geminiApiKeys && initialProfile.geminiApiKeys.length > 0 ? initialProfile.geminiApiKeys : DEFAULT_USER_PROFILE.geminiApiKeys || [''],
       selectedGenkitModelId: initialProfile?.selectedGenkitModelId || DEFAULT_USER_PROFILE.selectedGenkitModelId || DEFAULT_MODEL_ID,
+      useAlternativeAiImpl: initialProfile?.useAlternativeAiImpl !== undefined ? initialProfile.useAlternativeAiImpl : DEFAULT_USER_PROFILE.useAlternativeAiImpl,
+      useFirebaseAI: initialProfile?.useFirebaseAI !== undefined ? initialProfile.useFirebaseAI : false,
       customSellerFeedbackTemplate: initialProfile?.customSellerFeedbackTemplate || DEFAULT_USER_PROFILE.customSellerFeedbackTemplate || "",
       customClientFeedbackResponseTemplate: initialProfile?.customClientFeedbackResponseTemplate || DEFAULT_USER_PROFILE.customClientFeedbackResponseTemplate || "",
       rawPersonalStatement: initialProfile?.rawPersonalStatement || DEFAULT_USER_PROFILE.rawPersonalStatement || "",
@@ -81,6 +85,8 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
         fiverrUsername: initialProfile.fiverrUsername || DEFAULT_USER_PROFILE.fiverrUsername || "",
         geminiApiKeys: initialProfile.geminiApiKeys && initialProfile.geminiApiKeys.length > 0 ? initialProfile.geminiApiKeys : DEFAULT_USER_PROFILE.geminiApiKeys || [''],
         selectedGenkitModelId: initialProfile.selectedGenkitModelId || DEFAULT_USER_PROFILE.selectedGenkitModelId || DEFAULT_MODEL_ID,
+        useAlternativeAiImpl: initialProfile.useAlternativeAiImpl !== undefined ? initialProfile.useAlternativeAiImpl : DEFAULT_USER_PROFILE.useAlternativeAiImpl,
+        useFirebaseAI: initialProfile.useFirebaseAI !== undefined ? initialProfile.useFirebaseAI : false,
         customSellerFeedbackTemplate: initialProfile.customSellerFeedbackTemplate || DEFAULT_USER_PROFILE.customSellerFeedbackTemplate || "",
         customClientFeedbackResponseTemplate: initialProfile.customClientFeedbackResponseTemplate || DEFAULT_USER_PROFILE.customClientFeedbackResponseTemplate || "",
         rawPersonalStatement: initialProfile.rawPersonalStatement || DEFAULT_USER_PROFILE.rawPersonalStatement || "",
@@ -91,30 +97,34 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
 
   const { fields: serviceFields, append: appendService, remove: removeService } = useFieldArray({
     control: form.control,
+    // @ts-ignore stubborn type error with useFieldArray name prop
     name: "services",
   });
 
   const { fields: apiKeyFields, append: appendApiKey, remove: removeApiKey } = useFieldArray({
     control: form.control,
+    // @ts-ignore stubborn type error with useFieldArray name prop
     name: "geminiApiKeys",
   });
 
   function onSubmit(data: ProfileFormValues) {
     const processedData: Partial<UserProfile> = {
-      ...data,
+      name: data.name,
+      professionalTitle: data.professionalTitle === null ? undefined : data.professionalTitle,
       yearsOfExperience: data.yearsOfExperience ? Number(data.yearsOfExperience) : undefined,
+      portfolioLink: data.portfolioLink === null ? undefined : data.portfolioLink,
+      communicationStyleNotes: data.communicationStyleNotes === null ? undefined : data.communicationStyleNotes,
       services: data.services || [],
-      geminiApiKeys: data.geminiApiKeys.filter(key => key.trim() !== ''), // Filter out empty keys before saving
-      selectedGenkitModelId: data.selectedGenkitModelId || DEFAULT_MODEL_ID,
+      fiverrUsername: data.fiverrUsername === null ? undefined : data.fiverrUsername,
+      geminiApiKeys: data.geminiApiKeys.filter(key => key.trim() !== ''),
+      selectedGenkitModelId: data.selectedGenkitModelId === null ? undefined : data.selectedGenkitModelId || DEFAULT_MODEL_ID,
+      useAlternativeAiImpl: data.useAlternativeAiImpl,
+      useFirebaseAI: data.useFirebaseAI === null ? undefined : data.useFirebaseAI,
+      customSellerFeedbackTemplate: data.customSellerFeedbackTemplate === null ? undefined : data.customSellerFeedbackTemplate,
+      customClientFeedbackResponseTemplate: data.customClientFeedbackResponseTemplate === null ? undefined : data.customClientFeedbackResponseTemplate,
+      rawPersonalStatement: data.rawPersonalStatement === null ? undefined : data.rawPersonalStatement,
     };
     
-    Object.keys(processedData).forEach(key => {
-      const K = key as keyof Partial<UserProfile>;
-      if (processedData[K] === null) {
-        delete processedData[K];
-      }
-    });
-
     onSave(processedData);
     toast({
       title: "Profile Updated",
@@ -298,6 +308,49 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
                     Choose the AI model for generating responses.
                     </FormDescription>
                     <FormMessage />
+                </FormItem>
+                )}
+            />
+
+            <FormField
+                control={form.control}
+                name="useAlternativeAiImpl"
+                render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                    <FormLabel className="text-base">Use Alternative Google AI SDK</FormLabel>
+                    <FormDescription>
+                        Enable this to use the newer <code>@google/genai</code> SDK for processing (requires API key).
+                    </FormDescription>
+                    </div>
+                    <FormControl>
+                    <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                    />
+                    </FormControl>
+                </FormItem>
+                )}
+            />
+
+            <FormField
+                control={form.control}
+                name="useFirebaseAI"
+                render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                    <FormLabel className="text-base">Use Firebase AI SDK (Primary)</FormLabel>
+                    <FormDescription>
+                        Enable this to use the Firebase AI SDK (<code>firebase/ai</code>) as the primary method. Falls back if Firebase initialization or generation fails.
+                        Requires Firebase to be set up in your project.
+                    </FormDescription>
+                    </div>
+                    <FormControl>
+                    <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                    />
+                    </FormControl>
                 </FormItem>
                 )}
             />

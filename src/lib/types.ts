@@ -1,4 +1,3 @@
-
 export interface UserProfile {
   userId: string; 
   name: string;
@@ -10,6 +9,8 @@ export interface UserProfile {
   fiverrUsername?: string;
   geminiApiKeys?: string[]; 
   selectedGenkitModelId?: string;
+  useAlternativeAiImpl?: boolean;
+  useFirebaseAI?: boolean;
   customSellerFeedbackTemplate?: string;
   customClientFeedbackResponseTemplate?: string;
   rawPersonalStatement?: string;
@@ -31,7 +32,7 @@ export type ActionType =
   | 'generateEditingPrompts'; 
 
 export interface ChatMessageContentPart {
-  type: 'text' | 'code' | 'list' | 'translation_group';
+  type: 'text' | 'code' | 'list' | 'translation_group' | 'custom' | 'suggested_replies';
   title?: string; 
   text?: string; 
   code?: string; 
@@ -39,6 +40,7 @@ export interface ChatMessageContentPart {
   items?: string[]; 
   english?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; 
   bengali?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; 
+  suggestions?: { english: string[], bengali: string[] }; // For suggested_replies type
 }
 
 export interface AttachedFile {

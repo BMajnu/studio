@@ -2,11 +2,9 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
+  reactStrictMode: true,
+  env: {
+    APP_VERSION: process.env.npm_package_version,
   },
   images: {
     remotePatterns: [
@@ -17,6 +15,19 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
+    domains: [],
+  },
+  experimental: {
+    serverComponentsExternalPackages: ['canvas'],
+  },
+  serverRuntimeConfig: {
+    port: 9003,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
   },
 };
 
