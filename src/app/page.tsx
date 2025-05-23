@@ -140,6 +140,7 @@ export default function ChatPage() {
   const chatAreaRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputTextAreaRef = useRef<HTMLTextAreaElement>(null);
+  const lastSyncTimestampRef = useRef<number>(0); // Track the last time we performed an auto-sync
 
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [modalActionType, setModalActionType] = useState<ActionType | null>(null);
@@ -899,6 +900,39 @@ export default function ChatPage() {
                           }
                           return prev;
                       });
+                      
+                      // Auto-sync with Google Drive after completing a message if user is authenticated
+                      // This ensures new messages are synced promptly without requiring manual sync
+                      if (authUser && googleAccessToken) {
+                          // Check if enough time has passed since the last sync (30 seconds)
+                          const now = Date.now();
+                          const timeSinceLastSync = now - lastSyncTimestampRef.current;
+                          const MIN_SYNC_INTERVAL = 30000; // 30 seconds minimum between auto-syncs
+                          
+                          if (timeSinceLastSync >= MIN_SYNC_INTERVAL) {
+                              console.log(`Auto-syncing with Google Drive after message completion... (${timeSinceLastSync}ms since last sync)`);
+                              lastSyncTimestampRef.current = now;
+                              
+                              // Slight delay to ensure local storage is updated first
+                              setTimeout(() => {
+                                  if (isMounted.current) {
+                                      syncWithDrive().then(result => {
+                                          if (result === 'SUCCESS') {
+                                              console.log("Auto-sync with Google Drive completed successfully");
+                                          } else if (result === 'TOKEN_REFRESH_NEEDED') {
+                                              console.log("Auto-sync failed: Google token needs refresh");
+                                          } else {
+                                              console.log("Auto-sync failed: General failure");
+                                          }
+                                      }).catch(err => {
+                                          console.error("Error during auto-sync with Google Drive:", err);
+                                      });
+                                  }
+                              }, 1000);
+                          } else {
+                              console.log(`Skipping auto-sync: Last sync was ${timeSinceLastSync}ms ago (minimum interval: ${MIN_SYNC_INTERVAL}ms)`);
+                          }
+                      }
                   }
               });
               return messagesForSave; // Return the state for setMessages
@@ -910,6 +944,7 @@ export default function ChatPage() {
     currentAttachedFilesData, saveSession, ensureMessagesHaveUniqueIds,
     userIdForHistory, profileLoading, toast,
     lastSelectedActionButton, messagesRef, // Added messagesRef here
+    syncWithDrive, authUser, googleAccessToken, // Add these new dependencies
   ]);
 
 
@@ -1128,6 +1163,35 @@ export default function ChatPage() {
   };
 
   const currentAttachedFilesDataLength = currentAttachedFilesData.length;
+
+  // Add an effect to sync on login
+  useEffect(() => {
+    // If auth just finished loading and we have a user and token
+    if (!authLoading && authUser && googleAccessToken) {
+      const now = Date.now();
+      const timeSinceLastSync = now - lastSyncTimestampRef.current;
+      const MIN_SYNC_INTERVAL = 30000; // 30 seconds
+      
+      // Only auto-sync if not synced recently (prevents multiple syncs)
+      if (timeSinceLastSync >= MIN_SYNC_INTERVAL) {
+        console.log("Auto-syncing after authentication completed");
+        lastSyncTimestampRef.current = now;
+        
+        // Slight delay to allow everything to initialize
+        setTimeout(() => {
+          if (isMounted.current) {
+            syncWithDrive().then(result => {
+              if (result === 'SUCCESS') {
+                console.log("Initial auth auto-sync completed successfully");
+              }
+            }).catch(err => {
+              console.error("Error during initial auth auto-sync:", err);
+            });
+          }
+        }, 2000);
+      }
+    }
+  }, [authLoading, authUser, googleAccessToken, syncWithDrive]);
 
   if (authLoading || (!currentSession && !profileLoading && !historyHookLoading) ) {
     return (
