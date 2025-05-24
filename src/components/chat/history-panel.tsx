@@ -5,8 +5,7 @@ import type { ChatSessionMetadata } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { PlusCircle, Trash2, MessageSquare, Loader2, Search, XIcon, PencilIcon, CheckIcon, RefreshCw } from 'lucide-react';
-// Using existing icon instead of MagnifyingGlassIcon from radix-ui
+import { PlusCircle, Trash2, MessageSquare, Loader2, XIcon, PencilIcon, CheckIcon, RefreshCw } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import {
   AlertDialog,
@@ -27,7 +26,23 @@ import {
 } from "@/components/ui/tooltip";
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { useIsMobile } from '@/hooks/use-mobile';
+
+// Custom hook for debounce
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
 
 interface HistoryPanelProps {
   sessions: ChatSessionMetadata[];
@@ -60,10 +75,9 @@ export function HistoryPanel({
   const [animateItems, setAnimateItems] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
-  // const isMobile = useIsMobile(); // Not currently used, can be uncommented if needed
-  
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editNameValue, setEditNameValue] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   useEffect(() => {
     const timer = setTimeout(() => setAnimateItems(true), 100);
@@ -84,11 +98,11 @@ export function HistoryPanel({
       session.preview.trim() !== ''
     );
     
-    if (!searchQuery.trim()) {
+    if (!debouncedSearchQuery.trim()) {
       return [...nonEmptySessions].sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
     }
     
-    const lowerCaseQuery = searchQuery.toLowerCase();
+    const lowerCaseQuery = debouncedSearchQuery.toLowerCase();
     const filtered = nonEmptySessions.filter(
       (session) =>
         (session.name && session.name.toLowerCase().includes(lowerCaseQuery)) ||
@@ -96,7 +110,7 @@ export function HistoryPanel({
     );
     
     return filtered.sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
-  }, [sessions, searchQuery]);
+  }, [sessions, debouncedSearchQuery]);
 
   const startEditing = (sessionId: string, currentName: string) => {
     if (onRenameSession) { // Only allow editing if onRenameSession is provided
@@ -174,21 +188,6 @@ export function HistoryPanel({
       <div className="flex items-center justify-between p-4 bg-card/50 backdrop-blur-sm border-b animate-fade-in">
         <div className="flex items-center gap-3">
           <h2 className="text-lg font-semibold text-gradient">Chat History</h2>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="btn-glow"
-                  onClick={() => searchInputRef.current?.focus()}
-                >
-                  <Search className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="animate-fade-in">Search</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
         </div>
         <div className="flex items-center gap-2">
           {onSyncWithDrive && (
@@ -233,11 +232,13 @@ export function HistoryPanel({
           </Button>
         )}
       </div>
+      
       {isLoading && (
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       )}
+
       {!isLoading && displayedSessions.length === 0 && (
         <div className="flex h-full flex-col items-center justify-center p-4 text-center text-muted-foreground animate-fade-in" style={{animationDelay: '0.2s'}}>
           <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted/80 backdrop-blur-sm animate-pulse-slow shadow-lg">
@@ -249,6 +250,7 @@ export function HistoryPanel({
           </p>
         </div>
       )}
+
       {!isLoading && displayedSessions.length > 0 && (
         <ScrollArea className="flex-1 overflow-y-auto" style={{ height: 'calc(100vh - 130px)', minHeight: '200px' }}>
           <div className="p-2 space-y-1 pb-10">

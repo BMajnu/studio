@@ -21,6 +21,7 @@ export interface UserProfile {
 export type MessageRole = 'user' | 'assistant' | 'system';
 
 export type ActionType =
+  | 'search'
   | 'processMessage'
   | 'analyzeRequirements'
   | 'generateEngagementPack'

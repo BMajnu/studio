@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { BotMessageSquare, Plane, RotateCcw, ListChecks, ClipboardList, Sparkles, MessageSquarePlus, Palette, Lightbulb, Terminal, SearchCheck, ClipboardSignature, Edit3, AlertTriangle } from 'lucide-react';
+import { BotMessageSquare, Plane, RotateCcw, ListChecks, ClipboardList, Sparkles, MessageSquarePlus, Palette, Lightbulb, Terminal, SearchCheck, ClipboardSignature, Edit3, AlertTriangle, Search } from 'lucide-react';
 import type { UserProfile } from '@/lib/types';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -15,6 +15,7 @@ import {
 import { cn } from '@/lib/utils';
 
 export type ActionType =
+  | 'search'
   | 'processMessage'
   | 'analyzeRequirements'
   | 'generateEngagementPack'
@@ -47,6 +48,7 @@ export type AnyActionConfig = ActionButtonConfig | DropdownActionConfig;
 
 
 const actionButtonsConfig: AnyActionConfig[] = [
+  { id: 'search', label: 'Search the Web', shortLabel: 'Search', icon: Search, description: 'Search the web for information using DuckDuckGo.', isPrimaryAction: true },
   { id: 'processMessage', label: 'Process Client Message', shortLabel: 'Chat', icon: BotMessageSquare, description: 'Full analysis, plan, Bengali translation.', isPrimaryAction: true },
   { id: 'analyzeRequirements', label: 'Analyze Requirements', shortLabel: 'Requirements', icon: ListChecks, description: 'Detailed analysis of requirements, prioritization, Bangla translation, and design message.', isPrimaryAction: true },
   { id: 'generateEngagementPack', label: 'Generate Engagement Pack', shortLabel: 'Brief', icon: ClipboardList, description: 'Generates a personalized intro, job reply, budget/timeline/software ideas, and clarifying questions.', isPrimaryAction: true },

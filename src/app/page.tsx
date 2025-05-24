@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Paperclip, Loader2, BotIcon, Menu, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw, PlusCircle, Edit3, RefreshCw, LogIn, UserPlus, Languages, X, AlertTriangle } from 'lucide-react';
+import { Paperclip, Loader2, BotIcon, Menu, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw, PlusCircle, Edit3, RefreshCw, LogIn, UserPlus, Languages, X, AlertTriangle, InfoIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -34,6 +34,8 @@ import type { User as FirebaseUser } from 'firebase/auth';
 import { LoginForm } from '@/components/auth/login-form';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { firebaseAppInstance } from '@/lib/firebase/clientApp'; // Import Firebase app instance
+import { FullscreenSearch } from '@/components/chat/fullscreen-search';
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 
 const getMessageText = (content: string | ChatMessageContentPart[] | undefined): string => {
@@ -125,7 +127,6 @@ const baseEnsureMessagesHaveUniqueIds = (messagesToProcess: ChatMessage[]): Chat
   });
 };
 
-
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -158,6 +159,9 @@ export default function ChatPage() {
   const [lastSelectedActionButton, setLastSelectedActionButton] = useState<ActionType | null>(null);
   // State for currently active button UI highlight
   const [activeActionButton, setActiveActionButton] = useState<ActionType | null>(null);
+  // State for search mode
+  const [isSearchActive, setIsSearchActive] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   
   /**
    * Button Selection Logic
@@ -205,6 +209,8 @@ export default function ChatPage() {
   const isMounted = useRef(false);
   const initialSessionLoadAttemptedRef = useRef(false);
 
+  // Add a chatSidebarRef to access the history panel
+  const chatSidebarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     isMounted.current = true;
@@ -1058,6 +1064,21 @@ export default function ChatPage() {
     if (!profile) {
        return;
     }
+
+    // Handle search action specially
+    if (action === 'search') {
+      setIsSearchActive(prev => !prev);
+      // Set or reset search query when toggling
+      if (!isSearchActive) {
+        setSearchQuery('');
+      }
+      // Highlight the button briefly then clear it
+      setActiveActionButton(action);
+      setTimeout(() => {
+        setActiveActionButton(null);
+      }, 500);
+       return;
+    }
     
     // Set this action as the last selected
     setLastSelectedActionButton(action);
@@ -1071,7 +1092,7 @@ export default function ChatPage() {
       // Pass isCustomMessage to use custom instructions if checkbox is checked
       handleSendMessage(inputMessage || '', action, undefined, undefined, false, false, undefined, undefined, isCustomMessage);
     }
-  }, [inputMessage, handleSendMessage, profile, isCustomMessage]);
+  }, [inputMessage, handleSendMessage, profile, isCustomMessage, isSearchActive]);
 
   const submitModalNotes = () => {
     if (modalActionType) {
@@ -1253,7 +1274,7 @@ export default function ChatPage() {
     <div className="flex h-[calc(100vh-var(--header-height,0px))] bg-gradient-to-br from-background-start-hsl to-background-end-hsl">
       {isMobile && isHistoryPanelOpen && (
         <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={() => setIsHistoryPanelOpen(false)}>
-          <div className="absolute left-0 top-0 h-full w-4/5 max-w-[260px] glass-panel border-r shadow-2xl animate-slide-in-left" onClick={(e) => e.stopPropagation()}>
+          <div ref={chatSidebarRef} className="absolute left-0 top-0 h-full w-4/5 max-w-[260px] glass-panel border-r shadow-2xl animate-slide-in-left" onClick={(e) => e.stopPropagation()}>
             <HistoryPanel
               sessions={historyMetadata} activeSessionId={currentSession?.id || null}
               onSelectSession={handleSelectSession} onNewChat={handleNewChat}
@@ -1265,6 +1286,7 @@ export default function ChatPage() {
       )}
       {!isMobile && (
         <div
+          ref={chatSidebarRef}
           className={cn(
             "glass-panel shrink-0 transition-all duration-300 ease-in-out h-full overflow-y-auto",
             isHistoryPanelOpen ? "w-[260px] p-0 border-r" : "w-0 border-r-0 opacity-0 p-0"
@@ -1520,6 +1542,14 @@ export default function ChatPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Fullscreen search overlay */}
+      <FullscreenSearch 
+        isOpen={isSearchActive}
+        onClose={() => setIsSearchActive(false)}
+        initialQuery={searchQuery}
+        onQueryChange={setSearchQuery}
+      />
     </div>
   );
 }
