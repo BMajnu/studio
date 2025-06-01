@@ -1,4 +1,3 @@
-
 'use server';
 
 /**
@@ -19,6 +18,7 @@ import { googleAI } from '@genkit-ai/googleai';
 const AttachedFileSchema = z.object({
   name: z.string().describe("Name of the file"),
   type: z.string().describe("MIME type of the file"),
+  size: z.number().optional().describe("Size of the file in bytes"),
   dataUri: z.string().optional().describe("Base64 data URI for image files. Use {{media url=<dataUri>}} to reference in prompt."),
   textContent: z.string().optional().describe("Text content for text files (e.g., .txt, .md).")
 });
@@ -135,7 +135,13 @@ Based on *all available information* (latest message, full history, attachments)
 
 1.  **Analysis:** Detailed analysis of the client's *current cumulative needs and requirements*. If the latest message shifts focus, explain how it relates to or diverges from previous points.
 2.  **Simplified Request:** A concise summary of what the client is *currently asking for, considering all context*.
-3.  **Step-by-Step Approach:** A clear plan for {{{userName}}} to fulfill the *current, fully understood request*.
+3.  **Step-by-Step Approach:** A conversational, friendly plan for {{{userName}}} to fulfill the *current, fully understood request*. Format each step to be more humanized and engaging:
+    * Prefix each step with a relevant emoji
+    * Use a conversational tone rather than directive language
+    * Frame steps as a journey you're taking together with the client
+    * For example, instead of "Gather specific details", say "📝 **Getting the Details Just Right:** Let's dive into all the specific details about your request..."
+    * Make the language warm and approachable while maintaining professionalism
+
 4.  **Bengali Translation:** Translate the Analysis, Simplified Request, and Step-by-Step Approach for the current request into Bengali.
 
 5.  **Suggested English Replies (Two options):**

@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from 'next/link';
@@ -251,7 +250,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const sheetTitle = currentLanguage === 'bn' ? 'মেনু' : 'Menu';
 
   return (
-    <div className="flex min-h-screen flex-col" style={{ "--header-height": "4rem" } as React.CSSProperties}>
+    <div className="flex min-h-screen max-h-screen flex-col" style={{ "--header-height": "4rem" } as React.CSSProperties}>
       <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b bg-background/60 px-4 backdrop-blur-xl shrink-0 shadow-lg glass-panel animate-fade-in">
         <Link href="/" className="flex items-center gap-2 transition-all duration-300 ease-in-out hover:opacity-90 hover:scale-110 group">
           <div className="relative overflow-hidden rounded-full p-1 transition-all duration-300 group-hover:shadow-md group-hover:shadow-primary/20">
@@ -354,7 +353,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </header>
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden h-[calc(100vh-4rem)] w-full">
         {children}
       </main>
 

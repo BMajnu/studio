@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useChatHistory } from '@/lib/hooks/use-chat-history';
 import { ChatHistoryItem } from './ChatHistoryItem';
 import { Button } from '@/components/ui/button';
@@ -13,17 +13,10 @@ interface ChatHistoryProps {
 }
 
 export function ChatHistory({ userId, activeSessionId, onSelectSession, onNewChat }: ChatHistoryProps) {
-  const { historyMetadata, deleteSession, syncWithDrive, isSyncing, renameSession, triggerGoogleSignIn } = useChatHistory(userId);
+  const { historyMetadata, deleteSession, isSyncing, renameSession } = useChatHistory(userId);
 
   const handleDeleteSession = (sessionId: string) => {
     deleteSession(sessionId);
-  };
-
-  const handleSyncWithDrive = async () => {
-    const result = await syncWithDrive();
-    if (result === 'TOKEN_REFRESH_NEEDED') {
-      triggerGoogleSignIn();
-    }
   };
   
   const handleRenameSession = async (sessionId: string, newName: string) => {
@@ -41,6 +34,21 @@ export function ChatHistory({ userId, activeSessionId, onSelectSession, onNewCha
       });
     }
   };
+  
+  // Add a refresh history handler
+  const handleRefreshHistory = useCallback(() => {
+    // Create an event to force history refresh
+    if (typeof window !== 'undefined') {
+      const refreshEvent = new Event('storage', { bubbles: true });
+      window.dispatchEvent(refreshEvent);
+      
+      // Also trigger a custom event for components listening for history updates
+      const historyEvent = new CustomEvent('history-updated', { 
+        detail: { force: true } 
+      });
+      window.dispatchEvent(historyEvent);
+    }
+  }, []);
 
   return (
     <div className="h-full flex flex-col max-w-[260px] w-full">
@@ -51,10 +59,12 @@ export function ChatHistory({ userId, activeSessionId, onSelectSession, onNewCha
         onNewChat={onNewChat}
         onDeleteSession={handleDeleteSession}
         onRenameSession={handleRenameSession}
-        onSyncWithDrive={handleSyncWithDrive}
+        onSyncWithDrive={undefined}  // Remove sync functionality
         isLoading={false}
         isLoggedIn={true}
         isSyncing={isSyncing}
+        onRefreshHistory={handleRefreshHistory}
+        className=""
       />
     </div>
   );

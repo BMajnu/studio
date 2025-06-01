@@ -87,6 +87,57 @@ interface CopyableListProps {
 
 export function CopyableList({ items, title, className, style }: CopyableListProps) {
   if (!items || items.length === 0) return null;
+  
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
+  
+  // Process items to handle Markdown formatting (specifically bold with **)
+  const processMarkdown = (text: string) => {
+    return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  };
+  
+  // Format items for display with proper numbering and processed markdown
   const formattedItems = items.map((item, idx) => `${idx + 1}. ${item}`).join('\n');
-  return <CopyToClipboard textToCopy={formattedItems} title={title} className={className} style={style} />;
+  
+  // Format items for the clipboard as plain text (without HTML tags)
+  const plainTextItems = items.map((item, idx) => `${idx + 1}. ${item}`).join('\n');
+  
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(plainTextItems);
+      setCopied(true);
+      toast({ title: 'Copied to clipboard!', duration: 2000 });
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+      toast({ title: 'Failed to copy', description: 'Could not copy text to clipboard.', variant: 'destructive' });
+    }
+  };
+  
+  return (
+    <div className={cn("relative rounded-md border bg-card/50 shadow-sm my-2", className)} style={style}>
+      {title && (
+        <div className="flex items-center justify-between px-4 py-2 border-b">
+          <h4 className="text-sm font-semibold text-muted-foreground">{title}</h4>
+        </div>
+      )}
+      <div className="relative p-4">
+        <ul className="space-y-2 list-decimal pl-5">
+          {items.map((item, idx) => (
+            <li key={idx} className="text-sm leading-relaxed text-foreground" 
+                dangerouslySetInnerHTML={{ __html: processMarkdown(item) }} />
+          ))}
+        </ul>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-2 right-2 h-7 w-7 text-muted-foreground hover:text-foreground"
+          onClick={handleCopy}
+          aria-label="Copy to clipboard"
+        >
+          {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+        </Button>
+      </div>
+    </div>
+  );
 }

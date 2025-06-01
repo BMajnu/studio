@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { User as FirebaseUser } from 'firebase/auth';
@@ -110,8 +109,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
-      // Add scope for Google Drive appDataFolder access
-      provider.addScope('https://www.googleapis.com/auth/drive.appdata');
+      // Remove Drive scope - no longer needed
+      // provider.addScope('https://www.googleapis.com/auth/drive.appdata');
       // Optionally, prompt for account selection every time
       // provider.setCustomParameters({ prompt: 'select_account' });
 

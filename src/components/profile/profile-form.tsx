@@ -134,321 +134,362 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <div className="space-y-6 pr-1">
-          {/* ... other form fields ... */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Name *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., B. Majnu" {...field} />
-                  </FormControl>
-                  <FormDescription>Your professional name.</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="professionalTitle"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Professional Title</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., Professional Graphics Designer" {...field} value={field.value ?? ""} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <div className="space-y-6">
+          {/* Personal Information Section */}
+          <div className="bg-white dark:bg-gray-800/50 rounded-lg p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+            <h3 className="font-medium text-lg mb-3">Personal Information</h3>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Name *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Your name" {...field} />
+                      </FormControl>
+                      <FormDescription>Your professional name.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="professionalTitle"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Professional Title</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Graphic Designer" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="yearsOfExperience"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Years of Experience</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="e.g., 6" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="portfolioLink"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Portfolio Link</FormLabel>
+                      <FormControl>
+                        <Input placeholder="https://yourportfolio.com" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-             <FormField
-              control={form.control}
-              name="yearsOfExperience"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Years of Experience</FormLabel>
-                  <FormControl>
-                    <Input type="number" placeholder="e.g., 6" {...field} value={field.value ?? ""} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="portfolioLink"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Portfolio Link</FormLabel>
-                  <FormControl>
-                    <Input type="url" placeholder="e.g., https://fiverr.com/majnu786" {...field} value={field.value ?? ""} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-         
-          <FormField
-            control={form.control}
-            name="communicationStyleNotes"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Communication Style Notes</FormLabel>
-                <FormControl>
-                  <Textarea
-                    placeholder="Keywords/description for AI tone, e.g., 'friendly, reliable, professional'"
-                    className="resize-none"
-                    {...field}
-                    value={field.value ?? ""}
+          {/* Professional Services Section */}
+          <div className="bg-white dark:bg-gray-800/50 rounded-lg p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+            <h3 className="font-medium text-lg mb-3">Professional Services</h3>
+            <div className="space-y-4">
+              <div>
+                <FormLabel>Services Offered</FormLabel>
+                {serviceFields.map((field, index) => (
+                  <FormField
+                    control={form.control}
+                    key={field.id}
+                    name={`services.${index}`}
+                    render={({ field: itemField }) => (
+                      <FormItem className="mb-2">
+                        <div className="flex items-center gap-2">
+                          <FormControl>
+                            <Input placeholder="e.g., 👕 T-Shirt Designs" {...itemField} />
+                          </FormControl>
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => removeService(index)} 
+                            className="shrink-0"
+                            aria-label="Remove service"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </FormControl>
-                <FormDescription>Help AI understand your preferred tone.</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-1"
+                  onClick={() => appendService("")}
+                >
+                  <PlusCircle className="mr-2 h-4 w-4" /> Add Service
+                </Button>
+                <FormDescription className="mt-1">List the services you offer. Emojis are welcome!</FormDescription>
+              </div>
 
-          <div className="space-y-4">
-            <FormLabel>Services Offered</FormLabel>
-            {serviceFields.map((field, index) => (
               <FormField
                 control={form.control}
-                key={field.id}
-                name={`services.${index}`}
-                render={({ field: itemField }) => (
+                name="fiverrUsername"
+                render={({ field }) => (
                   <FormItem>
-                    <div className="flex items-center gap-2">
-                      <FormControl>
-                        <Input placeholder="e.g., 🎽 T-Shirt Designs" {...itemField} />
-                      </FormControl>
-                      <Button type="button" variant="ghost" size="icon" onClick={() => removeService(index)} aria-label="Remove service">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <FormLabel>Fiverr Username</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Your Fiverr username" {...field} value={field.value ?? ""} />
+                    </FormControl>
+                    <FormDescription>If you're on Fiverr, add your username.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => appendService("")}
-            >
-              <PlusCircle className="mr-2 h-4 w-4" /> Add Service
-            </Button>
-            <FormDescription>List the services you offer. Emojis are welcome!</FormDescription>
+            </div>
           </div>
-          
-          <FormField
-            control={form.control}
-            name="rawPersonalStatement"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Raw Personal Statement</FormLabel>
-                <FormControl>
-                  <Textarea
-                    placeholder="Your detailed professional introduction and experience for the AI to adapt."
-                    className="resize-none h-40"
-                    {...field}
-                    value={field.value ?? ""}
-                  />
-                </FormControl>
-                <FormDescription>Provide your full professional bio here. The AI will adapt parts of this for client introductions based on their specific request.</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Communication Preferences */}
+          <div className="bg-white dark:bg-gray-800/50 rounded-lg p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+            <h3 className="font-medium text-lg mb-3">Communication Preferences</h3>
             <FormField
               control={form.control}
-              name="fiverrUsername"
+              name="communicationStyleNotes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Fiverr Username</FormLabel>
+                  <FormLabel>Communication Style Notes</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., majnu786" {...field} value={field.value ?? ""} />
+                    <Textarea
+                      placeholder="Keywords describing your preferred communication style, e.g., 'friendly, reliable, professional'"
+                      className="resize-none max-h-[150px]"
+                      {...field}
+                      value={field.value ?? ""}
+                    />
                   </FormControl>
+                  <FormDescription>Help AI understand your preferred tone.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
+          </div>
+
+          {/* AI Settings - Collapsed by Default */}
+          <div className="bg-white dark:bg-gray-800/50 rounded-lg p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+            <h3 className="font-medium text-lg mb-3">AI Configuration</h3>
             
-            <FormField
+            <div className="space-y-4">
+              <div>
+                <FormLabel htmlFor="apiKeys">Gemini API Keys</FormLabel>
+                {apiKeyFields.map((field, index) => (
+                  <FormField
+                    control={form.control}
+                    key={field.id}
+                    name={`geminiApiKeys.${index}`}
+                    render={({ field: itemField }) => (
+                      <FormItem className="mb-2">
+                        <div className="flex items-center gap-2">
+                          <FormControl>
+                            <Input 
+                              type="password"
+                              placeholder="Enter your Gemini API Key" 
+                              {...itemField} 
+                            />
+                          </FormControl>
+                          {index > 0 && (
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              size="icon" 
+                              className="shrink-0"
+                              onClick={() => removeApiKey(index)} 
+                              aria-label="Remove API key"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-1"
+                  onClick={() => appendApiKey("")}
+                >
+                  <PlusCircle className="mr-2 h-4 w-4" /> Add Another API Key
+                </Button>
+              </div>
+
+              <FormField
                 control={form.control}
                 name="selectedGenkitModelId"
                 render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Preferred AI Model</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value || DEFAULT_MODEL_ID}>
-                    <FormControl>
-                        <SelectTrigger>
-                        <SelectValue placeholder="Select an AI model" />
-                        </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                        {AVAILABLE_MODELS.map(model => (
-                        <SelectItem key={model.id} value={model.id}>
-                            {model.name}
-                        </SelectItem>
-                        ))}
-                    </SelectContent>
-                    </Select>
-                    <FormDescription>
-                    Choose the AI model for generating responses.
-                    </FormDescription>
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
-
-            <FormField
-                control={form.control}
-                name="useAlternativeAiImpl"
-                render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                    <FormLabel className="text-base">Use Alternative Google AI SDK</FormLabel>
-                    <FormDescription>
-                        Enable this to use the newer <code>@google/genai</code> SDK for processing (requires API key).
-                    </FormDescription>
-                    </div>
-                    <FormControl>
-                    <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                    />
-                    </FormControl>
-                </FormItem>
-                )}
-            />
-
-            <FormField
-                control={form.control}
-                name="useFirebaseAI"
-                render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                    <FormLabel className="text-base">Use Firebase AI SDK (Primary)</FormLabel>
-                    <FormDescription>
-                        Enable this to use the Firebase AI SDK (<code>firebase/ai</code>) as the primary method. Falls back if Firebase initialization or generation fails.
-                        Requires Firebase to be set up in your project.
-                    </FormDescription>
-                    </div>
-                    <FormControl>
-                    <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                    />
-                    </FormControl>
-                </FormItem>
-                )}
-            />
-          </div>
-
-          <div className="space-y-4">
-            <FormLabel>Gemini API Keys *</FormLabel>
-            {apiKeyFields.map((field, index) => (
-              <FormField
-                control={form.control}
-                key={field.id}
-                name={`geminiApiKeys.${index}`}
-                render={({ field: itemField }) => (
                   <FormItem>
-                    <div className="flex items-center gap-2">
+                    <FormLabel>Preferred AI Model</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value ?? DEFAULT_MODEL_ID}>
                       <FormControl>
-                        <Input 
-                          type="password" 
-                          placeholder={`API Key ${index + 1}`} 
-                          {...itemField} 
-                        />
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select model" />
+                        </SelectTrigger>
                       </FormControl>
-                      {apiKeyFields.length > 1 && (
-                        <Button 
-                          type="button" 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => removeApiKey(index)} 
-                          aria-label="Remove API Key"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                    <FormMessage /> {/* This will show errors for individual keys if any */}
+                      <SelectContent>
+                        {AVAILABLE_MODELS.map(model => (
+                          <SelectItem key={model.id} value={model.id}>
+                            {model.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>Choose your preferred AI model.</FormDescription>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
-            ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => appendApiKey("")}
-              className="mt-2"
-            >
-              <PlusCircle className="mr-2 h-4 w-4" /> Add API Key
-            </Button>
-            <FormDescription>
-              Enter your Gemini API Keys. The first key in the list will be used. At least one key is required for AI features.
-            </FormDescription>
-            {/* Display top-level form error for geminiApiKeys if it exists (e.g., "At least one key is required") */}
-            {form.formState.errors.geminiApiKeys && !form.formState.errors.geminiApiKeys.message && (
-                 <p className="text-sm font-medium text-destructive">
-                    {form.formState.errors.geminiApiKeys.root?.message || "Please provide at least one API key."}
-                </p>
-            )}
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="useAlternativeAiImpl"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between p-3 rounded-lg border">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Use Alternative AI</FormLabel>
+                        <FormDescription>
+                          Enable experimental AI features
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="useFirebaseAI"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between p-3 rounded-lg border">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Use Firebase AI</FormLabel>
+                        <FormDescription>
+                          Process AI through Firebase
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
           </div>
-          
-          <FormField
-            control={form.control}
-            name="customSellerFeedbackTemplate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Custom Seller Feedback Template</FormLabel>
-                <FormControl>
-                  <Textarea
-                    placeholder="e.g., Great client, outstanding experience..."
-                    className="resize-none h-24"
-                    {...field}
-                    value={field.value ?? ""}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
 
-          <FormField
-            control={form.control}
-            name="customClientFeedbackResponseTemplate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Custom Client Feedback Response Template</FormLabel>
-                <FormControl>
-                  <Textarea
-                    placeholder="e.g., Thanks for your great feedback..."
-                    className="resize-none h-24"
-                    {...field}
-                    value={field.value ?? ""}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {/* Templates Section - Collapsed by Default */}
+          <details className="bg-white dark:bg-gray-800/50 rounded-lg p-4 shadow-sm border border-gray-100 dark:border-gray-700 group">
+            <summary className="font-medium text-lg cursor-pointer list-none flex items-center">
+              <span className="flex-1">Advanced Templates</span>
+              <svg 
+                className="h-5 w-5 transform transition-transform group-open:rotate-180" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </summary>
+            <div className="space-y-4 mt-3">
+              <FormField
+                control={form.control}
+                name="customSellerFeedbackTemplate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Seller Feedback Template</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Enter your custom seller feedback template..."
+                        className="resize-none min-h-[80px] max-h-[150px]"
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="customClientFeedbackResponseTemplate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Client Feedback Response Template</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Enter your custom client feedback response template..."
+                        className="resize-none min-h-[80px] max-h-[150px]"
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="rawPersonalStatement"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Personal Statement</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Enter your personal statement..."
+                        className="resize-none min-h-[80px] max-h-[150px]"
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormDescription>Tell us about yourself and your services.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </details>
+
+          <div className="flex justify-end py-2">
+            <Button type="submit" size="lg" className="px-8 font-semibold">
+              Save Changes
+            </Button>
+          </div>
         </div>
-        <Button type="submit" className="mt-8">Save Profile</Button>
       </form>
     </Form>
   );

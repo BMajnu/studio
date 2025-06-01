@@ -13,3 +13,5 @@ import '@/ai/flows/check-made-designs-flow.ts';
 import '@/ai/flows/generate-editing-prompts-flow.ts';
 import '@/ai/flows/generate-brief-flow.ts';
 import '@/ai/flows/process-custom-instruction.ts';
+import '@/ai/flows/prompt-to-replicate-flow.ts';
+import '@/ai/flows/prompt-with-custom-sense-flow.ts';

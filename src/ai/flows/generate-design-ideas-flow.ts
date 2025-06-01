@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview Generates creative design ideas, simulated web search results, and typography ideas.
@@ -58,7 +57,8 @@ const GenerateDesignIdeasOutputSchema = z.object({
   extractedTextOrSaying: z.string().describe("The specific text or saying identified from the input that the design ideas are based on. If input is a general theme, this might be a concise summary of it."),
   simulatedWebInspiration: z.array(WebSearchResultSchema).describe("Simulated web search results: 2-3 example links with titles and snippets for designs similar to the design's text/saying. You are not browsing; create plausible examples if real search is not possible or if the input doesn't provide enough specifics for actual search queries. If no text/saying is clear, provide general inspiration related to the broader theme if one can be inferred."),
   creativeDesignIdeas: z.array(z.string()).describe("Five highly detailed, specific, and well-directed creative design ideas for new designs based on the extracted text/saying. Include style, concept, visual elements, color palette suggestions, and how the text is incorporated. Aim for production-ready concepts."),
-  typographyDesignIdeas: z.array(z.string()).describe("Two highly detailed and specific creative typography-focused design ideas (graphics optional or minimal) for the extracted text/saying, emphasizing font style, layout, typographic effects, and overall aesthetic. Aim for unique and impactful typographic treatments."),
+  typographyDesignIdeas: z.array(z.string()).describe("Five highly detailed and specific creative typography-focused design ideas (graphics optional or minimal) for the extracted text/saying, emphasizing font style, layout, typographic effects, and overall aesthetic. Aim for unique and impactful typographic treatments."),
+  typographyWithGraphicsIdeas: z.array(z.string()).describe("Five typography designs featuring simple graphics and ornaments. These should be well-aligned, not too busy, with graphics added as complementary elements but not as the main focus. The main focus should be on the typography, with playful, simple graphics and ornaments enhancing the text."),
 });
 export type GenerateDesignIdeasOutput = z.infer<typeof GenerateDesignIdeasOutputSchema>;
 
@@ -118,30 +118,51 @@ Attached Files (analyze for visual cues, specific elements, style preferences, o
 1.  **Identify Core Text(s)/Saying(s)/Theme(s):** Determine the core text(s), slogan(s), saying(s), or theme(s) from the "Design Input Text" AND the "Previous conversation context" that should be the focus of the design(s). If multiple distinct subjects for design are apparent, acknowledge them. Populate \`extractedTextOrSaying\` with a concise summary or the primary text.
 
 2.  **Simulated Web Inspiration (Field: \`simulatedWebInspiration\`):**
+    *   Begin each item with a relevant emoji (🔍, 🌐, 📱, etc.) to visually distinguish each resource
     *   Based on the identified core text(s)/theme(s), generate 2-3 *simulated* web search results or inspirational examples.
     *   Each result must have a plausible \`title\`, a conceptual \`link\` (e.g., "dribbble.com/coffee-logo-concepts", "behance.net/minimalist-typography-posters"), and a brief, relevant \`snippet\`.
+    *   Format the links and descriptions in a consistent, easily scannable structure.
     *   You are NOT browsing the live web. Create realistic-sounding examples. If input is too vague, provide general design inspiration relevant to potential themes.
 
 3.  **Creative Design Ideas (Field: \`creativeDesignIdeas\`):**
+    *   Each idea should begin with a distinctive emoji (🎨, 💡, ✨, etc.) that represents its theme or concept
+    *   Number each idea clearly (e.g., "Idea 1: The 'Superhero Dad' Emblem")
     *   Generate FIVE distinct, **highly detailed, specific, and well-directed** creative design ideas. These should be production-ready concepts.
-    *   For each idea:
-        *   **Concept:** Clearly describe the core concept and narrative.
-        *   **Style:** Specify the artistic style (e.g., vintage, minimalist, retro comic, abstract, geometric, illustrative, photographic).
-        *   **Visual Elements:** Detail all key visual elements, objects, characters, or symbols. Describe their appearance and interaction.
-        *   **Color Palette:** Suggest a specific color palette (e.g., "monochromatic blues with a gold accent," "earthy tones of brown, green, and terracotta").
-        *   **Text Incorporation:** Explain how the text/saying is integrated into the design (e.g., "arched above the central graphic," "interwoven with illustrative elements," "boldly centered").
-        *   **Overall Mood/Feeling:** Describe the intended emotional impact (e.g., "playful and energetic," "sophisticated and modern," "nostalgic and warm").
-    *   Example: "Idea 1: A majestic wolf silhouette against a vibrant geometric aurora borealis. Style: Modern geometric, slightly abstract. Visual Elements: Wolf head composed of interconnected triangles, sharp lines for aurora, subtle starbursts. Color Palette: Deep blues, purples, teals for aurora, with a contrasting silver or white for the wolf outline and stars. Text Incorporation: 'Northern Soul' (example text) in a clean, sans-serif font, subtly placed at the bottom. Mood: Mysterious, powerful, serene."
+    *   For each idea, use a structured format with multiple paragraphs and clear separation between sections:
+        *   First line: Title of the design (e.g., "The 'Dad Bod' Super Dad Emblem")
+        *   **Concept:** (New paragraph) Clearly describe the core concept and narrative.
+        *   **Style:** (New paragraph) Specify the artistic style (e.g., vintage, minimalist, retro comic, abstract, geometric, illustrative, photographic).
+        *   **Visual Elements:** (New paragraph) Detail all key visual elements, objects, characters, or symbols. Describe their appearance and interaction.
+        *   **Color Palette:** (New paragraph) Suggest a specific color palette (e.g., "monochromatic blues with a gold accent," "earthy tones of brown, green, and terracotta").
+        *   **Text Incorporation:** (New paragraph) Explain how the text/saying is integrated into the design (e.g., "arched above the central graphic," "interwoven with illustrative elements," "boldly centered").
+        *   **Overall Mood/Feeling:** (New paragraph) Describe the intended emotional impact (e.g., "playful and energetic," "sophisticated and modern," "nostalgic and warm").
+    *   Ensure clear visual separation between different ideas using multiple line breaks.
 
 4.  **Typography Design Ideas (Field: \`typographyDesignIdeas\`):**
-    *   Generate TWO distinct, **highly detailed and specific** creative typography-focused design ideas. These should emphasize unique and impactful typographic treatments with minimal or optional graphics.
-    *   For each idea:
+    *   Prefix each typography idea with a relevant emoji (🔤, 📝, 🖋️, etc.)
+    *   Number each idea clearly (e.g., "Typography Idea 1: 'WORLD'S BEST DAD' with Layered Depth")
+    *   Generate FIVE distinct, **highly detailed and specific** creative typography-focused design ideas. These should emphasize unique and impactful typographic treatments with minimal or optional graphics.
+    *   Use a consistent structured format for each idea:
         *   **Font Style:** Describe the specific font style (e.g., "bold condensed sans-serif," "elegant flowing script," "distressed vintage serif," "futuristic display font").
         *   **Layout & Composition:** Detail how the text is arranged (e.g., "stacked vertically," "circular arrangement," "text forming a specific shape").
         *   **Typographic Effects:** Mention any effects (e.g., "3D extrusion," "neon glow," "letterpress deboss," "interlocking ligatures").
         *   **Color & Treatment:** Suggest colors for the text and any subtle background treatments.
         *   **Overall Aesthetic:** (e.g., "Clean and corporate," "Grungy and urban," "Playful and whimsical").
-    *   Example: "Typography Idea 1: 'Coffee Beats Everything' (example text) rendered in a dynamic, hand-drawn script font that mimics steam rising from a coffee cup. Layout: Text flows upwards, with ligatures connecting letters like wisps of steam. Effects: Subtle textured background resembling parchment, text has a slightly imperfect, hand-lettered feel. Color: Rich dark brown for text on a cream background. Aesthetic: Warm, inviting, artisanal."
+    *   Use clear line breaks to separate different aspects of each typography idea.
+
+5.  **Typography with Graphics Ideas (Field: \`typographyWithGraphicsIdeas\`):**
+    *   Prefix each idea with a relevant emoji (🎭, 🖌️, 🎨, 🏷️, etc.)
+    *   Number each idea clearly (e.g., "Typography & Graphics Idea 1: 'Dad Life' with Playful Tool Icons")
+    *   Generate FIVE distinct typography designs featuring simple graphics and ornaments.
+    *   For each idea, use a structured format with multiple paragraphs and clear separation between sections:
+        *   First line: Title of the design
+        *   **Concept:** (New paragraph) Describe the core concept combining typography with simple graphics.
+        *   **Typography Focus:** (New paragraph) Detail the font choices, text arrangement, and typographic treatments.
+        *   **Graphic Elements:** (New paragraph) Describe the simple graphics, ornaments, or decorative elements that complement the typography (not overpower it).
+        *   **Relationship:** (New paragraph) Explain how the graphics enhance the typography while keeping text as the main focus.
+        *   **Color Scheme:** (New paragraph) Suggest a color palette that works for both the text and graphic elements.
+        *   **Overall Feel:** (New paragraph) Describe the intended aesthetic impact (e.g., "playful yet elegant," "subtly decorated," "harmoniously balanced").
+    *   Ensure clear visual separation between different ideas using multiple line breaks.
 
 Ensure your entire response is a single JSON object matching the \`GenerateDesignIdeasOutputSchema\`.
 `,
@@ -160,4 +181,3 @@ Ensure your entire response is a single JSON object matching the \`GenerateDesig
     throw new Error(`AI call failed in ${flowName}. Please check server logs for details. Original error: ${(error as Error).message}`);
   }
 }
-    

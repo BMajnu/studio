@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Paperclip, Loader2, BotIcon, Menu, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw, PlusCircle, Edit3, RefreshCw, LogIn, UserPlus, Languages, X, AlertTriangle, InfoIcon } from 'lucide-react';
+import { Paperclip, Loader2, BotIcon, Menu, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw, PlusCircle, Edit3, RefreshCw, LogIn, UserPlus, Languages, X, AlertTriangle, InfoIcon, ArrowUpToLine, ArrowDownToLine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -10,9 +10,10 @@ import { ChatMessageDisplay } from '@/components/chat/chat-message';
 import { ActionButtonsPanel, type ActionType } from '@/components/chat/action-buttons';
 import { HistoryPanel } from '@/components/chat/history-panel';
 import { useToast } from "@/hooks/use-toast";
+import { safeToast } from "@/lib/safe-toast";
 import { useUserProfile } from '@/lib/hooks/use-user-profile';
 import { useChatHistory } from '@/lib/hooks/use-chat-history';
-import type { ChatMessage, UserProfile, ChatMessageContentPart, AttachedFile, ChatSession, EditHistoryEntry } from '@/lib/types';
+import type { ChatMessage, UserProfile, ChatMessageContentPart, AttachedFile, ChatSession, ChatSessionMetadata, EditHistoryEntry } from '@/lib/types';
 import { processClientMessage, type ProcessClientMessageInput, type ProcessClientMessageOutput } from '@/ai/flows/process-client-message';
 import { processCustomInstruction, type ProcessCustomInstructionInput, type ProcessCustomInstructionOutput } from '@/ai/flows/process-custom-instruction';
 import { analyzeClientRequirements, type AnalyzeClientRequirementsInput, type AnalyzeClientRequirementsOutput } from '@/ai/flows/analyze-client-requirements';
@@ -22,6 +23,9 @@ import { generateDesignPrompts, type GenerateDesignPromptsInput, type GenerateDe
 import { checkMadeDesigns, type CheckMadeDesignsInput, type CheckMadeDesignsOutput } from '@/ai/flows/check-made-designs-flow';
 import { generatePlatformMessages, type GeneratePlatformMessagesInput, type GeneratePlatformMessagesOutput } from '@/ai/flows/generate-platform-messages';
 import { generateEditingPrompts, type GenerateEditingPromptsInput, type GenerateEditingPromptsOutput } from '@/ai/flows/generate-editing-prompts-flow';
+import { checkBestDesign, type CheckBestDesignInput, type CheckBestDesignOutput } from '@/ai/flows/check-best-design-flow';
+import { promptToReplicate } from '@/ai/flows/prompt-to-replicate-flow';
+import { type PromptToReplicateInput, type PromptToReplicateOutput } from '@/ai/flows/prompt-to-replicate-types';
 
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
@@ -36,6 +40,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { firebaseAppInstance } from '@/lib/firebase/clientApp'; // Import Firebase app instance
 import { FullscreenSearch } from '@/components/chat/fullscreen-search';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+// Add import for PromptToReplicate component
+import { PromptToReplicate } from '@/components/chat/prompt-to-replicate';
+import { PromptWithCustomSense } from '@/components/chat/prompt-with-custom-sense';
+import { PromptForMicrostock } from '@/components/chat/prompt-for-microstock';
+import type { PromptWithCustomSenseOutput } from '@/ai/flows/prompt-with-custom-sense-types'; // Added this import
+import type { PromptWithMetadata as AIPromptWithMetadata } from '@/ai/flows/prompt-for-microstock-types'; // Import type for microstock results
+import { FirebaseChatHistory } from '@/components/chat/FirebaseChatHistory';
 
 
 const getMessageText = (content: string | ChatMessageContentPart[] | undefined): string => {
@@ -80,6 +91,27 @@ const getMessageText = (content: string | ChatMessageContentPart[] | undefined):
           tgContent += `Bengali Translation:\n${bengaliCombined.trim()}\n`;
         }
         fullText += tgContent;
+        break;
+      case 'microstock_results_tabs':
+        fullText += titlePrefix;
+        // Use optional chaining to safely access microstockResults
+        const microstockResults = part.microstockResults ?? [];
+        if (microstockResults.length > 0) {
+          fullText += `Generated ${microstockResults.length} microstock prompts:\n\n`;
+          microstockResults.forEach((result, index) => {
+            fullText += `PROMPT ${index + 1}:\n${result.prompt}\n\n`;
+            fullText += `METADATA:\n`;
+            fullText += `Title: ${result.metadata.title}\n`;
+            fullText += `Keywords: ${result.metadata.keywords.join(', ')}\n`;
+            fullText += `Category: ${result.metadata.mainCategory}\n`;
+            fullText += `Subcategory: ${result.metadata.subcategory}\n\n`;
+            if (index < microstockResults.length - 1) {
+              fullText += `---\n\n`;
+            }
+          });
+        } else {
+          fullText += `No microstock prompts were generated.\n`;
+        }
         break;
       default:
         // For unknown or custom parts, try to extract some text if possible
@@ -133,6 +165,13 @@ export default function ChatPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [currentAttachedFilesData, setCurrentAttachedFilesData] = useState<AttachedFile[]>([]);
   const [isCustomMessage, setIsCustomMessage] = useState(false);
+  // Add state for feature components
+  const [showPromptToReplicate, setShowPromptToReplicate] = useState(false);
+  const [showPromptWithCustomSense, setShowPromptWithCustomSense] = useState(false);
+  const [showPromptForMicrostock, setShowPromptForMicrostock] = useState(false);
+  // State to store generated prompts for the Prompt to Replicate popup
+  const [replicatePromptResults, setReplicatePromptResults] = useState<PromptToReplicateOutput | null>(null);
+  const [isProcessingReplicatePrompts, setIsProcessingReplicatePrompts] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -198,7 +237,6 @@ export default function ChatPage() {
     saveSession,
     deleteSession,
     createNewSession,
-    syncWithDrive,
     isSyncing,
   } = useChatHistory(userIdForHistory);
 
@@ -214,6 +252,45 @@ export default function ChatPage() {
 
   useEffect(() => {
     isMounted.current = true;
+    
+    // Automatic localStorage cleanup for corrupted data
+    try {
+      // Handle corrupted history index keys
+      console.log('Checking for corrupted localStorage data...');
+      const keyPrefix = 'desainr_chat_history_index_ls_';
+      const sessionKeyPrefix = 'desainr_chat_session_ls_';
+      
+      // Find all history and session keys
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key) continue;
+        
+        if (key.startsWith(keyPrefix) || key.startsWith(sessionKeyPrefix)) {
+          try {
+            const value = localStorage.getItem(key);
+            if (!value) continue;
+            
+            // Try parsing the value
+            try {
+              JSON.parse(value);
+            } catch (parseError) {
+              // If parsing fails, try to check if it's corrupted compressed data
+              if (value.includes('') || /[\x00-\x1F\x80-\xFF]/.test(value.substring(0, 4))) {
+                console.warn(`Found corrupted data in ${key}, removing it`);
+                localStorage.removeItem(key);
+              }
+            }
+          } catch (e) {
+            console.warn(`Error checking ${key}, removing it:`, e);
+            localStorage.removeItem(key);
+          }
+        }
+      }
+      console.log('Finished checking localStorage for corrupted data');
+    } catch (e) {
+      console.error('Error during localStorage auto-repair:', e);
+    }
+    
     return () => { isMounted.current = false; };
   }, []);
 
@@ -278,9 +355,9 @@ export default function ChatPage() {
         console.log(`ChatPage: loadOrCreateSession - Loaded session ${updatedSession.id} with ${updatedSession.messages.length} messages.`);
       } else if (isMounted.current) {
         console.log(`ChatPage: loadOrCreateSession - No valid session found or to load, creating new for ${userIdForHistory}.`);
-        const userApiKeyForNameGen = (profile?.geminiApiKeys && profile.geminiApiKeys.length > 0 && profile.geminiApiKeys[0]) ? profile.geminiApiKeys[0] : undefined;
         const modelIdToUse = profile?.selectedGenkitModelId || DEFAULT_MODEL_ID;
-        const newSession = createNewSession([], modelIdToUse, userApiKeyForNameGen);
+        // Remove the third parameter (userApiKeyForNameGen)
+        const newSession = createNewSession([], modelIdToUse);
         setCurrentSession(newSession);
         setMessages(newSession.messages); // Initialize with empty messages for a new session
         setIsLoading(false); // Ensure global loading state is reset
@@ -305,7 +382,7 @@ export default function ChatPage() {
   // Effect to sync currentSession.name from historyMetadata if it changes (e.g., by AI naming)
   useEffect(() => {
     if (currentSession && currentSession.id && historyMetadata.length > 0) {
-      const currentSessionMeta = historyMetadata.find(meta => meta.id === currentSession.id);
+      const currentSessionMeta = historyMetadata.find((meta: ChatSessionMetadata) => meta.id === currentSession.id);
       if (currentSessionMeta && currentSessionMeta.name !== currentSession.name) {
         setCurrentSession(prevSession => {
           if (prevSession && prevSession.id === currentSessionMeta.id) { // Ensure we're updating the same session
@@ -317,6 +394,79 @@ export default function ChatPage() {
     }
   }, [historyMetadata, currentSession]); // Rely on currentSession object ref itself
 
+  // Add direct listener for chat name updates to update UI immediately
+  useEffect(() => {
+    const handleChatNameUpdated = (event: CustomEvent) => {
+      const { sessionId, newName } = event.detail;
+      console.log(`Received chat-name-updated event: sessionId=${sessionId}, newName=${newName}`);
+      
+      // Only update if this is the current active session
+      if (currentSession && currentSession.id === sessionId && newName && newName !== currentSession.name) {
+        console.log(`Updating current session name from "${currentSession.name}" to "${newName}"`);
+        
+        // Force an immediate update to the current session
+        setCurrentSession(prevSession => {
+          if (prevSession && prevSession.id === sessionId) {
+            // Create a completely new object to ensure React detects the change
+            const updatedSession = { 
+              ...prevSession, 
+              name: newName,
+              // Add a timestamp to force React to see this as a new object
+              _nameUpdateTimestamp: Date.now() 
+            };
+            
+            // Force the window title to update
+            document.title = `${newName} | DesAInR`;
+            
+            // Also store the updated session to local storage to ensure persistence
+            try {
+              localStorage.setItem(`desainr_last_active_session_${prevSession.id}`, JSON.stringify(updatedSession));
+            } catch (e) {
+              console.error("Error saving renamed session to localStorage:", e);
+            }
+            
+            return updatedSession;
+          }
+          return prevSession;
+        });
+        
+        // Also force an update to the history metadata to ensure sidebar updates
+        // Skip if we're not using the same API instance
+        if (typeof historyMetadata !== 'undefined') {
+          const currentHistoryIndex = historyMetadata.findIndex(meta => meta.id === sessionId);
+          if (currentHistoryIndex >= 0) {
+            // Update directly in history hook for visual update in sidebar
+            const updatedHistory = [...historyMetadata];
+            updatedHistory[currentHistoryIndex] = {
+              ...updatedHistory[currentHistoryIndex],
+              name: newName
+            };
+            
+            // Force a UI refresh of the sidebar
+            setTimeout(() => {
+              // Trigger a DOM update
+              const historyEvent = new CustomEvent('history-updated', {
+                detail: { sessionId, newName }
+              });
+              window.dispatchEvent(historyEvent);
+              
+              // Also force a history reload if possible by adding a fake key change
+              const fakeTriggerKey = 'desainr_history_update_trigger';
+              localStorage.setItem(fakeTriggerKey, Date.now().toString());
+              localStorage.removeItem(fakeTriggerKey);
+            }, 10);
+          }
+        }
+      }
+    };
+    
+    // Add event listener for chat name updates
+    window.addEventListener('chat-name-updated', handleChatNameUpdated as EventListener);
+    
+    return () => {
+      window.removeEventListener('chat-name-updated', handleChatNameUpdated as EventListener);
+    };
+  }, [currentSession, historyMetadata]);
 
   useEffect(() => {
     if (chatAreaRef.current) {
@@ -358,50 +508,172 @@ export default function ChatPage() {
     const modelIdToUse = (profile?.selectedGenkitModelId || DEFAULT_MODEL_ID);
     const userApiKeyForNewChatNameGen = (profile?.geminiApiKeys && profile.geminiApiKeys.length > 0 && profile.geminiApiKeys[0]) ? profile.geminiApiKeys[0] : undefined;
 
-    const newSession = createNewSession([], modelIdToUse, userApiKeyForNewChatNameGen);
+    // Create a unique timestamp for the new session
+    const timestamp = Date.now();
+    
+    // Create a new session with a better default name to help it show up in history
+    // Remove the third parameter (userApiKeyForNewChatNameGen)
+    const newSession = createNewSession([], modelIdToUse);
+    
+    // Make sure it has a name even before AI naming
+    newSession.name = `Chat ${new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    
+    // Update state with the new session
     setCurrentSession(newSession);
     setMessages(newSession.messages);
     setInputMessage('');
     setSelectedFiles([]);
     setCurrentAttachedFilesData([]);
+    setShowPromptWithCustomSense(false); // Reset the prompt with custom change state
+    setShowPromptForMicrostock(false); // Reset the prompt for microstock state
     currentApiKeyIndexRef.current = 0;
-
+    
+    // Save session ID to localStorage for next load
     const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + userIdForHistory;
     if (newSession.id && newSession.id.startsWith(userIdForHistory + '_')) {
       localStorage.setItem(lastActiveSessionIdKey, newSession.id);
+      
+      // Explicitly save the new empty session to ensure it appears in history
+      console.log('Explicitly saving new empty session to history:', newSession.id);
+      
+      // Make sure to save with name generation enabled (true) to ensure it shows up in history properly
+      saveSession(newSession, true)
+        .then((savedSession) => {
+          console.log('New empty session saved successfully to history:', savedSession.id);
+          
+          // Force a refresh of the history metadata in case it wasn't updated properly
+          setTimeout(() => {
+            if (savedSession && savedSession.id) {
+              // This will create a placeholder entry in history immediately
+              const chatHistoryIndexKeyLS = `desainr_chat_history_index_${userIdForHistory}`;
+              try {
+                // Try to update the history index directly to ensure the new chat appears
+                const storedIndex = localStorage.getItem(chatHistoryIndexKeyLS);
+                const existingIndex = storedIndex ? JSON.parse(storedIndex) : [];
+                
+                // Check if this session is already in the index
+                if (!existingIndex.some((meta: any) => meta.id === savedSession.id)) {
+                  // Add the new session to the history index
+                  const newEntry = {
+                    id: savedSession.id,
+                    name: savedSession.name,
+                    lastMessageTimestamp: savedSession.updatedAt,
+                    preview: "",  // Empty preview for new chat
+                    messageCount: 0
+                  };
+                  
+                  // Add to beginning of array and save back to localStorage
+                  existingIndex.unshift(newEntry);
+                  localStorage.setItem(chatHistoryIndexKeyLS, JSON.stringify(existingIndex));
+                  console.log('Manually updated history index to include new session');
+                }
+              } catch (e) {
+                console.error('Error manually updating history index:', e);
+              }
+            }
+          }, 100);
+        })
+        .catch((error) => {
+          console.error('Error saving new empty session to history:', error);
+        });
     }
     if (isMobile) setIsHistoryPanelOpen(false);
-  }, [createNewSession, userIdForHistory, isMobile, profile]);
+  }, [createNewSession, userIdForHistory, isMobile, profile, saveSession]);
 
   const handleSelectSession = useCallback(async (sessionId: string) => {
-    initialSessionLoadAttemptedRef.current = false; // Allow loadOrCreateSession to run for selected chat
-    if (!userIdForHistory || !sessionId.startsWith(userIdForHistory + '_')) {
+    console.log(`ChatPage: handleSelectSession called for session ${sessionId}`);
+    initialSessionLoadAttemptedRef.current = true; // Mark that we've attempted to load a session
+    
+    if (!userIdForHistory) {
+      console.error("ChatPage: handleSelectSession - No userIdForHistory available");
+      toast({ 
+        title: "Error Loading Chat", 
+        description: "User information not available. Please try again.", 
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    // Validate session ID format
+    if (!sessionId.startsWith(userIdForHistory + '_')) {
+      console.warn(`ChatPage: handleSelectSession - Invalid session ID format: ${sessionId}`);
         localStorage.removeItem(LAST_ACTIVE_SESSION_ID_KEY_PREFIX + userIdForHistory);
         handleNewChat();
         return;
     }
 
+    try {
+      setIsLoading(true); // Show loading state while fetching the session
     const selected = await getSession(sessionId);
+      
+      if (!selected) {
+        console.error(`ChatPage: handleSelectSession - Session not found: ${sessionId}`);
+        toast({ 
+          title: "Chat Not Found", 
+          description: "The selected chat could not be loaded. It may have been deleted.", 
+          variant: "destructive" 
+        });
+        handleNewChat();
+        return;
+      }
+      
     if (selected && selected.id === sessionId && selected.userId === userIdForHistory) {
+        console.log(`ChatPage: handleSelectSession - Successfully loaded session: ${sessionId}`);
+        
       // Ensure no messages are in a loading state when loading a session from history
       const migratedMessages = ensureMessagesHaveUniqueIds(selected.messages).map(msg => ({
         ...msg,
         isLoading: false, // Reset loading state for all messages in the chat history
         isError: msg.isError // Preserve the error state from the saved message
       }));
+        
       const updatedSession = { ...selected, messages: migratedMessages };
       setCurrentSession(updatedSession);
-      setMessages(updatedSession.messages);
-      setIsLoading(false); // Ensure global loading state is reset
-      currentApiKeyIndexRef.current = 0;
+        setMessages(migratedMessages); // Set messages directly to ensure UI updates
+        
       const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + userIdForHistory;
       localStorage.setItem(lastActiveSessionIdKey, sessionId);
+        
+        // Reset other session-related state
+        currentApiKeyIndexRef.current = 0;
+        setActiveActionButton(null);
+        setInputMessage(''); // Clear input field when switching sessions
+        
+        // Show success toast if switching between sessions (not just initial load)
+        if (currentSession && currentSession.id !== sessionId) {
+          toast({
+            title: "Chat Loaded",
+            description: `Loaded "${selected.name || 'Untitled Chat'}"`,
+            duration: 2000
+          });
+        }
     } else {
+        console.warn(`ChatPage: handleSelectSession - Session validation failed: ${sessionId}`);
+        toast({ 
+          title: "Invalid Chat Session", 
+          description: "The selected chat data appears to be corrupted. Starting a new chat.", 
+          variant: "destructive" 
+        });
         localStorage.removeItem(LAST_ACTIVE_SESSION_ID_KEY_PREFIX + userIdForHistory);
         handleNewChat();
     }
-    if (isMobile) setIsHistoryPanelOpen(false);
-  }, [getSession, ensureMessagesHaveUniqueIds, userIdForHistory, isMobile, handleNewChat]);
+    } catch (error) {
+      console.error(`ChatPage: handleSelectSession - Error loading session ${sessionId}:`, error);
+      toast({ 
+        title: "Error Loading Chat", 
+        description: "An error occurred while loading the selected chat.", 
+        variant: "destructive" 
+      });
+      handleNewChat();
+    } finally {
+      setIsLoading(false);
+      
+      // Close the history panel on mobile after selecting a session
+      if (isMobile) {
+        setIsHistoryPanelOpen(false);
+      }
+    }
+  }, [getSession, ensureMessagesHaveUniqueIds, userIdForHistory, isMobile, handleNewChat, toast, currentSession]);
 
   const handleDeleteSession = useCallback((sessionId: string) => {
     deleteSession(sessionId);
@@ -684,23 +956,58 @@ export default function ChatPage() {
                 }
               };
               finalAiResponseContent.push(repliesSection);
-            } catch (err) {
-              console.error(`Process message failed. Falling back to analyze requirements.`, err);
-              const arInput: AnalyzeClientRequirementsInput = {
-                ...baseInput, clientMessage: userMessageContent,
-                attachedFiles: filesForFlow, chatHistory: chatHistoryForAI
-              };
-              const arOutput = await analyzeClientRequirements(arInput);
+            }
+            catch (error) {
+              console.error("Error processing client message:", error);
+              aiCallError = error;
+            }
+          }
+          // Handle promptToReplicate action directly in the chat interface
+          else if (currentActionType === 'promptToReplicate') {
+            try {
+              // Check if we have attached image files
+              const hasImageFiles = filesForFlow.some(file => file.type?.startsWith('image/') && file.dataUri);
               
-              // Use the actual output structure from analyzeClientRequirements
-              finalAiResponseContent.push({ type: 'text', title: 'Requirements Analysis', text: arOutput.mainRequirementsAnalysis });
-              finalAiResponseContent.push({ type: 'text', title: 'Detailed Requirements (English)', text: arOutput.detailedRequirementsEnglish });
-              finalAiResponseContent.push({ type: 'text', title: 'Detailed Requirements (Bangla)', text: arOutput.detailedRequirementsBangla });
-              if (arOutput.designMessageOrSaying) {
-                finalAiResponseContent.push({ type: 'text', title: 'Design Message or Saying', text: arOutput.designMessageOrSaying });
+              if (!hasImageFiles) {
+                // If no images are attached, respond with instructions
+                finalAiResponseContent.push({ 
+                  type: 'text', 
+                  title: 'Awaiting Images', 
+                  text: 'Please upload one or more images to generate AI prompts for replication. I need to see the images you want to analyze before I can create detailed prompts.' 
+                });
+              } else {
+                // If images are attached, process them with the promptToReplicate flow
+                const result = await promptToReplicate({
+                  imageDataUris: filesForFlow.filter(file => file.type?.startsWith('image/') && file.dataUri).map(file => file.dataUri as string),
+                  userName: userProfile.name,
+                  userApiKey: apiKeyToUseThisTurn,
+                  modelId: modelIdToUse,
+                });
+                
+                // Add each image and its prompts as separate content parts
+                for (const imagePrompt of result.imagePrompts) {
+                  finalAiResponseContent.push({
+                    type: 'prompt_tabs',
+                    title: 'Image Prompts',
+                    imageDataUri: imagePrompt.imageDataUri,
+                    exactReplicationPrompt: imagePrompt.exactReplicationPrompt,
+                    similarWithTweaksPrompt: imagePrompt.similarWithTweaksPrompt,
+                    sameNichePrompt: imagePrompt.sameNichePrompt
+                  });
+                }
+              }
+            } catch (error) {
+              console.error("Error in promptToReplicate flow:", error);
+              aiCallError = error;
+              
+              finalAiResponseContent = [{
+                type: 'text',
+                title: 'Error Processing Images',
+                text: `There was an error generating prompts: ${error instanceof Error ? error.message : String(error)}. Please try again with different images.`
+              }];
               }
             }
-          } else if (currentActionType === 'analyzeRequirements') {
+          else if (currentActionType === 'analyzeRequirements') {
             const requirementsInput: AnalyzeClientRequirementsInput = { ...baseInput, clientMessage: userMessageContent, attachedFiles: filesForFlow, chatHistory: chatHistoryForAI };
             const requirementsOutput: AnalyzeClientRequirementsOutput = await analyzeClientRequirements(requirementsInput);
             finalAiResponseContent.push({ type: 'text', title: 'Main Requirements Analysis', text: requirementsOutput.mainRequirementsAnalysis });
@@ -715,16 +1022,42 @@ export default function ChatPage() {
               attachedFiles: filesForFlow, chatHistory: chatHistoryForAI,
             };
             const packOutput = await generateEngagementPack(engagementInput);
-            finalAiResponseContent.push({ type: 'code', title: `1. Personalized Introduction for ${packOutput.clientGreetingName}:`, code: packOutput.personalizedIntroduction });
-            finalAiResponseContent.push({ type: 'code', title: '2. Brief Reply to Client:', code: packOutput.jobReplyToClient });
-            let suggestionsText = `Suggested Budget: ${packOutput.suggestedBudget}\n`;
-            suggestionsText += `Suggested Timeline: ${packOutput.suggestedTimeline}\n`;
-            suggestionsText += `Suggested Software: ${packOutput.suggestedSoftware}`;
+            
+            // Section 1: Personal Information (using AI-generated content)
+            finalAiResponseContent.push({ 
+              type: 'code', 
+              title: '1. Personal Information:', 
+              code: packOutput.personalizedIntroduction
+            });
+            
+            // Section 2: Brief Reply (using AI-generated content)
+            const clientName = packOutput.clientGreetingName !== 'there' ? packOutput.clientGreetingName : 'there';
+            finalAiResponseContent.push({ 
+              type: 'code', 
+              title: '2. Brief Reply:', 
+              code: packOutput.jobReplyToClient
+            });
+            
+            // Section 3: Suggestions (keep with emoji formatting as specified)
+            let suggestionsText = `Suggested Budget: 💰 ${packOutput.suggestedBudget}\n\n`;
+            suggestionsText += `Suggested Timeline: ⏱️ ${packOutput.suggestedTimeline}\n\n`;
+            suggestionsText += `Suggested Software: 🛠️ ${packOutput.suggestedSoftware}`;
             finalAiResponseContent.push({ type: 'text', title: '3. Suggestions:', text: suggestionsText });
+            
             if (packOutput.clarifyingQuestions && packOutput.clarifyingQuestions.length > 0) {
-              finalAiResponseContent.push({ type: 'text', title: '4. Clarifying Questions to Ask Client:', text: " "});
+              // Section 4: Clarifying Questions (keep with emoji formatting as specified)
+              finalAiResponseContent.push({ type: 'text', title: '4. Clarifying Questions to Ask Client 🤔:', text: " "});
               packOutput.clarifyingQuestions.forEach((q, index) => {
                 finalAiResponseContent.push({ type: 'code', title: `Question ${index + 1}`, code: q });
+              });
+              
+              // Section 5: Reply with questions (using AI-generated content)
+              const replyWithQuestionsContent = `Hi ${clientName},\n\n${packOutput.personalizedIntroduction}\n\nTo get started and make sure the design fits your vision perfectly, could you please answer a few quick questions?\n\n${packOutput.clarifyingQuestions.join('\n')}\n\nLooking forward to your answers and to creating exactly what you need!\n\nBest regards,\nB. Majnu`;
+              
+              finalAiResponseContent.push({ 
+                type: 'code', 
+                title: '5. Reply with questions.', 
+                code: replyWithQuestionsContent 
               });
             }
           } else if (currentActionType === 'generateDesignIdeas') {
@@ -733,15 +1066,54 @@ export default function ChatPage() {
                 attachedFiles: filesForFlow, chatHistory: chatHistoryForAI
             };
             const ideasOutput = await generateDesignIdeas(ideasInput);
-            finalAiResponseContent.push({ type: 'text', title: 'Core Text/Saying for Ideas', text: ideasOutput.extractedTextOrSaying});
+
+            // Add the core text
+            finalAiResponseContent.push({ 
+              type: 'text', 
+              title: 'Core Text/Saying for Ideas', 
+              text: ideasOutput.extractedTextOrSaying
+            });
+            
+            // Add web inspiration if available
             if (ideasOutput.simulatedWebInspiration && ideasOutput.simulatedWebInspiration.length > 0) {
-                finalAiResponseContent.push({ type: 'list', title: 'Simulated Web Inspiration', items: ideasOutput.simulatedWebInspiration.map(r => `${r.title} ([${r.link.length > 30 ? r.link.substring(0,27)+'...' : r.link }](${r.link})) - ${r.snippet}`) });
+                finalAiResponseContent.push({ 
+                  type: 'list', 
+                  title: 'Simulated Web Inspiration', 
+                  items: ideasOutput.simulatedWebInspiration.map(r => `${r.title} ([${r.link.length > 30 ? r.link.substring(0,27)+'...' : r.link }](${r.link})) - ${r.snippet}`) 
+                });
             }
+            
+            // Group all design ideas into a single component with three categories
+            const designIdeasGroups = [];
+            
+            // Only add groups that have content
             if (ideasOutput.creativeDesignIdeas && ideasOutput.creativeDesignIdeas.length > 0) {
-                finalAiResponseContent.push({ type: 'list', title: 'Creative Design Ideas', items: ideasOutput.creativeDesignIdeas });
+              designIdeasGroups.push({
+                category: "Creative Design Ideas",
+                items: ideasOutput.creativeDesignIdeas
+              });
             }
+            
             if (ideasOutput.typographyDesignIdeas && ideasOutput.typographyDesignIdeas.length > 0) {
-                finalAiResponseContent.push({ type: 'list', title: 'Typography Design Ideas', items: ideasOutput.typographyDesignIdeas });
+              designIdeasGroups.push({
+                category: "Typography Design Ideas",
+                items: ideasOutput.typographyDesignIdeas
+              });
+            }
+            
+            if (ideasOutput.typographyWithGraphicsIdeas && ideasOutput.typographyWithGraphicsIdeas.length > 0) {
+              designIdeasGroups.push({
+                category: "Typography with Graphics Ideas",
+                items: ideasOutput.typographyWithGraphicsIdeas
+              });
+            }
+            
+            if (designIdeasGroups.length > 0) {
+              finalAiResponseContent.push({
+                type: 'design_ideas_group' as 'design_ideas_group',
+                title: 'Design Ideas',
+                ideas: designIdeasGroups
+              });
             }
           } else if (currentActionType === 'generateDesignPrompts') {
             const promptsInput: GenerateDesignPromptsInput = {
@@ -749,12 +1121,76 @@ export default function ChatPage() {
                 attachedFiles: filesForFlow, chatHistory: chatHistoryForAI
             };
             const promptsOutput = await generateDesignPrompts(promptsInput);
+            
             if (promptsOutput.imagePrompts && promptsOutput.imagePrompts.length > 0) {
-                promptsOutput.imagePrompts.forEach((promptText, index) => {
-                    finalAiResponseContent.push({ type: 'code', title: `AI Image Prompt ${index + 1}`, code: promptText });
+                // Add header for the prompts section
+                finalAiResponseContent.push({ 
+                  type: 'text', 
+                  title: 'AI Image Generation Prompts', 
+                  text: "The following prompts can be used with AI image generators to create visual concepts based on the design ideas."
                 });
+                
+                // Divide prompts into three categories (assuming they come in order)
+                const totalPrompts = promptsOutput.imagePrompts.length;
+                const promptsPerCategory = Math.ceil(totalPrompts / 3);
+                
+                // Category 1: Creative Design Prompts (first third)
+                finalAiResponseContent.push({ 
+                  type: 'text', 
+                  title: '🎨 Creative Design Prompts', 
+                  text: "Use these prompts to generate main graphic designs with AI image generators."
+                });
+                
+                const creativeEndIdx = Math.min(promptsPerCategory, totalPrompts);
+                for (let i = 0; i < creativeEndIdx; i++) {
+                  finalAiResponseContent.push({ 
+                    type: 'code', 
+                    title: `Creative Design Prompt ${i + 1}`, 
+                    code: promptsOutput.imagePrompts[i]
+                  });
+                }
+                
+                // Only add Typography section if we have enough prompts
+                if (totalPrompts > promptsPerCategory) {
+                  // Category 2: Typography Design Prompts (second third)
+                  finalAiResponseContent.push({ 
+                    type: 'text', 
+                    title: '🔤 Typography Design Prompts', 
+                    text: "Use these prompts to generate typography-focused designs with AI image generators."
+                  });
+                  
+                  const typoEndIdx = Math.min(promptsPerCategory * 2, totalPrompts);
+                  for (let i = promptsPerCategory; i < typoEndIdx; i++) {
+                    finalAiResponseContent.push({ 
+                      type: 'code', 
+                      title: `Typography Design Prompt ${i - promptsPerCategory + 1}`, 
+                      code: promptsOutput.imagePrompts[i]
+                    });
+                  }
+                  
+                  // Only add Typography with Graphics if we have enough prompts
+                  if (totalPrompts > promptsPerCategory * 2) {
+                    // Category 3: Typography with Graphics Prompts (final third)
+                    finalAiResponseContent.push({ 
+                      type: 'text', 
+                      title: '🖌️ Typography with Graphics Prompts', 
+                      text: "Use these prompts to generate typography designs with complementary graphics using AI image generators."
+                    });
+                    
+                    for (let i = promptsPerCategory * 2; i < totalPrompts; i++) {
+                      finalAiResponseContent.push({ 
+                        type: 'code', 
+                        title: `Typography with Graphics Prompt ${i - (promptsPerCategory * 2) + 1}`, 
+                        code: promptsOutput.imagePrompts[i]
+                      });
+                    }
+                  }
+                }
             } else {
-                finalAiResponseContent.push({ type: 'text', text: "No image prompts generated. Ensure design ideas were provided or generated."});
+                finalAiResponseContent.push({ 
+                  type: 'text', 
+                  text: "No image prompts generated. Please ensure design ideas were provided or generated first."
+                });
             }
           } else if (currentActionType === 'checkMadeDesigns') {
             const designFile = filesForFlow.find(f => f.type?.startsWith('image/') && f.dataUri);
@@ -771,14 +1207,226 @@ export default function ChatPage() {
                 finalAiResponseContent.push({ type: 'text', title: 'Design Check Summary (Bangla)', text: result.overallSummary });
                 finalAiResponseContent.push({ type: 'text', title: 'ভুল অবজেক্ট/উপাদান', text: result.mistakeAnalysis.wrongObjectOrElements });
                 finalAiResponseContent.push({ type: 'text', title: 'ভুল অবস্থান', text: result.mistakeAnalysis.wrongPositions });
-                finalAiResponseContent.push({ type: 'text', title: 'টাইপিং ও টেক্সট ভুল', text: result.mistakeAnalysis.typingMistakes });
+                finalAiResponseContent.push({ type: 'text', title: 'টাইপিং ভুল', text: result.mistakeAnalysis.typingMistakes });
                 finalAiResponseContent.push({ type: 'text', title: 'ভুল রঙ', text: result.mistakeAnalysis.wrongColors });
-                finalAiResponseContent.push({ type: 'text', title: 'ভুল আকার', text: result.mistakeAnalysis.wrongSizes });
-                finalAiResponseContent.push({ type: 'text', title: 'বাদ পড়া উপাদান', text: result.mistakeAnalysis.missingElements });
+                finalAiResponseContent.push({ type: 'text', title: 'ভুল সাইজ', text: result.mistakeAnalysis.wrongSizes });
+                finalAiResponseContent.push({ type: 'text', title: 'অনুপস্থিত উপাদান', text: result.mistakeAnalysis.missingElements });
                 finalAiResponseContent.push({ type: 'text', title: 'অন্যান্য ভুল', text: result.mistakeAnalysis.otherMistakes });
             }
-          }
-           else if (currentActionType === 'generateEditingPrompts') {
+          } else if (currentActionType === 'checkBestDesign') {
+            // Check if there are design images attached to analyze
+            const designFiles = filesForFlow.filter(f => f.type?.startsWith('image/') && f.dataUri);
+            
+            if (designFiles.length < 2) {
+              finalAiResponseContent = [{
+                type: 'text', 
+                text: "Error: CheckBestDesign was called with fewer than 2 design images. Please attach multiple design images to compare."
+              }];
+              aiCallError = new Error("Insufficient design images for CheckBestDesign in deferred call.");
+              if(isMounted.current) {
+                // Use setTimeout to avoid React state updates during render
+                setTimeout(() => {
+                  if(isMounted.current) {
+                    safeToast({ 
+                      title: "Multiple Images Required", 
+                      description: "Please attach at least 2 design images to use the 'Check the best design' feature.", 
+                      variant: "destructive" 
+                    });
+                  }
+                }, 0);
+              }
+            } else {
+              try {
+                // Display a notification about the number of designs being analyzed
+                if(isMounted.current) {
+                  setTimeout(() => {
+                    if(isMounted.current) {
+                      toast({ 
+                        title: "Analyzing Designs", 
+                        description: `Evaluating ${designFiles.length} designs to find the best options...`, 
+                        duration: 5000 
+                      });
+                    }
+                  }, 0);
+                }
+                
+                // Update the assistant message to show progress
+                updateMessageById(assistantMessageIdToUse, [{ 
+                  type: 'text', 
+                  text: `Analyzing ${designFiles.length} designs. This may take a minute for larger sets...` 
+                }], true, false, requestParamsForRegeneration, promptedByMsgIdForNewAssistant);
+                
+                // Create design objects from all attached files (no limit)
+                // We'll optimize image data handling for large sets to avoid "Failed to fetch" errors
+                const designs = designFiles.map((file, index) => {
+                  // If dealing with many designs, we can compress or resize the images
+                  // to reduce payload size when there are more than 8 designs
+                  let optimizedDataUri = file.dataUri!;
+                  
+                  // For very large sets, we can add a check here to optimize the images
+                  // if (designFiles.length > 8) {
+                  //   optimizedDataUri = compressImageDataUri(file.dataUri!);
+                  // }
+                  
+                  return {
+                    id: `design_${index + 1}`,
+                    imageDataUri: optimizedDataUri,
+                    generatedPrompt: userMessageContent || undefined,
+                    createdAt: new Date(),
+                    metadata: { 
+                      filename: file.name, 
+                      fileType: file.type, 
+                      fileSize: file.size,
+                      originalIndex: index
+                    }
+                  };
+                });
+                
+                // Process in smaller batches if too many designs
+                if (designFiles.length > 10) {
+                  if(isMounted.current) {
+                    setTimeout(() => {
+                      if(isMounted.current) {
+                        toast({ 
+                          title: "Processing Large Set", 
+                          description: `Processing ${designFiles.length} designs in batches for better reliability.`, 
+                          duration: 5000 
+                        });
+                      }
+                    }, 0);
+                  }
+                }
+                
+                // Prepare input for the checkBestDesign flow
+                const bestDesignInput: CheckBestDesignInput = {
+                  ...baseInput,
+                  designs,
+                  clientRequirements: userMessageContent || "Client requirements as per conversation history.",
+                  chatHistory: chatHistoryForAI,
+                };
+                
+                // Limit the number of designs to prevent timeouts
+                if (designs.length > 15) {
+                  if(isMounted.current) {
+                    safeToast({ 
+                      title: "Too Many Designs", 
+                      description: `Processing limited to 15 designs to prevent timeouts. Using the first 15 designs.`, 
+                      variant: "default",
+                      duration: 7000
+                    });
+                  }
+                  bestDesignInput.designs = designs.slice(0, 15);
+                }
+                
+                // Call the checkBestDesign flow with a timeout to prevent hanging
+                // Create a promise that rejects after 120 seconds
+                const timeoutPromise = new Promise<never>((_, reject) => {
+                  const timeoutId = setTimeout(() => {
+                    clearTimeout(timeoutId);
+                    reject(new Error('Design evaluation timed out after 120 seconds. Please try again with fewer designs.'));
+                  }, 120000); // 120 second timeout
+                });
+                
+                // Race the actual API call against the timeout
+                try {
+                  console.log("Calling checkBestDesign with input:", JSON.stringify({
+                    ...bestDesignInput,
+                    designs: bestDesignInput.designs.map(d => ({
+                      ...d,
+                      imageDataUri: `[DataURI length: ${d.imageDataUri.length}]` // Don't log full data URIs
+                    }))
+                  }));
+                  
+                  const bestDesignResult = await Promise.race([
+                    checkBestDesign(bestDesignInput),
+                    timeoutPromise
+                  ]);
+                  
+                  // Add a brief text summary
+                  finalAiResponseContent.push({ 
+                    type: 'text', 
+                    title: '🏆 Design Evaluation Summary', 
+                    text: bestDesignResult.evaluationSummary 
+                  });
+                  
+                  // Create a mapping of designId to original image data to pass to the UI
+                  const designImagesMap: Record<string, string> = {};
+                  designs.forEach(design => {
+                    designImagesMap[design.id] = design.imageDataUri;
+                  });
+                  
+                  // Add the specialized top designs UI component with image data
+                  finalAiResponseContent.push({
+                    type: 'top_designs',
+                    title: 'Top Ranked Designs',
+                    data: {
+                      ...bestDesignResult,
+                      // Add the design images map for the UI component to use
+                      designImages: designImagesMap
+                    }
+                  });
+                } catch (error) {
+                  console.error("Error in checkBestDesign flow:", error);
+                  aiCallError = error;
+                  
+                  // Provide more specific guidance based on the error type
+                  let errorMessage = '';
+                  
+                  if (error instanceof TypeError && error.message === 'Failed to fetch') {
+                    errorMessage = 'Network error while processing designs. This usually happens when trying to process too many large images at once. Try with fewer designs or smaller image files.';
+                    
+                    // Show a helpful toast using safeToast to avoid React state update errors
+                    if(isMounted.current) {
+                      safeToast({ 
+                        title: "Network Error", 
+                        description: "Too much data to process at once. Try with fewer or smaller images.", 
+                        variant: "destructive",
+                        duration: 7000
+                      });
+                    }
+                  } else if (error instanceof Error && error.message.includes('timed out')) {
+                    errorMessage = 'Design evaluation timed out. This usually happens with very complex designs or too many designs at once. Try with fewer designs (we recommend 15 or fewer for best results).';
+                  } else {
+                    errorMessage = `Error evaluating designs: ${error instanceof Error ? error.message : String(error)}`;
+                  }
+                  
+                  finalAiResponseContent = [{
+                    type: 'text',
+                    text: errorMessage
+                  }];
+                }
+              } catch (error) {
+                console.error("Error in checkBestDesign flow:", error);
+                aiCallError = error;
+                
+                // Provide more specific guidance based on the error type
+                let errorMessage = '';
+                
+                if (error instanceof TypeError && error.message === 'Failed to fetch') {
+                  errorMessage = 'Network error while processing designs. This usually happens when trying to process too many large images at once. Try with fewer designs or smaller image files.';
+                  
+                  // Show a helpful toast using safeToast to avoid React state update errors
+                  if(isMounted.current) {
+                    safeToast({ 
+                      title: "Network Error", 
+                      description: "Too much data to process at once. Try with fewer or smaller images.", 
+                      variant: "destructive",
+                      duration: 7000
+                    });
+                  }
+                } else if (error instanceof Error && error.message.includes('timed out')) {
+                  errorMessage = 'Design evaluation timed out. This usually happens with very complex designs or too many designs at once. Try with fewer designs (we recommend 15 or fewer for best results).';
+                } else {
+                  errorMessage = `Error evaluating designs: ${error instanceof Error ? error.message : String(error)}`;
+                }
+                
+                finalAiResponseContent = [{
+                  type: 'text',
+                  text: errorMessage
+                }];
+              }
+            }
+          } else if (currentActionType === 'generateEditingPrompts') {
             let designToEditDataUriForFlow: string | undefined = undefined;
             const currentDesignFile = filesToSendWithThisMessage.find(f => f.type?.startsWith('image/') && f.dataUri);
             if (currentDesignFile && currentDesignFile.dataUri) {
@@ -852,7 +1500,6 @@ export default function ChatPage() {
           if (!isRegenerationCall && !isUserMessageEdit && !aiCallError) {
             currentApiKeyIndexRef.current = 0;
           }
-
         } catch (error: any) {
           aiCallError = error;
           console.error(`ChatPage (handleSendMessage - deferred AI Call): Error for action '${currentActionType}'. API Key Index: ${currentApiKeyIndexRef.current}`, error);
@@ -895,50 +1542,16 @@ export default function ChatPage() {
 
               saveSession(
                   sessionForSave,
-                  (!messageIdToUpdate && !isUserMessageEdit) && (sessionForSave.messages.length <= 2 || !currentSession.name || currentSession.name === "New Chat"),
-                  modelIdToUse,
-                  apiKeyForNameGen
-              ).then(sessionAfterSave => {
+                  (!messageIdToUpdate && !isUserMessageEdit) && (sessionForSave.messages.length <= 2 || !currentSession.name || currentSession.name === "New Chat")
+              ).then((sessionAfterSave: ChatSession) => {
                   if (sessionAfterSave && isMounted.current) {
                       setCurrentSession(prev => {
                           if (prev && prev.id === sessionAfterSave.id) {
-                              return { ...prev, name: sessionAfterSave.name, driveFileId: sessionAfterSave.driveFileId };
+                              // Remove driveFileId property reference as it has been removed
+                              return { ...prev, name: sessionAfterSave.name };
                           }
                           return prev;
                       });
-                      
-                      // Auto-sync with Google Drive after completing a message if user is authenticated
-                      // This ensures new messages are synced promptly without requiring manual sync
-                      if (authUser && googleAccessToken) {
-                          // Check if enough time has passed since the last sync (30 seconds)
-                          const now = Date.now();
-                          const timeSinceLastSync = now - lastSyncTimestampRef.current;
-                          const MIN_SYNC_INTERVAL = 30000; // 30 seconds minimum between auto-syncs
-                          
-                          if (timeSinceLastSync >= MIN_SYNC_INTERVAL) {
-                              console.log(`Auto-syncing with Google Drive after message completion... (${timeSinceLastSync}ms since last sync)`);
-                              lastSyncTimestampRef.current = now;
-                              
-                              // Slight delay to ensure local storage is updated first
-                              setTimeout(() => {
-                                  if (isMounted.current) {
-                                      syncWithDrive().then(result => {
-                                          if (result === 'SUCCESS') {
-                                              console.log("Auto-sync with Google Drive completed successfully");
-                                          } else if (result === 'TOKEN_REFRESH_NEEDED') {
-                                              console.log("Auto-sync failed: Google token needs refresh");
-                                          } else {
-                                              console.log("Auto-sync failed: General failure");
-                                          }
-                                      }).catch(err => {
-                                          console.error("Error during auto-sync with Google Drive:", err);
-                                      });
-                                  }
-                              }, 1000);
-                          } else {
-                              console.log(`Skipping auto-sync: Last sync was ${timeSinceLastSync}ms ago (minimum interval: ${MIN_SYNC_INTERVAL}ms)`);
-                          }
-                      }
                   }
               });
               return messagesForSave; // Return the state for setMessages
@@ -950,7 +1563,7 @@ export default function ChatPage() {
     currentAttachedFilesData, saveSession, ensureMessagesHaveUniqueIds,
     userIdForHistory, profileLoading, toast,
     lastSelectedActionButton, messagesRef, // Added messagesRef here
-    syncWithDrive, authUser, googleAccessToken, // Add these new dependencies
+    // Remove syncWithDrive, authUser, googleAccessToken from dependencies
   ]);
 
 
@@ -1080,6 +1693,53 @@ export default function ChatPage() {
        return;
     }
     
+    // Handle prompt to replicate specially
+    if (action === 'promptToReplicate') {
+      // Set this action as the last selected
+      setLastSelectedActionButton(action);
+      // Highlight this button in the UI
+      setActiveActionButton(action);
+      
+      // Send the prompt to replicate message with attached images directly in the chat
+      handleSendMessage(
+        "Please analyze these images and generate AI prompts for replication", 
+        'promptToReplicate',
+        undefined,
+        undefined,
+        false,
+        false,
+        undefined,
+        undefined,
+        false
+      );
+      
+      // Reset highlight after a delay
+      setTimeout(() => {
+        setActiveActionButton(null);
+      }, 500);
+      return;
+    }
+    
+    // Handle prompt with custom change specially
+    if (action === 'promptWithCustomSense') {
+      setShowPromptWithCustomSense(true);
+      // Set this action as the last selected
+      setLastSelectedActionButton(action);
+      // Highlight this button in the UI
+      setActiveActionButton(action);
+      return;
+    }
+    
+    // Handle prompt for micro stock markets
+    if (action === 'promptForMicroStockMarkets') {
+      setShowPromptForMicrostock(true);
+      // Set this action as the last selected
+      setLastSelectedActionButton(action);
+      // Highlight this button in the UI
+      setActiveActionButton(action);
+      return;
+    }
+    
     // Set this action as the last selected
     setLastSelectedActionButton(action);
     // Highlight this button in the UI
@@ -1089,10 +1749,9 @@ export default function ChatPage() {
       setModalActionType(action);
       setShowNotesModal(true);
     } else {
-      // Pass isCustomMessage to use custom instructions if checkbox is checked
       handleSendMessage(inputMessage || '', action, undefined, undefined, false, false, undefined, undefined, isCustomMessage);
     }
-  }, [inputMessage, handleSendMessage, profile, isCustomMessage, isSearchActive]);
+  }, [inputMessage, handleSendMessage, profile, isCustomMessage, isSearchActive, setActiveActionButton, setLastSelectedActionButton, toast]);
 
   const submitModalNotes = () => {
     if (modalActionType) {
@@ -1105,7 +1764,10 @@ export default function ChatPage() {
   };
 
   const handleFileSelectAndProcess = useCallback(async (newFiles: File[]) => {
-    const combinedFiles = [...selectedFiles, ...newFiles].slice(0, 5);
+    // Increase the limit for design analysis functions like checkBestDesign
+    const fileLimit = 20; // Increased from 5 to 20
+    
+    const combinedFiles = [...selectedFiles, ...newFiles].slice(0, fileLimit);
     setSelectedFiles(combinedFiles);
     const processedNewFiles = await processFilesForAI(newFiles);
     const uniqueProcessedFiles = new Map<string, AttachedFile>();
@@ -1115,7 +1777,7 @@ export default function ChatPage() {
     processedNewFiles.forEach(file => {
         uniqueProcessedFiles.set(`${file.name}_${file.size || 0}`, file);
     });
-    setCurrentAttachedFilesData(Array.from(uniqueProcessedFiles.values()).slice(0,5));
+    setCurrentAttachedFilesData(Array.from(uniqueProcessedFiles.values()).slice(0, fileLimit));
   }, [selectedFiles, currentAttachedFilesData]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1160,59 +1822,143 @@ export default function ChatPage() {
 
   const isGoogleUser = useMemo(() => authUser?.providerData.some(p => p.providerId === 'google.com'), [authUser]);
 
-  const handleSyncWithDriveClick = async () => {
-    if (!authUser) {
-        if (isMounted.current) toast({ title: "Login Required", description: "Please log in to sync with Google Drive.", variant: "default" });
-        return;
-    }
+  // No explicit sync buttons needed - Firebase automatically saves chat data after each message
+  // and when the session is modified
 
-    const result = await syncWithDrive();
-
-    if (result === 'TOKEN_REFRESH_NEEDED' && isMounted.current) {
-        if (isMounted.current) toast({ title: "Google Authentication Needed", description: "Please re-authenticate with Google to enable Drive sync.", variant: "default" });
-        try {
-            await triggerGoogleSignInFromAuth();
-            setTimeout(async () => {
-              if (isMounted.current) toast({ title: "Attempting Sync Again...", description: "Re-attempting Drive sync after authentication." });
-              await syncWithDrive();
-            }, 1500);
-        } catch (error) {
-            console.error("ChatPage (handleSyncWithDriveClick): Error during Google re-authentication:", error);
-            if (isMounted.current) toast({ title: "Google Auth Error", description: "Failed to re-authenticate with Google.", variant: "destructive" });
-        }
-    }
-  };
-
-  const currentAttachedFilesDataLength = currentAttachedFilesData.length;
-
-  // Add an effect to sync on login
-  useEffect(() => {
-    // If auth just finished loading and we have a user and token
-    if (!authLoading && authUser && googleAccessToken) {
-      const now = Date.now();
-      const timeSinceLastSync = now - lastSyncTimestampRef.current;
-      const MIN_SYNC_INTERVAL = 30000; // 30 seconds
+  // First, define a handleRefreshHistory function near other handler functions
+  const handleRefreshHistory = useCallback(() => {
+    // This will trigger a re-fetch of history metadata
+    if (typeof window !== 'undefined') {
+      // Create an event to force history refresh
+      const refreshEvent = new Event('storage', { bubbles: true });
+      window.dispatchEvent(refreshEvent);
       
-      // Only auto-sync if not synced recently (prevents multiple syncs)
-      if (timeSinceLastSync >= MIN_SYNC_INTERVAL) {
-        console.log("Auto-syncing after authentication completed");
-        lastSyncTimestampRef.current = now;
-        
-        // Slight delay to allow everything to initialize
-        setTimeout(() => {
-          if (isMounted.current) {
-            syncWithDrive().then(result => {
-              if (result === 'SUCCESS') {
-                console.log("Initial auth auto-sync completed successfully");
-              }
-            }).catch(err => {
-              console.error("Error during initial auth auto-sync:", err);
-            });
-          }
-        }, 2000);
-      }
+      // Also trigger a custom event for components listening for history updates
+      const historyEvent = new CustomEvent('history-updated', { 
+        detail: { force: true } 
+      });
+      window.dispatchEvent(historyEvent);
     }
-  }, [authLoading, authUser, googleAccessToken, syncWithDrive]);
+  }, []);
+
+  // Add the new handler function for when custom sense prompts are generated
+  const handleCustomSensePromptsGenerated = useCallback(( 
+    prompts: PromptWithCustomSenseOutput['prompts'], 
+    designType: string, 
+    description: string
+  ) => {
+    const userMessageText = `[Prompt with Custom Change] Requested prompts for Design Type: "${designType}". Description: "${description}"`;
+    const userMessageId = addMessage('user', userMessageText);
+
+    // Create a single content part that uses custom_prompts_tabs
+    const assistantResponseParts: ChatMessageContentPart[] = [{
+      type: 'custom_prompts_tabs',
+      title: `${designType} Style Variations`,
+      customPrompts: prompts.map(promptItem => ({
+        title: promptItem.title || 'Generated Prompt',
+        prompt: promptItem.prompt
+      }))
+    }];
+
+    if (prompts.length > 0) {
+      addMessage('assistant', assistantResponseParts, undefined, false, false, undefined, userMessageId);
+    } else {
+      addMessage('assistant', "No prompts were generated for your request.", undefined, false, false, undefined, userMessageId);
+    }
+
+    // The PromptWithCustomSense component will call its onClose, so no need to setShowPromptWithCustomSense(false) here.
+  }, [addMessage]);
+
+  // Handler for Microstock results
+  const handleMicrostockResultsGenerated = useCallback((
+    results: AIPromptWithMetadata[],
+    niche: string,
+    subNiche?: string,
+    description?: string,
+    attachedFile?: AttachedFile
+  ) => {
+    // Create a more structured and visually appealing user message
+    const userMessageParts: ChatMessageContentPart[] = [{
+      type: 'text',
+      title: 'Prompt for Micro Stock Markets',
+      text: `I'm looking for **${results.length} prompts** for the following specifications:`
+    }, {
+      type: 'text',
+      text: `**Design/Image Niche:** ${niche}${subNiche ? `\n**Sub-niche:** ${subNiche}` : ''}${description ? `\n\n**Detailed Description:**\n${description}` : ''}`
+    }];
+    
+    // Add user message with the enhanced content and attached file if provided
+    const userMessageId = addMessage('user', userMessageParts, attachedFile ? [attachedFile] : undefined);
+
+    // Create the assistant response with the tabs
+    const assistantResponseParts: ChatMessageContentPart[] = [{
+      type: 'microstock_results_tabs',
+      title: `Microstock Prompts: ${niche}`,
+      microstockResults: results // Pass the full results array
+    }];
+
+    if (results.length > 0) {
+      addMessage('assistant', assistantResponseParts, undefined, false, false, undefined, userMessageId);
+    } else {
+      addMessage('assistant', "No prompts or metadata were generated for your request.", undefined, false, false, undefined, userMessageId);
+    }
+  }, [addMessage]);
+
+
+  useEffect(() => {
+    if (authLoading || (!currentSession && !profileLoading && !historyHookLoading) ) {
+      return;
+    }
+
+    // If there's a current session, check if it has no messages
+    if (currentSession && currentSession.messages.length === 0) {
+      return;
+    }
+
+    // If there's no current session, check if the history is loading or empty
+    if (!currentSession && historyHookLoading) {
+      return;
+    }
+
+    // If there's no current session and no history, show a loading message
+    if (!currentSession && !historyHookLoading) {
+      return;
+    }
+
+    // If there's a current session and it's empty, show a loading message
+    if (currentSession && currentSession.messages.length === 0) {
+      return;
+    }
+
+    // If there's a current session and it's not empty, show the messages
+    if (currentSession && currentSession.messages.length > 0) {
+      return;
+    }
+  }, [authLoading, currentSession, profileLoading, historyHookLoading]);
+
+  // Add handleStopRegeneration function with the other callback functions
+  const handleStopRegeneration = useCallback((messageId: string) => {
+    // Update the message to stop loading and show stopped message
+    updateMessageById(
+      messageId, 
+      [{ 
+        type: 'text', 
+        title: 'Generation Stopped',
+        text: 'AI generation was stopped by user. Click "Regenerate" to try again.' 
+      }], 
+      false, // Not loading anymore
+      false, // Not an error
+      messages.find(msg => msg.id === messageId)?.originalRequest // Preserve original request for regeneration
+    );
+    // Show a toast notification
+    if (isMounted.current) {
+      toast({ 
+        title: "Generation Stopped", 
+        description: "The AI generation process was cancelled.",
+        duration: 3000
+      });
+    }
+  }, [updateMessageById, messages, toast]);
 
   if (authLoading || (!currentSession && !profileLoading && !historyHookLoading) ) {
     return (
@@ -1271,42 +2017,58 @@ export default function ChatPage() {
 
 
   return (
-    <div className="flex h-[calc(100vh-var(--header-height,0px))] bg-gradient-to-br from-background-start-hsl to-background-end-hsl">
+    <div className="flex flex-row h-[calc(100vh-var(--header-height,0px))] overflow-hidden bg-gradient-to-b from-background-start-hsl to-background-end-hsl"
+         onDragOver={handleDragOver}
+         onDragLeave={handleDragLeave}
+         onDrop={handleDrop}
+         ref={dropZoneRef}>
+      {/* History panel - mobile version */}
       {isMobile && isHistoryPanelOpen && (
         <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={() => setIsHistoryPanelOpen(false)}>
-          <div ref={chatSidebarRef} className="absolute left-0 top-0 h-full w-4/5 max-w-[260px] glass-panel border-r shadow-2xl animate-slide-in-left" onClick={(e) => e.stopPropagation()}>
+          <div ref={chatSidebarRef} className="absolute left-0 top-0 h-full w-4/5 max-w-[300px] glass-panel border-r border-primary/20 shadow-2xl animate-slide-in-left" onClick={(e) => e.stopPropagation()}>
             <HistoryPanel
-              sessions={historyMetadata} activeSessionId={currentSession?.id || null}
-              onSelectSession={handleSelectSession} onNewChat={handleNewChat}
-              onDeleteSession={handleDeleteSession} isLoading={historyHookLoading}
-              isLoggedIn={!!authUser}
+              sessions={historyMetadata} 
+              activeSessionId={currentSession?.id || null}
+              onSelectSession={handleSelectSession} 
+              onNewChat={handleNewChat}
+              onDeleteSession={handleDeleteSession} 
+              isLoading={historyHookLoading}
+              isLoggedIn={!!authUser} 
+              onRefreshHistory={handleRefreshHistory}
             />
           </div>
         </div>
       )}
+      
+      {/* History panel - desktop version */}
       {!isMobile && (
         <div
           ref={chatSidebarRef}
           className={cn(
-            "glass-panel shrink-0 transition-all duration-300 ease-in-out h-full overflow-y-auto",
-            isHistoryPanelOpen ? "w-[260px] p-0 border-r" : "w-0 border-r-0 opacity-0 p-0"
+            "glass-panel shrink-0 transition-all duration-300 ease-in-out h-full overflow-hidden shadow-lg",
+            isHistoryPanelOpen ? "w-[300px] border-r border-primary/20" : "w-0 opacity-0"
           )}
         >
           {isHistoryPanelOpen && (
             <div className="h-full overflow-hidden animate-fade-in">
               <HistoryPanel
-                sessions={historyMetadata} activeSessionId={currentSession?.id || null}
-                onSelectSession={handleSelectSession} onNewChat={handleNewChat}
-                onDeleteSession={handleDeleteSession} isLoading={historyHookLoading}
+                sessions={historyMetadata} 
+                activeSessionId={currentSession?.id || null}
+                onSelectSession={handleSelectSession} 
+                onNewChat={handleNewChat}
+                onDeleteSession={handleDeleteSession} 
+                isLoading={historyHookLoading}
                 isLoggedIn={!!authUser}
-                className="animate-fade-in"
+                className="animate-fade-in" 
+                onRefreshHistory={handleRefreshHistory}
               />
             </div>
           )}
         </div>
       )}
 
-      <div className="flex-1 flex flex-col bg-transparent overflow-hidden" ref={dropZoneRef} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+      {/* Main chat area - always visible regardless of history panel state */}
+      <div className="flex flex-col flex-grow min-w-0 w-full h-full">
         <div className="px-4 py-3 border-b flex items-center justify-between sticky top-0 bg-card/30 backdrop-blur-md z-10 shadow-md min-h-[57px] animate-fade-in transition-all duration-300">
           <div className="flex items-center">
             <Button variant="ghost" size="icon" onClick={() => setIsHistoryPanelOpen(prev => !prev)} aria-label="Toggle history panel" className="hover:bg-primary/20 btn-glow rounded-full">
@@ -1316,19 +2078,13 @@ export default function ChatPage() {
             <h2 className="ml-3 font-semibold text-xl truncate text-gradient" title={currentSession?.name || "Chat"}>{currentSession?.name || "Chat"}</h2>
           </div>
           <div className="flex items-center gap-3">
-             { authUser && isGoogleUser && (
-                <Button variant="outline" size="sm" onClick={handleSyncWithDriveClick} disabled={isSyncing} className="hover:bg-primary/10 hover:text-primary transition-colors duration-300 rounded-full shadow-md btn-glow">
-                    {isSyncing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                    Sync with Drive
-                </Button>
-            )}
             <Button variant="secondary" size="sm" onClick={handleNewChat} className="hover:bg-accent hover:text-accent-foreground transition-colors duration-300 rounded-full shadow-md btn-glow">
                 <PlusCircle className="h-4 w-4 mr-2" /> New Chat
             </Button>
           </div>
         </div>
 
-        <ScrollArea className="flex-1 p-2 md:p-4" ref={chatAreaRef}>
+        <ScrollArea className="flex-1 p-2 md:p-4 overflow-y-auto" ref={chatAreaRef}>
           <div className="space-y-4 w-full stagger-animation">
             {messages.map((msg) => (
               <ChatMessageDisplay
@@ -1336,6 +2092,7 @@ export default function ChatPage() {
                 message={msg}
                 onRegenerate={handleRegenerateMessage}
                 onConfirmEditAndResend={handleConfirmEditAndResendUserMessage}
+                onStopRegeneration={handleStopRegeneration}
               />
             ))}
              {messages.length === 0 && !isLoading && (
@@ -1366,7 +2123,7 @@ export default function ChatPage() {
           </div>
         )}
 
-        <div className={cn("relative border-t p-4 md:p-5 glass-panel bg-background/60 backdrop-blur-xl shadow-xl", isDragging && "opacity-50")}>
+        <div className={cn("relative border-t p-4 md:p-5 glass-panel bg-background/60 backdrop-blur-xl shadow-xl shrink-0", isDragging && "opacity-50")}>
           <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-primary/10 via-primary/40 to-primary/10"></div>
 
           {currentAttachedFilesData.length > 0 && (
@@ -1469,7 +2226,7 @@ export default function ChatPage() {
                 isLoading={isLoading}
                 currentUserMessage={inputMessage}
                 profile={profile}
-                currentAttachedFilesDataLength={currentAttachedFilesDataLength}
+                currentAttachedFilesDataLength={currentAttachedFilesData.length}
                 isMobile={isMobile}
                 activeButton={activeActionButton}
                 lastSelectedButton={lastSelectedActionButton}
@@ -1550,6 +2307,32 @@ export default function ChatPage() {
         initialQuery={searchQuery}
         onQueryChange={setSearchQuery}
       />
+      
+      {/* Prompt with Custom Change component */}
+      {showPromptWithCustomSense && (
+        <div className="fixed inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-50 p-4">
+          <PromptWithCustomSense
+            userName={profile?.name}
+            userApiKey={profile?.geminiApiKeys?.[0]}
+            modelId={profile?.selectedGenkitModelId || DEFAULT_MODEL_ID}
+            onClose={() => setShowPromptWithCustomSense(false)}
+            onPromptsGenerated={handleCustomSensePromptsGenerated} // Pass the new handler
+          />
+        </div>
+      )}
+      
+      {/* Prompt for Microstock component */}
+      {showPromptForMicrostock && (
+        <div className="fixed inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-50 p-4">
+          <PromptForMicrostock
+            userName={profile?.name}
+            userApiKey={profile?.geminiApiKeys?.[0]}
+            modelId={profile?.selectedGenkitModelId || DEFAULT_MODEL_ID}
+            onClose={() => setShowPromptForMicrostock(false)}
+            onResultsGenerated={handleMicrostockResultsGenerated} 
+          />
+        </div>
+      )}
     </div>
   );
 }

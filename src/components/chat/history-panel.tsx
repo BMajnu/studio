@@ -24,8 +24,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
+import { ChatHistoryItem } from './ChatHistoryItem';
 
 // Custom hook for debounce
 function useDebounce<T>(value: T, delay: number): T {
@@ -56,6 +57,7 @@ interface HistoryPanelProps {
   isLoggedIn: boolean;
   isSyncing?: boolean;
   className?: string;
+  onRefreshHistory: () => void;
 }
 
 export function HistoryPanel({
@@ -70,6 +72,7 @@ export function HistoryPanel({
   isLoggedIn,
   isSyncing,
   className,
+  onRefreshHistory,
 }: HistoryPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [animateItems, setAnimateItems] = useState(false);
@@ -78,6 +81,7 @@ export function HistoryPanel({
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editNameValue, setEditNameValue] = useState("");
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
+  const [sessionBeingSelected, setSessionBeingSelected] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setAnimateItems(true), 100);
@@ -112,20 +116,20 @@ export function HistoryPanel({
     return filtered.sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
   }, [sessions, debouncedSearchQuery]);
 
-  const startEditing = (sessionId: string, currentName: string) => {
+  const startEditing = useCallback((sessionId: string, currentName: string) => {
     if (onRenameSession) { // Only allow editing if onRenameSession is provided
       setEditingSessionId(sessionId);
       setEditNameValue(currentName);
     }
-  };
+  }, [onRenameSession]);
 
-  const handleDoubleClickName = (e: React.MouseEvent, sessionId: string, currentName: string) => {
+  const handleDoubleClickName = useCallback((e: React.MouseEvent, sessionId: string, currentName: string) => {
     e.stopPropagation();
     e.preventDefault();
     startEditing(sessionId, currentName);
-  };
+  }, [startEditing]);
   
-  const commitEdit = (sessionId: string) => {
+  const commitEdit = useCallback((sessionId: string) => {
     if (onRenameSession && editNameValue.trim() && editingSessionId === sessionId) {
       const trimmedName = editNameValue.trim();
       // Check if name actually changed to prevent unnecessary updates
@@ -135,14 +139,14 @@ export function HistoryPanel({
       }
     }
     setEditingSessionId(null);
-  };
+  }, [editNameValue, editingSessionId, onRenameSession, sessions]);
 
-  const cancelEdit = () => {
+  const cancelEdit = useCallback(() => {
     setEditingSessionId(null);
     // editNameValue will be reset when editing starts next time with startEditing
-  };
+  }, []);
 
-  const handleInputBlur = (sessionId: string) => {
+  const handleInputBlur = useCallback((sessionId: string) => {
     // Delay slightly to allow click on save/cancel buttons to register
     setTimeout(() => {
         // Check if we are still in editing mode for this session
@@ -151,9 +155,9 @@ export function HistoryPanel({
             commitEdit(sessionId);
         }
     }, 100); 
-  };
+  }, [commitEdit, editingSessionId]);
 
-  const handleInputKeyDown = (e: React.KeyboardEvent, sessionId: string) => {
+  const handleInputKeyDown = useCallback((e: React.KeyboardEvent, sessionId: string) => {
     e.stopPropagation(); // Keep this to prevent affecting other elements
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -162,30 +166,102 @@ export function HistoryPanel({
       e.preventDefault();
       cancelEdit();
     }
-  };
+  }, [cancelEdit, commitEdit]);
   
   // For the explicit save button
-  const handleSaveButtonClick = (e: React.MouseEvent, sessionId: string) => {
+  const handleSaveButtonClick = useCallback((e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
     commitEdit(sessionId);
-  };
+  }, [commitEdit]);
 
   // For the explicit cancel button
-  const handleCancelButtonClick = (e: React.MouseEvent) => {
+  const handleCancelButtonClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     cancelEdit();
-  };
+  }, [cancelEdit]);
   
   // For the pencil icon button
-   const handlePencilEditClick = (e: React.MouseEvent, sessionId: string, currentName: string) => {
+  const handlePencilEditClick = useCallback((e: React.MouseEvent, sessionId: string, currentName: string) => {
     e.stopPropagation();
     startEditing(sessionId, currentName);
-  };
+  }, [startEditing]);
 
+  // Handler for selecting a session
+  const handleSessionSelect = useCallback((sessionId: string) => {
+    if (editingSessionId === sessionId) return; // Don't select if currently editing
+    
+    // Prevent rapid clicking
+    if (sessionBeingSelected === sessionId) return;
+    
+    setSessionBeingSelected(sessionId);
+    
+    // Call the parent's select handler
+    onSelectSession(sessionId);
+    
+    // Reset selection state after a delay
+    setTimeout(() => {
+      setSessionBeingSelected(null);
+    }, 500);
+  }, [editingSessionId, onSelectSession, sessionBeingSelected]);
+
+  // Add listener for history-updated events to force refresh
+  useEffect(() => {
+    const handleHistoryUpdated = (event: CustomEvent) => {
+      const { sessionId, newName } = event.detail;
+      console.log(`History panel: Received history-updated event for session ${sessionId} with name "${newName}"`);
+      
+      // Use the existing displayedSessions update mechanism
+      // Force a refresh via onRefreshHistory
+      if (typeof onRefreshHistory === 'function') {
+        onRefreshHistory();
+      }
+    };
+    
+    // Listen for custom history-updated events
+    window.addEventListener('history-updated', handleHistoryUpdated as EventListener);
+    
+    // Also listen for chat-name-updated events
+    const handleChatNameUpdated = (event: CustomEvent) => {
+      const { sessionId, newName, forceUpdate } = event.detail;
+      
+      // Only process if we have the forceUpdate flag
+      if (forceUpdate) {
+        console.log(`History panel: Received chat-name-updated event for session ${sessionId} with name "${newName}"`);
+        
+        // Use the onRefreshHistory callback to refresh the session list
+        if (typeof onRefreshHistory === 'function') {
+          onRefreshHistory();
+        }
+      }
+    };
+    
+    window.addEventListener('chat-name-updated', handleChatNameUpdated as EventListener);
+    
+    // Storage event listener for cross-tab synchronization
+    const handleStorageChange = (e: StorageEvent) => {
+      // Check if this is our special update trigger
+      if (e.key === 'desainr_history_update_trigger') {
+        console.log('History panel: Detected history update trigger');
+        
+        // Force refresh all sessions from the current metadata
+        if (typeof onRefreshHistory === 'function') {
+          onRefreshHistory();
+        }
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('history-updated', handleHistoryUpdated as EventListener);
+      window.removeEventListener('chat-name-updated', handleChatNameUpdated as EventListener);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [onRefreshHistory]);
 
   return (
-    <div className={cn("flex h-full flex-col", className)}>
-      <div className="flex items-center justify-between p-4 bg-card/50 backdrop-blur-sm border-b animate-fade-in">
+    <div className={cn("flex h-full flex-col bg-gradient-to-b from-background-start-hsl to-background-end-hsl", className)}>
+      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-primary/10 to-secondary/10 backdrop-blur-sm border-b animate-fade-in shadow-md">
         <div className="flex items-center gap-3">
           <h2 className="text-lg font-semibold text-gradient">Chat History</h2>
         </div>
@@ -199,7 +275,7 @@ export function HistoryPanel({
                     size="icon" 
                     onClick={onSyncWithDrive}
                     disabled={isSyncing}
-                    className="hover:bg-primary/10 hover:text-primary transition-colors"
+                    className="hover:bg-primary/10 hover:text-primary transition-colors btn-glow rounded-full"
                   >
                     {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                   </Button>
@@ -208,165 +284,81 @@ export function HistoryPanel({
               </Tooltip>
             </TooltipProvider>
           )}
-          <Button variant="ghost" size="icon" onClick={onNewChat} title="New Chat" className="hover:bg-primary/10 hover:text-primary transition-colors">
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={onNewChat} 
+            title="New Chat" 
+            className="hover:bg-primary/10 hover:text-primary transition-colors duration-300 rounded-full shadow-sm hover:shadow-md btn-glow"
+          >
             <PlusCircle className="h-5 w-5" />
           </Button>
         </div>
       </div>
       <div className="relative animate-slide-in-right" style={{animationDelay: '0.1s'}}>
-        <Input
-          ref={searchInputRef}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full rounded-none border-x-0 focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:ring-offset-0 transition-all duration-300"
-          placeholder="Search chats..."
-        />
-        {searchQuery && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute right-1 top-1/2 h-6 w-6 -translate-y-1/2 transition-all duration-200 hover:bg-destructive/10"
-            onClick={() => setSearchQuery("")}
-          >
-            <XIcon className="h-3 w-3" />
-          </Button>
-        )}
+        <div className="relative">
+          <Input
+            ref={searchInputRef}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-none border-x-0 focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:ring-offset-0 transition-all duration-300 bg-card/40 backdrop-blur-sm"
+            placeholder="Search chats..."
+          />
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 h-6 w-6 -translate-y-1/2 transition-all duration-200 hover:bg-destructive/10 hover:text-destructive rounded-full"
+              onClick={() => setSearchQuery("")}
+            >
+              <XIcon className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+        
+        <div className="absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-primary/5 via-primary/30 to-primary/5"></div>
       </div>
       
       {isLoading && (
         <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="glass-panel p-6 rounded-full shadow-lg animate-pulse-slow">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
         </div>
       )}
 
       {!isLoading && displayedSessions.length === 0 && (
         <div className="flex h-full flex-col items-center justify-center p-4 text-center text-muted-foreground animate-fade-in" style={{animationDelay: '0.2s'}}>
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted/80 backdrop-blur-sm animate-pulse-slow shadow-lg">
-            <MessageSquare className="h-10 w-10" />
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-sm animate-pulse-slow shadow-lg">
+            <MessageSquare className="h-10 w-10 text-primary" />
           </div>
           <h3 className="mt-4 text-lg font-semibold text-gradient">No chats found</h3>
           <p className="mt-2 text-sm">
             {searchQuery ? "Try a different search term" : "Start a new chat to get started"}
           </p>
+          <Button 
+            variant="outline" 
+            className="mt-6 rounded-full bg-gradient-to-r from-primary/10 to-secondary/10 hover:from-primary/20 hover:to-secondary/20 shadow-md btn-glow"
+            onClick={onNewChat}
+          >
+            <PlusCircle className="h-4 w-4 mr-2" /> New Chat
+          </Button>
         </div>
       )}
 
       {!isLoading && displayedSessions.length > 0 && (
-        <ScrollArea className="flex-1 overflow-y-auto" style={{ height: 'calc(100vh - 130px)', minHeight: '200px' }}>
-          <div className="p-2 space-y-1 pb-10">
+        <ScrollArea className="flex-1 overflow-y-auto relative" style={{ height: 'calc(100vh - 160px)', minHeight: '200px' }}>
+          <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-primary/5 via-primary/20 to-primary/5"></div>
+          <div className="px-3 py-2 space-y-2 pb-10">
             {displayedSessions.map((session, index) => (
-              <div
+              <ChatHistoryItem
                 key={session.id}
-                className={cn(
-                  `group flex items-center p-2.5 rounded-md cursor-pointer transition-all duration-300 ease-in-out hover:shadow-lg hover:-translate-y-0.5`,
-                  animateItems ? 'animate-fade-in' : 'opacity-0',
-                  session.id === activeSessionId ? 'bg-accent/90 text-accent-foreground shadow-md backdrop-blur-sm' : 'text-foreground hover:bg-accent/10'
-                )}
-                style={{ animationDelay: `${0.1 + index * 0.05}s` }}
-                onClick={() => {
-                  if (editingSessionId !== session.id) { // Prevent selecting session if currently editing its name
-                    onSelectSession(session.id)
-                  }
-                }}
-              >
-                <div className="flex-1 min-w-0 overflow-hidden max-w-[180px]"> {/* Text content container */}
-                  {editingSessionId === session.id ? (
-                    <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
-                      <Input
-                        ref={editInputRef}
-                        type="text"
-                        value={editNameValue}
-                        onChange={(e) => setEditNameValue(e.target.value)}
-                        onKeyDown={(e) => handleInputKeyDown(e, session.id)}
-                        onBlur={() => handleInputBlur(session.id)}
-                        className="w-full p-1 text-sm h-7 bg-background/80 focus-visible:ring-1 focus-visible:ring-primary"
-                        // autoFocus is handled by useEffect
-                      />
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-6 w-6 flex-shrink-0 hover:bg-primary/10" 
-                        onClick={(e) => handleSaveButtonClick(e, session.id)}
-                        title="Save name"
-                      >
-                        <CheckIcon className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-6 w-6 flex-shrink-0 hover:bg-destructive/10" 
-                        onClick={handleCancelButtonClick}
-                        title="Cancel edit"
-                      >
-                        <XIcon className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <>
-                      <p 
-                        className="text-sm font-medium truncate" 
-                        title={session.name}
-                        onDoubleClick={(e) => handleDoubleClickName(e, session.id, session.name)}
-                      >
-                        {session.name}
-                      </p>
-                      <p className={cn("text-xs truncate", session.id === activeSessionId ? "text-accent-foreground/80" : "text-muted-foreground" )} title={session.preview}>
-                        {session.messageCount} msg - {session.preview}
-                      </p>
-                      <p className={cn("text-xs", session.id === activeSessionId ? "text-accent-foreground/70" : "text-muted-foreground/70")}>
-                        {formatDistanceToNow(new Date(session.lastMessageTimestamp), { addSuffix: true })}
-                      </p>
-                    </>
-                  )}
-                </div>
-                
-                {/* Show pencil and delete only when not editing THIS item */}
-                {editingSessionId !== session.id && (
-                  <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-1">
-                    {/* Rename Button (Pencil Icon) */}
-                    {onRenameSession && ( // Only show if renaming is possible
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-slate-500 dark:text-slate-400 hover:text-primary hover:bg-primary/10"
-                        onClick={(e) => handlePencilEditClick(e, session.id, session.name)}
-                        title="Rename chat"
-                      >
-                        <PencilIcon className="h-4 w-4" />
-                      </Button>
-                    )}
-                    
-                    {/* Delete Button */}
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-slate-500 dark:text-slate-400 hover:text-destructive hover:bg-destructive/10"
-                          onClick={(e) => e.stopPropagation()} 
-                          title="Delete chat"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the chat session "{session.name}".
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => onDeleteSession(session.id)} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                )}
-              </div>
+                session={session}
+                isActive={session.id === activeSessionId}
+                onClick={handleSessionSelect}
+                onDelete={onDeleteSession}
+                onRename={onRenameSession}
+              />
             ))}
           </div>
         </ScrollArea>

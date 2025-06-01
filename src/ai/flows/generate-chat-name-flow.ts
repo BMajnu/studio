@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview Generates a concise name for a chat session.
@@ -29,7 +28,6 @@ const GenerateChatNamePromptInputSchema = z.object({
   firstAssistantMessage: z.string().optional().describe("The first reply from the assistant, if available."),
 });
 
-
 const GenerateChatNameOutputSchema = z.object({
   chatName: z.string().describe("A short, descriptive name for the chat session (max 5 words, e.g., 'T-Shirt Design Inquiry')."),
 });
@@ -46,7 +44,10 @@ export async function generateChatName(flowInput: GenerateChatNameInput): Promis
 
   if (userApiKey) {
     console.log(`INFO (${flowName}): Using user-provided API key.`);
-    currentAiInstance = genkit({ plugins: [googleAI({ apiKey: userApiKey })] });
+    // Create a new Genkit instance with the user's API key
+    currentAiInstance = genkit({
+      plugins: [googleAI({ apiKey: userApiKey })]
+    });
     apiKeySourceForLog = "User-provided API key from profile";
   } else if (process.env.GOOGLE_API_KEY) {
     console.log(`INFO (${flowName}): User API key not provided. Using GOOGLE_API_KEY from .env file.`);
@@ -59,20 +60,30 @@ export async function generateChatName(flowInput: GenerateChatNameInput): Promis
     name: `${flowName}Prompt_${Date.now()}`,
     input: {schema: GenerateChatNamePromptInputSchema}, 
     output: {schema: GenerateChatNameOutputSchema},
-    prompt: `Based on the following initial messages in a conversation with a graphic designer, generate a very short, descriptive title or name for this chat session. The name should be a maximum of 5 words and capture the main topic.
+    prompt: `Generate a brief, concise title (3-5 words) for a chat conversation based on its content.
+Title should be informative and specific, capturing the main topic or purpose of the conversation.
+The title should be professional and descriptive.
 
-User's first message: "{{firstUserMessage}}"
+Here is the beginning of the conversation:
+
+User: "{{firstUserMessage}}"
 {{#if firstAssistantMessage}}
-Assistant's first reply: "{{firstAssistantMessage}}"
+Assistant: "{{firstAssistantMessage}}"
 {{/if}}
 
-Examples:
-- User: "Hi, I need a logo for my new coffee shop." -> "Coffee Shop Logo"
-- User: "Can you help with some t-shirt designs for an event?" -> "T-Shirt Design Event"
-- User: "I have a quick question about revisions." -> "Revision Question"
+Analyze the conversation and extract the main topic, question, or purpose.
+Focus on identifying specific subjects, technologies, tasks, or questions present in the messages.
+If the message is too short or vague, create a title that accurately represents what you can infer.
+If the conversation is a greeting only, use "General Chat" or similar.
 
-Generate a suitable name for the provided messages.
-`,
+Guidelines:
+- Keep the title between 3-5 words (maximum 50 characters)
+- Make it specific and descriptive (e.g. "Python Data Analysis Help" is better than "Programming Help")
+- Don't use quotes in the title
+- Don't prefix with "Chat about" or similar phrases
+- Don't use any emojis
+
+Your task is to generate a suitable name for the provided conversation.`,
   });
   
   try {
@@ -82,7 +93,25 @@ Generate a suitable name for the provided messages.
       console.error(`ERROR (${flowName}): AI returned empty or undefined output.`);
       throw new Error(`AI response was empty or undefined in ${flowName}.`);
     }
-    return output;
+    
+    // Clean up and format the chat name
+    let chatName = output.chatName;
+    
+    // Remove any quotes
+    chatName = chatName.replace(/^["']|["']$/g, '');
+    
+    // Remove common prefixes like "Chat about" or "About"
+    chatName = chatName.replace(/^(Chat about|About|Chat:|Title:|Chat titled|Chat name:|Name:)\s*/i, '');
+    
+    // Ensure first letter of each word is capitalized
+    chatName = chatName.replace(/\b\w/g, c => c.toUpperCase());
+    
+    // Limit length
+    if (chatName.length > 50) {
+      chatName = chatName.substring(0, 47) + '...';
+    }
+    
+    return { chatName };
   } catch (error) {
     console.error(`ERROR (${flowName}): AI call failed (API key source: ${apiKeySourceForLog}). Error:`, error);
     throw new Error(`AI call failed in ${flowName}. Please check server logs for details. Original error: ${(error as Error).message}`);

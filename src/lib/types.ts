@@ -30,10 +30,14 @@ export type ActionType =
   | 'generateRevision'
   | 'generateDesignIdeas'
   | 'generateDesignPrompts'
-  | 'generateEditingPrompts'; 
+  | 'generateEditingPrompts'
+  | 'checkBestDesign'
+  | 'promptToReplicate'
+  | 'promptWithCustomSense'
+  | 'promptForMicroStockMarkets';
 
 export interface ChatMessageContentPart {
-  type: 'text' | 'code' | 'list' | 'translation_group' | 'custom' | 'suggested_replies';
+  type: 'text' | 'code' | 'list' | 'translation_group' | 'custom' | 'suggested_replies' | 'top_designs' | 'design_idea' | 'design_ideas_group' | 'prompt_tabs' | 'custom_prompts_tabs' | 'microstock_results_tabs';
   title?: string; 
   text?: string; 
   code?: string; 
@@ -42,6 +46,22 @@ export interface ChatMessageContentPart {
   english?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; 
   bengali?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; 
   suggestions?: { english: string[], bengali: string[] }; // For suggested_replies type
+  data?: any; // For top_designs type, holds the CheckBestDesignOutput data
+  ideas?: { category: string, items: string[] }[]; // For design_ideas_group type, holds ideas grouped by category
+  imageDataUri?: string; // For prompt_tabs type, holds the image data URI
+  exactReplicationPrompt?: string; // For prompt_tabs type
+  similarWithTweaksPrompt?: string; // For prompt_tabs type
+  sameNichePrompt?: string; // For prompt_tabs type
+  customPrompts?: { title: string, prompt: string }[]; // For custom_prompts_tabs type, holds all custom prompts
+  microstockResults?: { 
+    prompt: string; 
+    metadata: { 
+      title: string; 
+      keywords: string[]; 
+      mainCategory: string; 
+      subcategory: string; 
+    }; 
+  }[]; // For microstock_results_tabs type, holds microstock prompts with metadata
 }
 
 export interface AttachedFile {
@@ -104,8 +124,6 @@ export interface ChatSessionMetadata {
   lastMessageTimestamp: number;
   preview: string; 
   messageCount: number;
-  isDriveSession?: boolean; 
-  driveFileId?: string; // Actual Google Drive file ID
 }
 
 export interface ChatSession {
@@ -115,17 +133,5 @@ export interface ChatSession {
   createdAt: number; 
   updatedAt: number; 
   userId: string; 
-  driveFileId?: string; // Optional: Actual Google Drive file ID if synced
   modelId?: string; // Added for storing model used for name generation or general session model
-}
-
-export interface DriveFile {
-  id: string; // Google Drive's file ID
-  name: string; // Filename on Google Drive
-  mimeType: string;
-  modifiedTime?: string;
-  appProperties?: { // Custom properties
-    appSessionId?: string; // To store our app's internal session ID
-    [key: string]: string | undefined; // Allow other custom properties
-  };
 }

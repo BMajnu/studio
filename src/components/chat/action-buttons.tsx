@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { BotMessageSquare, Plane, RotateCcw, ListChecks, ClipboardList, Sparkles, MessageSquarePlus, Palette, Lightbulb, Terminal, SearchCheck, ClipboardSignature, Edit3, AlertTriangle, Search } from 'lucide-react';
+import { BotMessageSquare, Plane, RotateCcw, ListChecks, ClipboardList, Sparkles, MessageSquarePlus, Palette, Lightbulb, Terminal, SearchCheck, ClipboardSignature, Edit3, AlertTriangle, Search, Wrench } from 'lucide-react';
 import type { UserProfile } from '@/lib/types';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -24,7 +24,11 @@ export type ActionType =
   | 'checkMadeDesigns'
   | 'generateDeliveryTemplates'
   | 'generateRevision'
-  | 'generateEditingPrompts';
+  | 'generateEditingPrompts'
+  | 'checkBestDesign'
+  | 'promptToReplicate'
+  | 'promptWithCustomSense'
+  | 'promptForMicroStockMarkets';
 
 interface ActionButtonConfig {
   id: ActionType;
@@ -61,6 +65,19 @@ const actionButtonsConfig: AnyActionConfig[] = [
     subActions: [
       { id: 'generateDesignIdeas', label: 'Generate Design Ideas', shortLabel: 'Idea', icon: Lightbulb, description: 'Generates creative design ideas, web inspiration, and typography concepts.', isPrimaryAction: false },
       { id: 'generateDesignPrompts', label: 'Generate AI Prompts', shortLabel: 'Prompt', icon: Terminal, description: 'Converts design ideas into detailed prompts for AI image generation.', isPrimaryAction: false },
+      { id: 'checkBestDesign', label: 'Check the best design', shortLabel: 'Check', icon: SearchCheck, description: 'Analyzes and identifies the best design based on requirements.', isPrimaryAction: false },
+    ]
+  },
+  {
+    id: 'toolsActions', // ID for the dropdown trigger
+    label: 'Tools', // Tooltip for the trigger
+    shortLabel: 'Tools',  // Text on the trigger button
+    icon: Wrench,         // Icon for the trigger
+    description: 'Access tools for prompt generation and image replication.',
+    subActions: [
+      { id: 'promptToReplicate', label: 'Prompt to Replicate', shortLabel: 'Replicate', icon: Sparkles, description: 'Upload images and get prompts to replicate or create similar designs.', isPrimaryAction: false },
+      { id: 'promptWithCustomSense', label: 'Prompt with Custom Change', shortLabel: 'Custom', icon: MessageSquarePlus, description: 'Define design types and desired changes to generate varied prompts.', isPrimaryAction: false },
+      { id: 'promptForMicroStockMarkets', label: 'Prompt for Micro Stock Markets (PMSM)', shortLabel: 'PMSM', icon: ClipboardSignature, description: 'Generate multiple prompts optimized for microstock markets, along with metadata.', isPrimaryAction: false },
     ]
   },
   {
@@ -158,6 +175,13 @@ export function ActionButtonsPanel({
       return true;
     }
     
+    if (buttonId === 'toolsActions' && 
+        (lastSelectedButton === 'promptToReplicate' || 
+         lastSelectedButton === 'promptWithCustomSense' || 
+         lastSelectedButton === 'promptForMicroStockMarkets')) {
+      return true;
+    }
+    
     // Regular buttons are selected if they are the lastSelectedButton
     return buttonId === lastSelectedButton;
   };
@@ -200,7 +224,7 @@ export function ActionButtonsPanel({
                     {!isMobile && <span className="text-xs md:text-sm font-medium whitespace-nowrap">{btn.shortLabel}</span>}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="top" align="center" className="glass-panel text-foreground shadow-xl rounded-lg p-3 animate-fade-in border border-primary/10">
+                <TooltipContent side="top" align="start" sideOffset={5} className="glass-panel text-foreground shadow-xl rounded-lg p-3 animate-fade-in border border-primary/10">
                   <p className="font-semibold text-gradient">{btn.label}</p>
                   <p className="text-xs text-foreground/80 max-w-xs mt-1">{btn.description}</p>
                 </TooltipContent>
@@ -225,7 +249,8 @@ export function ActionButtonsPanel({
                               baseButtonClasses,
                               isDropdownSelected ? "bg-primary/90 text-primary-foreground hover:bg-primary-light ring-2 ring-primary/30" : "",
                               !isDropdownSelected && dropdown.id === 'designActions' ? "hover:border-success hover:text-success" : "",
-                              !isDropdownSelected && dropdown.id === 'deliveryActions' ? "hover:border-warning hover:text-warning" : ""
+                              !isDropdownSelected && dropdown.id === 'deliveryActions' ? "hover:border-warning hover:text-warning" : "",
+                              !isDropdownSelected && dropdown.id === 'toolsActions' ? "hover:border-primary hover:text-primary" : ""
                             )}
                         >
                             <dropdown.icon className={cn("h-4 w-4 shrink-0", !isMobile && "mr-1.5 md:mr-2")} />
@@ -233,7 +258,7 @@ export function ActionButtonsPanel({
                         </Button>
                      </DropdownMenuTrigger>
                   </TooltipTrigger>
-                  <TooltipContent side="top" align="center" className="glass-panel text-foreground shadow-xl rounded-lg p-3 animate-fade-in border border-primary/10">
+                  <TooltipContent side="top" align="start" sideOffset={5} className="glass-panel text-foreground shadow-xl rounded-lg p-3 animate-fade-in border border-primary/10">
                     <p className="font-semibold text-gradient">{dropdown.label}</p>
                     <p className="text-xs text-foreground/80 max-w-xs mt-1">{dropdown.description}</p>
                   </TooltipContent>
@@ -257,7 +282,9 @@ export function ActionButtonsPanel({
                   >
                     <div className={cn(
                       "p-1.5 rounded-full",
-                      dropdown.id === 'designActions' ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
+                      dropdown.id === 'designActions' ? "bg-success/10 text-success" : 
+                      dropdown.id === 'toolsActions' ? "bg-primary/10 text-primary" :
+                      "bg-warning/10 text-warning"
                     )}>
                       <subAction.icon className="h-3.5 w-3.5 shrink-0" />
                     </div>
@@ -277,4 +304,4 @@ export function ActionButtonsPanel({
       })}
     </div>
   );
-}
+} 

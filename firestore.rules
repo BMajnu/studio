@@ -1,0 +1,34 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Base rule - deny all by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // User profile access - new structure
+    match /users/{userId} {
+      // Allow users to read and write their own profile
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Chat sessions - full document access
+      match /chatSessions/{sessionId} {
+        // Only allow the owner to read/write their own chat sessions
+        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // Chat session metadata - for efficient listing
+      match /chatSessionsMetadata/{sessionId} {
+        // Only allow the owner to read/write their own chat session metadata
+        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Support for previous userProfiles collection structure
+    match /userProfiles/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Shared data or public resources can be added here
+  }
+} 
