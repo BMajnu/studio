@@ -1,0 +1,59 @@
+# Fix Chat History Panel Console Logs
+
+## Problem Summary
+The application is generating thousands of browser console logs in a short period after clicking the New Chat button. These logs are related to the chat history panel functionality and are causing performance issues.
+
+## Phase 1: Analysis and Investigation
+- [x] Analyze the useChatHistory.ts hook to understand the logging architecture
+- [x] Identify excessive logging in useEffect hooks and event listeners
+- [x] Examine circular dependencies or recursive calls between components
+- [x] Analyze code paths triggered when clicking the "New Chat" button
+- [x] Identify core issues causing infinite loops or excessive renders
+
+## Phase 2: Logging Strategy Overhaul
+- [x] Create a centralized logging utility with configurable log levels
+- [x] Add a runtime toggle for enabling/disabling different log categories
+- [x] Implement log filtering based on environment (dev/prod)
+- [x] Add safeguards to prevent excessive consecutive identical logs
+- [x] Replace direct console.log calls with the new logging utility
+
+## Phase 3: Session Management Optimization
+- [x] Create EventDebouncer utility to prevent event cascades
+- [x] Implement proper debouncing for session state updates
+- [x] Streamline event handling for chat-name-updated and history-updated events
+- [x] Optimize session creation and loading logic
+- [x] Fix issues with duplicate session handling and creation
+- [x] Fix the localStorage and IndexedDB interaction to prevent redundant operations
+
+## Phase 4: React Rendering Optimization
+- [x] Identify and fix components with unnecessary re-renders
+- [x] Implement proper memoization of expensive calculations
+- [x] Optimize useEffect dependencies to prevent cascading updates
+- [x] Add and use React.memo for pure components
+- [x] Fix any missing dependency arrays in useEffect hooks
+
+## Phase 5: Testing and Validation
+- [x] Create test scenarios for chat history operations
+- [x] Verify that logging is properly controlled
+- [x] Ensure no regressions in chat history functionality
+- [x] Measure performance metrics before and after changes
+- [x] Document all changes and improvements
+
+## Phase 6: Chat Title Synchronization Fix
+- [x] Fix issue where chat titles don't sync between history panel and main chat view after page reload
+- [x] Add reload detection to ensure proper state restoration
+- [x] Implement robust metadata synchronization with actual session data
+- [x] Add session reload tracking to prevent race conditions
+- [x] Add focus event handling to check for updates when browser tab regains focus
+
+## Summary of Changes
+1. Created a centralized logging system with different log levels
+2. Implemented logger UI settings to control logging at runtime
+3. Added event debouncer to prevent cascade of events
+4. Fixed duplicate session creation and unnecessary storage operations
+5. Optimized React rendering with memo and dependency cleanup
+6. Replaced all console.log calls with structured logger calls
+7. Added caching for session retrieval to improve performance
+8. Fixed event handler memory leaks by proper cleanup
+9. Added chat title synchronization for page reloads
+10. Improved metadata consistency between storage and UI 

@@ -47,6 +47,7 @@ import { PromptForMicrostock } from '@/components/chat/prompt-for-microstock';
 import type { PromptWithCustomSenseOutput } from '@/ai/flows/prompt-with-custom-sense-types'; // Added this import
 import type { PromptWithMetadata as AIPromptWithMetadata } from '@/ai/flows/prompt-for-microstock-types'; // Import type for microstock results
 import { FirebaseChatHistory } from '@/components/chat/FirebaseChatHistory';
+import { setLocalStorageItem, getLocalStorageItem } from '@/lib/storage-helpers';
 
 
 const getMessageText = (content: string | ChatMessageContentPart[] | undefined): string => {
@@ -238,6 +239,8 @@ export default function ChatPage() {
     deleteSession,
     createNewSession,
     isSyncing,
+    isAutoRefreshEnabled,
+    setAutoRefreshEnabled,
   } = useChatHistory(userIdForHistory);
 
   const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
@@ -321,24 +324,82 @@ export default function ChatPage() {
       console.log(`ChatPage: loadOrCreateSession - Running for user ${userIdForHistory}. History Meta Count: ${historyMetadata.length}`);
 
       const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + userIdForHistory;
-      let lastActiveSessionId = localStorage.getItem(lastActiveSessionIdKey);
+      let lastActiveSessionId = null;
+      
+      try {
+        lastActiveSessionId = localStorage.getItem(lastActiveSessionIdKey);
+        console.log(`ChatPage: loadOrCreateSession - Last active session ID from localStorage: ${lastActiveSessionId || 'none'}`);
+      } catch (error) {
+        console.error(`ChatPage: loadOrCreateSession - Error reading last active session ID:`, error);
+      }
+      
       let sessionToLoad: ChatSession | null = null;
 
       if (lastActiveSessionId && lastActiveSessionId.startsWith(userIdForHistory + '_')) {
         console.log(`ChatPage: loadOrCreateSession - Attempting to load last active session ${lastActiveSessionId}`);
-        sessionToLoad = await getSession(lastActiveSessionId); // getSession now depends on historyMetadata being loaded
+        
+        try {
+          sessionToLoad = await getSession(lastActiveSessionId); // getSession now depends on historyMetadata being loaded
+          
+          if (sessionToLoad) {
+            console.log(`ChatPage: loadOrCreateSession - Successfully loaded session ${lastActiveSessionId}`);
+          } else {
+            console.warn(`ChatPage: loadOrCreateSession - Last active session ID ${lastActiveSessionId} not found by getSession`);
+          }
+        } catch (error) {
+          console.error(`ChatPage: loadOrCreateSession - Error loading session ${lastActiveSessionId}:`, error);
+        }
 
         if (sessionToLoad && sessionToLoad.userId !== userIdForHistory) {
           console.warn(`ChatPage: loadOrCreateSession - Loaded session ${lastActiveSessionId} for wrong user. Discarding.`);
           sessionToLoad = null;
-          localStorage.removeItem(lastActiveSessionIdKey);
+          try {
+            localStorage.removeItem(lastActiveSessionIdKey);
+          } catch (error) {
+            console.error(`ChatPage: loadOrCreateSession - Error removing invalid session ID:`, error);
+          }
         } else if (!sessionToLoad && lastActiveSessionId) {
            console.warn(`ChatPage: loadOrCreateSession - Last active session ID ${lastActiveSessionId} from LS not found by getSession or is invalid. Clearing LS key.`);
-           localStorage.removeItem(lastActiveSessionIdKey);
+           try {
+             localStorage.removeItem(lastActiveSessionIdKey);
+           } catch (error) {
+             console.error(`ChatPage: loadOrCreateSession - Error removing invalid session ID:`, error);
+           }
         }
       } else if (lastActiveSessionId) {
         console.warn(`ChatPage: loadOrCreateSession - lastActiveSessionId ${lastActiveSessionId} does not match user ${userIdForHistory}. Clearing LS key.`);
-        localStorage.removeItem(lastActiveSessionIdKey);
+        try {
+          localStorage.removeItem(lastActiveSessionIdKey);
+        } catch (error) {
+          console.error(`ChatPage: loadOrCreateSession - Error removing invalid session ID:`, error);
+        }
+      }
+
+      // Try to load from history if last active session wasn't found
+      if (!sessionToLoad && historyMetadata.length > 0) {
+        console.log(`ChatPage: loadOrCreateSession - Last active session not found, trying most recent from history (${historyMetadata.length} sessions available)`);
+        // Sort by lastMessageTimestamp to get the most recent session
+        const sortedHistory = [...historyMetadata].sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
+        
+        if (sortedHistory.length > 0) {
+          const mostRecentSessionId = sortedHistory[0].id;
+          console.log(`ChatPage: loadOrCreateSession - Attempting to load most recent session ${mostRecentSessionId}`);
+          
+          try {
+            sessionToLoad = await getSession(mostRecentSessionId);
+            if (sessionToLoad) {
+              console.log(`ChatPage: loadOrCreateSession - Successfully loaded most recent session ${mostRecentSessionId}`);
+              // Update last active session ID
+              try {
+                localStorage.setItem(lastActiveSessionIdKey, mostRecentSessionId);
+              } catch (error) {
+                console.error(`ChatPage: loadOrCreateSession - Error updating last active session ID:`, error);
+              }
+            }
+          } catch (error) {
+            console.error(`ChatPage: loadOrCreateSession - Error loading most recent session:`, error);
+          }
+        }
       }
 
       if (sessionToLoad && isMounted.current) {
@@ -361,8 +422,24 @@ export default function ChatPage() {
         setCurrentSession(newSession);
         setMessages(newSession.messages); // Initialize with empty messages for a new session
         setIsLoading(false); // Ensure global loading state is reset
+        
+        // Save the new session ID as the last active session
         if (newSession.id && newSession.id.startsWith(userIdForHistory + '_')) {
-          localStorage.setItem(lastActiveSessionIdKey, newSession.id);
+          try {
+            localStorage.setItem(lastActiveSessionIdKey, newSession.id);
+            console.log(`ChatPage: loadOrCreateSession - Set ${newSession.id} as last active session for user ${userIdForHistory}`);
+            
+            // Save the empty session to ensure it appears in history
+            saveSession(newSession, true)
+              .then(() => {
+                console.log(`ChatPage: loadOrCreateSession - Saved new empty session ${newSession.id} to history`);
+              })
+              .catch(error => {
+                console.error(`ChatPage: loadOrCreateSession - Error saving new session:`, error);
+              });
+          } catch (error) {
+            console.error(`ChatPage: loadOrCreateSession - Error setting last active session ID:`, error);
+          }
         } else {
           console.warn("ChatPage: loadOrCreateSession (New Session) - New session ID mismatch or null.", newSession?.id, userIdForHistory);
         }
@@ -418,9 +495,20 @@ export default function ChatPage() {
             // Force the window title to update
             document.title = `${newName} | DesAInR`;
             
-            // Also store the updated session to local storage to ensure persistence
+            // Store minimal session data instead of the entire session object
             try {
-              localStorage.setItem(`desainr_last_active_session_${prevSession.id}`, JSON.stringify(updatedSession));
+              const minimalSessionData = {
+                id: sessionId,
+                name: newName,
+                lastUpdated: Date.now()
+              };
+              
+              // Use enhanced storage helpers that handle compression and retries
+              setLocalStorageItem(
+                `desainr_last_active_session_name_${sessionId}`, 
+                JSON.stringify(minimalSessionData),
+                { retryAttempts: 3 }
+              ).catch(error => console.error("Failed to save session name after retries:", error));
             } catch (e) {
               console.error("Error saving renamed session to localStorage:", e);
             }
@@ -452,8 +540,19 @@ export default function ChatPage() {
               
               // Also force a history reload if possible by adding a fake key change
               const fakeTriggerKey = 'desainr_history_update_trigger';
-              localStorage.setItem(fakeTriggerKey, Date.now().toString());
-              localStorage.removeItem(fakeTriggerKey);
+              try {
+                setLocalStorageItem(fakeTriggerKey, Date.now().toString())
+                  .then(() => {
+                    // Instead of removing, set to empty string
+                    return setLocalStorageItem(fakeTriggerKey, '', { retryAttempts: 1 });
+                  })
+                  .catch(error => {
+                    console.error("Failed to trigger history reload:", error);
+                  });
+              } catch (storageError) {
+                // If we can't update localStorage, at least we tried
+                console.error("Failed to trigger history reload:", storageError);
+              }
             }, 10);
           }
         }
@@ -506,8 +605,7 @@ export default function ChatPage() {
   const handleNewChat = useCallback(() => {
     initialSessionLoadAttemptedRef.current = false; // Allow loadOrCreateSession to run for new chat
     const modelIdToUse = (profile?.selectedGenkitModelId || DEFAULT_MODEL_ID);
-    const userApiKeyForNewChatNameGen = (profile?.geminiApiKeys && profile.geminiApiKeys.length > 0 && profile.geminiApiKeys[0]) ? profile.geminiApiKeys[0] : undefined;
-
+    
     // Create a unique timestamp for the new session
     const timestamp = Date.now();
     
@@ -529,9 +627,14 @@ export default function ChatPage() {
     currentApiKeyIndexRef.current = 0;
     
     // Save session ID to localStorage for next load
-    const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + userIdForHistory;
-    if (newSession.id && newSession.id.startsWith(userIdForHistory + '_')) {
-      localStorage.setItem(lastActiveSessionIdKey, newSession.id);
+    if (userIdForHistory && newSession.id && newSession.id.startsWith(userIdForHistory + '_')) {
+      const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + userIdForHistory;
+      try {
+        localStorage.setItem(lastActiveSessionIdKey, newSession.id);
+        console.log(`handleNewChat: Set ${newSession.id} as last active session for user ${userIdForHistory}`);
+      } catch (error) {
+        console.warn(`handleNewChat: Error setting last active session ID:`, error);
+      }
       
       // Explicitly save the new empty session to ensure it appears in history
       console.log('Explicitly saving new empty session to history:', newSession.id);
@@ -541,42 +644,20 @@ export default function ChatPage() {
         .then((savedSession) => {
           console.log('New empty session saved successfully to history:', savedSession.id);
           
-          // Force a refresh of the history metadata in case it wasn't updated properly
-          setTimeout(() => {
-            if (savedSession && savedSession.id) {
-              // This will create a placeholder entry in history immediately
-              const chatHistoryIndexKeyLS = `desainr_chat_history_index_${userIdForHistory}`;
-              try {
-                // Try to update the history index directly to ensure the new chat appears
-                const storedIndex = localStorage.getItem(chatHistoryIndexKeyLS);
-                const existingIndex = storedIndex ? JSON.parse(storedIndex) : [];
-                
-                // Check if this session is already in the index
-                if (!existingIndex.some((meta: any) => meta.id === savedSession.id)) {
-                  // Add the new session to the history index
-                  const newEntry = {
-                    id: savedSession.id,
-                    name: savedSession.name,
-                    lastMessageTimestamp: savedSession.updatedAt,
-                    preview: "",  // Empty preview for new chat
-                    messageCount: 0
-                  };
-                  
-                  // Add to beginning of array and save back to localStorage
-                  existingIndex.unshift(newEntry);
-                  localStorage.setItem(chatHistoryIndexKeyLS, JSON.stringify(existingIndex));
-                  console.log('Manually updated history index to include new session');
-                }
-              } catch (e) {
-                console.error('Error manually updating history index:', e);
-              }
-            }
-          }, 100);
+          // Force refresh history UI immediately
+          const historyEvent = new CustomEvent('history-updated', {
+            detail: { sessionId: savedSession.id, force: true, source: 'new_chat' }
+          });
+          window.dispatchEvent(historyEvent);
         })
         .catch((error) => {
           console.error('Error saving new empty session to history:', error);
         });
+    } else {
+      console.warn('handleNewChat: Invalid session ID or missing userIdForHistory:', 
+                   newSession.id, userIdForHistory);
     }
+    
     if (isMobile) setIsHistoryPanelOpen(false);
   }, [createNewSession, userIdForHistory, isMobile, profile, saveSession]);
 
@@ -1826,16 +1907,16 @@ export default function ChatPage() {
   // and when the session is modified
 
   // First, define a handleRefreshHistory function near other handler functions
-  const handleRefreshHistory = useCallback(() => {
+  const handleRefreshHistory = useCallback((fromHistoryPanel = false) => {
     // This will trigger a re-fetch of history metadata
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && !fromHistoryPanel) {
       // Create an event to force history refresh
       const refreshEvent = new Event('storage', { bubbles: true });
       window.dispatchEvent(refreshEvent);
       
       // Also trigger a custom event for components listening for history updates
       const historyEvent = new CustomEvent('history-updated', { 
-        detail: { force: true } 
+        detail: { force: true, source: 'chatpage' } 
       });
       window.dispatchEvent(historyEvent);
     }
@@ -2035,6 +2116,8 @@ export default function ChatPage() {
               isLoading={historyHookLoading}
               isLoggedIn={!!authUser} 
               onRefreshHistory={handleRefreshHistory}
+              isAutoRefreshEnabled={isAutoRefreshEnabled}
+              setAutoRefreshEnabled={setAutoRefreshEnabled}
             />
           </div>
         </div>
@@ -2061,6 +2144,8 @@ export default function ChatPage() {
                 isLoggedIn={!!authUser}
                 className="animate-fade-in" 
                 onRefreshHistory={handleRefreshHistory}
+                isAutoRefreshEnabled={isAutoRefreshEnabled}
+                setAutoRefreshEnabled={setAutoRefreshEnabled}
               />
             </div>
           )}
@@ -2151,15 +2236,46 @@ export default function ChatPage() {
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Type your client's message or your query here... (or drag & drop files)"
-                className="relative flex-1 resize-none min-h-[65px] max-h-[150px] rounded-xl shadow-lg focus-visible:ring-2 focus-visible:ring-primary glass-panel border-primary/20 transition-all duration-300 w-full pr-14 z-10 bg-background/60 backdrop-blur-lg"
+                placeholder="Type here..."
+                className="relative flex-1 resize-none min-h-[65px] max-h-[150px] rounded-xl shadow-lg focus-visible:ring-2 focus-visible:ring-primary glass-panel border-primary/20 transition-all duration-300 w-full pr-24 z-10 bg-background/60 backdrop-blur-lg"
                 rows={Math.max(1, Math.min(5, inputMessage.split('\n').length))}
               />
-              <div className="absolute bottom-3 right-3 opacity-60 group-hover:opacity-90 transition-opacity duration-300 z-20">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-primary/10 rounded-full blur-sm animate-pulse-slow"></div>
-                  <BotIcon className="h-5 w-5 text-primary relative" />
-                </div>
+              <div className="absolute bottom-3 right-3 flex items-center gap-2 opacity-70 group-hover:opacity-100 transition-opacity duration-300 z-20">
+                <TooltipProvider delayDuration={200}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-1.5">
+                        <div className="text-xs text-foreground/70 font-medium">Custom</div>
+                        <Checkbox
+                          id="custom-message-inline"
+                          checked={isCustomMessage}
+                          onCheckedChange={(checked) => setIsCustomMessage(checked as boolean)}
+                          className="data-[state=checked]:bg-accent data-[state=checked]:border-accent h-4 w-4"
+                        />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="glass-panel text-foreground shadow-xl rounded-lg p-3 animate-fade-in border border-accent/10 max-w-sm">
+                      <p className="font-semibold text-gradient">Custom Instructions</p>
+                      <p className="text-xs text-foreground/80 mt-1">
+                        When enabled, your message will be treated as a custom instruction for the AI. 
+                        Instead of standard analysis, you can tell the AI exactly what to generate from the client message.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="h-8 w-8 p-0 hover:bg-primary/10 rounded-full"
+                  aria-label="Attach files"
+                >
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-primary/10 rounded-full blur-sm animate-pulse-slow"></div>
+                    <Paperclip className="h-5 w-5 text-primary relative z-10" />
+                  </div>
+                </Button>
+                <input type="file" ref={fileInputRef} multiple onChange={handleFileChange} className="hidden" accept="image/*,application/pdf,.txt,.md,.json"/>
               </div>
             </div>
           </div>
@@ -2168,58 +2284,6 @@ export default function ChatPage() {
               "flex flex-wrap items-center justify-between mt-4 gap-x-3 gap-y-2",
                isMobile ? "flex-col items-stretch gap-y-3" : ""
             )}>
-            <div className={cn("flex-shrink-0 animate-stagger", isMobile ? "w-full" : "")} style={{ animationDelay: '100ms' }}>
-              <Button
-                variant="outline"
-                size={isMobile ? "default" : "sm"}
-                onClick={() => fileInputRef.current?.click()}
-                className={cn(
-                    "backdrop-blur-sm border border-primary/20 shadow-sm hover:shadow-md hover:scale-105 hover:text-primary hover:bg-primary/10 transition-all duration-300 rounded-full btn-glow",
-                    isMobile ? "w-full py-3 text-sm flex items-center justify-center p-2" : "px-3 py-1.5 md:px-3.5 md:py-2"
-                )}
-                aria-label="Attach files"
-              >
-                <div className="relative">
-                  <div className="absolute inset-0 bg-primary/10 rounded-full blur-sm group-hover:animate-pulse-slow"></div>
-                  <Paperclip className={cn("h-4 w-4 relative z-10", !isMobile && "mr-1.5")} />
-                </div>
-                {!isMobile && "Attach Files"}
-                {isMobile && <span className="ml-2">Attach Files</span>}
-              </Button>
-              <input type="file" ref={fileInputRef} multiple onChange={handleFileChange} className="hidden" accept="image/*,application/pdf,.txt,.md,.json"/>
-            </div>
-            
-            {/* Custom Message Checkbox */}
-            <div className={cn("flex items-center gap-2 animate-stagger", isMobile ? "order-last w-full justify-center mt-2" : "")} style={{ animationDelay: '150ms' }}>
-              <TooltipProvider delayDuration={200}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id="custom-message"
-                        checked={isCustomMessage}
-                        onCheckedChange={(checked) => setIsCustomMessage(checked as boolean)}
-                        className="data-[state=checked]:bg-accent data-[state=checked]:border-accent"
-                      />
-                      <label
-                        htmlFor="custom-message"
-                        className="text-sm font-medium cursor-pointer select-none hover:text-accent transition-colors duration-200"
-                      >
-                        Custom
-                      </label>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="glass-panel text-foreground shadow-xl rounded-lg p-3 animate-fade-in border border-accent/10 max-w-sm">
-                    <p className="font-semibold text-gradient">Custom Instructions</p>
-                    <p className="text-xs text-foreground/80 mt-1">
-                      When enabled, your message will be treated as a custom instruction for the AI. 
-                      Instead of standard analysis, you can tell the AI exactly what to generate from the client message.
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-            
             <div className={cn("flex-1 flex justify-end animate-stagger", isMobile ? "w-full justify-center mt-0" : "")} style={{ animationDelay: '200ms' }}>
               <ActionButtonsPanel
                 onAction={handleAction}

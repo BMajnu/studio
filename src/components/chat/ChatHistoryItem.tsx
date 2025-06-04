@@ -1,9 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import { ChatSessionMetadata } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '../../lib/date-utils';
 import { Button } from '@/components/ui/button';
 import { PencilIcon, CheckIcon, XIcon, Trash2 } from 'lucide-react';
+import logger from '@/lib/utils/logger';
+const { ui: uiLogger } = logger;
 
 interface ChatHistoryItemProps {
   session: ChatSessionMetadata;
@@ -13,7 +15,33 @@ interface ChatHistoryItemProps {
   onRename?: (id: string, newName: string) => void; // Add rename handler
 }
 
-export function ChatHistoryItem({ session, isActive, onClick, onDelete, onRename }: ChatHistoryItemProps) {
+// Create a comparison function for React.memo to determine if the component should re-render
+const arePropsEqual = (prevProps: ChatHistoryItemProps, nextProps: ChatHistoryItemProps): boolean => {
+  // Compare the session properties that matter for rendering
+  const sessionChanged = 
+    prevProps.session.id !== nextProps.session.id ||
+    prevProps.session.name !== nextProps.session.name ||
+    prevProps.session.preview !== nextProps.session.preview ||
+    prevProps.session.lastMessageTimestamp !== nextProps.session.lastMessageTimestamp ||
+    prevProps.session.messageCount !== nextProps.session.messageCount;
+  
+  // Compare other props
+  const otherPropsChanged =
+    prevProps.isActive !== nextProps.isActive;
+  
+  // Always return true if either changed
+  const shouldUpdate = sessionChanged || otherPropsChanged;
+  
+  // If we're preventing a re-render, log it at debug level
+  if (!shouldUpdate) {
+    uiLogger.debug(`ChatHistoryItem ${nextProps.session.id}: Prevented unnecessary re-render`);
+  }
+  
+  // Return false to indicate the component should re-render, true to prevent re-render
+  return !shouldUpdate;
+};
+
+function ChatHistoryItemBase({ session, isActive, onClick, onDelete, onRename }: ChatHistoryItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(session.name);
   const [isClicking, setIsClicking] = useState(false);
@@ -29,7 +57,7 @@ export function ChatHistoryItem({ session, isActive, onClick, onDelete, onRename
     setTimeout(() => setIsClicking(false), 200);
     
     // Call the parent's click handler with session ID
-      onClick(session.id);
+    onClick(session.id);
   }, [isEditing, onClick, session.id]);
 
   const handleDeleteClick = useCallback((e: React.MouseEvent) => {
@@ -171,4 +199,7 @@ export function ChatHistoryItem({ session, isActive, onClick, onDelete, onRename
       )}
     </div>
   );
-} 
+}
+
+// Export memoized version of the component to prevent unnecessary re-renders
+export const ChatHistoryItem = memo(ChatHistoryItemBase, arePropsEqual); 

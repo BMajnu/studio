@@ -52,10 +52,7 @@ export type AnyActionConfig = ActionButtonConfig | DropdownActionConfig;
 
 
 const actionButtonsConfig: AnyActionConfig[] = [
-  { id: 'search', label: 'Search the Web', shortLabel: 'Search', icon: Search, description: 'Search the web for information using DuckDuckGo.', isPrimaryAction: true },
   { id: 'processMessage', label: 'Process Client Message', shortLabel: 'Chat', icon: BotMessageSquare, description: 'Full analysis, plan, Bengali translation.', isPrimaryAction: true },
-  { id: 'analyzeRequirements', label: 'Analyze Requirements', shortLabel: 'Requirements', icon: ListChecks, description: 'Detailed analysis of requirements, prioritization, Bangla translation, and design message.', isPrimaryAction: true },
-  { id: 'generateEngagementPack', label: 'Generate Engagement Pack', shortLabel: 'Brief', icon: ClipboardList, description: 'Generates a personalized intro, job reply, budget/timeline/software ideas, and clarifying questions.', isPrimaryAction: true },
   {
     id: 'designActions', // ID for the dropdown trigger
     label: 'Design Tools', // Tooltip for the trigger
@@ -68,18 +65,8 @@ const actionButtonsConfig: AnyActionConfig[] = [
       { id: 'checkBestDesign', label: 'Check the best design', shortLabel: 'Check', icon: SearchCheck, description: 'Analyzes and identifies the best design based on requirements.', isPrimaryAction: false },
     ]
   },
-  {
-    id: 'toolsActions', // ID for the dropdown trigger
-    label: 'Tools', // Tooltip for the trigger
-    shortLabel: 'Tools',  // Text on the trigger button
-    icon: Wrench,         // Icon for the trigger
-    description: 'Access tools for prompt generation and image replication.',
-    subActions: [
-      { id: 'promptToReplicate', label: 'Prompt to Replicate', shortLabel: 'Replicate', icon: Sparkles, description: 'Upload images and get prompts to replicate or create similar designs.', isPrimaryAction: false },
-      { id: 'promptWithCustomSense', label: 'Prompt with Custom Change', shortLabel: 'Custom', icon: MessageSquarePlus, description: 'Define design types and desired changes to generate varied prompts.', isPrimaryAction: false },
-      { id: 'promptForMicroStockMarkets', label: 'Prompt for Micro Stock Markets (PMSM)', shortLabel: 'PMSM', icon: ClipboardSignature, description: 'Generate multiple prompts optimized for microstock markets, along with metadata.', isPrimaryAction: false },
-    ]
-  },
+  { id: 'generateEngagementPack', label: 'Generate Engagement Pack', shortLabel: 'Brief', icon: ClipboardList, description: 'Generates a personalized intro, job reply, budget/timeline/software ideas, and clarifying questions.', isPrimaryAction: true },
+  { id: 'analyzeRequirements', label: 'Analyze Requirements', shortLabel: 'Requirements', icon: ListChecks, description: 'Detailed analysis of requirements, prioritization, Bangla translation, and design message.', isPrimaryAction: true },
   {
     id: 'deliveryActions', // ID for the dropdown trigger
     label: 'Delivery Tools', // Tooltip for the trigger
@@ -93,6 +80,18 @@ const actionButtonsConfig: AnyActionConfig[] = [
     ]
   },
   { id: 'generateRevision', label: 'Generate Revision Message', shortLabel: 'Revision', icon: RotateCcw, description: 'Platform-ready revision messages and follow-ups.', isPrimaryAction: true },
+  {
+    id: 'toolsActions', // ID for the dropdown trigger
+    label: 'Tools', // Tooltip for the trigger
+    shortLabel: 'Tools',  // Text on the trigger button
+    icon: Wrench,         // Icon for the trigger
+    description: 'Access tools for prompt generation and image replication.',
+    subActions: [
+      { id: 'promptToReplicate', label: 'Prompt to Replicate', shortLabel: 'Replicate', icon: Sparkles, description: 'Upload images and get prompts to replicate or create similar designs.', isPrimaryAction: false },
+      { id: 'promptWithCustomSense', label: 'Prompt with Custom Change', shortLabel: 'Custom', icon: MessageSquarePlus, description: 'Define design types and desired changes to generate varied prompts.', isPrimaryAction: false },
+      { id: 'promptForMicroStockMarkets', label: 'Prompt for Micro Stock Markets (PMSM)', shortLabel: 'PMSM', icon: ClipboardSignature, description: 'Generate multiple prompts optimized for microstock markets, along with metadata.', isPrimaryAction: false },
+    ]
+  }
 ];
 
 interface ActionButtonsPanelProps {
@@ -187,24 +186,24 @@ export function ActionButtonsPanel({
   };
 
   return (
-    <div className={cn(
-        "flex flex-wrap items-center justify-end gap-2 md:gap-3 stagger-animation",
-        isLoading && "opacity-60 pointer-events-none"
-      )}
-    >
-      {actionButtonsConfig.map((actionConfig) => {
-        const baseButtonClasses = cn(
-            "h-auto transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 focus-visible:ring-primary rounded-full shadow-md btn-glow",
-            isMobile ? "p-2" : "px-3 py-1.5 md:px-3.5 md:py-2"
-        );
+    <TooltipProvider>
+      <div className={cn(
+          "flex flex-wrap items-center justify-end gap-2 md:gap-3 stagger-animation",
+          isLoading && "opacity-60 pointer-events-none"
+        )}
+      >
+        {actionButtonsConfig.map((actionConfig) => {
+          const baseButtonClasses = cn(
+              "h-auto transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 focus-visible:ring-primary rounded-full shadow-md btn-glow",
+              isMobile ? "p-2" : "px-3 py-1.5 md:px-3.5 md:py-2"
+          );
 
-        if ('isPrimaryAction' in actionConfig && actionConfig.isPrimaryAction) {
-          const btn = actionConfig as ActionButtonConfig;
-          const isSelected = isButtonSelected(btn.id);
-          
-          return (
-            <TooltipProvider key={btn.id} delayDuration={200}>
-              <Tooltip>
+          if ('isPrimaryAction' in actionConfig && actionConfig.isPrimaryAction) {
+            const btn = actionConfig as ActionButtonConfig;
+            const isSelected = isButtonSelected(btn.id);
+            
+            return (
+              <Tooltip key={btn.id}>
                 <TooltipTrigger asChild>
                   <Button
                     variant={isSelected ? "secondary" : "outline"}
@@ -224,20 +223,18 @@ export function ActionButtonsPanel({
                     {!isMobile && <span className="text-xs md:text-sm font-medium whitespace-nowrap">{btn.shortLabel}</span>}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="top" align="start" sideOffset={5} className="glass-panel text-foreground shadow-xl rounded-lg p-3 animate-fade-in border border-primary/10">
+                <TooltipContent side="top" align="center" alignOffset={0} sideOffset={5} className="glass-panel text-foreground shadow-xl rounded-lg p-3 animate-fade-in border border-primary/10">
                   <p className="font-semibold text-gradient">{btn.label}</p>
                   <p className="text-xs text-foreground/80 max-w-xs mt-1">{btn.description}</p>
                 </TooltipContent>
               </Tooltip>
-            </TooltipProvider>
-          );
-        } else {
-          const dropdown = actionConfig as DropdownActionConfig;
-          const isDropdownSelected = isButtonSelected(dropdown.id);
-          
-          return (
-            <DropdownMenu key={dropdown.id}>
-              <TooltipProvider delayDuration={200}>
+            );
+          } else {
+            const dropdown = actionConfig as DropdownActionConfig;
+            const isDropdownSelected = isButtonSelected(dropdown.id);
+            
+            return (
+              <DropdownMenu key={dropdown.id}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                      <DropdownMenuTrigger asChild>
@@ -258,50 +255,52 @@ export function ActionButtonsPanel({
                         </Button>
                      </DropdownMenuTrigger>
                   </TooltipTrigger>
-                  <TooltipContent side="top" align="start" sideOffset={5} className="glass-panel text-foreground shadow-xl rounded-lg p-3 animate-fade-in border border-primary/10">
+                  <TooltipContent side="top" align="center" alignOffset={0} sideOffset={5} className="glass-panel text-foreground shadow-xl rounded-lg p-3 animate-fade-in border border-primary/10">
                     <p className="font-semibold text-gradient">{dropdown.label}</p>
                     <p className="text-xs text-foreground/80 max-w-xs mt-1">{dropdown.description}</p>
                   </TooltipContent>
                 </Tooltip>
-              </TooltipProvider>
-              <DropdownMenuContent align="end" className="glass-panel border-primary/10 shadow-2xl rounded-lg animate-fade-in">
-                <DropdownMenuLabel className="text-sm px-3 py-2 text-gradient font-semibold">{dropdown.label}</DropdownMenuLabel>
-                <DropdownMenuSeparator className="bg-primary/10" />
-                {dropdown.subActions.map(subAction => {
-                  const isSubActionSelected = lastSelectedButton === subAction.id;
-                  
-                  return (
-                  <DropdownMenuItem
-                    key={subAction.id}
-                    onClick={() => onAction(subAction.id)}
-                    disabled={isActionDisabled(subAction.id)}
-                      className={cn(
-                        "text-sm cursor-pointer hover:bg-primary/10 focus:bg-primary/10 data-[disabled]:opacity-50 data-[disabled]:pointer-events-none flex items-center gap-2 px-3 py-2 transition-all duration-200 rounded-md mx-1 my-0.5",
-                        isSubActionSelected && "bg-primary/20"
+                
+                {/* Dropdown content */}
+                <DropdownMenuContent align="end" className="glass-panel border-primary/10 shadow-2xl rounded-lg animate-fade-in">
+                  <DropdownMenuLabel className="text-sm px-3 py-2 text-gradient font-semibold">{dropdown.label}</DropdownMenuLabel>
+                  <DropdownMenuSeparator className="bg-primary/10" />
+                  {dropdown.subActions.map(subAction => {
+                    const isSubActionSelected = lastSelectedButton === subAction.id;
+                    
+                    return (
+                    <DropdownMenuItem
+                      key={subAction.id}
+                      onClick={() => onAction(subAction.id)}
+                      disabled={isActionDisabled(subAction.id)}
+                        className={cn(
+                          "text-sm cursor-pointer hover:bg-primary/10 focus:bg-primary/10 data-[disabled]:opacity-50 data-[disabled]:pointer-events-none flex items-center gap-2 px-3 py-2 transition-all duration-200 rounded-md mx-1 my-0.5",
+                          isSubActionSelected && "bg-primary/20"
+                        )}
+                    >
+                      <div className={cn(
+                        "p-1.5 rounded-full",
+                        dropdown.id === 'designActions' ? "bg-success/10 text-success" : 
+                        dropdown.id === 'toolsActions' ? "bg-primary/10 text-primary" :
+                        "bg-warning/10 text-warning"
+                      )}>
+                        <subAction.icon className="h-3.5 w-3.5 shrink-0" />
+                      </div>
+                      <span>{subAction.label}</span>
+                      { (subAction.id === 'checkMadeDesigns' && currentAttachedFilesDataLength === 0) && (
+                        <span className="ml-auto text-xs text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full">
+                          Needs Image
+                        </span>
                       )}
-                  >
-                    <div className={cn(
-                      "p-1.5 rounded-full",
-                      dropdown.id === 'designActions' ? "bg-success/10 text-success" : 
-                      dropdown.id === 'toolsActions' ? "bg-primary/10 text-primary" :
-                      "bg-warning/10 text-warning"
-                    )}>
-                      <subAction.icon className="h-3.5 w-3.5 shrink-0" />
-                    </div>
-                    <span>{subAction.label}</span>
-                     { (subAction.id === 'checkMadeDesigns' && currentAttachedFilesDataLength === 0) && (
-                       <span className="ml-auto text-xs text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full">
-                         Needs Image
-                       </span>
-                     )}
-                  </DropdownMenuItem>
-                  );
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          );
-        }
-      })}
-    </div>
+                    </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            );
+          }
+        })}
+      </div>
+    </TooltipProvider>
   );
 } 

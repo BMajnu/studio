@@ -1,10 +1,10 @@
-
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { AppLayout } from '@/components/layout/app-layout';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/contexts/auth-context'; // Import AuthProvider
+import { initializeLogger } from '@/lib/utils/logger-config';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -20,6 +20,11 @@ export const metadata: Metadata = {
   title: 'DesAInR - AI Designer Assistant',
   description: 'AI-powered assistant for graphics designers',
 };
+
+// Initialize logger as early as possible
+if (typeof window !== 'undefined') {
+  initializeLogger();
+}
 
 export default function RootLayout({
   children,

@@ -25,6 +25,7 @@ import {
 import { LoginForm } from '@/components/auth/login-form';
 import { SignupForm } from '@/components/auth/signup-form';
 import { APP_FEATURES_GUIDE, APP_FEATURES_GUIDE_BN } from "@/lib/constants";
+import { useRouteChangeEvent } from '@/lib/utils/route-events';
 
 interface NavItem {
   href?: string;
@@ -46,6 +47,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
+  
+  // Add the route change event listener
+  useRouteChangeEvent();
 
   const getLabel = (label: string | { en: string; bn: string }): string => {
     if (typeof label === 'string') return label;

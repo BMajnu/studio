@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useFirebaseChat } from '@/lib/hooks/use-firebase-chat';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
@@ -12,59 +12,60 @@ interface FirebaseChatHistoryProps {
 
 export function FirebaseChatHistory({ activeSessionId, onSelectSession, onNewChat }: FirebaseChatHistoryProps) {
   const { 
-    sessions, 
-    isLoading, 
+    sessions,
+    isLoading,
     deleteSession,
     isMigrationInProgress,
-    migrationProgress
+    migrationProgress,
+    syncWithFirebase
   } = useFirebaseChat();
+  
+  // Add local state for auto-refresh
+  const [isAutoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+  const lastRefreshTime = useRef<number>(0);
 
   const handleDeleteSession = async (sessionId: string) => {
     const success = await deleteSession(sessionId);
     if (success) {
       toast({
         title: "Chat Deleted",
-        description: "Chat was successfully deleted.",
+        description: "Chat has been deleted successfully.",
       });
     } else {
       toast({
-        title: "Delete Failed",
+        title: "Deletion Failed",
         description: "Could not delete the chat. Please try again.",
         variant: "destructive",
       });
     }
   };
-  
-  const handleRenameSession = async (sessionId: string, newName: string) => {
-    // Find the session
-    const session = sessions.find(s => s.id === sessionId);
-    if (!session) {
-      toast({
-        title: "Rename Failed",
-        description: "Could not find the chat to rename.",
-        variant: "destructive",
-      });
-      return false;
-    }
-    
-    // For now just show a toast - actual rename will be added in Phase 3
-    toast({
-      title: "Not Implemented",
-      description: "Rename functionality will be added soon.",
-      variant: "default",
-    });
-    
-    return false;
-  };
 
-  const handleRefreshHistory = () => {
-    // For now, this is a no-op since we don't have a direct refresh method
-    // We'll rely on the automatic refresh when changes occur
+  const handleRenameSession = useCallback(async (sessionId: string, newName: string) => {
     toast({
-      title: "Refreshing",
-      description: "Checking for updates...",
+      title: "Rename Operation",
+      description: "Renaming will be available in a future update.",
     });
-  };
+    return false;
+  }, []);
+
+  const handleRefreshHistory = useCallback((forced = false) => {
+    // Limit refresh frequency to prevent performance issues
+    const now = Date.now();
+    if (forced || now - lastRefreshTime.current > 30000) { // 30 sec limit for auto refresh
+      lastRefreshTime.current = now;
+      // Call syncWithFirebase to refresh data
+      syncWithFirebase();
+      
+      // Show toast for user feedback
+      if (forced) {
+        toast({
+          title: "Refreshing",
+          description: "Checking for updates from Firebase...",
+          duration: 2000
+        });
+      }
+    }
+  }, [syncWithFirebase, toast]);
 
   return (
     <div className="h-full flex flex-col max-w-[260px] w-full">
@@ -75,11 +76,11 @@ export function FirebaseChatHistory({ activeSessionId, onSelectSession, onNewCha
         onNewChat={onNewChat}
         onDeleteSession={handleDeleteSession}
         onRenameSession={handleRenameSession}
-        onSyncWithDrive={undefined} // Remove sync button
         isLoading={isLoading}
         isLoggedIn={true}
-        isSyncing={false}
         onRefreshHistory={handleRefreshHistory}
+        isAutoRefreshEnabled={isAutoRefreshEnabled}
+        setAutoRefreshEnabled={setAutoRefreshEnabled}
       />
       
       {isMigrationInProgress && (

@@ -7,15 +7,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button'; // Import Button
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Import Alert components
-import { MailWarning, MailCheck, Trash2 } from 'lucide-react'; // Icons for verification status
+import { MailWarning, MailCheck, Trash2, Settings, RefreshCw } from 'lucide-react'; // Added RefreshCw icon
 import { useChatHistory } from '@/lib/hooks/use-chat-history'; // Import useChatHistory
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { LoggerSettings } from '@/components/ui/logger-settings'; // Import LoggerSettings component
+import { Switch } from '@/components/ui/switch'; // Import Switch component
 
 export default function ProfilePage() {
   const { profile, updateProfile, isLoading: profileLoading } = useUserProfile();
   const { user, loading: authLoading, sendVerificationEmail } = useAuth(); // Get user and sendVerificationEmail from useAuth
-  const { cleanLocalStorage } = useChatHistory(user?.uid); // Use the cleanLocalStorage function
+  const { cleanLocalStorage, isAutoRefreshEnabled, setAutoRefreshEnabled } = useChatHistory(user?.uid); // Add new functions
   const { toast } = useToast();
   const [cleanupInProgress, setCleanupInProgress] = useState(false);
 
@@ -71,6 +73,20 @@ export default function ProfilePage() {
     }
   };
 
+  // Add toggle function for auto-refresh
+  const toggleAutoRefresh = () => {
+    if (setAutoRefreshEnabled) {
+      setAutoRefreshEnabled(!isAutoRefreshEnabled);
+      toast({
+        title: isAutoRefreshEnabled ? "Auto-Refresh Disabled" : "Auto-Refresh Enabled",
+        description: isAutoRefreshEnabled 
+          ? "Chat history will only refresh when you explicitly request it." 
+          : "Chat history will automatically refresh when navigating between pages.",
+        duration: 3000
+      });
+    }
+  };
+
   return (
     <div className="w-full h-full flex justify-center overflow-y-auto">
       <div className="w-full max-w-4xl px-4 py-6">
@@ -119,7 +135,7 @@ export default function ProfilePage() {
             <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-semibold mb-4">Advanced Settings</h3>
               
-              <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-md">
+              <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-md mb-4">
                 <div className="flex items-start">
                   <Trash2 className="w-5 h-5 mr-2 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
                   <div>
@@ -138,6 +154,54 @@ export default function ProfilePage() {
                     >
                       {cleanupInProgress ? "Cleaning..." : "Clean Storage Data"}
                     </Button>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Auto-refresh Settings */}
+              <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-md mb-4">
+                <div className="flex items-start">
+                  <RefreshCw className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+                  <div className="w-full">
+                    <h4 className="font-medium text-blue-600 dark:text-blue-400 mb-2">
+                      History Auto-Refresh
+                    </h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                      Control how chat history refreshes when you navigate between pages. 
+                      Turning this off may improve performance on slower devices.
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">
+                        {isAutoRefreshEnabled ? "Automatic (Default)" : "Manual Only"}
+                      </span>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="auto-refresh"
+                          checked={!!isAutoRefreshEnabled}
+                          onCheckedChange={toggleAutoRefresh}
+                        />
+                        <span className="text-xs text-gray-500">
+                          {isAutoRefreshEnabled ? "On" : "Off"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Logger Settings */}
+              <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-md">
+                <div className="flex items-start">
+                  <Settings className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+                  <div>
+                    <h4 className="font-medium text-blue-600 dark:text-blue-400 mb-2">
+                      Developer Logging
+                    </h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                      Configure console logging for troubleshooting and development purposes.
+                      Only enable if you need to debug application issues.
+                    </p>
+                    <LoggerSettings />
                   </div>
                 </div>
               </div>

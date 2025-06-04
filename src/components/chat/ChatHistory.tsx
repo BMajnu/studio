@@ -13,7 +13,14 @@ interface ChatHistoryProps {
 }
 
 export function ChatHistory({ userId, activeSessionId, onSelectSession, onNewChat }: ChatHistoryProps) {
-  const { historyMetadata, deleteSession, isSyncing, renameSession } = useChatHistory(userId);
+  const { 
+    historyMetadata, 
+    deleteSession, 
+    isSyncing, 
+    renameSession, 
+    isAutoRefreshEnabled, 
+    setAutoRefreshEnabled 
+  } = useChatHistory(userId);
 
   const handleDeleteSession = (sessionId: string) => {
     deleteSession(sessionId);
@@ -36,15 +43,15 @@ export function ChatHistory({ userId, activeSessionId, onSelectSession, onNewCha
   };
   
   // Add a refresh history handler
-  const handleRefreshHistory = useCallback(() => {
+  const handleRefreshHistory = useCallback((fromHistoryPanel = false) => {
     // Create an event to force history refresh
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && !fromHistoryPanel) {
       const refreshEvent = new Event('storage', { bubbles: true });
       window.dispatchEvent(refreshEvent);
       
       // Also trigger a custom event for components listening for history updates
       const historyEvent = new CustomEvent('history-updated', { 
-        detail: { force: true } 
+        detail: { force: true, source: 'chathistory' } 
       });
       window.dispatchEvent(historyEvent);
     }
@@ -59,12 +66,13 @@ export function ChatHistory({ userId, activeSessionId, onSelectSession, onNewCha
         onNewChat={onNewChat}
         onDeleteSession={handleDeleteSession}
         onRenameSession={handleRenameSession}
-        onSyncWithDrive={undefined}  // Remove sync functionality
         isLoading={false}
         isLoggedIn={true}
         isSyncing={isSyncing}
         onRefreshHistory={handleRefreshHistory}
         className=""
+        isAutoRefreshEnabled={isAutoRefreshEnabled}
+        setAutoRefreshEnabled={setAutoRefreshEnabled}
       />
     </div>
   );

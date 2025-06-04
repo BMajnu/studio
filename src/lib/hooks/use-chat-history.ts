@@ -9,20 +9,30 @@ import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import getConfig from 'next/config';
 import * as LZString from 'lz-string';
+import logger from '@/lib/utils/logger';
+import eventDebouncer from '@/lib/utils/event-debouncer';
+const { session: sessionLogger, storage: storageLogger, history: historyLogger, ui: uiLogger, system: systemLogger } = logger;
 
 // Load configuration for session storage
 const { publicRuntimeConfig } = getConfig() || { publicRuntimeConfig: {} };
 const { sessionStorageConfig = { maxSessionSize: 1024 * 1024, compressSession: true } } = publicRuntimeConfig;
 
 // Storage keys
-const CHAT_HISTORY_INDEX_KEY_LS_PREFIX = 'desainr_chat_history_index_ls_v4_'; // Increased version to v4
-const CHAT_SESSION_PREFIX_LS_PREFIX = 'desainr_chat_session_ls_v4_';
+const CHAT_HISTORY_INDEX_KEY_LS_PREFIX = 'desainr_chat_history_index_ls_';
+const CHAT_SESSION_PREFIX_LS_PREFIX = 'desainr_chat_session_ls_';
+const LAST_ACTIVE_SESSION_ID_KEY_PREFIX = 'desainr_last_active_session_id_';
 const DELETED_SESSIONS_LS_PREFIX = 'desainr_deleted_sessions_';
+const HISTORY_LAST_LOADED_KEY = 'desainr_history_last_loaded';
+const HISTORY_CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes (increased from previous shorter time)
+const HISTORY_AUTO_REFRESH_ENABLED = 'desainr_history_auto_refresh_enabled';
 
 // IndexedDB configuration
 const DB_NAME = 'DesainrChatSessionsDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'chat_sessions';
+
+// Global flag to track if the loading procedure has already executed
+let globalInitialized = false;
 
 // IndexedDB helper for chat session storage - provides higher storage limits than localStorage
 class SessionStorageDB {
@@ -30,52 +40,59 @@ class SessionStorageDB {
   private dbInitPromise: Promise<boolean> | null = null;
   
   constructor() {
-    this.dbInitPromise = this.initDB();
+    this.dbInitPromise = null;
   }
   
   private async initDB(): Promise<boolean> {
-    return new Promise((resolve, reject) => {
-      if (!window.indexedDB) {
-        console.warn('IndexedDB not supported. Falling back to localStorage only.');
-        resolve(false);
-        return;
-      }
-      
-      const request = indexedDB.open(DB_NAME, DB_VERSION);
-      
-      request.onerror = (event) => {
-        console.error('Error opening IndexedDB:', event);
-        resolve(false);
-      };
-      
-      request.onsuccess = (event) => {
-        this.db = (event.target as IDBOpenDBRequest).result;
-        resolve(true);
-      };
-      
-      request.onupgradeneeded = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
-        if (!db.objectStoreNames.contains(STORE_NAME)) {
-          db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-        }
-      };
-    });
-  }
-  
-  async isAvailable(): Promise<boolean> {
-    return this.dbInitPromise || false;
-  }
-  
-  async saveSession(sessionId: string, data: string): Promise<boolean> {
-    if (!this.db) {
-      await this.dbInitPromise;
-      if (!this.db) return false;
+    if (this.db) {
+      return true;
     }
     
     return new Promise((resolve) => {
       try {
-        const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
-        const store = transaction.objectStore(STORE_NAME);
+        const request = indexedDB.open('DesAInRChatSessions', 1);
+        
+        request.onupgradeneeded = (event) => {
+          const db = (event.target as IDBOpenDBRequest).result;
+          if (!db.objectStoreNames.contains('sessions')) {
+            db.createObjectStore('sessions', { keyPath: 'id' });
+            systemLogger.info('Created sessions object store in IndexedDB');
+          }
+      };
+      
+      request.onsuccess = (event) => {
+        this.db = (event.target as IDBOpenDBRequest).result;
+          systemLogger.debug('IndexedDB initialized successfully');
+        resolve(true);
+      };
+      
+        request.onerror = (event) => {
+          systemLogger.error(`Failed to initialize IndexedDB: ${(event.target as IDBOpenDBRequest).error?.message || 'Unknown error'}`);
+          resolve(false);
+        };
+      } catch (error) {
+        systemLogger.error(`Exception during IndexedDB initialization: ${error instanceof Error ? error.message : String(error)}`);
+        resolve(false);
+      }
+    });
+  }
+  
+  async isAvailable(): Promise<boolean> {
+    if (!this.dbInitPromise) {
+      this.dbInitPromise = this.initDB();
+    }
+    return this.dbInitPromise;
+  }
+  
+  async saveSession(sessionId: string, data: string): Promise<boolean> {
+    if (!await this.isAvailable() || !this.db) {
+      return false;
+    }
+    
+    return new Promise((resolve) => {
+      try {
+        const transaction = this.db!.transaction(['sessions'], 'readwrite');
+        const store = transaction.objectStore('sessions');
         
         const request = store.put({
           id: sessionId,
@@ -83,68 +100,78 @@ class SessionStorageDB {
           timestamp: Date.now()
         });
         
-        request.onsuccess = () => resolve(true);
-        request.onerror = () => {
-          console.error('IndexedDB save error:', request.error);
+        request.onsuccess = () => {
+          storageLogger.debug(`Successfully saved session ${sessionId} to IndexedDB`);
+          resolve(true);
+        };
+        
+        request.onerror = (event) => {
+          storageLogger.error(`Error saving session ${sessionId} to IndexedDB: ${(event.target as IDBRequest).error?.message || 'Unknown error'}`);
           resolve(false);
         };
       } catch (error) {
-        console.error('IndexedDB transaction error:', error);
+        storageLogger.error(`Exception during IndexedDB save: ${error instanceof Error ? error.message : String(error)}`);
         resolve(false);
       }
     });
   }
   
   async getSession(sessionId: string): Promise<string | null> {
-    if (!this.db) {
-      await this.dbInitPromise;
-      if (!this.db) return null;
+    if (!await this.isAvailable() || !this.db) {
+      return null;
     }
     
     return new Promise((resolve) => {
       try {
-        const transaction = this.db!.transaction([STORE_NAME], 'readonly');
-        const store = transaction.objectStore(STORE_NAME);
+        const transaction = this.db!.transaction(['sessions'], 'readonly');
+        const store = transaction.objectStore('sessions');
+        
         const request = store.get(sessionId);
         
         request.onsuccess = () => {
-          if (request.result) {
-            resolve(request.result.data);
+          const result = request.result;
+          if (result && result.data) {
+            storageLogger.debug(`Successfully retrieved session ${sessionId} from IndexedDB`);
+            resolve(result.data);
           } else {
+            storageLogger.debug(`Session ${sessionId} not found in IndexedDB`);
             resolve(null);
           }
         };
         
-        request.onerror = () => {
-          console.error('IndexedDB get error:', request.error);
+        request.onerror = (event) => {
+          storageLogger.error(`Error retrieving session ${sessionId} from IndexedDB: ${(event.target as IDBRequest).error?.message || 'Unknown error'}`);
           resolve(null);
         };
       } catch (error) {
-        console.error('IndexedDB transaction error:', error);
+        storageLogger.error(`Exception during IndexedDB get: ${error instanceof Error ? error.message : String(error)}`);
         resolve(null);
       }
     });
   }
   
   async deleteSession(sessionId: string): Promise<boolean> {
-    if (!this.db) {
-      await this.dbInitPromise;
-      if (!this.db) return false;
+    if (!await this.isAvailable() || !this.db) {
+      return false;
     }
     
     return new Promise((resolve) => {
       try {
-        const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
-        const store = transaction.objectStore(STORE_NAME);
+        const transaction = this.db!.transaction(['sessions'], 'readwrite');
+        const store = transaction.objectStore('sessions');
         const request = store.delete(sessionId);
         
-        request.onsuccess = () => resolve(true);
-        request.onerror = () => {
-          console.error('IndexedDB delete error:', request.error);
+        request.onsuccess = () => {
+          storageLogger.debug(`Successfully deleted session ${sessionId} from IndexedDB`);
+          resolve(true);
+        };
+        
+        request.onerror = (event) => {
+          storageLogger.error(`Error deleting session ${sessionId} from IndexedDB: ${(event.target as IDBRequest).error?.message || 'Unknown error'}`);
           resolve(false);
         };
       } catch (error) {
-        console.error('IndexedDB transaction error:', error);
+        storageLogger.error(`Exception during IndexedDB delete: ${error instanceof Error ? error.message : String(error)}`);
         resolve(false);
       }
     });
@@ -447,24 +474,36 @@ const compressData = (data: string): string => {
 
 // Limit session size to prevent quota issues
 const limitSessionSize = (session: ChatSession): ChatSession => {
-  // Create a copy to avoid modifying the original
-  const trimmedSession = {...session};
+  if (!session) return session;
   
-  // If we have a large session, start trimming older messages
-  if (trimmedSession.messages && trimmedSession.messages.length > 50) {
-    // Keep only the most recent 50 messages
-    trimmedSession.messages = trimmedSession.messages.slice(-50);
+  // If the session is extremely large, limit message count to prevent storage errors
+  if (session.messages && session.messages.length > 100) {
+    return {
+      ...session,
+      messages: session.messages.slice(-50), // Only keep the last 50 messages
+    };
   }
   
-  // Handle attached files if present
-  // Note: Using type assertion since files might exist but not be in the type definition
-  const sessionWithFiles = trimmedSession as ChatSession & { files?: AttachedFile[] };
-  if (sessionWithFiles.files && sessionWithFiles.files.length > 0) {
-    // Limit to the 10 most recent files
-    sessionWithFiles.files = sessionWithFiles.files.slice(-10);
+  // Check individual message sizes and trim any that are extremely large
+  if (session.messages) {
+    const trimmedMessages = session.messages.map(msg => {
+      if (typeof msg.content === 'string' && msg.content.length > 100000) {
+        // Trim excessively large string content
+        return {...msg, content: msg.content.substring(0, 50000) + '... (content trimmed to save storage)'};
+      } else if (Array.isArray(msg.content) && JSON.stringify(msg.content).length > 100000) {
+        // For array content, keep only essential parts
+        return {...msg, content: [{
+          type: 'text' as const, 
+          text: 'Large content was trimmed to save storage space.'
+        }]};
+      }
+      return msg;
+    });
+    
+    return {...session, messages: trimmedMessages};
   }
   
-  return trimmedSession;
+  return session;
 };
 
 function deduplicateMetadata(metadataList: ChatSessionMetadata[]): ChatSessionMetadata[] {
@@ -581,7 +620,7 @@ const updateSessionName = async (userId: string, sessionId: string, session: Cha
   const newName = generateSimpleName(session);
   if (!newName || newName === session.name) return false;
   
-  console.log(`updateSessionName: Generated name: "${newName}" for session ${sessionId}`);
+  historyLogger.debug(`updateSessionName: Generated name: "${newName}" for session ${sessionId}`);
   
   // Update session name
   session.name = newName;
@@ -629,12 +668,13 @@ const updateSessionName = async (userId: string, sessionId: string, session: Cha
         }
       }
     } catch (error) {
-      console.error(`updateSessionName: Error updating history metadata:`, error);
+      historyLogger.error(`updateSessionName: Error updating history metadata`);
     }
     
-    // Dispatch event for UI update
+    // Dispatch event for UI update - use the debouncer to prevent event cascades
     if (typeof window !== 'undefined') {
       try {
+        if (eventDebouncer.trackDispatchedEvent('chat-name-updated', sessionId)) {
         localStorage.setItem('desainr_ui_update_trigger', Date.now().toString());
         window.dispatchEvent(new CustomEvent('chat-name-updated', {
           detail: {
@@ -646,14 +686,15 @@ const updateSessionName = async (userId: string, sessionId: string, session: Cha
             forceUpdate: true
           }
         }));
+        }
       } catch (error) {
-        console.error(`updateSessionName: Error dispatching event:`, error);
+        historyLogger.error(`updateSessionName: Error dispatching event`);
       }
     }
     
     return true;
   } catch (error) {
-    console.error(`updateSessionName: Error saving session:`, error);
+    historyLogger.error(`updateSessionName: Error saving session`);
     return false;
   }
 };
@@ -677,9 +718,9 @@ const setSessionName = async (sessionId: string): Promise<boolean> => {
       if (dbSessionData) {
         if (isCompressedData(dbSessionData)) {
           const decompressed = decompressData(dbSessionData);
-          session = safeParseJSON(decompressed);
+          session = safeJsonParse(decompressed);
         } else {
-          session = safeParseJSON(dbSessionData);
+          session = safeJsonParse(dbSessionData);
         }
       }
     }
@@ -690,9 +731,9 @@ const setSessionName = async (sessionId: string): Promise<boolean> => {
       if (sessionJson) {
         if (isCompressedData(sessionJson)) {
           const decompressed = decompressData(sessionJson);
-          session = safeParseJSON(decompressed);
+          session = safeJsonParse(decompressed);
         } else {
-          session = safeParseJSON(sessionJson);
+          session = safeJsonParse(sessionJson);
         }
       }
     }
@@ -716,6 +757,32 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
   const [historyMetadata, setHistoryMetadata] = useState<ChatSessionMetadata[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false); // This might be removed if no async ops remain
+
+  // Early return for server-side rendering environment
+  if (typeof window === 'undefined') {
+    return {
+      historyMetadata: [],
+      isLoading: false,
+      isSyncing: false,
+      getSession: async () => null,
+      saveSession: async (session: ChatSession) => session,
+      deleteSession: async () => false,
+      renameSession: async () => false,
+      createNewSession: () => ({ 
+        id: 'temp_id', 
+        name: 'New Chat', 
+        messages: [], 
+        createdAt: Date.now(), 
+        updatedAt: Date.now(), 
+        userId: userIdFromProfile || 'unknown_user' 
+      }),
+      triggerGoogleSignIn: undefined,
+      cleanLocalStorage: () => {},
+      repairMetadata: () => Promise.resolve(false),
+      setAutoRefreshEnabled: () => {},
+      isAutoRefreshEnabled: true
+    };
+  }
 
   const effectiveUserId = authUser?.uid || userIdFromProfile || DEFAULT_USER_ID;
   const chatHistoryIndexKeyLS = `${CHAT_HISTORY_INDEX_KEY_LS_PREFIX}${effectiveUserId}`;
@@ -749,11 +816,11 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
 
   const loadHistoryIndex = useCallback(async () => {
     if (!effectiveUserId) {
-      console.warn("loadHistoryIndex: No effectiveUserId. Cannot load history.");
+      historyLogger.warn("loadHistoryIndex: No effectiveUserId. Cannot load history.");
       if (isMounted.current) setHistoryMetadata([]);
       return;
     }
-    console.log(`loadHistoryIndex: Running for user ${effectiveUserId}.`);
+    historyLogger.info(`loadHistoryIndex: Running for user ${effectiveUserId}.`);
 
     let combinedMetadata: ChatSessionMetadata[] = [];
     const seenIds = new Set<string>();
@@ -778,7 +845,7 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
             } else { localStorage.removeItem(chatHistoryIndexKeyLS); }
           }
         } catch (error) {
-          console.error('loadHistoryIndex: Error processing stored index:', error);
+          historyLogger.error('loadHistoryIndex: Error processing stored index:', error);
           localStorage.removeItem(chatHistoryIndexKeyLS);
         }
       }
@@ -790,7 +857,7 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
               localParsedIndex = JSON.parse(metadataFromDB);
           }
         } catch (dbError) {
-          console.error('loadHistoryIndex: Error loading metadata from IndexedDB:', dbError);
+          historyLogger.error('loadHistoryIndex: Error loading metadata from IndexedDB:', dbError);
         }
       }
       
@@ -823,14 +890,77 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
                   };
                   reconstructedMetadata.push(meta);
                 }
-            } catch (error) { console.error(`loadHistoryIndex: Error processing session during reconstruction:`, error); }
+            } catch (error) { historyLogger.error(`loadHistoryIndex: Error processing session during reconstruction:`, error); }
               }
             }
         if (reconstructedMetadata.length > 0) {
           localParsedIndex = reconstructedMetadata;
           try {
             localStorage.setItem(chatHistoryIndexKeyLS, compressData(JSON.stringify(reconstructedMetadata)));
-          } catch (error) { console.error('loadHistoryIndex: Error saving reconstructed metadata:', error); }
+          } catch (error) { historyLogger.error('loadHistoryIndex: Error saving reconstructed metadata:', error); }
+        }
+      }
+      
+      // NEW: Update metadata with accurate session information during reload
+      const updatedMetadata = [...localParsedIndex];
+      let metadataUpdated = false;
+      
+      // Check the URL for current active session
+      let activeSessionId = null;
+      if (typeof window !== 'undefined' && window.location) {
+        const urlParams = new URLSearchParams(window.location.search);
+        activeSessionId = urlParams.get('id');
+      }
+      
+      // Check active session first
+      if (activeSessionId && activeSessionId.startsWith(effectiveUserId + '_')) {
+        try {
+          // Try to get the actual session data to ensure name is correct
+          const sessionData = await getSessionDirectly(activeSessionId, effectiveUserId, chatSessionPrefixLS);
+          if (sessionData) {
+            // Find this session in metadata
+            const metaIndex = updatedMetadata.findIndex(m => m.id === activeSessionId);
+            if (metaIndex >= 0) {
+              // Update metadata with actual session values
+              updatedMetadata[metaIndex] = {
+                ...updatedMetadata[metaIndex],
+                name: sessionData.name || updatedMetadata[metaIndex].name,
+                preview: sessionData.messages && sessionData.messages.length > 0 
+                  ? getMessageTextPreview(sessionData.messages[sessionData.messages.length - 1])
+                  : updatedMetadata[metaIndex].preview,
+                messageCount: sessionData.messages ? sessionData.messages.length : updatedMetadata[metaIndex].messageCount
+              };
+              metadataUpdated = true;
+              historyLogger.debug(`loadHistoryIndex: Updated metadata for active session ${activeSessionId} with name "${sessionData.name}"`);
+            } else {
+              // Session exists but isn't in metadata - add it
+              updatedMetadata.push({
+                id: activeSessionId,
+                name: sessionData.name || `Chat ${new Date(sessionData.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+                lastMessageTimestamp: sessionData.updatedAt || Date.now(),
+                preview: getMessageTextPreview(
+                  sessionData.messages && sessionData.messages.length > 0 
+                  ? sessionData.messages[sessionData.messages.length - 1] : undefined
+                ),
+                messageCount: sessionData.messages ? sessionData.messages.length : 0
+              });
+              metadataUpdated = true;
+              historyLogger.debug(`loadHistoryIndex: Added active session ${activeSessionId} to metadata with name "${sessionData.name}"`);
+            }
+          }
+        } catch (error) {
+          historyLogger.error(`loadHistoryIndex: Error processing active session ${activeSessionId}:`, error);
+        }
+      }
+      
+      // If metadata was updated, save the changes
+      if (metadataUpdated) {
+        try {
+          localStorage.setItem(chatHistoryIndexKeyLS, compressData(JSON.stringify(updatedMetadata)));
+          localParsedIndex = updatedMetadata;
+          historyLogger.debug('loadHistoryIndex: Updated metadata saved successfully');
+        } catch (error) {
+          historyLogger.error('loadHistoryIndex: Error saving updated metadata:', error);
         }
       }
       
@@ -843,20 +973,30 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
               try {
                 const sessionExists = await sessionDB.getSession(sessionId);
                 if (sessionExists) {
-                    const sessionData = JSON.parse(sessionExists);
-                    const newMetaEntry: ChatSessionMetadata = {
-                      id: sessionId,
-                      name: sessionData.name || `Chat ${new Date(sessionData.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
-                      lastMessageTimestamp: sessionData.updatedAt || Date.now(),
-                  preview: sessionData.messages && Array.isArray(sessionData.messages) && sessionData.messages.length > 0 ? getMessageTextPreview(sessionData.messages[sessionData.messages.length - 1]) : 'Chat',
-                      messageCount: sessionData.messages && Array.isArray(sessionData.messages) ? sessionData.messages.length : 0,
-                    };
-                    if (!seenIds.has(sessionId)) {
-                      localParsedIndex.push(newMetaEntry);
-                      seenIds.add(sessionId);
+                    // Check if data is compressed and handle accordingly
+                    let sessionData;
+                    if (isCompressedData(sessionExists)) {
+                      const decompressed = decompressData(sessionExists);
+                      sessionData = safeJsonParse(decompressed);
+                    } else {
+                      sessionData = safeJsonParse(sessionExists);
+                    }
+
+                    if (sessionData) {
+                      const newMetaEntry: ChatSessionMetadata = {
+                        id: sessionId,
+                        name: sessionData.name || `Chat ${new Date(sessionData.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+                        lastMessageTimestamp: sessionData.updatedAt || Date.now(),
+                        preview: sessionData.messages && Array.isArray(sessionData.messages) && sessionData.messages.length > 0 ? getMessageTextPreview(sessionData.messages[sessionData.messages.length - 1]) : 'Chat',
+                        messageCount: sessionData.messages && Array.isArray(sessionData.messages) ? sessionData.messages.length : 0,
+                      };
+                      if (!seenIds.has(sessionId)) {
+                        localParsedIndex.push(newMetaEntry);
+                        seenIds.add(sessionId);
+                      }
                     }
                   }
-            } catch (e) { console.warn(`loadHistoryIndex: Error checking IndexedDB for missing session ${sessionId}:`, e); }
+            } catch (e) { historyLogger.warn(`loadHistoryIndex: Error checking IndexedDB for missing session ${sessionId}:`, e); }
                 }
               }
       }
@@ -873,7 +1013,7 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
         } catch (storageError) {
           if (isQuotaExceededError(storageError) && sessionDB) {
             await sessionDB.saveSession('metadata_index', JSON.stringify(filteredLocal));
-          } else { console.error('loadHistoryIndex: Failed to save filtered metadata:', storageError); }
+          } else { historyLogger.error('loadHistoryIndex: Failed to save filtered metadata:', storageError); }
           }
         }
       filteredLocal.forEach(meta => {
@@ -882,9 +1022,9 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
           seenIds.add(meta.id);
         }
       });
-      console.log(`loadHistoryIndex: Loaded ${filteredLocal.length} sessions from storage.`);
+      historyLogger.info(`loadHistoryIndex: Loaded ${filteredLocal.length} sessions from storage.`);
     } catch (error) {
-      console.error("loadHistoryIndex: Error loading/parsing local chat history index:", error);
+      historyLogger.error("loadHistoryIndex: Error loading/parsing local chat history index:", error);
     }
 
     // Removed Google Drive loading section
@@ -916,63 +1056,121 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
                   localStorage.setItem(chatHistoryIndexKeyLS, JSON.stringify([placeholderMeta]));
             }
           }
-        } catch (error) { console.error(`loadHistoryIndex: Error checking localStorage for active session:`, error); }
+        } catch (error) { historyLogger.error(`loadHistoryIndex: Error checking localStorage for active session:`, error); }
       }
     }
     if (isMounted.current) {
       const sortedMetadata = combinedMetadata.sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
       setHistoryMetadata(sortedMetadata);
       setIsLoading(false);
-    }
-  }, [effectiveUserId, chatHistoryIndexKeyLS, chatSessionPrefixLS]); // Removed googleAccessToken, appDriveFolderId, authUser, toast, deletedSessionsLSKey
-
-  useEffect(() => {
-    const orchestrateInitialLoad = async () => {
-      if (!effectiveUserId || !isMounted.current) {
-        setIsLoading(true);
-        return;
-      }
-      setIsLoading(true);
-      const safetyTimeout = setTimeout(() => {
-        if (isMounted.current && isLoading) {
-          setIsLoading(false);
-        }
-      }, 10000);
-
-      try {
-        cleanupCorruptedLocalStorage(effectiveUserId);
-        await loadHistoryIndex();
-        if (historyMetadata.length === 0) {
-          const repaired = await repairChatHistoryMetadata(effectiveUserId);
-          if (repaired) {
-            await loadHistoryIndex();
+      
+      // NEW: Force a session title update notification after reload
+      if (typeof window !== 'undefined' && window.location) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentSessionId = urlParams.get('id');
+        if (currentSessionId && sortedMetadata.some(m => m.id === currentSessionId)) {
+          const sessionMeta = sortedMetadata.find(m => m.id === currentSessionId);
+          if (sessionMeta) {
+            // Use setTimeout to ensure this happens after render
+            setTimeout(() => {
+              window.dispatchEvent(new CustomEvent('chat-name-updated', { 
+                detail: { 
+                  sessionId: currentSessionId, 
+                  newName: sessionMeta.name, 
+                  userId: effectiveUserId, 
+                  timestamp: Date.now(), 
+                  source: 'reload-recovery',
+                  forceUpdate: true 
+                }
+              }));
+              historyLogger.debug(`loadHistoryIndex: Dispatched recovery chat-name-updated for ${currentSessionId} with name "${sessionMeta.name}"`);
+            }, 500);
           }
         }
-        if (isMounted.current) setIsLoading(false);
-        // Removed Drive initialization logic
-      } catch (error) {
-        console.error("useChatHistory Orchestrator: Error during initial load:", error);
-        if (isMounted.current) setIsLoading(false);
-      } finally {
-        clearTimeout(safetyTimeout);
       }
-    };
-    orchestrateInitialLoad();
-  }, [effectiveUserId, loadHistoryIndex]); // Removed googleAccessToken
+    }
+  }, [effectiveUserId, chatHistoryIndexKeyLS, chatSessionPrefixLS]); 
 
+// NEW: Add helper function to get a session directly without caching
+const getSessionDirectly = async (sessionId: string, userId: string, prefix: string): Promise<ChatSession | null> => {
+  if (!userId || !sessionId.startsWith(userId + '_')) {
+    return null;
+  }
+  
+  // First try from localStorage
+  try {
+    const storedSession = localStorage.getItem(`${prefix}${sessionId}`);
+    if (storedSession) {
+      if (isCompressedData(storedSession)) {
+        const decompressed = decompressData(storedSession);
+        if (decompressed) {
+          return safeJsonParse(decompressed);
+        }
+      } else {
+        return safeJsonParse(storedSession);
+      }
+    }
+  } catch (error) {
+    historyLogger.error(`getSessionDirectly: Error reading from localStorage for ${sessionId}:`, error);
+  }
+  
+  // Try IndexedDB
+  if (sessionDB) {
+    try {
+      const isInIndexedDB = localStorage.getItem(`${prefix}${sessionId}_idb`) === 'true';
+      if (isInIndexedDB) {
+        const dbSessionData = await sessionDB.getSession(`${sessionId}`);
+        if (dbSessionData) {
+          if (isCompressedData(dbSessionData)) {
+            const decompressed = decompressData(dbSessionData);
+            return safeJsonParse(decompressed);
+          } else {
+            return safeJsonParse(dbSessionData);
+          }
+        }
+      }
+      } catch (error) {
+      historyLogger.error(`getSessionDirectly: Error reading from IndexedDB for ${sessionId}:`, error);
+      }
+  }
+  
+  return null;
+    };
+
+// Modify getSession to add special reload state handling
   const getSession = useCallback(async (sessionId: string): Promise<ChatSession | null> => {
-    if (!effectiveUserId || !sessionId) {
-      console.warn(`getSession: Invalid sessionId ${sessionId} or effectiveUserId ${effectiveUserId}`);
+    if (!effectiveUserId) {
       return null;
     }
     
     // Check if the sessionId format is valid - should start with the user ID
     if (!sessionId.startsWith(effectiveUserId + '_')) {
-      console.warn(`getSession: SessionId ${sessionId} does not match current user ${effectiveUserId}`);
+      historyLogger.warn(`getSession: SessionId ${sessionId} does not match current user ${effectiveUserId}`);
       return null;
     }
 
-    console.log(`getSession: Loading session ${sessionId}`);
+    sessionLogger.debug(`getSession: Loading session ${sessionId}`);
+    
+    // Add special flag for detecting reloads
+    const sessionWasReloaded = window.sessionStorage.getItem(`session_reloaded_${sessionId}`) === 'true';
+    if (!sessionWasReloaded) {
+      window.sessionStorage.setItem(`session_reloaded_${sessionId}`, 'true');
+    } else {
+      historyLogger.debug(`getSession: Detected reload for session ${sessionId}`);
+      // Clear the flag for future reloads
+      window.sessionStorage.removeItem(`session_reloaded_${sessionId}`);
+    }
+    
+    // Implement a simple in-memory session cache
+    const sessionCacheKey = `session_cache_${sessionId}`;
+    const cachedSession = (window as any)[sessionCacheKey] as ChatSession | undefined;
+    
+    // If we have a recently cached session (< 2 seconds old), use it
+    if (cachedSession && Date.now() - cachedSession.updatedAt < 2000) {
+      sessionLogger.debug(`getSession: Using cached session ${sessionId} (age: ${Date.now() - cachedSession.updatedAt}ms)`);
+      return cachedSession;
+    }
+    
     let session: ChatSession | null = null;
     let errors = [];
     
@@ -981,68 +1179,165 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
       const storedSession = localStorage.getItem(`${chatSessionPrefixLS}${sessionId}`);
       if (storedSession) {
         try {
+          // Check if the data looks like it's compressed
           if (isCompressedData(storedSession)) {
-            const decompressed = decompressData(storedSession);
-            if (decompressed && decompressed.trim()) {
-              session = safeJsonParse(decompressed);
-              if (session) {
-                console.log(`getSession: Successfully loaded session ${sessionId} from localStorage (compressed)`);
-                return session;
-              }
-            }
-          } else {
-            session = safeJsonParse(storedSession);
-            if (session) {
-              console.log(`getSession: Successfully loaded session ${sessionId} from localStorage`);
-              return session;
-            }
-          }
-        } catch (parseError: any) {
-          console.error(`getSession: Error parsing localStorage data for session ${sessionId}:`, parseError);
-          errors.push(`localStorage parse: ${parseError.message || 'Unknown error'}`);
-        }
-      }
-    } catch (storageError: any) {
-      console.error(`getSession: Error accessing localStorage for session ${sessionId}:`, storageError);
-      errors.push(`localStorage access: ${storageError.message || 'Unknown error'}`);
-    }
-
-    // Try IndexedDB if available
-    if (sessionDB) {
-      try {
-        const dbSessionData = await sessionDB.getSession(`${sessionId}`);
-        if (dbSessionData) {
-          try {
-            if (isCompressedData(dbSessionData)) {
-              const decompressed = decompressData(dbSessionData);
+            storageLogger.debug(`getSession: Found compressed data for session ${sessionId} in localStorage`);
+            try {
+              const decompressed = decompressData(storedSession);
               if (decompressed && decompressed.trim()) {
                 session = safeJsonParse(decompressed);
                 if (session) {
-                  console.log(`getSession: Successfully loaded session ${sessionId} from IndexedDB (compressed)`);
+                  storageLogger.debug(`getSession: Successfully loaded session ${sessionId} from localStorage (compressed)`);
+                  
+                  // Update cache
+                  (window as any)[sessionCacheKey] = session;
+                  
+                  // If this was a reload, update the history metadata to ensure synchronization
+                  if (sessionWasReloaded) {
+                    updateSessionMetadataOnReload(sessionId, session);
+                  }
+                  
                   return session;
+                } else {
+                  storageLogger.error(`getSession: Failed to parse decompressed JSON for ${sessionId}`);
+                  errors.push('localStorage: decompressed JSON parse failed');
                 }
+              } else {
+                storageLogger.error(`getSession: Decompression returned empty result for ${sessionId}`);
+                errors.push('localStorage: decompression returned empty result');
+              }
+            } catch (decompressError: any) {
+              storageLogger.error(`getSession: Decompression error for ${sessionId}`);
+              errors.push(`localStorage decompress: ${decompressError.message || 'Unknown error'}`);
+            }
+          } else {
+            // Not compressed - direct JSON parse
+            try {
+              session = safeJsonParse(storedSession);
+              if (session) {
+                storageLogger.debug(`getSession: Successfully loaded session ${sessionId} from localStorage (uncompressed)`);
+                
+                // Update cache
+                (window as any)[sessionCacheKey] = session;
+                
+                // If this was a reload, update the history metadata to ensure synchronization
+                if (sessionWasReloaded) {
+                  updateSessionMetadataOnReload(sessionId, session);
+                }
+                
+                return session;
+              } else {
+                storageLogger.error(`getSession: Failed to parse JSON for ${sessionId}`);
+                errors.push('localStorage: JSON parse failed');
+              }
+            } catch (parseError: any) {
+              storageLogger.error(`getSession: Error parsing localStorage data for ${sessionId}`);
+              errors.push(`localStorage parse: ${parseError.message || 'Unknown error'}`);
+            }
+          }
+        } catch (parseError: any) {
+          storageLogger.error(`getSession: Error processing localStorage data for ${sessionId}`);
+          errors.push(`localStorage process: ${parseError.message || 'Unknown error'}`);
+        }
+      } else {
+        storageLogger.debug(`getSession: No data found in localStorage for ${sessionId}`);
+        errors.push('localStorage: No data found');
+      }
+    } catch (storageError: any) {
+      storageLogger.error(`getSession: Error accessing localStorage for ${sessionId}`);
+      errors.push(`localStorage access: ${storageError.message || 'Unknown error'}`);
+    }
+
+    // Try IndexedDB if available and needed
+    if (!session && sessionDB) {
+      try {
+        // Check if the session is marked as stored in IndexedDB
+        const isInIndexedDB = localStorage.getItem(`${chatSessionPrefixLS}${sessionId}_idb`) === 'true';
+        
+        // Only try IndexedDB if the flag is set or localStorage failed
+        if (isInIndexedDB || errors.some(e => e.startsWith('localStorage'))) {
+        if (isInIndexedDB) {
+            storageLogger.debug(`getSession: Session ${sessionId} is marked as stored in IndexedDB`);
+        }
+
+        const dbSessionData = await sessionDB.getSession(`${sessionId}`);
+        if (dbSessionData) {
+            storageLogger.debug(`getSession: Found data for session ${sessionId} in IndexedDB`);
+          try {
+            // Check if the data looks like it's compressed
+            if (isCompressedData(dbSessionData)) {
+                storageLogger.debug(`getSession: IndexedDB data for ${sessionId} appears to be compressed, decompressing...`);
+              try {
+                const decompressed = decompressData(dbSessionData);
+                if (decompressed && decompressed.trim()) {
+                  session = safeJsonParse(decompressed);
+                  if (session) {
+                      storageLogger.debug(`getSession: Successfully loaded session ${sessionId} from IndexedDB (compressed)`);
+                      
+                      // Update cache
+                      (window as any)[sessionCacheKey] = session;
+                      
+                      // If this was a reload, update the history metadata to ensure synchronization
+                      if (sessionWasReloaded) {
+                        updateSessionMetadataOnReload(sessionId, session);
+                      }
+                      
+                    return session;
+                  } else {
+                      storageLogger.error(`getSession: Failed to parse decompressed IndexedDB JSON for ${sessionId}`);
+                    errors.push('indexedDB: decompressed JSON parse failed');
+                  }
+                } else {
+                    storageLogger.error(`getSession: IndexedDB decompression returned empty result for ${sessionId}`);
+                  errors.push('indexedDB: decompression returned empty result');
+                }
+              } catch (decompressError: any) {
+                  storageLogger.error(`getSession: IndexedDB decompression error for ${sessionId}`);
+                errors.push(`indexedDB decompress: ${decompressError.message || 'Unknown error'}`);
               }
             } else {
-              session = safeJsonParse(dbSessionData);
-              if (session) {
-                console.log(`getSession: Successfully loaded session ${sessionId} from IndexedDB`);
-                return session;
+              // Not compressed - direct JSON parse
+              try {
+                session = safeJsonParse(dbSessionData);
+                if (session) {
+                    storageLogger.debug(`getSession: Successfully loaded session ${sessionId} from IndexedDB (uncompressed)`);
+                    
+                    // Update cache
+                    (window as any)[sessionCacheKey] = session;
+                    
+                    // If this was a reload, update the history metadata to ensure synchronization
+                    if (sessionWasReloaded) {
+                      updateSessionMetadataOnReload(sessionId, session);
+                    }
+                    
+                  return session;
+                } else {
+                    storageLogger.error(`getSession: Failed to parse IndexedDB JSON for ${sessionId}`);
+                  errors.push('indexedDB: JSON parse failed');
+                }
+              } catch (parseError: any) {
+                  storageLogger.error(`getSession: Error parsing IndexedDB data for ${sessionId}`);
+                errors.push(`indexedDB parse: ${parseError.message || 'Unknown error'}`);
               }
             }
-          } catch (parseError: any) {
-            console.error(`getSession: Error parsing IndexedDB data for session ${sessionId}:`, parseError);
-            errors.push(`indexedDB parse: ${parseError.message || 'Unknown error'}`);
+          } catch (processError: any) {
+              storageLogger.error(`getSession: Error processing IndexedDB data for ${sessionId}`);
+            errors.push(`indexedDB process: ${processError.message || 'Unknown error'}`);
+          }
+        } else {
+            storageLogger.debug(`getSession: No data found in IndexedDB for ${sessionId}`);
+          errors.push('indexedDB: No data found');
           }
         }
       } catch (dbError: any) {
-        console.error(`getSession: Error accessing IndexedDB for session ${sessionId}:`, dbError);
+        storageLogger.error(`getSession: Error accessing IndexedDB for ${sessionId}`);
         errors.push(`indexedDB access: ${dbError.message || 'Unknown error'}`);
       }
     }
     
     // Create emergency placeholder session if we couldn't find it
     if (!session) {
-      console.warn(`getSession: Session ${sessionId} not found in any storage. Errors: ${errors.join(', ')}`);
+      historyLogger.warn(`getSession: Session ${sessionId} not found in any storage. Errors: ${errors.join(', ')}`);
       
       // Check if there's a metadata entry for this session
       try {
@@ -1060,7 +1355,7 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
             const sessionMeta = metadata.find((m) => m.id === sessionId);
             if (sessionMeta) {
               // Create an emergency placeholder session with the metadata we have
-              console.log(`getSession: Creating emergency placeholder session for ${sessionId}`);
+              historyLogger.debug(`getSession: Creating emergency placeholder session for ${sessionId}`);
               const emergencySession: ChatSession = {
                 id: sessionId,
                 name: sessionMeta.name || "Recovered Chat",
@@ -1080,130 +1375,329 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
           }
         }
       } catch (metaError) {
-        console.error(`getSession: Failed to check metadata for session ${sessionId}:`, metaError);
+        historyLogger.error(`getSession: Failed to check metadata for session ${sessionId}`);
       }
     }
 
     return null;
   }, [effectiveUserId, chatSessionPrefixLS, chatHistoryIndexKeyLS]);
 
+// NEW: Helper function to update metadata when a session is loaded during reload
+const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) => {
+  try {
+    if (!session || !effectiveUserId) return;
+    
+    historyLogger.debug(`updateSessionMetadataOnReload: Updating metadata for session ${sessionId} with name "${session.name}"`);
+    
+    // Get the current metadata
+    const historyIndexKey = `${CHAT_HISTORY_INDEX_KEY_LS_PREFIX}${effectiveUserId}`;
+    const historyIndexJson = localStorage.getItem(historyIndexKey);
+    if (!historyIndexJson) return;
+    
+    // Parse the metadata
+    let metadata: ChatSessionMetadata[] = [];
+    try {
+      if (isCompressedData(historyIndexJson)) {
+        const decompressed = decompressData(historyIndexJson);
+        metadata = safeJsonParse(decompressed);
+      } else {
+        metadata = safeJsonParse(historyIndexJson);
+      }
+    } catch (error) {
+      historyLogger.error(`updateSessionMetadataOnReload: Error parsing metadata: ${error}`);
+      return;
+    }
+    
+    if (!metadata || !Array.isArray(metadata)) {
+      historyLogger.warn(`updateSessionMetadataOnReload: Invalid metadata format`);
+      return;
+    }
+    
+    // Find the session in metadata
+    const metadataIndex = metadata.findIndex(m => m.id === sessionId);
+    if (metadataIndex === -1) {
+      // Session not in metadata, add it
+      historyLogger.debug(`updateSessionMetadataOnReload: Adding session ${sessionId} to metadata`);
+      
+      metadata.push({
+        id: sessionId,
+        name: session.name,
+        lastMessageTimestamp: session.updatedAt || Date.now(),
+        preview: session.messages && session.messages.length > 0 
+          ? getMessageTextPreview(session.messages[session.messages.length - 1]) 
+          : 'Chat session',
+        messageCount: session.messages ? session.messages.length : 0
+      });
+    } else {
+      // Update existing metadata
+      historyLogger.debug(`updateSessionMetadataOnReload: Updating existing metadata for session ${sessionId}`);
+      
+      metadata[metadataIndex] = {
+        ...metadata[metadataIndex],
+        name: session.name,
+        lastMessageTimestamp: session.updatedAt || metadata[metadataIndex].lastMessageTimestamp,
+        preview: session.messages && session.messages.length > 0 
+          ? getMessageTextPreview(session.messages[session.messages.length - 1]) 
+          : metadata[metadataIndex].preview,
+        messageCount: session.messages ? session.messages.length : metadata[metadataIndex].messageCount
+      };
+    }
+    
+    // Save updated metadata
+    try {
+      const metadataString = JSON.stringify(metadata);
+      const valueToStore = metadataString.length > 1000 ? compressData(metadataString) : metadataString;
+      localStorage.setItem(historyIndexKey, valueToStore);
+      
+      // Update React state if mounted
+      if (isMounted.current) {
+        setHistoryMetadata(prev => deduplicateMetadata([...metadata]));
+      }
+      
+      // Dispatch event to update UI
+      if (typeof window !== 'undefined') {
+        if (eventDebouncer.trackDispatchedEvent('metadata-reload-updated', sessionId)) {
+          window.dispatchEvent(new CustomEvent('history-updated', {
+            detail: {
+              sessionId,
+              userId: effectiveUserId,
+              timestamp: Date.now(),
+              source: 'reload-recovery',
+              forceUpdate: true
+            }
+          }));
+        }
+      }
+      
+      historyLogger.debug(`updateSessionMetadataOnReload: Successfully updated metadata for session ${sessionId}`);
+    } catch (error) {
+      historyLogger.error(`updateSessionMetadataOnReload: Error saving metadata: ${error}`);
+    }
+  } catch (error) {
+    historyLogger.error(`updateSessionMetadataOnReload: Unhandled error: ${error}`);
+  }
+};
+
   const saveSession = useCallback(async (
     session: ChatSession,
     attemptNameGeneration: boolean = false,
     modelIdForNameGeneration?: string,
-  ): Promise<ChatSession> => { // Removed userApiKeyForNameGeneration
+  ): Promise<ChatSession> => {
     if (!effectiveUserId || !session || !session.id.startsWith(effectiveUserId + '_')) {
         return session;
     }
+    
+    sessionLogger.debug(`saveSession: Processing session ${session.id} with ${session.messages.length} messages`);
+    
+    // Clean up messages to ensure they're in a good state for storage
     const cleanedMessages = session.messages.map(msg => ({
         ...msg,
       content: (msg.isLoading === true && typeof msg.content === 'string' && msg.content === 'Processing...') ? [] : msg.content,
       isLoading: false,
       isError: (msg.isError && typeof msg.content !== 'string') ? true : (msg.isError && typeof msg.content === 'string' && msg.content !== 'Processing...') ? true : false,
     }));
+    
     const originalCreatedAt = session.createdAt;
     let sessionToSave: ChatSession = { 
-      ...session, updatedAt: Date.now(), createdAt: originalCreatedAt, userId: effectiveUserId, messages: cleanedMessages,
+      ...session, 
+      updatedAt: Date.now(), 
+      createdAt: originalCreatedAt, 
+      userId: effectiveUserId, 
+      messages: cleanedMessages,
       modelId: attemptNameGeneration && modelIdForNameGeneration ? modelIdForNameGeneration : session.modelId,
     };
+    
     const hasTimeBasedName = sessionToSave.name && /Chat \\d{1,2}:\\d{1,2}/.test(sessionToSave.name);
     const hasDefaultName = sessionToSave.name === "New Chat" || !sessionToSave.name || hasTimeBasedName;
     const validUserMessages = sessionToSave.messages.filter(m => m.role === 'user' && (typeof m.content === 'string' ? m.content.length > 0 : (Array.isArray(m.content) && m.content.length > 0)));
     const validAssistantMessages = sessionToSave.messages.filter(m => m.role === 'assistant' && (typeof m.content === 'string' ? m.content.length > 0 : (Array.isArray(m.content) && m.content.length > 0)));
     const shouldAutoGenerateName = hasDefaultName && validUserMessages.length > 0 && validAssistantMessages.length > 0 && !attemptNameGeneration;
     const finalAttemptNameGeneration = attemptNameGeneration || shouldAutoGenerateName;
+    
+    // Prepare session for storage - limit size to avoid storage quota issues
     const sessionToStore = limitSessionSize(createLeanSession(sessionToSave));
     let sessionString = JSON.stringify(sessionToStore);
     let storageValue = sessionString.length > 1000 ? compressData(sessionString) : sessionString;
+    
+    // Track if we were able to save the session anywhere
+    let savedSuccessfully = false;
+    let savedInLocalStorage = false;
+    let savedInIndexedDB = false;
 
+    // 1. Try to save in IndexedDB first (higher storage limit)
     if (sessionDB) {
       try {
         const isDbAvailable = await sessionDB.isAvailable();
         if (isDbAvailable) {
           const saved = await sessionDB.saveSession(`${sessionToSave.id}`, storageValue);
           if (saved) {
-            localStorage.setItem(`${chatSessionPrefixLS}${sessionToSave.id}_idb`, 'true');
-            // Force update metadata for IndexedDB sessions
-                const metaEntry: ChatSessionMetadata = {
-                id: sessionToSave.id, name: sessionToSave.name || `Chat ${new Date(sessionToSave.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
-                lastMessageTimestamp: sessionToSave.updatedAt, preview: getMessageTextPreview(sessionToSave.messages.length > 0 ? sessionToSave.messages[sessionToSave.messages.length - 1] : undefined),
-                  messageCount: sessionToSave.messages.length,
-                };
-                const storedIndex = localStorage.getItem(chatHistoryIndexKeyLS);
-                let metadataList: ChatSessionMetadata[] = [];
-                if (storedIndex) {
-              if (storedIndex.startsWith('𫝂')) { // LZString marker
-                try { metadataList = JSON.parse(decompressData(storedIndex)); } catch (e) { metadataList = []; }
-                  } else {
-                try { metadataList = JSON.parse(storedIndex); } catch (e) { metadataList = []; }
-                    }
-                  }
-                metadataList = metadataList.filter(meta => meta.id !== sessionToSave.id);
-                metadataList.unshift(metaEntry);
-                try {
-                  localStorage.setItem(chatHistoryIndexKeyLS, JSON.stringify(metadataList));
-                } catch (metaSaveError) {
-                  if (isQuotaExceededError(metaSaveError)) {
-                try { localStorage.setItem(chatHistoryIndexKeyLS, compressData(JSON.stringify(metadataList))); } catch (c) {}
-                    }
-                  }
-                if (isMounted.current) {
-              setHistoryMetadata(prev => deduplicateMetadata([metaEntry, ...prev.filter(meta => meta.id !== sessionToSave.id)]));
-            }
-            if (finalAttemptNameGeneration) setSessionName(sessionToSave.id);
-            return sessionToSave;
-          }
-        }
-      } catch (dbError) { console.warn('Error using IndexedDB, falling back to localStorage:', dbError); }
-      }
-    try {
-      localStorage.setItem(`${chatSessionPrefixLS}${sessionToSave.id}`, storageValue);
-      if (finalAttemptNameGeneration) setSessionName(sessionToSave.id);
-    } catch (error) {
-      if (isQuotaExceededError(error)) {
-        const minimalSession = { ...sessionToStore, messages: sessionToStore.messages.slice(-5), files: [] };
-        try {
-          localStorage.setItem(`${chatSessionPrefixLS}${sessionToSave.id}`, compressData(JSON.stringify(minimalSession)));
-          if (finalAttemptNameGeneration) setSessionName(sessionToSave.id);
-          if(isMounted.current) setTimeout(() => { if(isMounted.current) toast({ title: "Session Trimmed", description: "Some older messages were removed to save storage space.", duration: 5000 }); }, 0);
-        } catch (innerError) {
-          if (sessionDB) {
+            savedInIndexedDB = true;
+            storageLogger.debug(`saveSession: Successfully saved session ${sessionToSave.id} to IndexedDB`);
+            
+            // Mark this session as stored in IndexedDB with a flag in localStorage
             try {
-              const emergencySave = await sessionDB.saveSession(`${sessionToSave.id}`, JSON.stringify(minimalSession));
-              if (emergencySave) { if (finalAttemptNameGeneration) setSessionName(sessionToSave.id); return sessionToSave; }
-            } catch (lastDbError) {}
+              localStorage.setItem(`${chatSessionPrefixLS}${sessionToSave.id}_idb`, 'true');
+            } catch (flagErr) {
+              storageLogger.warn(`saveSession: Failed to set IndexedDB flag for ${sessionToSave.id}`);
+              // This is non-critical, we can continue
+            }
+            
+            savedSuccessfully = true;
+          } else {
+            storageLogger.warn(`saveSession: IndexedDB save returned false for ${sessionToSave.id}`);
           }
-          if (isMounted.current) setTimeout(() => { if (isMounted.current) toast({ title: "Storage Error", description: "Could not save chat. Please try deleting older sessions.", variant: "destructive" }); }, 0);
+        } else {
+          storageLogger.warn(`saveSession: IndexedDB not available for ${sessionToSave.id}`);
         }
-      } else {
-        if (isMounted.current) setTimeout(() => { if (isMounted.current) toast({ title: "Save Error", description: "Could not save chat locally.", variant: "destructive" }); }, 0);
+      } catch (dbError) {
+        storageLogger.warn(`saveSession: Error using IndexedDB for ${sessionToSave.id}, falling back to localStorage`);
       }
     }
-    if (isMounted.current) {
-      setTimeout(() => {
-        if (!isMounted.current) return;
-          setHistoryMetadata(prev => {
-          const latestMessage = sessionToSave.messages.length > 0 ? sessionToSave.messages[sessionToSave.messages.length - 1] : undefined;
-              const existingMeta = prev.find(m => m.id === sessionToSave.id);
-          const isDefaultName = existingMeta?.name === 'New Chat' || /Chat \\d{1,2}:\\d{1,2}/.test(existingMeta?.name || '');
-          const effectiveName = (!existingMeta || isDefaultName || !existingMeta.name) ? (sessionToSave.name || `Chat ${new Date(sessionToSave.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`) : existingMeta.name;
-              const newMeta: ChatSessionMetadata = {
-            id: sessionToSave.id, name: effectiveName, lastMessageTimestamp: sessionToSave.updatedAt,
-            preview: getMessageTextPreview(latestMessage), messageCount: sessionToSave.messages.length,
-          };
-              const otherMeta = prev.filter(meta => meta.id !== sessionToSave.id);
-              const updatedFullHistory = deduplicateMetadata([newMeta, ...otherMeta]);
+    
+    // 2. Try localStorage (as backup or primary if IndexedDB failed)
+    if (!savedInIndexedDB || chatSessionPrefixLS) {
+      try {
+        localStorage.setItem(`${chatSessionPrefixLS}${sessionToSave.id}`, storageValue);
+        storageLogger.debug(`saveSession: Successfully saved session ${sessionToSave.id} to localStorage`);
+        savedInLocalStorage = true;
+        savedSuccessfully = true;
+      } catch (storageError) {
+        storageLogger.warn(`saveSession: Error saving to localStorage for ${sessionToSave.id}`);
+        
+        if (isQuotaExceededError(storageError)) {
+          storageLogger.info(`saveSession: Quota exceeded, trying more aggressive compression for ${sessionToSave.id}`);
           try {
-            localStorage.setItem(chatHistoryIndexKeyLS, compressData(JSON.stringify(updatedFullHistory)));
-          } catch (error) { console.error("saveSession: Failed to save history index (quota or other).", error); }
-              return updatedFullHistory;
-          });
-      }, 0);
+            // Create an extremely minimal session with just the essential data
+            const minimalSession = { 
+              ...sessionToStore, 
+              messages: sessionToStore.messages.slice(-5), // Keep only the last 5 messages
+              files: [] 
+            };
+            const minimalJson = JSON.stringify(minimalSession);
+            const compressedData = compressData(minimalJson);
+            
+            localStorage.setItem(`${chatSessionPrefixLS}${sessionToSave.id}`, compressedData);
+            storageLogger.debug(`saveSession: Saved minimal version of session ${sessionToSave.id} to localStorage`);
+            savedInLocalStorage = true;
+            savedSuccessfully = true;
+          } catch (compressError) {
+            storageLogger.error(`saveSession: Failed to save even minimal session ${sessionToSave.id}`);
+          }
+        }
+      }
     }
-    if (finalAttemptNameGeneration) setSessionName(sessionToSave.id);
-    // Removed async Drive save IIFE
+    
+    // 3. Always update session metadata in the history index
+    try {
+      // Prepare metadata entry for this session
+      const metaEntry: ChatSessionMetadata = {
+        id: sessionToSave.id, 
+        name: sessionToSave.name || `Chat ${new Date(sessionToSave.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+        lastMessageTimestamp: sessionToSave.updatedAt, 
+        preview: getMessageTextPreview(
+          sessionToSave.messages.length > 0 ? 
+            sessionToSave.messages[sessionToSave.messages.length - 1] : undefined
+        ),
+        messageCount: sessionToSave.messages.length,
+      };
+      
+      // Get existing metadata list
+      const storedIndex = localStorage.getItem(chatHistoryIndexKeyLS);
+      let metadataList: ChatSessionMetadata[] = [];
+      
+      if (storedIndex) {
+        try {
+          if (isCompressedData(storedIndex)) {
+            const decompressed = decompressData(storedIndex);
+            metadataList = JSON.parse(decompressed);
+          } else {
+            metadataList = JSON.parse(storedIndex);
+          }
+        } catch (parseError) {
+          historyLogger.error(`saveSession: Error parsing history index for ${sessionToSave.id}`);
+          metadataList = [];
+        }
+      }
+      
+      // Remove existing entry for this session (if any) and add the updated one at the beginning
+      metadataList = metadataList.filter(meta => meta.id !== sessionToSave.id);
+      metadataList.unshift(metaEntry);
+      
+      // Save the updated metadata list
+      try {
+        localStorage.setItem(chatHistoryIndexKeyLS, JSON.stringify(metadataList));
+        historyLogger.debug(`saveSession: Updated history index with session ${sessionToSave.id}`);
+      } catch (metaSaveError) {
+        historyLogger.warn(`saveSession: Error saving history index for ${sessionToSave.id}`);
+        
+        if (isQuotaExceededError(metaSaveError)) {
+          try { 
+            localStorage.setItem(chatHistoryIndexKeyLS, compressData(JSON.stringify(metadataList)));
+            historyLogger.debug(`saveSession: Saved compressed history index including ${sessionToSave.id}`);
+          } catch (compressError) {
+            historyLogger.error(`saveSession: Failed to save even compressed history index`);
+          }
+        }
+      }
+      
+      // Update the React state with the new metadata
+      if (isMounted.current) {
+        setHistoryMetadata(prev => deduplicateMetadata([
+          metaEntry, 
+          ...prev.filter(meta => meta.id !== sessionToSave.id)
+        ]));
+      }
+    } catch (metaError) {
+      historyLogger.error(`saveSession: Error updating metadata for ${sessionToSave.id}`);
+    }
+
+    // 4. Attempt to generate a name for the session if needed
+    if (finalAttemptNameGeneration && savedSuccessfully) {
+      // Try to set a better name based on content
+      try {
+        setSessionName(sessionToSave.id);
+      } catch (nameError) {
+        historyLogger.warn(`saveSession: Error during name generation for ${sessionToSave.id}`);
+      }
+    }
+
+    // 5. Save the session ID as the last active session
+    try {
+      localStorage.setItem(`${LAST_ACTIVE_SESSION_ID_KEY_PREFIX}${effectiveUserId}`, sessionToSave.id);
+      storageLogger.debug(`saveSession: Set ${sessionToSave.id} as last active session for user ${effectiveUserId}`);
+    } catch (lastActiveError) {
+      storageLogger.warn(`saveSession: Failed to set last active session ID for ${sessionToSave.id}`);
+    }
+    
+    // 6. Dispatch history-updated event (only if the save was successful and using debouncer)
+    if (savedSuccessfully && typeof window !== 'undefined') {
+      try {
+        // Use event debouncer to prevent excessive event dispatch
+        if (eventDebouncer.trackDispatchedEvent('history-updated', sessionToSave.id)) {
+          localStorage.setItem('desainr_ui_update_trigger', Date.now().toString());
+          window.dispatchEvent(new CustomEvent('history-updated', {
+            detail: {
+              sessionId: sessionToSave.id,
+              userId: effectiveUserId,
+              timestamp: Date.now(),
+              source: 'session-save'
+            }
+          }));
+          historyLogger.debug(`saveSession: Dispatched debounced history-updated event for ${sessionToSave.id}`);
+        }
+      } catch (eventError) {
+        historyLogger.warn(`saveSession: Error dispatching history-updated event for ${sessionToSave.id}`);
+      }
+    }
+    
+    if (!savedSuccessfully) {
+      historyLogger.error(`saveSession: Failed to save session ${sessionToSave.id} anywhere!`);
+    } else {
+      historyLogger.debug(`saveSession: Successfully saved session ${sessionToSave.id} (localStorage: ${savedInLocalStorage}, IndexedDB: ${savedInIndexedDB})`);
+    }
+
     return sessionToSave;
-  }, [effectiveUserId, toast, chatHistoryIndexKeyLS, chatSessionPrefixLS, deduplicateMetadata]); // Removed googleAccessToken, appDriveFolderId, authUser
+  }, [effectiveUserId, chatSessionPrefixLS, chatHistoryIndexKeyLS, isMounted, setHistoryMetadata]);
 
   const deleteSession = useCallback(async (sessionId: string) => {
     if (!effectiveUserId || !sessionId.startsWith(effectiveUserId + '_')) {
@@ -1241,19 +1735,60 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
     }
   }, [effectiveUserId, toast, chatHistoryIndexKeyLS, chatSessionPrefixLS, deduplicateMetadata, deletedSessionsLSKey]); // Removed googleAccessToken, authUser?.uid
 
-  const createNewSession = useCallback((initialMessages: ChatMessage[] = [], modelIdForNameGeneration?: string): ChatSession => { // Removed userApiKeyForNameGen
+  const createNewSession = useCallback((initialMessages: ChatMessage[] = [], modelIdForNameGeneration?: string): ChatSession => {
     if (!effectiveUserId) {
         const tempId = `error_no_user_${Date.now()}_${Math.random().toString(36).substring(2,11)}`;
          return { id: tempId, name: 'New Chat (Error)', messages: [], createdAt: Date.now(), updatedAt: Date.now(), userId: "unknown_user", };
     }
-    const newSessionId = `${effectiveUserId}_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-    const now = Date.now();
+    
+    // Check if we should reuse a recent empty session instead of creating a new one
+    if (initialMessages.length === 0) {
+      // Find any recent empty or nearly empty sessions (< 10 minutes old with no messages)
+      const recentEmptySessions = historyMetadata
+        .filter(meta => 
+          meta.messageCount <= 1 && // Empty or just system message
+          meta.lastMessageTimestamp > Date.now() - 10 * 60 * 1000 // Less than 10 minutes old
+        );
+      
+      if (recentEmptySessions.length > 0) {
+        // Use the most recent empty session
+        const mostRecentEmpty = recentEmptySessions[0]; // Already sorted by timestamp
+        historyLogger.debug(`createNewSession: Reusing recent empty session ${mostRecentEmpty.id} instead of creating a new one`);
+        
+        return {
+          id: mostRecentEmpty.id,
+          name: 'New Chat',
+          messages: initialMessages,
+          createdAt: mostRecentEmpty.lastMessageTimestamp,
+          updatedAt: Date.now(),
+          userId: effectiveUserId,
+          modelId: modelIdForNameGeneration || DEFAULT_MODEL_ID
+        };
+      }
+    }
+
+    // Generate a new session ID with better uniqueness guarantees
+    const timestamp = Date.now();
+    const randomPart = Math.random().toString(36).substring(2, 11);
+    const newSessionId = `${effectiveUserId}_${timestamp}_${randomPart}`;
+    
+    historyLogger.debug(`createNewSession: Creating new chat session ${newSessionId}`);
+    
     const newSession: ChatSession = {
-      id: newSessionId, name: 'New Chat', messages: initialMessages, createdAt: now, updatedAt: now, userId: effectiveUserId,
+      id: newSessionId, 
+      name: 'New Chat', 
+      messages: initialMessages, 
+      createdAt: timestamp, 
+      updatedAt: timestamp, 
+      userId: effectiveUserId,
+      modelId: modelIdForNameGeneration || DEFAULT_MODEL_ID
     };
-    saveSession(newSession, true, modelIdForNameGeneration || DEFAULT_MODEL_ID);
+    
+    // Only save if there are messages or user explicitly requested a new session
+    saveSession(newSession, initialMessages.length > 0);
+    
     return newSession;
-  }, [effectiveUserId, saveSession]);
+  }, [effectiveUserId, saveSession, historyMetadata]);
 
   // Removed syncWithDrive, syncUploadToDrive, syncDownloadFromDrive functions
 
@@ -1291,174 +1826,314 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
     }
   }, [effectiveUserId, getSession, saveSession, chatHistoryIndexKeyLS, deduplicateMetadata]);
 
-  // Adding back these functions that were referenced but removed during simplification
   // Simplified version of cleanupCorruptedLocalStorage
-  const cleanupCorruptedLocalStorage = (effectiveUserId: string) => {
+  const cleanupCorruptedLocalStorage = async (effectiveUserId: string) => {
     if (!effectiveUserId) return;
     const chatHistoryIndexKeyLS = `${CHAT_HISTORY_INDEX_KEY_LS_PREFIX}${effectiveUserId}`;
     const chatSessionPrefixLS = `${CHAT_SESSION_PREFIX_LS_PREFIX}${effectiveUserId}_`;
-
+    
     try {
-      // Clean up individual corrupted sessions
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith(chatSessionPrefixLS) && !key.endsWith('_idb')) {
-          try {
-            const sessionData = localStorage.getItem(key);
-            if (sessionData) {
-              if (isCompressedData(sessionData)) {
-                const decompressed = decompressData(sessionData);
-                if (!decompressed) { // Decompression failed or returned empty
+      // First check for corrupted localStorage entries
+      const allKeys = Object.keys(localStorage);
+      const sessionKeys = allKeys.filter(key => key.startsWith(chatSessionPrefixLS));
+      
+      for (const key of sessionKeys) {
+        try {
+          const value = localStorage.getItem(key);
+          if (value) {
+            // Check if it's compressed data
+            if (isCompressedData(value)) {
+              try {
+                const decompressed = decompressData(value);
+                if (!decompressed || decompressed.trim() === '') {
+                  console.warn(`cleanupCorruptedLocalStorage: Removing corrupted compressed session: ${key}`);
                   localStorage.removeItem(key);
-                  console.warn(`Removed corrupted (failed decompress) session: ${key}`);
-                  continue;
                 }
-                safeJsonParse(decompressed); // Attempt parse
-              } else {
-                safeJsonParse(sessionData); // Attempt parse
+              } catch (e) {
+                console.warn(`cleanupCorruptedLocalStorage: Removing session with decompression error: ${key}`);
+                localStorage.removeItem(key);
+              }
+            } else {
+              try {
+                JSON.parse(value);
+              } catch (e) {
+                console.warn(`cleanupCorruptedLocalStorage: Removing session with JSON parse error: ${key}`);
+                localStorage.removeItem(key);
               }
             }
-          } catch (e) {
-            // If parsing fails, remove the item
-            localStorage.removeItem(key);
-            console.warn(`Removed corrupted (parse failed) session: ${key}`);
-          }
-        }
-      }
-
-      // Clean up corrupted history index
-      const historyIndexJson = localStorage.getItem(chatHistoryIndexKeyLS);
-      if (historyIndexJson) {
-        try {
-          let parsedIndex;
-          if (isCompressedData(historyIndexJson)) {
-            const decompressed = decompressData(historyIndexJson);
-            if (!decompressed) {
-               localStorage.removeItem(chatHistoryIndexKeyLS);
-               console.warn('Removed corrupted (failed decompress) history index');
-               return;
-            }
-            parsedIndex = safeJsonParse(decompressed);
-          } else {
-            parsedIndex = safeJsonParse(historyIndexJson);
-          }
-          if (!parsedIndex || !Array.isArray(parsedIndex)) {
-            localStorage.removeItem(chatHistoryIndexKeyLS);
-            console.warn('Removed corrupted (invalid format) history index');
           }
         } catch (e) {
-          localStorage.removeItem(chatHistoryIndexKeyLS);
-          console.warn('Removed corrupted (parse failed) history index');
+          console.error(`cleanupCorruptedLocalStorage: Error processing key ${key}:`, e);
         }
       }
-    } catch (error) {
-      console.error('Error during localStorage cleanup:', error);
+      
+      // Check for and cleanup corrupted IndexedDB sessions
+      if (sessionDB) {
+        try {
+          const allKeys = Object.keys(localStorage);
+          const idbFlagKeys = allKeys.filter(key => key.startsWith(chatSessionPrefixLS) && key.endsWith('_idb'));
+          
+          for (const flagKey of idbFlagKeys) {
+            const sessionId = flagKey.substring(chatSessionPrefixLS.length, flagKey.length - 4);
+            if (sessionId.startsWith(effectiveUserId + '_')) {
+              try {
+                const sessionExists = await sessionDB.getSession(sessionId);
+                if (sessionExists) {
+                  try {
+                    let isValid = false;
+                    if (isCompressedData(sessionExists)) {
+                      const decompressed = decompressData(sessionExists);
+                      isValid = !!safeJsonParse(decompressed);
+                    } else {
+                      isValid = !!safeJsonParse(sessionExists);
+                    }
+                    
+                    if (!isValid) {
+                      console.warn(`cleanupCorruptedLocalStorage: Removing corrupted IndexedDB session: ${sessionId}`);
+                      await sessionDB.deleteSession(sessionId);
+                      localStorage.removeItem(flagKey);
+                    }
+                  } catch (e) {
+                    console.warn(`cleanupCorruptedLocalStorage: Error validating IndexedDB session, removing: ${sessionId}`);
+                    await sessionDB.deleteSession(sessionId);
+                    localStorage.removeItem(flagKey);
+                  }
+                }
+              } catch (e) {
+                console.error(`cleanupCorruptedLocalStorage: Error accessing IndexedDB session ${sessionId}:`, e);
+              }
+            }
+          }
+        } catch (e) {
+          console.error(`cleanupCorruptedLocalStorage: Error checking IndexedDB sessions:`, e);
+        }
+      }
+    } catch (e) {
+      console.error("cleanupCorruptedLocalStorage: Unhandled error during cleanup:", e);
     }
   };
 
   // Simplified version of repairChatHistoryMetadata
   const repairChatHistoryMetadata = async (effectiveUserId: string): Promise<boolean> => {
     if (!effectiveUserId) return false;
-    console.log(`repairChatHistoryMetadata: Starting for user ${effectiveUserId}`);
     const chatHistoryIndexKeyLS = `${CHAT_HISTORY_INDEX_KEY_LS_PREFIX}${effectiveUserId}`;
     const chatSessionPrefixLS = `${CHAT_SESSION_PREFIX_LS_PREFIX}${effectiveUserId}_`;
+    
+    console.log(`repairChatHistoryMetadata: Starting for user ${effectiveUserId}`);
+    
+    // Scan localStorage for session data without metadata entries
+    const sessionKeys = [];
+    const metadataEntries: ChatSessionMetadata[] = [];
     let metadataRepaired = false;
-
+    
     try {
-      const reconstructedMetadata: ChatSessionMetadata[] = [];
-      const existingMetadataIds = new Set<string>();
-
-      // Load existing metadata if any, to avoid duplicating already correct entries
-      const existingHistoryJson = localStorage.getItem(chatHistoryIndexKeyLS);
-      if (existingHistoryJson) {
-        try {
-          let parsedExisting;
-          if (isCompressedData(existingHistoryJson)) {
-            const decompressed = decompressData(existingHistoryJson);
-            parsedExisting = safeJsonParse(decompressed);
-          } else {
-            parsedExisting = safeJsonParse(existingHistoryJson);
+      // Find all session keys in localStorage
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(chatSessionPrefixLS) && !key.endsWith('_idb') && 
+           !key.includes('_compressed')) {
+          // Extract session ID from key
+          const sessionId = key.substring(chatSessionPrefixLS.length);
+          if (sessionId.startsWith(effectiveUserId + '_')) {
+            sessionKeys.push({ key, sessionId });
           }
-          if (parsedExisting && Array.isArray(parsedExisting)) {
-            parsedExisting.forEach(meta => {
-              if (meta && meta.id) {
-                existingMetadataIds.add(meta.id);
-                reconstructedMetadata.push(meta); // Keep valid existing entries
-              }
-            });
-          }
-        } catch (e) {
-          console.warn('repairChatHistoryMetadata: Could not parse existing history index, will rebuild from scratch.', e);
         }
       }
       
-      const localKeys = [];
-      for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && key.startsWith(chatSessionPrefixLS) && !key.endsWith('_idb')) {
-              localKeys.push(key);
-          }
+      // If no sessions found, nothing to repair
+      if (sessionKeys.length === 0) {
+        console.log(`repairChatHistoryMetadata: No repairs needed or no data to repair for user ${effectiveUserId}.`);
+        return false;
       }
-
-      for (const key of localKeys) {
-        const sessionId = key.replace(chatSessionPrefixLS, '');
-        if (existingMetadataIds.has(sessionId)) continue; // Skip if already processed
-
+      
+      // For each session key, attempt to load and create metadata
+      for (const { key, sessionId } of sessionKeys) {
         try {
           const sessionData = localStorage.getItem(key);
-          if (!sessionData) continue;
-
-          let session: ChatSession | null = null;
-          if (isCompressedData(sessionData)) {
-            const decompressed = decompressData(sessionData);
-            if (decompressed) session = safeJsonParse(decompressed);
-          } else {
-            session = safeJsonParse(sessionData);
+          if (sessionData) {
+            let session: ChatSession | null = null;
+            
+            if (isCompressedData(sessionData)) {
+              const decompressed = decompressData(sessionData);
+              if (decompressed) {
+                session = safeJsonParse(decompressed);
+              }
+            } else {
+              session = safeJsonParse(sessionData);
+            }
+            
+            if (session && session.id === sessionId) {
+              const metadata: ChatSessionMetadata = {
+                id: sessionId,
+                name: session.name || `Chat ${new Date(session.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+                lastMessageTimestamp: session.updatedAt || Date.now(),
+                preview: session.messages && session.messages.length > 0 ? 
+                         getMessageTextPreview(session.messages[session.messages.length - 1]) : 'Chat',
+                messageCount: session.messages?.length || 0
+              };
+              
+              metadataEntries.push(metadata);
+              metadataRepaired = true;
+            }
           }
-
-          if (session && session.id && session.id === sessionId && Array.isArray(session.messages)) {
-            const lastMessage = session.messages.length > 0 ? session.messages[session.messages.length - 1] : undefined;
-            const meta: ChatSessionMetadata = {
-              id: session.id,
-              name: session.name || generateSessionName(session.createdAt || Date.now()),
-              lastMessageTimestamp: session.updatedAt || Date.now(),
-              preview: getMessageTextPreview(lastMessage),
-              messageCount: session.messages.length,
-            };
-            reconstructedMetadata.push(meta);
-            metadataRepaired = true;
-            existingMetadataIds.add(sessionId); // Add to set after successful processing
-          }
-        } catch (error) {
-          console.error(`repairChatHistoryMetadata: Error processing session ${key}:`, error);
+        } catch (e) {
+          console.error(`repairChatHistoryMetadata: Error processing session ${sessionId}:`, e);
         }
       }
-
-      if (metadataRepaired) {
-        // Save the reconstructed metadata
-        const finalMetadata = deduplicateMetadata(reconstructedMetadata.filter(Boolean)); // Ensure no null/undefined items
-        finalMetadata.sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
+      
+      // Only save if we found any valid metadata
+      if (metadataEntries.length > 0) {
+        const reconstructedMetadata = metadataEntries.sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
+        
         try {
-          localStorage.setItem(chatHistoryIndexKeyLS, compressData(JSON.stringify(finalMetadata)));
-          console.log(`repairChatHistoryMetadata: Successfully repaired and saved metadata for user ${effectiveUserId}. Found ${finalMetadata.length} sessions.`);
-        } catch (saveError) {
-          console.error('repairChatHistoryMetadata: Error saving repaired metadata:', saveError);
-          metadataRepaired = false; // Indicate failure if save fails
+          localStorage.setItem(chatHistoryIndexKeyLS, compressData(JSON.stringify(reconstructedMetadata)));
+          console.log(`repairChatHistoryMetadata: Successfully reconstructed metadata for ${metadataEntries.length} sessions`);
+          metadataRepaired = true;
+        } catch (error) {
+          if (isQuotaExceededError(error) && sessionDB) {
+            try {
+              await sessionDB.saveSession('metadata_index', JSON.stringify(reconstructedMetadata));
+              metadataRepaired = true;
+            } catch (dbError) {
+              console.error(`repairChatHistoryMetadata: Failed to save to IndexedDB:`, dbError);
+            }
+          }
         }
-      } else {
-          console.log(`repairChatHistoryMetadata: No repairs needed or no data to repair for user ${effectiveUserId}.`);
       }
     } catch (error) {
-      console.error(`repairChatHistoryMetadata: General error for user ${effectiveUserId}:`, error);
-      metadataRepaired = false;
+      console.error(`repairChatHistoryMetadata: Unhandled error:`, error);
     }
+    
+    console.log(`repairChatHistoryMetadata: ${metadataRepaired ? 'Successful repair' : 'No repairs needed or no data to repair'} for user ${effectiveUserId}.`);
     return metadataRepaired;
   };
+
+  // Add this function after the loadHistoryIndex function
+  const handlePageNavigation = useCallback(() => {
+    if (!effectiveUserId || !isMounted.current) {
+      return;
+    }
+    
+    // Check if auto-refresh is disabled by user preference
+    const autoRefreshEnabled = typeof window !== 'undefined' ? localStorage.getItem(HISTORY_AUTO_REFRESH_ENABLED) !== 'false' : true;
+    if (!autoRefreshEnabled) {
+      historyLogger.debug('handlePageNavigation: Auto-refresh disabled by user preference');
+      return;
+    }
+    
+    historyLogger.debug('handlePageNavigation: Detected page navigation, checking if history reload needed');
+    
+    try {
+      // Get last history load timestamp
+      const lastLoaded = parseInt(localStorage.getItem(HISTORY_LAST_LOADED_KEY) || '0', 10);
+      const now = Date.now();
+      
+      // Only reload if:
+      // 1. Cache has expired (more than 5 minutes old) OR
+      // 2. No history is loaded at all
+      if (now - lastLoaded > HISTORY_CACHE_EXPIRY || historyMetadata.length === 0) {
+        historyLogger.debug('handlePageNavigation: Cache expired or no history, reloading after navigation');
+        loadHistoryIndex();
+        // Update last loaded timestamp
+        localStorage.setItem(HISTORY_LAST_LOADED_KEY, now.toString());
+      } else {
+        historyLogger.debug('handlePageNavigation: Using cached history data (cache still valid)');
+      }
+    } catch (error) {
+      historyLogger.error('handlePageNavigation: Error handling navigation', error);
+    }
+  }, [effectiveUserId, loadHistoryIndex, historyMetadata.length]);
+
+  // Modify the initialization useEffect to add router change event listeners
+  useEffect(() => {
+    // Skip immediately if already initialized globally
+    if (globalInitialized) {
+      if (isMounted.current && isLoading) {
+        setIsLoading(false);
+      }
+      return;
+    }
+    
+    // Set global initialization flag
+    globalInitialized = true;
+
+    // Force quit any stuck loading state after 3 seconds
+    const forceQuitTimer = setTimeout(() => {
+      if (isMounted.current && isLoading) {
+        historyLogger.warn("Force stopping any ongoing loading operations");
+        setIsLoading(false);
+      }
+    }, 3000);
+    
+    // Run initialization once
+    const initAsync = async () => {
+      if (!effectiveUserId || !isMounted.current) {
+        setIsLoading(false);
+        return;
+      }
+      
+      setIsLoading(true);
+      
+      try {
+        // Simplified loading process
+        await loadHistoryIndex();
+        
+        // If no sessions were loaded, try to repair
+        if (historyMetadata.length === 0) {
+          await repairChatHistoryMetadata(effectiveUserId);
+          await loadHistoryIndex();
+        }
+
+        // Update last loaded timestamp
+        localStorage.setItem(HISTORY_LAST_LOADED_KEY, Date.now().toString());
+      } catch (error) {
+        historyLogger.error("Error during initialization:", error);
+      } finally {
+        // Always set loading to false when done
+        if (isMounted.current) {
+          setIsLoading(false);
+        }
+      }
+    };
+    
+    // Run the async initialization
+    initAsync();
+    
+    // Add event listener for router change complete (Next.js navigation)
+    if (typeof window !== 'undefined') {
+      // Listen for Next.js route changes via a custom event
+      window.addEventListener('routeChangeComplete', handlePageNavigation);
+      
+      // Also listen for focus events as a fallback
+      window.addEventListener('focus', handlePageNavigation);
+    }
+    
+    // Clean up
+    return () => {
+      clearTimeout(forceQuitTimer);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('routeChangeComplete', handlePageNavigation);
+        window.removeEventListener('focus', handlePageNavigation);
+      }
+    };
+  }, [effectiveUserId, handlePageNavigation]);
+
+  // Add this function to the returned object at the bottom of the hook
+  const setAutoRefreshEnabled = useCallback((enabled: boolean) => {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(HISTORY_AUTO_REFRESH_ENABLED, enabled ? 'true' : 'false');
+        historyLogger.info(`Auto-refresh ${enabled ? 'enabled' : 'disabled'} for chat history`);
+      }
+    } catch (error) {
+      historyLogger.error('Error updating auto-refresh setting', error);
+    }
+  }, []);
 
   return {
     historyMetadata,
     isLoading,
-    isSyncing, // Consider if this is still needed
+    isSyncing,
     getSession,
     saveSession,
     deleteSession,
@@ -1467,6 +2142,9 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
     // Removed Drive sync functions from return
     triggerGoogleSignIn: undefined, // Explicitly set to undefined or remove if not used
     cleanLocalStorage: () => cleanupCorruptedLocalStorage(effectiveUserId),
-    repairMetadata: () => repairChatHistoryMetadata(effectiveUserId)
+    repairMetadata: () => repairChatHistoryMetadata(effectiveUserId),
+    setAutoRefreshEnabled, // Add the new function
+    // Check if auto-refresh is currently enabled, safely for SSR
+    isAutoRefreshEnabled: typeof window !== 'undefined' ? localStorage.getItem(HISTORY_AUTO_REFRESH_ENABLED) !== 'false' : true
   };
 } 
