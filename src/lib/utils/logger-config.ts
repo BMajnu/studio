@@ -2,10 +2,10 @@
  * Logger configuration utility with UI controls
  */
 
-import { LogLevel, LogCategory, configureLogger, setLogLevel } from './logger';
+import { LogLevel, setLogLevel, setCategoryLogLevel } from './logger';
 
 // Default state of log levels per category
-const DEFAULT_LOG_LEVELS: Record<LogCategory, LogLevel> = {
+const DEFAULT_LOG_LEVELS: Record<string, LogLevel> = {
   session: LogLevel.INFO,
   storage: LogLevel.INFO,
   history: LogLevel.INFO,
@@ -28,17 +28,15 @@ export function initializeLogger(): void {
     const savedPreferences = localStorage.getItem(LOG_PREFERENCES_KEY);
     if (savedPreferences) {
       const parsed = JSON.parse(savedPreferences);
-      applyLogPreferences(parsed);
+      applyLogPreferences(parsed as Record<string, LogLevel>);
     } else {
       applyDefaultPreferences();
     }
     
-    // Configure production mode if needed
+    // In production, default to warnings and errors only
     if (process.env.NODE_ENV === 'production') {
-      configureLogger({
-        defaultLevel: LogLevel.ERROR,
-        includeTimestamps: true
-      });
+      // Set global default level to WARN and above
+      setLogLevel(LogLevel.WARN);
     }
   } catch (error) {
     console.error('Failed to initialize logger, using defaults:', error);
@@ -51,17 +49,17 @@ export function initializeLogger(): void {
  */
 function applyDefaultPreferences(): void {
   Object.entries(DEFAULT_LOG_LEVELS).forEach(([category, level]) => {
-    setLogLevel(category as LogCategory, level);
+    setCategoryLogLevel(category, level);
   });
 }
 
 /**
  * Apply log preferences from saved settings
  */
-function applyLogPreferences(preferences: Record<LogCategory, LogLevel>): void {
+function applyLogPreferences(preferences: Record<string, LogLevel>): void {
   Object.entries(preferences).forEach(([category, level]) => {
     if (isValidCategory(category) && isValidLevel(level)) {
-      setLogLevel(category as LogCategory, level as LogLevel);
+      setCategoryLogLevel(category, level);
     }
   });
 }
@@ -69,7 +67,7 @@ function applyLogPreferences(preferences: Record<LogCategory, LogLevel>): void {
 /**
  * Save current log preferences to localStorage
  */
-export function saveLogPreferences(preferences: Record<LogCategory, LogLevel>): void {
+export function saveLogPreferences(preferences: Record<string, LogLevel>): void {
   try {
     localStorage.setItem(LOG_PREFERENCES_KEY, JSON.stringify(preferences));
   } catch (error) {
@@ -80,14 +78,14 @@ export function saveLogPreferences(preferences: Record<LogCategory, LogLevel>): 
 /**
  * Type guard for valid log category
  */
-function isValidCategory(category: string): category is LogCategory {
+function isValidCategory(category: string): boolean {
   return ['session', 'storage', 'history', 'ui', 'api', 'auth', 'system', 'general'].includes(category);
 }
 
 /**
  * Type guard for valid log level
  */
-function isValidLevel(level: number): level is LogLevel {
+function isValidLevel(level: number): boolean {
   return level >= 0 && level <= 5;
 }
 
@@ -96,12 +94,11 @@ function isValidLevel(level: number): level is LogLevel {
  */
 export function getLogLevelName(level: LogLevel): string {
   const names: Record<LogLevel, string> = {
-    [LogLevel.NONE]: 'None',
-    [LogLevel.ERROR]: 'Error',
-    [LogLevel.WARN]: 'Warning',
-    [LogLevel.INFO]: 'Info',
     [LogLevel.DEBUG]: 'Debug',
-    [LogLevel.TRACE]: 'Trace'
+    [LogLevel.INFO]: 'Info',
+    [LogLevel.WARN]: 'Warning',
+    [LogLevel.ERROR]: 'Error',
+    [LogLevel.SILENT]: 'Silent'
   };
   return names[level] || 'Unknown';
 }
@@ -111,19 +108,18 @@ export function getLogLevelName(level: LogLevel): string {
  */
 export function getAvailableLogLevels(): { value: LogLevel, label: string }[] {
   return [
-    { value: LogLevel.NONE, label: 'None' },
+    { value: LogLevel.SILENT, label: 'Silent' },
     { value: LogLevel.ERROR, label: 'Error' },
     { value: LogLevel.WARN, label: 'Warning' },
     { value: LogLevel.INFO, label: 'Info' },
-    { value: LogLevel.DEBUG, label: 'Debug' },
-    { value: LogLevel.TRACE, label: 'Trace' }
+    { value: LogLevel.DEBUG, label: 'Debug' }
   ];
 }
 
 /**
  * Get available categories for UI selection
  */
-export function getAvailableCategories(): { value: LogCategory, label: string }[] {
+export function getAvailableCategories(): { value: string, label: string }[] {
   return [
     { value: 'session', label: 'Session Management' },
     { value: 'storage', label: 'Storage Operations' },
@@ -137,7 +133,7 @@ export function getAvailableCategories(): { value: LogCategory, label: string }[
 }
 
 // Add helpful description for each category
-export const CATEGORY_DESCRIPTIONS: Record<LogCategory, string> = {
+export const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   session: 'Logs for session creation, loading, and management',
   storage: 'Logs for localStorage, IndexedDB, and other storage operations',
   history: 'Logs related to chat history panel and events',

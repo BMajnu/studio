@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/layout/app-layout';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/contexts/auth-context'; // Import AuthProvider
 import { initializeLogger } from '@/lib/utils/logger-config';
+import React, { Suspense } from 'react';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -38,9 +39,11 @@ export default function RootLayout({
         suppressHydrationWarning={true} // Add this line
       >
         <AuthProvider> {/* Wrap AppLayout with AuthProvider */}
-          <AppLayout>
-            {children}
-          </AppLayout>
+          <Suspense fallback={null}>
+            <AppLayout>
+              {children}
+            </AppLayout>
+          </Suspense>
           <Toaster />
         </AuthProvider>
       </body>
