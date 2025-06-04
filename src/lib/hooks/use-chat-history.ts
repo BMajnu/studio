@@ -2008,109 +2008,73 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
     return metadataRepaired;
   };
 
-  // Add this function after the loadHistoryIndex function
+  // Replace handlePageNavigation to always refresh history on navigation
   const handlePageNavigation = useCallback(() => {
-    if (!effectiveUserId || !isMounted.current) {
-      return;
-    }
-    
-    // Check if auto-refresh is disabled by user preference
-    const autoRefreshEnabled = typeof window !== 'undefined' ? localStorage.getItem(HISTORY_AUTO_REFRESH_ENABLED) !== 'false' : true;
-    if (!autoRefreshEnabled) {
-      historyLogger.debug('handlePageNavigation: Auto-refresh disabled by user preference');
-      return;
-    }
-    
-    historyLogger.debug('handlePageNavigation: Detected page navigation, checking if history reload needed');
-    
-    try {
-      // Get last history load timestamp
-      const lastLoaded = parseInt(localStorage.getItem(HISTORY_LAST_LOADED_KEY) || '0', 10);
-      const now = Date.now();
-      
-      // Only reload if:
-      // 1. Cache has expired (more than 5 minutes old) OR
-      // 2. No history is loaded at all
-      if (now - lastLoaded > HISTORY_CACHE_EXPIRY || historyMetadata.length === 0) {
-        historyLogger.debug('handlePageNavigation: Cache expired or no history, reloading after navigation');
-        loadHistoryIndex();
-        // Update last loaded timestamp
-        localStorage.setItem(HISTORY_LAST_LOADED_KEY, now.toString());
-      } else {
-        historyLogger.debug('handlePageNavigation: Using cached history data (cache still valid)');
-      }
-    } catch (error) {
-      historyLogger.error('handlePageNavigation: Error handling navigation', error);
-    }
-  }, [effectiveUserId, loadHistoryIndex, historyMetadata.length]);
+    if (!effectiveUserId || !isMounted.current) return;
+    historyLogger.debug('handlePageNavigation: Forcing history reload');
+    loadHistoryIndex();
+  }, [effectiveUserId, loadHistoryIndex]);
 
-  // Modify the initialization useEffect to add router change event listeners
+  // Modify the initialization useEffect to always register page navigation listeners and handle first-time initialization separately
   useEffect(() => {
-    // Skip immediately if already initialized globally
-    if (globalInitialized) {
-      if (isMounted.current && isLoading) {
-        setIsLoading(false);
-      }
-      return;
-    }
-    
-    // Set global initialization flag
-    globalInitialized = true;
+    let forceQuitTimer: ReturnType<typeof setTimeout> | undefined;
+    if (!globalInitialized) {
+      globalInitialized = true;
 
-    // Force quit any stuck loading state after 3 seconds
-    const forceQuitTimer = setTimeout(() => {
-      if (isMounted.current && isLoading) {
-        historyLogger.warn("Force stopping any ongoing loading operations");
-        setIsLoading(false);
-      }
-    }, 3000);
-    
-    // Run initialization once
-    const initAsync = async () => {
-      if (!effectiveUserId || !isMounted.current) {
-        setIsLoading(false);
-        return;
-      }
-      
-      setIsLoading(true);
-      
-      try {
-        // Simplified loading process
-        await loadHistoryIndex();
-        
-        // If no sessions were loaded, try to repair
-        if (historyMetadata.length === 0) {
-          await repairChatHistoryMetadata(effectiveUserId);
-          await loadHistoryIndex();
-        }
-
-        // Update last loaded timestamp
-        localStorage.setItem(HISTORY_LAST_LOADED_KEY, Date.now().toString());
-      } catch (error) {
-        historyLogger.error("Error during initialization:", error);
-      } finally {
-        // Always set loading to false when done
-        if (isMounted.current) {
+      // Force quit any stuck loading state after 3 seconds
+      forceQuitTimer = setTimeout(() => {
+        if (isMounted.current && isLoading) {
+          historyLogger.warn("Force stopping any ongoing loading operations");
           setIsLoading(false);
         }
+      }, 3000);
+
+      // Run initialization once
+      const initAsync = async () => {
+        if (!effectiveUserId || !isMounted.current) {
+          setIsLoading(false);
+          return;
+        }
+
+        setIsLoading(true);
+        try {
+          await loadHistoryIndex();
+          // If no sessions were loaded, try to repair
+          if (historyMetadata.length === 0) {
+            await repairChatHistoryMetadata(effectiveUserId);
+            await loadHistoryIndex();
+          }
+          // Update last loaded timestamp
+          localStorage.setItem(HISTORY_LAST_LOADED_KEY, Date.now().toString());
+        } catch (error) {
+          historyLogger.error("Error during initialization:", error);
+        } finally {
+          if (isMounted.current) {
+            setIsLoading(false);
+          }
+        }
+      };
+      initAsync();
+    } else {
+      // Clear loading state if needed after first init
+      if (isMounted.current && isLoading) {
+        setIsLoading(false);
       }
-    };
-    
-    // Run the async initialization
-    initAsync();
-    
-    // Add event listener for router change complete (Next.js navigation)
+      // Reload history immediately on subsequent mounts
+      handlePageNavigation();
+    }
+
+    // Always add event listeners for page navigation
     if (typeof window !== 'undefined') {
-      // Listen for Next.js route changes via a custom event
       window.addEventListener('routeChangeComplete', handlePageNavigation);
-      
-      // Also listen for focus events as a fallback
       window.addEventListener('focus', handlePageNavigation);
     }
-    
-    // Clean up
+
+    // Clean up listeners and timers
     return () => {
-      clearTimeout(forceQuitTimer);
+      if (forceQuitTimer) {
+        clearTimeout(forceQuitTimer);
+      }
       if (typeof window !== 'undefined') {
         window.removeEventListener('routeChangeComplete', handlePageNavigation);
         window.removeEventListener('focus', handlePageNavigation);

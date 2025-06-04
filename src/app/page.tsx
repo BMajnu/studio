@@ -849,17 +849,17 @@ export default function ChatPage() {
   };
 
   const processFilesForAI = async (files: File[]): Promise<AttachedFile[]> => {
-    const processedFiles: AttachedFile[] = [];
-    for (const file of files) {
+    // Process files in parallel for faster reads
+    const filePromises = files.map(async (file) => {
       const basicInfo: AttachedFile = { name: file.name, type: file.type, size: file.size };
       if (file.type.startsWith('image/')) {
         try { basicInfo.dataUri = await readFileAsDataURL(file); } catch (e) { console.error("Error reading image file:", e); }
       } else if (file.type === 'text/plain' || file.type === 'text/markdown' || file.type === 'application/json') {
         try { basicInfo.textContent = await readFileAsText(file); } catch (e) { console.error("Error reading text file:", e); }
       }
-      processedFiles.push(basicInfo);
-    }
-    return processedFiles;
+      return basicInfo;
+    });
+    return Promise.all(filePromises);
   };
 
   const messagesRef = useRef(messages);
@@ -1357,9 +1357,19 @@ export default function ChatPage() {
               });
             }
           } else if (currentActionType === 'generateDesignPrompts') {
+            // Use last design ideas from assistant as input for prompt generation if available
+            let designIdeasText = userMessageContent;
+            const lastDesignIdeasMsg = historyMessagesToConsider
+                .slice().reverse()
+                .find(msg => Array.isArray(msg.content) && msg.content.some(part => part.type === 'design_ideas_group'));
+            if (lastDesignIdeasMsg) {
+                designIdeasText = getMessageText(lastDesignIdeasMsg.content);
+            }
             const promptsInput: GenerateDesignPromptsInput = {
-                ...baseInput, clientMessage: userMessageContent,
-                attachedFiles: filesForFlow, chatHistory: chatHistoryForAI
+                ...baseInput,
+                clientMessage: designIdeasText,
+                attachedFiles: filesForFlow,
+                chatHistory: chatHistoryForAI
             };
             const promptsOutput = await generateDesignPrompts(promptsInput);
             
@@ -1526,26 +1536,18 @@ export default function ChatPage() {
                 }
                 
                 // Prepare input for the checkBestDesign flow
+                // Destructure only the relevant fields from baseInput (omit communicationStyleNotes)
+                const { userName, modelId, userApiKey } = baseInput;
                 const bestDesignInput: CheckBestDesignInput = {
-                  ...baseInput,
+                  userName,
+                  modelId,
+                  userApiKey,
                   designs,
                   clientRequirements: userMessageContent || "Client requirements as per conversation history.",
                   chatHistory: chatHistoryForAI,
                 };
                 
-                // Limit the number of designs to prevent timeouts
-                if (designs.length > 15) {
-                  if(isMounted.current) {
-                    safeToast({ 
-                      title: "Too Many Designs", 
-                      description: `Processing limited to 15 designs to prevent timeouts. Using the first 15 designs.`, 
-                      variant: "default",
-                      duration: 7000
-                    });
-                  }
-                  bestDesignInput.designs = designs.slice(0, 15);
-                }
-                
+                // Removed design count limit so that all uploaded designs are processed
                 // Call the checkBestDesign flow with a timeout to prevent hanging
                 // Create a promise that rejects after 120 seconds
                 const timeoutPromise = new Promise<never>((_, reject) => {
@@ -1559,7 +1561,7 @@ export default function ChatPage() {
                 try {
                   console.log("Calling checkBestDesign with input:", JSON.stringify({
                     ...bestDesignInput,
-                    designs: bestDesignInput.designs.map(d => ({
+                    designs: bestDesignInput.designs.map((d: any) => ({
                       ...d,
                       imageDataUri: `[DataURI length: ${d.imageDataUri.length}]` // Don't log full data URIs
                     }))
@@ -1755,7 +1757,7 @@ export default function ChatPage() {
 
         if (isMounted.current) setIsLoading(false);
 
-        if (currentSession && userIdForHistory && isMounted.current && !aiCallError) { // Only save if no AI error
+        if (currentSession && userIdForHistory && isMounted.current && !aiCallError && currentActionType !== 'checkBestDesign') { // Only save if no AI error
             // Use a functional update with setMessages to get the latest state
             // and then use that latest state for saving.
             setMessages(currentMessagesFromState => {
