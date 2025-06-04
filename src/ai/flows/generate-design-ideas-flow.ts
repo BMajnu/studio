@@ -56,9 +56,10 @@ const WebSearchResultSchema = z.object({
 const GenerateDesignIdeasOutputSchema = z.object({
   extractedTextOrSaying: z.string().describe("The specific text or saying identified from the input that the design ideas are based on. If input is a general theme, this might be a concise summary of it."),
   simulatedWebInspiration: z.array(WebSearchResultSchema).describe("Simulated web search results: 2-3 example links with titles and snippets for designs similar to the design's text/saying. You are not browsing; create plausible examples if real search is not possible or if the input doesn't provide enough specifics for actual search queries. If no text/saying is clear, provide general inspiration related to the broader theme if one can be inferred."),
-  creativeDesignIdeas: z.array(z.string()).describe("Five highly detailed, specific, and well-directed creative design ideas for new designs based on the extracted text/saying. Include style, concept, visual elements, color palette suggestions, and how the text is incorporated. Aim for production-ready concepts."),
-  typographyDesignIdeas: z.array(z.string()).describe("Five highly detailed and specific creative typography-focused design ideas (graphics optional or minimal) for the extracted text/saying, emphasizing font style, layout, typographic effects, and overall aesthetic. Aim for unique and impactful typographic treatments."),
-  typographyWithGraphicsIdeas: z.array(z.string()).describe("Five typography designs featuring simple graphics and ornaments. These should be well-aligned, not too busy, with graphics added as complementary elements but not as the main focus. The main focus should be on the typography, with playful, simple graphics and ornaments enhancing the text."),
+  searchKeywords: z.array(z.string()).min(5).max(10).describe("Generate 5-10 search keywords that are highly relevant to this specific design request. These keywords should be specific enough for a Google search to return useful design inspiration. Consider the theme, style, purpose, and specific elements of the design."),
+  graphicsCreativeIdeas: z.array(z.string()).length(4).describe("4 detailed graphics-focused creative design ideas for new designs based on the extracted text/saying. Include style, concept, visual elements, color palette suggestions, and how the text is incorporated. Focus on detailed, production-ready concepts with clear visual direction."),
+  typographyDesignIdeas: z.array(z.string()).length(3).describe("3 typography-focused design ideas that creatively present the extracted text/saying. Include font suggestions, typography style, layout approach, and color recommendations. Focus on how the text itself becomes the primary visual element."),
+  typographyWithGraphicsIdeas: z.array(z.string()).length(3).describe("3 ideas that combine interesting typography with graphic elements based on the extracted text/saying. Include how the text interacts with visual elements, style recommendations, composition approach, and color suggestions.")
 });
 export type GenerateDesignIdeasOutput = z.infer<typeof GenerateDesignIdeasOutputSchema>;
 
@@ -89,11 +90,11 @@ export async function generateDesignIdeas(flowInput: GenerateDesignIdeasInput): 
     prompt: `You are an expert Design Idea Generator for a graphic designer named {{{userName}}}.
 Their communication style is: {{{communicationStyleNotes}}}.
 
-**Objective:** Generate highly detailed, specific, well-directed, and creative design ideas based on the provided "Design Input Text", considering the full conversation history and any attached files. If multiple distinct design themes or texts are evident in the input or history, attempt to generate ideas for each.
+**Objective:** Generate creative design ideas in 3 distinct categories based on the provided "Design Input Text".
 
 **Context:**
 {{#if chatHistory.length}}
-Previous conversation context (use this to understand the full scope of the request, including any evolving requirements or themes):
+Previous conversation context:
 {{#each chatHistory}}
 {{this.role}}: {{{this.text}}}
 ---
@@ -101,70 +102,84 @@ Previous conversation context (use this to understand the full scope of the requ
 {{/if}}
 
 {{#if attachedFiles.length}}
-Attached Files (analyze for visual cues, specific elements, style preferences, or explicit requirements mentioned in text):
+Attached Files:
 {{#each attachedFiles}}
 - File: {{this.name}} (Type: {{this.type}})
-  {{#if this.dataUri}}(Image content: {{media url=this.dataUri}}){{/if}}
-  {{#if this.textContent}}(Text content: {{{this.textContent}}}){{/if}}
----
+  {{#if this.dataUri}}
+    (This is an image. Analyze its content for design inspiration: {{media url=this.dataUri}})
+  {{else if this.textContent}}
+    Content of {{this.name}}:
+    {{{this.textContent}}}
+  {{else}}
+    (This file content is not directly viewable, but its existence might be relevant to the design needs.)
+  {{/if}}
 {{/each}}
 {{/if}}
 
-**Design Input Text (Primary focus for idea generation, interpret within the full context above):**
-"{{{designInputText}}}"
+Design Input Text: {{{designInputText}}}
 
-**Tasks:**
+**Instructions:**
+1. First, identify or extract any specific text, saying, quote or theme that should be the focal point of designs.
+2. Search the web (simulated) for 2-3 inspirational examples related to this text/saying/theme.
+3. Generate 5-10 search keywords highly specific to this design request. These keywords should help the user find relevant design inspiration when searched on Google.
+4. Generate 3 categories of design ideas:
+   a. **Graphics-Focused Creative Ideas (4)**: Generate EXACTLY FOUR detailed graphics-focused design ideas. These should emphasize visual elements, with the text/saying incorporated into the overall design.
+   b. **Typography-Focused Ideas (3)**: Generate EXACTLY THREE ideas where typography is the primary focus. The text itself should be the main visual element, using creative font choices and typographic treatments.
+   c. **Typography with Graphics Ideas (3)**: Generate EXACTLY THREE ideas that blend interesting typography treatments with complementary graphic elements.
 
-1.  **Identify Core Text(s)/Saying(s)/Theme(s):** Determine the core text(s), slogan(s), saying(s), or theme(s) from the "Design Input Text" AND the "Previous conversation context" that should be the focus of the design(s). If multiple distinct subjects for design are apparent, acknowledge them. Populate \`extractedTextOrSaying\` with a concise summary or the primary text.
+**For each idea, include:**
+- Visual style and concept
+- Key visual elements
+- Color palette recommendations
+- How the text is incorporated
+- Any specific graphic techniques or effects
+- Typography suggestions where relevant
 
-2.  **Simulated Web Inspiration (Field: \`simulatedWebInspiration\`):**
-    *   Begin each item with a relevant emoji (🔍, 🌐, 📱, etc.) to visually distinguish each resource
-    *   Based on the identified core text(s)/theme(s), generate 2-3 *simulated* web search results or inspirational examples.
-    *   Each result must have a plausible \`title\`, a conceptual \`link\` (e.g., "dribbble.com/coffee-logo-concepts", "behance.net/minimalist-typography-posters"), and a brief, relevant \`snippet\`.
-    *   Format the links and descriptions in a consistent, easily scannable structure.
-    *   You are NOT browsing the live web. Create realistic-sounding examples. If input is too vague, provide general design inspiration relevant to potential themes.
+**Example Format for Graphics-Focused Idea:**
+"Flat Illustration Style: Coffee bean character holding a trophy against a sunrise background. Uses warm oranges and browns with teal accents. Text 'Coffee Beats Everything' curved around the trophy in a bold sans-serif font. Incorporates playful shadow effects and minimal shapes."
 
-3.  **Creative Design Ideas (Field: \`creativeDesignIdeas\`):**
-    *   Each idea should begin with a distinctive emoji (🎨, 💡, ✨, etc.) that represents its theme or concept
-    *   Number each idea clearly (e.g., "Idea 1: The 'Superhero Dad' Emblem")
-    *   Generate FIVE distinct, **highly detailed, specific, and well-directed** creative design ideas. These should be production-ready concepts.
-    *   For each idea, use a structured format with multiple paragraphs and clear separation between sections:
-        *   First line: Title of the design (e.g., "The 'Dad Bod' Super Dad Emblem")
-        *   **Concept:** (New paragraph) Clearly describe the core concept and narrative.
-        *   **Style:** (New paragraph) Specify the artistic style (e.g., vintage, minimalist, retro comic, abstract, geometric, illustrative, photographic).
-        *   **Visual Elements:** (New paragraph) Detail all key visual elements, objects, characters, or symbols. Describe their appearance and interaction.
-        *   **Color Palette:** (New paragraph) Suggest a specific color palette (e.g., "monochromatic blues with a gold accent," "earthy tones of brown, green, and terracotta").
-        *   **Text Incorporation:** (New paragraph) Explain how the text/saying is integrated into the design (e.g., "arched above the central graphic," "interwoven with illustrative elements," "boldly centered").
-        *   **Overall Mood/Feeling:** (New paragraph) Describe the intended emotional impact (e.g., "playful and energetic," "sophisticated and modern," "nostalgic and warm").
-    *   Ensure clear visual separation between different ideas using multiple line breaks.
+**Example Format for Typography-Focused Idea:**
+"Dynamic Type Stack: The phrase 'Coffee Beats Everything' arranged in a stacked formation with varying font weights. 'COFFEE' in extra-bold condensed type, 'BEATS' in medium italic, and 'EVERYTHING' in extended type. Uses an espresso brown to cream gradient with textured distressing for a vintage feel."
 
-4.  **Typography Design Ideas (Field: \`typographyDesignIdeas\`):**
-    *   Prefix each typography idea with a relevant emoji (🔤, 📝, 🖋️, etc.)
-    *   Number each idea clearly (e.g., "Typography Idea 1: 'WORLD'S BEST DAD' with Layered Depth")
-    *   Generate FIVE distinct, **highly detailed and specific** creative typography-focused design ideas. These should emphasize unique and impactful typographic treatments with minimal or optional graphics.
-    *   Use a consistent structured format for each idea:
-        *   **Font Style:** Describe the specific font style (e.g., "bold condensed sans-serif," "elegant flowing script," "distressed vintage serif," "futuristic display font").
-        *   **Layout & Composition:** Detail how the text is arranged (e.g., "stacked vertically," "circular arrangement," "text forming a specific shape").
-        *   **Typographic Effects:** Mention any effects (e.g., "3D extrusion," "neon glow," "letterpress deboss," "interlocking ligatures").
-        *   **Color & Treatment:** Suggest colors for the text and any subtle background treatments.
-        *   **Overall Aesthetic:** (e.g., "Clean and corporate," "Grungy and urban," "Playful and whimsical").
-    *   Use clear line breaks to separate different aspects of each typography idea.
+**Example Format for Typography with Graphics Idea:**
+"Neon Sign Concept: 'Coffee Beats Everything' in handwritten neon script, glowing blue against a dark background. Coffee cup silhouette in pink neon underneath with steam particles rising to form subtle musical notes, suggesting coffee's energizing rhythm."
 
-5.  **Typography with Graphics Ideas (Field: \`typographyWithGraphicsIdeas\`):**
-    *   Prefix each idea with a relevant emoji (🎭, 🖌️, 🎨, 🏷️, etc.)
-    *   Number each idea clearly (e.g., "Typography & Graphics Idea 1: 'Dad Life' with Playful Tool Icons")
-    *   Generate FIVE distinct typography designs featuring simple graphics and ornaments.
-    *   For each idea, use a structured format with multiple paragraphs and clear separation between sections:
-        *   First line: Title of the design
-        *   **Concept:** (New paragraph) Describe the core concept combining typography with simple graphics.
-        *   **Typography Focus:** (New paragraph) Detail the font choices, text arrangement, and typographic treatments.
-        *   **Graphic Elements:** (New paragraph) Describe the simple graphics, ornaments, or decorative elements that complement the typography (not overpower it).
-        *   **Relationship:** (New paragraph) Explain how the graphics enhance the typography while keeping text as the main focus.
-        *   **Color Scheme:** (New paragraph) Suggest a color palette that works for both the text and graphic elements.
-        *   **Overall Feel:** (New paragraph) Describe the intended aesthetic impact (e.g., "playful yet elegant," "subtly decorated," "harmoniously balanced").
-    *   Ensure clear visual separation between different ideas using multiple line breaks.
+Follow these examples for structure but create entirely original ideas based on the specific text/saying provided.
 
-Ensure your entire response is a single JSON object matching the \`GenerateDesignIdeasOutputSchema\`.
+Output Format:
+{
+  "extractedTextOrSaying": "The specific text/saying from the input",
+  "simulatedWebInspiration": [
+    {
+      "title": "Inspirational example title",
+      "link": "example.com/inspirational-design",
+      "snippet": "Brief description of this inspiration"
+    }
+  ],
+  "searchKeywords": [
+    "keyword1 relevant to this specific design",
+    "keyword2 relevant to this design",
+    "keyword3 specific to elements in this design",
+    "keyword4 focused on style of this design",
+    "keyword5 about similar designs"
+  ],
+  "graphicsCreativeIdeas": [
+    "Detailed graphics-focused idea 1...",
+    "Detailed graphics-focused idea 2...",
+    "Detailed graphics-focused idea 3...",
+    "Detailed graphics-focused idea 4..."
+  ],
+  "typographyDesignIdeas": [
+    "Detailed typography-focused idea 1...",
+    "Detailed typography-focused idea 2...",
+    "Detailed typography-focused idea 3..."
+  ],
+  "typographyWithGraphicsIdeas": [
+    "Detailed mixed typography and graphics idea 1...",
+    "Detailed mixed typography and graphics idea 2...",
+    "Detailed mixed typography and graphics idea 3..."
+  ]
+}
 `,
   });
   

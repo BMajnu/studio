@@ -36,24 +36,50 @@ export type ActionType =
   | 'promptWithCustomSense'
   | 'promptForMicroStockMarkets';
 
-export interface ChatMessageContentPart {
-  type: 'text' | 'code' | 'list' | 'translation_group' | 'custom' | 'suggested_replies' | 'top_designs' | 'design_idea' | 'design_ideas_group' | 'prompt_tabs' | 'custom_prompts_tabs' | 'microstock_results_tabs';
-  title?: string; 
-  text?: string; 
-  code?: string; 
-  language?: string; 
-  items?: string[]; 
-  english?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; 
-  bengali?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; 
-  suggestions?: { english: string[], bengali: string[] }; // For suggested_replies type
-  data?: any; // For top_designs type, holds the CheckBestDesignOutput data
-  ideas?: { category: string, items: string[] }[]; // For design_ideas_group type, holds ideas grouped by category
-  imageDataUri?: string; // For prompt_tabs type, holds the image data URI
-  exactReplicationPrompt?: string; // For prompt_tabs type
-  similarWithTweaksPrompt?: string; // For prompt_tabs type
-  sameNichePrompt?: string; // For prompt_tabs type
-  customPrompts?: { title: string, prompt: string }[]; // For custom_prompts_tabs type, holds all custom prompts
-  microstockResults?: { 
+export interface DesignListItem {
+  id: string;
+  title: string;
+  description: string;
+  textContent?: string;
+}
+
+export interface BilingualContent {
+  english: string | string[];
+  bengali: string | string[];
+}
+
+export type ChatMessageContentPart =
+  | { type: 'text'; title?: string; text: string }
+  | { type: 'code'; title?: string; language?: string; code: string }
+  | { type: 'list'; title?: string; items: string[] }
+  | { 
+      type: 'translation_group'; 
+      title?: string; 
+      english?: { 
+        analysis?: string; 
+        simplifiedRequest?: string; 
+        stepByStepApproach?: string 
+      }; 
+      bengali?: { 
+        analysis?: string; 
+        simplifiedRequest?: string; 
+        stepByStepApproach?: string 
+      } 
+    }
+  | { 
+      type: 'bilingual_analysis';
+      title?: string;
+      keyPoints: BilingualContent;
+      detailedRequirements: BilingualContent;
+      designMessage: BilingualContent;
+      nicheAndAudience: BilingualContent;
+      designItems: {
+        english: DesignListItem[];
+        bengali: DesignListItem[];
+      };
+    }
+  | { type: 'search_keywords'; title?: string; keywords: Array<{ text: string, url: string }> }
+  | { type: 'custom'; title?: string; text?: string; code?: string; language?: string; items?: string[]; english?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; bengali?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; suggestions?: { english: string[], bengali: string[] }; data?: any; ideas?: { category: string, items: string[] }[]; imageDataUri?: string; exactReplicationPrompt?: string; similarWithTweaksPrompt?: string; sameNichePrompt?: string; customPrompts?: { title: string, prompt: string }[]; microstockResults?: { 
     prompt: string; 
     metadata: { 
       title: string; 
@@ -61,8 +87,30 @@ export interface ChatMessageContentPart {
       mainCategory: string; 
       subcategory: string; 
     }; 
-  }[]; // For microstock_results_tabs type, holds microstock prompts with metadata
-}
+  }[]; }
+  | { type: 'suggested_replies'; title?: string; text?: string; english?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; bengali?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; suggestions?: { english: string[], bengali: string[] } }
+  | { type: 'top_designs'; title?: string; text?: string; code?: string; language?: string; items?: string[]; english?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; bengali?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; data?: any }
+  | { type: 'design_idea'; title?: string; text?: string; code?: string; language?: string; english?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; bengali?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; imageDataUri?: string }
+  | { type: 'design_ideas_group'; title?: string; ideas: { category: string, items: string[] }[] }
+  | { type: 'prompt_tabs'; title?: string; text?: string; code?: string; language?: string; english?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; bengali?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; imageDataUri?: string; exactReplicationPrompt?: string; similarWithTweaksPrompt?: string; sameNichePrompt?: string; customPrompts?: { title: string, prompt: string }[]; microstockResults?: { 
+    prompt: string; 
+    metadata: { 
+      title: string; 
+      keywords: string[]; 
+      mainCategory: string; 
+      subcategory: string; 
+    }; 
+  }[] }
+  | { type: 'custom_prompts_tabs'; title?: string; text?: string; code?: string; language?: string; english?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; bengali?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; customPrompts?: { title: string, prompt: string }[] }
+  | { type: 'microstock_results_tabs'; title?: string; text?: string; code?: string; language?: string; english?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; bengali?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; microstockResults?: { 
+    prompt: string; 
+    metadata: { 
+      title: string; 
+      keywords: string[]; 
+      mainCategory: string; 
+      subcategory: string; 
+    }; 
+  }[] }
 
 export interface AttachedFile {
   name: string;
@@ -76,6 +124,7 @@ export interface EditHistoryEntry {
   content: string | ChatMessageContentPart[]; // User message content for this version
   timestamp: number; // Timestamp of this user message version
   attachedFiles?: AttachedFile[];
+  actionType?: ActionType; // The action type used for this message version
   linkedAssistantMessageId?: string; // ID of the assistant message that responded to THIS user version
 }
 
@@ -88,6 +137,7 @@ export interface ChatMessage {
   isError?: boolean;
   profileUsed?: Partial<UserProfile>; 
   attachedFiles?: AttachedFile[]; 
+  actionType?: ActionType; // Action type used to generate this message
   canRegenerate?: boolean; // For assistant messages
   originalRequest?: { // For assistant messages, to enable regeneration
     actionType: ActionType;

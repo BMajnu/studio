@@ -47,7 +47,9 @@ const GenerateDesignPromptsPromptInputSchema = z.object({
 });
 
 const GenerateDesignPromptsOutputSchema = z.object({
-  imagePrompts: z.array(z.string()).describe("An array of highly detailed prompts suitable for AI image generation, each corresponding to a design idea. Each prompt should be in its own string."),
+  graphicsPrompts: z.array(z.string()).length(4).describe("Exactly 4 detailed prompts for graphics-focused designs, matching the style, concept, and elements of the graphics creative ideas."),
+  typographyPrompts: z.array(z.string()).length(3).describe("Exactly 3 detailed prompts for typography-focused designs, matching the style, concept, and elements of the typography design ideas."),
+  mixedPrompts: z.array(z.string()).length(3).describe("Exactly 3 detailed prompts for designs combining typography and graphics, matching the style, concept, and elements of the typography with graphics ideas.")
 });
 export type GenerateDesignPromptsOutput = z.infer<typeof GenerateDesignPromptsOutputSchema>;
 
@@ -75,14 +77,14 @@ export async function generateDesignPrompts(flowInput: GenerateDesignPromptsInpu
     name: `${flowName}Prompt_${Date.now()}`,
     input: { schema: GenerateDesignPromptsPromptInputSchema },
     output: { schema: GenerateDesignPromptsOutputSchema },
-    prompt: `You are an expert AI Prompt Engineer for a graphic designer named {{{userName}}}.
+    prompt: `You are an expert AI Image Prompt Generator for a graphic designer named {{{userName}}}.
 Their communication style is: {{{communicationStyleNotes}}}.
 
-**Objective:** Convert design ideas (found in the client's current message or recent chat history from the assistant) into highly detailed prompts for AI image generation.
+**Objective:** Create detailed AI image generation prompts for three categories of design ideas: Graphics-Focused, Typography-Focused, and Mixed Typography with Graphics.
 
 **Context:**
 {{#if chatHistory.length}}
-Previous conversation context (look for design ideas here, especially in recent assistant messages, if not in the current client message):
+Previous conversation context:
 {{#each chatHistory}}
 {{this.role}}: {{{this.text}}}
 ---
@@ -90,61 +92,63 @@ Previous conversation context (look for design ideas here, especially in recent 
 {{/if}}
 
 {{#if attachedFiles.length}}
-Attached Files (for additional context, if any):
+Attached Files:
 {{#each attachedFiles}}
 - File: {{this.name}} (Type: {{this.type}})
-  {{#if this.dataUri}}(Image content: {{media url=this.dataUri}}){{/if}}
-  {{#if this.textContent}}(Text content: {{{this.textContent}}}){{/if}}
----
+  {{#if this.dataUri}}
+    (This is an image. Analyze its content for design inspiration: {{media url=this.dataUri}})
+  {{else if this.textContent}}
+    Content of {{this.name}}:
+    {{{this.textContent}}}
+  {{else}}
+    (This file content is not directly viewable, but its existence might be relevant to the design needs.)
+  {{/if}}
 {{/each}}
 {{/if}}
 
-**Client's Current Message (may contain design ideas or refer to previously generated ideas):**
-"{{{clientMessage}}}"
+Client's Message: {{{clientMessage}}}
 
-**Task: Generate AI Image Generation Prompts**
+**Instructions:**
+1. Based on the client's message and any recent conversation history, identify the key design ideas in three categories:
+   - Graphics-Focused Creative Ideas (4 ideas)
+   - Typography-Focused Ideas (3 ideas)
+   - Typography with Graphics Ideas (3 ideas)
 
-1.  **Identify Design Ideas:**
-    *   Carefully analyze the "Client's Current Message" and the "Previous conversation context" (especially the most recent assistant messages, which contain design ideas from a "Design Idea" generation step).
-    *   Identify ALL design concepts in the conversation, categorized into three types:
-        * Creative Design Ideas (5 ideas)
-        * Typography Design Ideas (5 ideas)
-        * Typography with Graphics Ideas (5 ideas)
-    *   Generate prompts for ALL 15 ideas, creating a total of 15 detailed prompts (5 for each category).
-    *   If the user's message specifies particular ideas to focus on, prioritize those while still covering all categories.
+2. For each category, create detailed AI image generation prompts that would produce high-quality, professional results:
+   - For GRAPHICS-FOCUSED designs: Create EXACTLY 4 detailed prompts with clear visual descriptions, style references, color palettes, and composition details.
+   - For TYPOGRAPHY-FOCUSED designs: Create EXACTLY 3 detailed prompts emphasizing font styles, text layouts, typographic treatments, and minimal supporting graphics.
+   - For MIXED TYPOGRAPHY WITH GRAPHICS designs: Create EXACTLY 3 detailed prompts that balance both typography and graphic elements in an integrated design.
 
-2.  **For EACH identified design idea, create ONE detailed image generation prompt:**
-    *   **Extremely Detailed:** Each prompt must be highly detailed and comprehensive (150-200 words minimum). Include extensive specifics about:
-        * Subject matter and core concept
-        * Artistic style (e.g., vintage, minimalist, retro comic, abstract, geometric, illustrative, photographic)
-        * Composition, layout, and visual hierarchy
-        * Detailed color palette with specific color names and relationships
-        * Lighting effects, shadows, and highlights
-        * Texture and material qualities
-        * Artistic medium and technique references
-        * Artist influences or style references (e.g., "in the style of...")
-        * Mood, emotional tone, and atmosphere
-        * Any text elements and their typographic treatment
-        * Background treatment in detail
-    *   **Professional Formatting:** Structure the prompt with commas separating descriptive elements, with most important elements first.
-    *   **Technical Specificity:** Use precise design terminology that would be recognized by professional designers and artists.
-    *   **Use Professional Design Terminology:**
-        *   Do NOT use terms like "T-shirt," "Mug," "POD," "poster," "flyer," etc.
-        *   Instead, use expanded, detailed terminology like "sophisticated typography design with balanced hierarchy," "intricate vector illustration with detailed line work," "conceptual graphic design with symbolic elements," "authentic vintage aesthetic print with distressed textures," "refined minimalist graphic with negative space composition," "bold apparel graphic concept with dynamic flow," "intricate surface pattern design with repeating motifs," "distinctive product packaging graphic with harmonious visual language."
-    *   **Detailed Background Treatment:** Don't simply specify a "solid background" - instead, describe the background in detail. For example: "Deep matte black background with subtle gradient vignetting to create depth," or "Clean white background with delicate off-white textural elements that create visual interest while maintaining simplicity." Choose a background approach (black, white, or a specific color palette if implied by the idea) that perfectly complements and enhances the design concept.
-    *   **Front/Back Designs (If Applicable):**
-        *   If a design idea explicitly mentions or implies separate front and back designs (common for apparel graphics), generate TWO separate prompts: one for the "front graphic concept" and one for the "back graphic concept." Clearly indicate this in the prompt (e.g., "Front graphic concept: ...", "Back graphic concept: ..."). If not mentioned, generate a single prompt for the overall design.
-    *   **Focus:** The prompts should be for generating the *visual design itself*, not the mockup (e.g., not "a t-shirt with this design on it," but "a vector illustration of...").
+3. Each prompt should follow this structure:
+   - Start with a clear art direction (e.g., "Professional corporate logo", "Minimalist poster design")
+   - Include specific style references (e.g., "in the style of Swiss Design", "with Art Deco influences")
+   - Specify composition details (e.g., "centered composition with negative space", "asymmetrical layout")
+   - Mention color palette (e.g., "using a monochromatic blue palette", "with vibrant complementary colors")
+   - Include technical specifications (e.g., "high contrast", "with subtle texture", "sharp focus")
+   - End with quality indicators (e.g., "professional quality", "award-winning design", "trending on Behance")
 
-3.  **Output Format:**
-    *   The final output MUST be a JSON object with a single key "imagePrompts", which is an array of strings.
-    *   Each string in the array is one complete, detailed image generation prompt.
-    *   Do NOT number the prompts or add any headings within the strings in the "imagePrompts" array.
+**Example Prompt Format:**
+"Professional branding design for a coffee shop, featuring a stylized coffee bean character holding a trophy, in flat illustration style, warm orange and brown color palette with teal accents, centered composition with the text 'Coffee Beats Everything' curved around the trophy in bold sans-serif font, incorporating playful shadow effects and minimal shapes, high-quality vector style, trending on Dribbble, professional graphic design"
 
-**Example of ONE output prompt string (within the array):**
-"Highly detailed vector illustration of a majestic wolf with textured fur rendered in meticulous line art, howling dramatically at a geometric low-poly moon. Intricate cosmic background featuring swirling nebulae with star clusters and subtle sacred geometry patterns. Rich color palette of deep indigo blues transitioning to royal purples with silver metallic accents and subtle iridescent highlights. Dramatic lighting with moonlight casting cool blue highlights on the wolf's silhouette. Art style combines modern digital illustration with cosmic mysticism, influenced by artists like James R. Eads and Justin Maller. Emotional tone conveys wonder and primal connection. Composition places wolf in golden ratio position with balanced negative space. Design incorporates subtle textures resembling traditional printmaking. Negative space utilized intentionally in cosmic background. Solid matte black background for maximum contrast. Suitable for apparel graphic design with high detail preservation."
-
-Generate the prompts based on the ideas you find. If no clear ideas are present, you can state that in a single prompt within the array, like "No specific design ideas found to generate prompts for. Please provide design ideas or use the 'Idea' feature first."
+Output Format:
+{
+  "graphicsPrompts": [
+    "Detailed graphics-focused prompt 1...",
+    "Detailed graphics-focused prompt 2...",
+    "Detailed graphics-focused prompt 3...",
+    "Detailed graphics-focused prompt 4..."
+  ],
+  "typographyPrompts": [
+    "Detailed typography-focused prompt 1...",
+    "Detailed typography-focused prompt 2...",
+    "Detailed typography-focused prompt 3..."
+  ],
+  "mixedPrompts": [
+    "Detailed mixed typography and graphics prompt 1...",
+    "Detailed mixed typography and graphics prompt 2...",
+    "Detailed mixed typography and graphics prompt 3..."
+  ]
+}
 `,
   });
   
@@ -160,5 +164,4 @@ Generate the prompts based on the ideas you find. If no clear ideas are present,
     console.error(`ERROR (${flowName}): AI call failed (API key source: ${apiKeySourceForLog}). Error:`, error);
     throw new Error(`AI call failed in ${flowName}. Please check server logs for details. Original error: ${(error as Error).message}`);
   }
-}
-    
+} 

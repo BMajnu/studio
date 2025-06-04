@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Settings, Menu, HelpCircle, Sun, Moon, LogOut, LogIn, XIcon, Languages } from 'lucide-react';
+import { Home, Settings, Menu, HelpCircle, Sun, Moon, LogOut, LogIn, XIcon, Languages, ArrowUpToLine, ArrowDownToLine } from 'lucide-react';
 import { DesAInRLogo } from '@/components/icons/logo';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import React, { useState, useEffect } from 'react';
 import { FeaturesGuideModal } from '@/components/features-guide-modal';
 import { useAuth } from '@/contexts/auth-context';
+import { useAppHeader } from '@/contexts/app-header-context';
 import {
   Dialog,
   DialogContent as ModalContent, 
@@ -44,6 +45,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [effectiveTheme, setEffectiveTheme] = useState<'light' | 'dark'>('light');
   const [currentLanguage, setCurrentLanguage] = useState<'en' | 'bn'>('en');
   const { user, signOut, loading: authLoading } = useAuth();
+  const { isAppHeaderCollapsed, toggleAppHeader } = useAppHeader();
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
@@ -254,110 +256,133 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const sheetTitle = currentLanguage === 'bn' ? 'মেনু' : 'Menu';
 
   return (
-    <div className="flex min-h-screen max-h-screen flex-col" style={{ "--header-height": "4rem" } as React.CSSProperties}>
-      <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b bg-background/60 px-4 backdrop-blur-xl shrink-0 shadow-lg glass-panel animate-fade-in">
-        <Link href="/" className="flex items-center gap-2 transition-all duration-300 ease-in-out hover:opacity-90 hover:scale-110 group">
-          <div className="relative overflow-hidden rounded-full p-1 transition-all duration-300 group-hover:shadow-md group-hover:shadow-primary/20">
-            <DesAInRLogo className="animate-pulse-slow" />
-          </div>
-        </Link>
-
-        <div className="flex items-center gap-2">
-          {user && (
-            <div className="text-sm font-medium bg-gradient-to-r from-primary/20 to-secondary/20 px-4 py-1.5 rounded-full mr-2 hidden md:flex items-center animate-fade-in shadow-sm">
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
-                {welcomeMessageText}
-              </span>
+    <div className="flex min-h-screen max-h-screen flex-col" style={{ "--header-height": isAppHeaderCollapsed ? "0px" : "4rem" } as React.CSSProperties}>
+      <div className="relative">
+        <header 
+          className={`sticky top-0 z-50 flex h-16 items-center justify-between border-b bg-background/60 px-4 backdrop-blur-xl shrink-0 shadow-lg glass-panel animate-fade-in transition-all duration-300 ${
+            isAppHeaderCollapsed ? "transform scale-y-0 h-0 opacity-0 overflow-hidden" : ""
+          }`}
+        >
+          <Link href="/" className="flex items-center gap-2 transition-all duration-300 ease-in-out hover:opacity-90 hover:scale-110 group">
+            <div className="relative overflow-hidden rounded-full p-1 transition-all duration-300 group-hover:shadow-md group-hover:shadow-primary/20">
+              <DesAInRLogo className="animate-pulse-slow" />
             </div>
-          )}
-          <nav className="hidden md:flex items-center space-x-2 animate-fade-in">
-            {navItems.map((item, index) => (
-              <div key={`nav-${index}`} className="animate-stagger" style={{ animationDelay: `${index * 100}ms` }}>
-                {renderNavItem(item, false)}
-              </div>
-            ))}
-          </nav>
-          
-          <div className="flex items-center space-x-2 ml-auto md:ml-4 animate-fade-in">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  rounded="full" 
-                  glow
-                  animate
-                  className="backdrop-blur-sm border border-border/20 shadow-sm hover:shadow-md hover:bg-primary/10 transition-all duration-300 ease-in-out" 
-                  aria-label={srChangeLanguage}
-                >
-                  <Languages className="h-5 w-5 text-foreground/80 hover:text-primary transition-colors" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="glass-panel backdrop-blur-md border-border/30 shadow-lg animate-fade-in">
-                <DropdownMenuItem 
-                  onClick={() => changeLanguage('en')} 
-                  className={`${currentLanguage === 'en' ? "bg-primary/20 text-primary" : ""} transition-colors hover:text-primary hover:bg-primary/10`}
-                >
-                  English
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => changeLanguage('bn')} 
-                  className={`${currentLanguage === 'bn' ? "bg-primary/20 text-primary" : ""} transition-colors hover:text-primary hover:bg-primary/10`}
-                >
-                  বাংলা (Bengali)
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          </Link>
 
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              rounded="full" 
-              glow
-              animate
-              className="backdrop-blur-sm border border-border/20 shadow-sm hover:shadow-md hover:bg-primary/10 transition-all duration-300 ease-in-out" 
-              onClick={toggleTheme} 
-              aria-label={srToggleTheme}
-            >
-              {effectiveTheme === 'dark' ? 
-                <Moon className="h-5 w-5 text-foreground/80 hover:text-primary transition-colors" /> : 
-                <Sun className="h-5 w-5 text-foreground/80 hover:text-primary transition-colors" />}
-            </Button>
-          
-            <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
-              <SheetTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  rounded="full" 
-                  glow
-                  animate
-                  className="md:hidden backdrop-blur-sm border border-border/20 shadow-sm hover:shadow-md hover:bg-primary/10 transition-all duration-300 ease-in-out" 
-                  aria-label={srToggleMenu}
-                >
-                  <span className="sr-only">{srMainMenu}</span>
-                  {isMobileSheetOpen ? <XIcon className="h-5 w-5" /> : <Menu className="h-5 w-5 text-foreground/80 hover:text-primary transition-colors" />}
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-72 glass-panel backdrop-blur-lg border-r border-border/20 shadow-xl">
-                <SheetHeader className="space-y-1 text-left">
-                  <SheetTitle className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
-                     {sheetTitle}
-                  </SheetTitle>
-                </SheetHeader>
-                <nav className="flex flex-col space-y-3 mt-8">
-                  {navItems.map((item, index) => (
-                    <div key={`mobile-nav-${index}`} className="animate-stagger" style={{ animationDelay: `${index * 150}ms` }}>
-                      {renderNavItem(item, true)}
-                    </div>
-                  ))}
-                </nav>
-              </SheetContent>
-            </Sheet>
+          <div className="flex items-center gap-2">
+            {user && (
+              <div className="text-sm font-medium bg-gradient-to-r from-primary/20 to-secondary/20 px-4 py-1.5 rounded-full mr-2 hidden md:flex items-center animate-fade-in shadow-sm">
+                <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+                  {welcomeMessageText}
+                </span>
+              </div>
+            )}
+            <nav className="hidden md:flex items-center space-x-2 animate-fade-in">
+              {navItems.map((item, index) => (
+                <div key={`nav-${index}`} className="animate-stagger" style={{ animationDelay: `${index * 100}ms` }}>
+                  {renderNavItem(item, false)}
+                </div>
+              ))}
+            </nav>
+            
+            <div className="flex items-center space-x-2 ml-auto md:ml-4 animate-fade-in">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    rounded="full" 
+                    glow
+                    animate
+                    className="backdrop-blur-sm border border-border/20 shadow-sm hover:shadow-md hover:bg-primary/10 transition-all duration-300 ease-in-out" 
+                    aria-label={srChangeLanguage}
+                  >
+                    <Languages className="h-5 w-5 text-foreground/80 hover:text-primary transition-colors" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="glass-panel backdrop-blur-md border-border/30 shadow-lg animate-fade-in">
+                  <DropdownMenuItem 
+                    onClick={() => changeLanguage('en')} 
+                    className={`${currentLanguage === 'en' ? "bg-primary/20 text-primary" : ""} transition-colors hover:text-primary hover:bg-primary/10`}
+                  >
+                    English
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => changeLanguage('bn')} 
+                    className={`${currentLanguage === 'bn' ? "bg-primary/20 text-primary" : ""} transition-colors hover:text-primary hover:bg-primary/10`}
+                  >
+                    বাংলা (Bengali)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                rounded="full" 
+                glow
+                animate
+                className="backdrop-blur-sm border border-border/20 shadow-sm hover:shadow-md hover:bg-primary/10 transition-all duration-300 ease-in-out" 
+                onClick={toggleTheme} 
+                aria-label={srToggleTheme}
+              >
+                {effectiveTheme === 'dark' ? 
+                  <Moon className="h-5 w-5 text-foreground/80 hover:text-primary transition-colors" /> : 
+                  <Sun className="h-5 w-5 text-foreground/80 hover:text-primary transition-colors" />}
+              </Button>
+            
+              <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
+                <SheetTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    rounded="full" 
+                    glow
+                    animate
+                    className="md:hidden backdrop-blur-sm border border-border/20 shadow-sm hover:shadow-md hover:bg-primary/10 transition-all duration-300 ease-in-out" 
+                    aria-label={srToggleMenu}
+                  >
+                    <span className="sr-only">{srMainMenu}</span>
+                    {isMobileSheetOpen ? <XIcon className="h-5 w-5" /> : <Menu className="h-5 w-5 text-foreground/80 hover:text-primary transition-colors" />}
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-72 glass-panel backdrop-blur-lg border-r border-border/20 shadow-xl">
+                  <SheetHeader className="space-y-1 text-left">
+                    <SheetTitle className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+                       {sheetTitle}
+                    </SheetTitle>
+                  </SheetHeader>
+                  <nav className="flex flex-col space-y-3 mt-8">
+                    {navItems.map((item, index) => (
+                      <div key={`mobile-nav-${index}`} className="animate-stagger" style={{ animationDelay: `${index * 150}ms` }}>
+                        {renderNavItem(item, true)}
+                      </div>
+                    ))}
+                  </nav>
+                </SheetContent>
+              </Sheet>
+            </div>
           </div>
+        </header>
+        
+        {/* App Header Toggle Button */}
+        <div className="absolute left-1/2 -translate-x-1/2 z-50 top-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleAppHeader}
+            className={`h-6 w-10 rounded-b-full rounded-t-none bg-card shadow-md hover:bg-accent hover:text-accent-foreground p-0 border border-border transition-all duration-300 hover:shadow-lg ${
+              isAppHeaderCollapsed ? "mt-0" : "mt-16"  // When expanded, push button to bottom of header
+            }`}
+            aria-label={isAppHeaderCollapsed ? "Expand app header" : "Collapse app header"}
+            aria-expanded={!isAppHeaderCollapsed}
+          >
+            {isAppHeaderCollapsed ? <ArrowDownToLine className="h-3 w-3" /> : <ArrowUpToLine className="h-3 w-3" />}
+          </Button>
         </div>
-      </header>
-      <main className="flex-1 flex flex-col overflow-hidden h-[calc(100vh-4rem)] w-full">
+      </div>
+      
+      <main className="flex-1 flex flex-col overflow-hidden h-[calc(100vh-var(--header-height,0px))] w-full">
         {children}
       </main>
 

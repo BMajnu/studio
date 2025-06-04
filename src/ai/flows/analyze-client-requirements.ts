@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview Analyzes client requirements from a message and attachments, providing structured output.
@@ -26,6 +25,13 @@ const ChatHistoryMessageSchema = z.object({
   text: z.string(),
 });
 
+const DesignListItemSchema = z.object({
+  id: z.string().describe("Unique identifier for the design item"),
+  title: z.string().describe("Title/name of the design item"),
+  description: z.string().describe("Brief description of the design"),
+  textContent: z.string().optional().describe("Text/saying/quote if included in this design")
+});
+
 // Schema for the flow's input, including modelId and userApiKey
 const AnalyzeClientRequirementsFlowInputSchema = z.object({
   clientMessage: z.string().describe('The current client message to process.'),
@@ -49,10 +55,16 @@ const AnalyzeClientRequirementsPromptInputSchema = z.object({
 
 
 const AnalyzeClientRequirementsOutputSchema = z.object({
-  mainRequirementsAnalysis: z.string().describe('Paragraph 1: Identification and analysis of the client\'s main requirements.'),
-  detailedRequirementsEnglish: z.string().describe('Paragraph 2: Detailed breakdown of all requirements in English, specifying which should be prioritized and which can be overlooked, with proper reasoning. Ensure no requirements are skipped.'),
-  detailedRequirementsBangla: z.string().describe('Paragraph 3: Detailed breakdown of all requirements in Bangla, specifying which should be prioritized and which can be overlooked, with proper reasoning. Ensure no requirements are skipped.'),
-  designMessageOrSaying: z.string().describe('Paragraph 4: The message, text, slogan, or saying that should be part of the design. If none, state that clearly.'),
+  keyPointsEnglish: z.array(z.string()).describe('Key requirement points in English, presented as bullet points for easy reading'),
+  keyPointsBengali: z.array(z.string()).describe('Key requirement points in Bengali, presented as bullet points for easy reading'),
+  detailedRequirementsEnglish: z.string().describe('Detailed explanation of all requirements in English, using simplified expert-to-beginner language that explains what should be prioritized and why'),
+  detailedRequirementsBengali: z.string().describe('Detailed explanation of all requirements in Bengali, using simplified expert-to-beginner language that explains what should be prioritized and why'),
+  designMessageEnglish: z.string().describe('The message, text, slogan, or saying that should be part of the design in English. If none, state that clearly'),
+  designMessageBengali: z.string().describe('The message, text, slogan, or saying that should be part of the design in Bengali. If none, state that clearly'),
+  designNicheAndAudienceEnglish: z.string().describe('Information about the design niche, theme, and target audience in English'),
+  designNicheAndAudienceBengali: z.string().describe('Information about the design niche, theme, and target audience in Bengali'),
+  designItemsEnglish: z.array(DesignListItemSchema).describe('List of design items with descriptions in English'),
+  designItemsBengali: z.array(DesignListItemSchema).describe('List of design items with descriptions in Bengali')
 });
 export type AnalyzeClientRequirementsOutput = z.infer<typeof AnalyzeClientRequirementsOutputSchema>;
 
@@ -87,7 +99,7 @@ export async function analyzeClientRequirements(flowInput: AnalyzeClientRequirem
     prompt: `You are a helpful AI assistant for a graphic designer named {{{userName}}}.
 Their communication style is: {{{communicationStyleNotes}}}.
 
-Your task is to thoroughly analyze the client's request based on their latest message, any attached files, and the conversation history. Provide a structured analysis in four distinct paragraphs.
+Your task is to thoroughly analyze the client's request based on their latest message, any attached files, and the conversation history. Provide a structured bilingual analysis in English and Bengali.
 
 {{#if chatHistory.length}}
 Previous conversation context (analyze the current message in light of this history):
@@ -115,22 +127,56 @@ The client also attached the following files with their current message. Analyze
 {{/each}}
 {{/if}}
 
-Based on all the above information (latest message, attachments, and full history), provide the following four paragraphs:
+Based on all the above information (latest message, attachments, and full history), provide a comprehensive bilingual analysis split into 5 distinct sections, each in both English and Bengali:
 
-1.  **Main Requirements Analysis:** Identify and analyze the client's main requirements. What are they fundamentally asking for?
+1. **Key Requirements Points (Bullet Points)**
+   - English: Create 3-7 clear, concise bullet points capturing the essential requirements
+   - Bengali: Translate these same bullet points to Bengali
 
-2.  **Detailed Requirements (English):** Provide a detailed breakdown of *all* identified requirements in English. For each requirement, specify its priority (e.g., "High Priority/Must-have", "Medium Priority/Should-have", "Low Priority/Nice-to-have", or "Can be overlooked if necessary"). Include clear reasoning for each prioritization. Ensure *no requirement* mentioned or implied (from text or images) is skipped.
+2. **Detailed Requirements Explanation**
+   - English: Write a paragraph explaining all requirements in detail using simplified expert-to-beginner language. Specify which requirements should be prioritized and which can be considered secondary.
+   - Bengali: Translate this detailed explanation to Bengali
 
-3.  **Detailed Requirements (Bangla):** Provide a detailed breakdown of *all* identified requirements in Bangla, using the same prioritization and reasoning structure as the English section. Ensure *no requirement* is skipped. (আপনার বিস্তারিত সমস্ত প্রয়োজনীয়তা বাংলায় তালিকাভুক্ত করুন, অগ্রাধিকার এবং কারণসহ, যেমন ইংরেজিতে করেছেন।)
+3. **Design Message/Saying**
+   - English: Identify any specific text, message, slogan or saying that should be included in the design. If none is specified, clearly state that.
+   - Bengali: Translate this message/saying (or absence statement) to Bengali
 
-4.  **Design Message or Saying:** Identify any explicit or implicit message, text, slogan, or saying that should be part of the design. If no specific text is mentioned for the design, clearly state that "No specific message or saying for the design was identified in the requirements."
+4. **Design Niche, Theme and Target Audience**
+   - English: Identify the design's niche or theme and the intended audience or consumers
+   - Bengali: Translate this information to Bengali
 
-Output Format (ensure your entire response is a single JSON object matching this structure):
+5. **List of Required Designs**
+   - English: Create a structured list of all designs the client is looking for. Each design should have:
+     * A unique ID (e.g., "design_1", "design_2")
+     * A clear title describing the design
+     * A brief description of what it should include
+     * Any quotes/sayings that should be incorporated (if applicable)
+   - Bengali: Create the same structured list in Bengali
+
+Important Notes:
+- Give each design item a unique ID so it can be referenced later
+- Be specific about any text that should appear in the designs
+- If analyzing images, extract any text visible in them and note their style/theme
+- For each design, provide a basic concept idea in a single sentence
+
+Output Format (ensure your entire response is a single JSON object):
 {
-  "mainRequirementsAnalysis": "...",
-  "detailedRequirementsEnglish": "...",
-  "detailedRequirementsBangla": "...",
-  "designMessageOrSaying": "..."
+  "keyPointsEnglish": ["Point 1", "Point 2", ...],
+  "keyPointsBengali": ["বিন্দু ১", "বিন্দু ২", ...],
+  "detailedRequirementsEnglish": "Detailed explanation...",
+  "detailedRequirementsBengali": "বিস্তারিত ব্যাখ্যা...",
+  "designMessageEnglish": "The specific message/saying or statement that none exists",
+  "designMessageBengali": "নির্দিষ্ট বার্তা/বাণী অথবা কোন বার্তা নেই",
+  "designNicheAndAudienceEnglish": "Information about niche and target audience",
+  "designNicheAndAudienceBengali": "নিশ এবং টার্গেট অডিয়েন্স সম্পর্কে তথ্য",
+  "designItemsEnglish": [
+    {"id": "design_1", "title": "Design Title", "description": "What this design should include", "textContent": "Any text to include"},
+    ...
+  ],
+  "designItemsBengali": [
+    {"id": "design_1", "title": "ডিজাইনের শিরোনাম", "description": "এই ডিজাইনে কী থাকা উচিত", "textContent": "যেকোনো টেক্সট অন্তর্ভুক্ত করতে"},
+    ...
+  ]
 }
 `,
   });

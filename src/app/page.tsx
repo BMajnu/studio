@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Paperclip, Loader2, BotIcon, Menu, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw, PlusCircle, Edit3, RefreshCw, LogIn, UserPlus, Languages, X, AlertTriangle, InfoIcon, ArrowUpToLine, ArrowDownToLine } from 'lucide-react';
+import { Paperclip, Loader2, BotIcon, Menu, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw, PlusCircle, Edit3, RefreshCw, LogIn, UserPlus, Languages, X, AlertTriangle, InfoIcon, ArrowUpToLine, ArrowDownToLine, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { safeToast } from "@/lib/safe-toast";
 import { useUserProfile } from '@/lib/hooks/use-user-profile';
 import { useChatHistory } from '@/lib/hooks/use-chat-history';
+import { useAppHeader } from '@/contexts/app-header-context';
 import type { ChatMessage, UserProfile, ChatMessageContentPart, AttachedFile, ChatSession, ChatSessionMetadata, EditHistoryEntry } from '@/lib/types';
 import { processClientMessage, type ProcessClientMessageInput, type ProcessClientMessageOutput } from '@/ai/flows/process-client-message';
 import { processCustomInstruction, type ProcessCustomInstructionInput, type ProcessCustomInstructionOutput } from '@/ai/flows/process-custom-instruction';
@@ -48,6 +49,9 @@ import type { PromptWithCustomSenseOutput } from '@/ai/flows/prompt-with-custom-
 import type { PromptWithMetadata as AIPromptWithMetadata } from '@/ai/flows/prompt-for-microstock-types'; // Import type for microstock results
 import { FirebaseChatHistory } from '@/components/chat/FirebaseChatHistory';
 import { setLocalStorageItem, getLocalStorageItem } from '@/lib/storage-helpers';
+// Add import for BilingualSplitView component
+import { BilingualSplitView } from '@/components/chat/bilingual-split-view';
+import type { DesignListItem } from '@/lib/types';
 
 
 const getMessageText = (content: string | ChatMessageContentPart[] | undefined): string => {
@@ -160,6 +164,44 @@ const baseEnsureMessagesHaveUniqueIds = (messagesToProcess: ChatMessage[]): Chat
   });
 };
 
+// Collapsible toggle button component
+const CollapseToggle = ({ 
+  isCollapsed, 
+  onToggle, 
+  position = 'bottom' 
+}: { 
+  isCollapsed: boolean; 
+  onToggle: () => void; 
+  position?: 'top' | 'bottom' 
+}) => {
+  return (
+    <div 
+      className={cn(
+        "absolute left-1/2 -translate-x-1/2 z-10",
+        position === 'top' ? "-top-3" : "-bottom-3"
+      )}
+    >
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onToggle}
+        className={cn(
+          "h-6 rounded-full bg-card shadow-md hover:bg-accent hover:text-accent-foreground p-0 border border-border",
+          "w-10 md:w-10", // Responsive width
+          "transition-all duration-300 hover:shadow-lg"
+        )}
+        aria-label={isCollapsed ? "Expand" : "Collapse"}
+        aria-expanded={!isCollapsed}
+      >
+        {position === 'top' && !isCollapsed && <ArrowDownToLine className="h-3 w-3" />}
+        {position === 'top' && isCollapsed && <ArrowUpToLine className="h-3 w-3" />}
+        {position === 'bottom' && !isCollapsed && <ArrowUpToLine className="h-3 w-3" />}
+        {position === 'bottom' && isCollapsed && <ArrowDownToLine className="h-3 w-3" />}
+      </Button>
+    </div>
+  );
+};
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -173,6 +215,13 @@ export default function ChatPage() {
   // State to store generated prompts for the Prompt to Replicate popup
   const [replicatePromptResults, setReplicatePromptResults] = useState<PromptToReplicateOutput | null>(null);
   const [isProcessingReplicatePrompts, setIsProcessingReplicatePrompts] = useState(false);
+
+  // State variables for collapsible header and footer
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState<boolean>(false);
+  const [isFooterCollapsed, setIsFooterCollapsed] = useState<boolean>(false);
+  const [isBrowserToolbarCollapsed, setIsBrowserToolbarCollapsed] = useState<boolean>(false);
+  const [isAppHeaderCollapsed, setIsAppHeaderCollapsed] = useState<boolean>(false);
+  const { isAppHeaderCollapsed: appHeaderCollapsed } = useAppHeader();
 
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -193,6 +242,7 @@ export default function ChatPage() {
     attachments?: AttachedFile[];
     isUserMessageEdit: boolean;
     editedUserMessageId?: string;
+    actionType?: ActionType;
   } | null>(null);
 
   // State for last selected action button
@@ -202,6 +252,9 @@ export default function ChatPage() {
   // State for search mode
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Add this state variable with other state declarations
+  const [selectedDesignItem, setSelectedDesignItem] = useState<DesignListItem | null>(null);
   
   /**
    * Button Selection Logic
@@ -573,12 +626,13 @@ export default function ChatPage() {
     }
   }, [messages]);
 
-  const addMessage = useCallback((role: 'user' | 'assistant' | 'system', content: string | ChatMessageContentPart[], currentAttachments?: AttachedFile[], isLoadingParam?: boolean, isErrorParam?: boolean, originalRequest?: ChatMessage['originalRequest'], promptedByMessageId?: string) => {
+  const addMessage = useCallback((role: 'user' | 'assistant' | 'system', content: string | ChatMessageContentPart[], currentAttachments?: AttachedFile[], isLoadingParam?: boolean, isErrorParam?: boolean, originalRequest?: ChatMessage['originalRequest'], promptedByMessageId?: string, actionType?: ActionType) => {
     const newMessageId = generateRobustMessageId();
     const newMessage: ChatMessage = {
       id: newMessageId, role, content, timestamp: Date.now(),
       isLoading: isLoadingParam, isError: isErrorParam,
       attachedFiles: role === 'user' ? currentAttachments : undefined,
+      actionType: role === 'user' ? actionType : undefined, // Store actionType for user messages
       canRegenerate: role === 'assistant' && !!originalRequest,
       originalRequest: role === 'assistant' ? originalRequest : undefined,
       promptedByMessageId: role === 'assistant' ? promptedByMessageId : undefined,
@@ -587,12 +641,16 @@ export default function ChatPage() {
     return newMessageId;
   }, [ensureMessagesHaveUniqueIds]);
 
-  const updateMessageById = useCallback((messageId: string, newContent: string | ChatMessageContentPart[], isLoadingParam: boolean = false, isErrorParam: boolean = false, originalRequestDetails?: ChatMessage['originalRequest'], promptedByMessageIdToKeep?: string) => {
+  const updateMessageById = useCallback((messageId: string, newContent: string | ChatMessageContentPart[], isLoadingParam: boolean = false, isErrorParam: boolean = false, originalRequestDetails?: ChatMessage['originalRequest'], promptedByMessageIdToKeep?: string, actionType?: ActionType) => {
     setMessages(prev => {
       const updatedMessages = prev.map(msg =>
         msg.id === messageId ? {
-            ...msg, content: newContent, isLoading: isLoadingParam, isError: isErrorParam,
+            ...msg, 
+            content: newContent, 
+            isLoading: isLoadingParam, 
+            isError: isErrorParam,
             timestamp: Date.now(),
+            actionType: actionType !== undefined ? actionType : msg.actionType, // Use new action type if provided
             canRegenerate: !!originalRequestDetails,
             originalRequest: originalRequestDetails,
             promptedByMessageId: promptedByMessageIdToKeep || msg.promptedByMessageId,
@@ -809,7 +867,8 @@ export default function ChatPage() {
     isRegenerationCall: boolean = false,
     messageIdToUpdate?: string, // ID of the assistant message to update (for regeneration)
     userMessageIdForAiPrompting?: string, // ID of the user message that prompted this, especially for edits
-    isCustomMessageParam?: boolean // Whether this is a custom message
+    isCustomMessageParam?: boolean, // Whether this is a custom message
+    actionTypeOverride?: ActionType // Override action type (used for message editing with a new action)
   ) => {
     if (profileLoading) {
       toast({ title: "Profile Loading", description: "Please wait while your profile data loads.", duration: 3000 });
@@ -849,6 +908,12 @@ export default function ChatPage() {
        *    - It must be explicitly clicked by the user to become the remembered action
        */
 
+      // If action type override is provided, use it (for edited messages with changed action)
+      if (actionTypeOverride) {
+        return actionTypeOverride;
+      }
+      
+      // If an explicit action type is provided and not 'processMessage', use it and update last selected
       // If an explicit action type is provided and not 'processMessage', use it and update last selected
       if (actionTypeParam && actionTypeParam !== 'processMessage') {
         // Only update lastSelectedActionButton if this is a direct user action (not regeneration/edit)
@@ -915,7 +980,16 @@ export default function ChatPage() {
 
     if (!isUserMessageEdit && !messageIdToUpdate && (userMessageContent.trim() !== '' || filesToSendWithThisMessage.length > 0)) {
       const userMessageToDisplay = isCustom ? `[Custom Message] ${userMessageContent}` : userMessageContent;
-      userMessageIdForCurrentInteraction = addMessage('user', userMessageToDisplay || `Attached ${filesToSendWithThisMessage.length} file(s)${currentNotes ? ` (Notes: ${currentNotes})` : ''}`, filesToSendWithThisMessage);
+      userMessageIdForCurrentInteraction = addMessage(
+        'user', 
+        userMessageToDisplay || `Attached ${filesToSendWithThisMessage.length} file(s)${currentNotes ? ` (Notes: ${currentNotes})` : ''}`, 
+        filesToSendWithThisMessage,
+        false, // isLoading
+        false, // isError
+        undefined, // originalRequest
+        undefined, // promptedByMessageId
+        currentActionType // Add action type
+      );
       promptedByMsgIdForNewAssistant = userMessageIdForCurrentInteraction;
     } else if (messageIdToUpdate && !isUserMessageEdit) { // Assistant regeneration
         const regeneratedAssistantMsg = messagesRef.current.find(m => m.id === messageIdToUpdate);
@@ -1091,10 +1165,44 @@ export default function ChatPage() {
           else if (currentActionType === 'analyzeRequirements') {
             const requirementsInput: AnalyzeClientRequirementsInput = { ...baseInput, clientMessage: userMessageContent, attachedFiles: filesForFlow, chatHistory: chatHistoryForAI };
             const requirementsOutput: AnalyzeClientRequirementsOutput = await analyzeClientRequirements(requirementsInput);
-            finalAiResponseContent.push({ type: 'text', title: 'Main Requirements Analysis', text: requirementsOutput.mainRequirementsAnalysis });
-            finalAiResponseContent.push({ type: 'text', title: 'Detailed Requirements (English)', text: requirementsOutput.detailedRequirementsEnglish });
-            finalAiResponseContent.push({ type: 'text', title: 'Detailed Requirements (Bangla)', text: requirementsOutput.detailedRequirementsBangla });
-            finalAiResponseContent.push({ type: 'text', title: 'Design Message or Saying', text: requirementsOutput.designMessageOrSaying });
+            
+            // Add a title for the requirements analysis section
+            finalAiResponseContent.push({ 
+              type: 'text', 
+              title: 'Requirements Analysis', 
+              text: "I've analyzed the requirements from both English and Bengali perspectives. Here's a comprehensive breakdown:" 
+            });
+
+            // Add the BilingualSplitView component for displaying the analysis
+            finalAiResponseContent.push({
+              type: 'bilingual_analysis',
+              keyPoints: {
+                english: requirementsOutput.keyPointsEnglish,
+                bengali: requirementsOutput.keyPointsBengali
+              },
+              detailedRequirements: {
+                english: requirementsOutput.detailedRequirementsEnglish,
+                bengali: requirementsOutput.detailedRequirementsBengali
+              },
+              designMessage: {
+                english: requirementsOutput.designMessageEnglish,
+                bengali: requirementsOutput.designMessageBengali
+              },
+              nicheAndAudience: {
+                english: requirementsOutput.designNicheAndAudienceEnglish,
+                bengali: requirementsOutput.designNicheAndAudienceBengali
+              },
+              designItems: {
+                english: requirementsOutput.designItemsEnglish,
+                bengali: requirementsOutput.designItemsBengali
+              }
+            });
+            
+            // Also include a prompt for the user to select a design to generate ideas for
+            finalAiResponseContent.push({
+              type: 'text',
+              text: "Select a design from the list above to generate specific ideas for it, or use the 'Generate Design Ideas' button to create ideas for all designs."
+            });
           } else if (currentActionType === 'generateEngagementPack') {
             const engagementInput: GenerateEngagementPackInput = {
               ...baseInput, clientMessage: userMessageContent, designerName: userProfile.name,
@@ -1142,46 +1250,88 @@ export default function ChatPage() {
               });
             }
           } else if (currentActionType === 'generateDesignIdeas') {
-            const ideasInput: GenerateDesignIdeasInput = {
-                ...baseInput, designInputText: userMessageContent || "general creative designs",
-                attachedFiles: filesForFlow, chatHistory: chatHistoryForAI
+            const ideasInput: GenerateDesignIdeasInput = { 
+              ...baseInput, 
+              designInputText: userMessageContent, 
+              attachedFiles: filesForFlow, 
+              chatHistory: chatHistoryForAI 
             };
             const ideasOutput = await generateDesignIdeas(ideasInput);
-
-            // Add the core text
-            finalAiResponseContent.push({ 
-              type: 'text', 
-              title: 'Core Text/Saying for Ideas', 
-              text: ideasOutput.extractedTextOrSaying
-            });
             
-            // Add web inspiration if available
-            if (ideasOutput.simulatedWebInspiration && ideasOutput.simulatedWebInspiration.length > 0) {
-                finalAiResponseContent.push({ 
-                  type: 'list', 
-                  title: 'Simulated Web Inspiration', 
-                  items: ideasOutput.simulatedWebInspiration.map(r => `${r.title} ([${r.link.length > 30 ? r.link.substring(0,27)+'...' : r.link }](${r.link})) - ${r.snippet}`) 
-                });
-            }
-            
-            // Group all design ideas into a single component with three categories
-            const designIdeasGroups = [];
-            
-            // Only add groups that have content
-            if (ideasOutput.creativeDesignIdeas && ideasOutput.creativeDesignIdeas.length > 0) {
-              designIdeasGroups.push({
-                category: "Creative Design Ideas",
-                items: ideasOutput.creativeDesignIdeas
+            // If there's a selectedDesignItem, add a context banner showing which design is being processed
+            if (selectedDesignItem && selectedDesignItem.id) {
+              finalAiResponseContent.push({
+                type: 'text',
+                title: '🎨 Selected Design for Ideas Generation',
+                text: `**${selectedDesignItem.title}**\n\n${selectedDesignItem.description}\n\n${selectedDesignItem.textContent ? `**Text to include:** "${selectedDesignItem.textContent}"` : ''}`
+              });
+              
+              // Add a visual separator
+              finalAiResponseContent.push({
+                type: 'text',
+                text: '---'
               });
             }
             
+            // Add header for the extracted text/saying
+            if (ideasOutput.extractedTextOrSaying) {
+              finalAiResponseContent.push({
+                type: 'text',
+                title: 'Core Text or Saying',
+                text: ideasOutput.extractedTextOrSaying
+              });
+            }
+            
+            // Add web inspiration section
+            if ((ideasOutput.searchKeywords && ideasOutput.searchKeywords.length > 0) ||
+                (ideasOutput.simulatedWebInspiration && ideasOutput.simulatedWebInspiration.length > 0)) {
+              // Use the AI-generated search keywords if available, or fall back to generic ones
+              const searchKeywords = ideasOutput.searchKeywords && ideasOutput.searchKeywords.length >= 5 
+                ? ideasOutput.searchKeywords 
+                : [
+                    "dad t shirt design",
+                    "motivational poster design",
+                    "fitness brand logo",
+                    "modern typography trends",
+                    "minimalist logo design",
+                    "vintage graphic design",
+                    "bold typography examples",
+                    "creative t-shirt designs",
+                    "logo color psychology",
+                    "hand lettering inspiration"
+                  ];
+              
+              // Create a section with clickable keyword buttons using a specialized component type
+              finalAiResponseContent.push({
+                type: 'search_keywords',
+                title: 'Web Search Keywords',
+                keywords: searchKeywords.map(keyword => ({
+                  text: keyword,
+                  url: `https://www.google.com/search?q=${encodeURIComponent(keyword)}`
+                }))
+              });
+            }
+            
+            // Create design ideas groups
+            const designIdeasGroups = [];
+            
+            // Add graphics creative ideas
+            if (ideasOutput.graphicsCreativeIdeas && ideasOutput.graphicsCreativeIdeas.length > 0) {
+              designIdeasGroups.push({
+                category: "Graphics Creative Ideas",
+                items: ideasOutput.graphicsCreativeIdeas
+              });
+            }
+            
+            // Add typography design ideas
             if (ideasOutput.typographyDesignIdeas && ideasOutput.typographyDesignIdeas.length > 0) {
               designIdeasGroups.push({
-                category: "Typography Design Ideas",
+                category: "Typography Design Ideas", 
                 items: ideasOutput.typographyDesignIdeas
               });
             }
             
+            // Add typography with graphics ideas
             if (ideasOutput.typographyWithGraphicsIdeas && ideasOutput.typographyWithGraphicsIdeas.length > 0) {
               designIdeasGroups.push({
                 category: "Typography with Graphics Ideas",
@@ -1189,9 +1339,10 @@ export default function ChatPage() {
               });
             }
             
+            // Add all design ideas to the response
             if (designIdeasGroups.length > 0) {
               finalAiResponseContent.push({
-                type: 'design_ideas_group' as 'design_ideas_group',
+                type: 'design_ideas_group',
                 title: 'Design Ideas',
                 ideas: designIdeasGroups
               });
@@ -1203,75 +1354,62 @@ export default function ChatPage() {
             };
             const promptsOutput = await generateDesignPrompts(promptsInput);
             
-            if (promptsOutput.imagePrompts && promptsOutput.imagePrompts.length > 0) {
-                // Add header for the prompts section
+            // Add header for all prompts
+            finalAiResponseContent.push({ 
+              type: 'text', 
+              title: 'AI Image Generation Prompts', 
+              text: "The following prompts can be used with AI image generators to create visual concepts based on the design ideas."
+            });
+              
+            // Add Graphics prompts
+            if (promptsOutput.graphicsPrompts && promptsOutput.graphicsPrompts.length > 0) {
+              finalAiResponseContent.push({ 
+                type: 'text', 
+                title: 'Graphics Design Prompts', 
+                text: "Prompts for graphics-focused designs:"
+              });
+                
+              promptsOutput.graphicsPrompts.forEach((prompt, index) => {
                 finalAiResponseContent.push({ 
-                  type: 'text', 
-                  title: 'AI Image Generation Prompts', 
-                  text: "The following prompts can be used with AI image generators to create visual concepts based on the design ideas."
+                  type: 'code', 
+                  title: `Graphics Prompt ${index + 1}`, 
+                  code: prompt
                 });
+              });
+            }
+            
+            // Add Typography prompts
+            if (promptsOutput.typographyPrompts && promptsOutput.typographyPrompts.length > 0) {
+              finalAiResponseContent.push({ 
+                type: 'text', 
+                title: 'Typography Design Prompts', 
+                text: "Prompts for typography-focused designs:"
+              });
                 
-                // Divide prompts into three categories (assuming they come in order)
-                const totalPrompts = promptsOutput.imagePrompts.length;
-                const promptsPerCategory = Math.ceil(totalPrompts / 3);
-                
-                // Category 1: Creative Design Prompts (first third)
+              promptsOutput.typographyPrompts.forEach((prompt, index) => {
                 finalAiResponseContent.push({ 
-                  type: 'text', 
-                  title: '🎨 Creative Design Prompts', 
-                  text: "Use these prompts to generate main graphic designs with AI image generators."
+                  type: 'code', 
+                  title: `Typography Prompt ${index + 1}`, 
+                  code: prompt
                 });
+              });
+            }
+            
+            // Add Mixed Typography+Graphics prompts
+            if (promptsOutput.mixedPrompts && promptsOutput.mixedPrompts.length > 0) {
+              finalAiResponseContent.push({ 
+                type: 'text', 
+                title: 'Mixed Typography & Graphics Prompts', 
+                text: "Prompts for designs combining typography and graphics:"
+              });
                 
-                const creativeEndIdx = Math.min(promptsPerCategory, totalPrompts);
-                for (let i = 0; i < creativeEndIdx; i++) {
-                  finalAiResponseContent.push({ 
-                    type: 'code', 
-                    title: `Creative Design Prompt ${i + 1}`, 
-                    code: promptsOutput.imagePrompts[i]
-                  });
-                }
-                
-                // Only add Typography section if we have enough prompts
-                if (totalPrompts > promptsPerCategory) {
-                  // Category 2: Typography Design Prompts (second third)
-                  finalAiResponseContent.push({ 
-                    type: 'text', 
-                    title: '🔤 Typography Design Prompts', 
-                    text: "Use these prompts to generate typography-focused designs with AI image generators."
-                  });
-                  
-                  const typoEndIdx = Math.min(promptsPerCategory * 2, totalPrompts);
-                  for (let i = promptsPerCategory; i < typoEndIdx; i++) {
-                    finalAiResponseContent.push({ 
-                      type: 'code', 
-                      title: `Typography Design Prompt ${i - promptsPerCategory + 1}`, 
-                      code: promptsOutput.imagePrompts[i]
-                    });
-                  }
-                  
-                  // Only add Typography with Graphics if we have enough prompts
-                  if (totalPrompts > promptsPerCategory * 2) {
-                    // Category 3: Typography with Graphics Prompts (final third)
-                    finalAiResponseContent.push({ 
-                      type: 'text', 
-                      title: '🖌️ Typography with Graphics Prompts', 
-                      text: "Use these prompts to generate typography designs with complementary graphics using AI image generators."
-                    });
-                    
-                    for (let i = promptsPerCategory * 2; i < totalPrompts; i++) {
-                      finalAiResponseContent.push({ 
-                        type: 'code', 
-                        title: `Typography with Graphics Prompt ${i - (promptsPerCategory * 2) + 1}`, 
-                        code: promptsOutput.imagePrompts[i]
-                      });
-                    }
-                  }
-                }
-            } else {
+              promptsOutput.mixedPrompts.forEach((prompt, index) => {
                 finalAiResponseContent.push({ 
-                  type: 'text', 
-                  text: "No image prompts generated. Please ensure design ideas were provided or generated first."
+                  type: 'code', 
+                  title: `Mixed Prompt ${index + 1}`, 
+                  code: prompt
                 });
+              });
             }
           } else if (currentActionType === 'checkMadeDesigns') {
             const designFile = filesForFlow.find(f => f.type?.startsWith('image/') && f.dataUri);
@@ -1650,7 +1788,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (pendingAiRequestAfterEdit && isMounted.current) {
-      const { content, attachments, isUserMessageEdit: isEdit, editedUserMessageId } = pendingAiRequestAfterEdit;
+      const { content, attachments, isUserMessageEdit: isEdit, editedUserMessageId, actionType } = pendingAiRequestAfterEdit;
       handleSendMessage(
         content,
         'processMessage',
@@ -1660,7 +1798,8 @@ export default function ChatPage() {
         false,
         undefined,
         editedUserMessageId,
-        isCustomMessage // Pass the current custom flag state
+        isCustomMessage, // Pass the current custom flag state
+        actionType // Pass the current action type
       );
       setPendingAiRequestAfterEdit(null);
     }
@@ -1709,7 +1848,7 @@ export default function ChatPage() {
   }, [profileLoading, profile, currentSession, handleSendMessage, lastSelectedActionButton, isCustomMessage]);
 
 
-  const handleConfirmEditAndResendUserMessage = useCallback((messageId: string, newContent: string, originalAttachments?: AttachedFile[]) => {
+  const handleConfirmEditAndResendUserMessage = useCallback((messageId: string, newContent: string, originalAttachments?: AttachedFile[], newActionType?: ActionType) => {
     setMessages(prevMessages => {
         const messageIndex = prevMessages.findIndex(msg => msg.id === messageId);
         if (messageIndex === -1 || prevMessages[messageIndex].role !== 'user') {
@@ -1723,6 +1862,7 @@ export default function ChatPage() {
             content: targetMessage.content,
             timestamp: targetMessage.timestamp,
             attachedFiles: targetMessage.attachedFiles,
+            actionType: targetMessage.actionType, // Preserve the original action type
             linkedAssistantMessageId: linkedAssistantIdForHistory,
         };
 
@@ -1733,6 +1873,7 @@ export default function ChatPage() {
           content: newContent,
           timestamp: Date.now(),
           attachedFiles: originalAttachments,
+          actionType: newActionType || targetMessage.actionType, // Use new action type if provided, otherwise keep existing
           editHistory: updatedEditHistory,
           linkedAssistantMessageId: undefined,
         };
@@ -1746,6 +1887,7 @@ export default function ChatPage() {
                 attachments: originalAttachments,
                 isUserMessageEdit: true,
                 editedUserMessageId: updatedUserMessage.id,
+                actionType: newActionType || targetMessage.actionType // Pass along the action type
             });
         }
         
@@ -2041,6 +2183,181 @@ export default function ChatPage() {
     }
   }, [updateMessageById, messages, toast]);
 
+  // Add handleDesignItemSelect function before handleAction
+  const handleDesignItemSelect = useCallback((designItem: DesignListItem) => {
+    if (!designItem || !designItem.id) return;
+    
+    setSelectedDesignItem(designItem);
+    
+    // Construct a prompt that focuses on this specific design item,
+    // with enough detail for the AI to generate relevant search keywords
+    const designPrompt = `Generate design ideas for: "${designItem.title}". 
+
+DESIGN DESCRIPTION: ${designItem.description}
+
+${designItem.textContent ? `TEXT TO INCLUDE: "${designItem.textContent}"` : ''}
+
+Please focus on this specific design request and generate search keywords that would help me find inspiration for this particular design.`;
+    
+    // Show toast notification about the selection
+    toast({
+      title: 'Design Selected',
+      description: `Generating ideas for "${designItem.title}"`,
+      duration: 3000
+    });
+    
+    // Call the generateDesignIdeas function with this specific prompt
+    handleSendMessage(
+      designPrompt, 
+      'generateDesignIdeas',
+      undefined,
+      undefined, 
+      false, 
+      false,
+      undefined,
+      undefined,
+      false
+    );
+  }, [handleSendMessage, toast, setSelectedDesignItem]);
+  
+  // Add useEffect to listen for design-item-selected events
+  useEffect(() => {
+    const handleDesignItemSelectedEvent = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const designItem = customEvent.detail?.designItem;
+      if (designItem && designItem.id) {
+        handleDesignItemSelect(designItem);
+      }
+    };
+    
+    // Add event listener
+    window.addEventListener('design-item-selected', handleDesignItemSelectedEvent);
+    
+    // Remove event listener on cleanup
+    return () => {
+      window.removeEventListener('design-item-selected', handleDesignItemSelectedEvent);
+    };
+  }, [handleDesignItemSelect]);
+
+  // Toggle functions for collapsible header and footer
+  const toggleHeader = useCallback(() => {
+    setIsHeaderCollapsed(prev => !prev);
+    setTimeout(() => {
+      if (chatAreaRef.current) {
+        chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
+      }
+    }, 300); // Adjust scroll after animation completes
+  }, []);
+  
+  const toggleFooter = useCallback(() => {
+    setIsFooterCollapsed(prev => !prev);
+    setTimeout(() => {
+      if (chatAreaRef.current) {
+        chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
+      }
+    }, 300); // Adjust scroll after animation completes
+  }, []);
+  
+  const toggleBrowserToolbar = useCallback(() => {
+    setIsBrowserToolbarCollapsed(prev => !prev);
+    setTimeout(() => {
+      if (chatAreaRef.current) {
+        chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
+      }
+    }, 300); // Adjust scroll after animation completes
+  }, []);
+  
+  const toggleAppHeader = useCallback(() => {
+    setIsAppHeaderCollapsed(prev => !prev);
+    // Update localStorage to remember user preference
+    try {
+      localStorage.setItem('desainr_app_header_collapsed', JSON.stringify(!isAppHeaderCollapsed));
+    } catch (e) {
+      console.error('Failed to save app header preference:', e);
+    }
+  }, [isAppHeaderCollapsed]);
+
+  // Save header collapsed state to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('desainr_header_collapsed', JSON.stringify(isHeaderCollapsed));
+    } catch (e) {
+      console.error('Failed to save header preference:', e);
+    }
+  }, [isHeaderCollapsed]);
+  
+  // Save footer collapsed state to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('desainr_footer_collapsed', JSON.stringify(isFooterCollapsed));
+    } catch (e) {
+      console.error('Failed to save footer preference:', e);
+    }
+  }, [isFooterCollapsed]);
+  
+  // Save browser toolbar collapsed state to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('desainr_browser_toolbar_collapsed', JSON.stringify(isBrowserToolbarCollapsed));
+    } catch (e) {
+      console.error('Failed to save browser toolbar preference:', e);
+    }
+  }, [isBrowserToolbarCollapsed]);
+  
+  // Load saved preferences on component mount
+  useEffect(() => {
+    try {
+      const savedHeaderState = localStorage.getItem('desainr_header_collapsed');
+      if (savedHeaderState !== null) {
+        setIsHeaderCollapsed(JSON.parse(savedHeaderState));
+      }
+      
+      const savedFooterState = localStorage.getItem('desainr_footer_collapsed');
+      if (savedFooterState !== null) {
+        setIsFooterCollapsed(JSON.parse(savedFooterState));
+      }
+      
+      const savedBrowserToolbarState = localStorage.getItem('desainr_browser_toolbar_collapsed');
+      if (savedBrowserToolbarState !== null) {
+        setIsBrowserToolbarCollapsed(JSON.parse(savedBrowserToolbarState));
+      }
+      
+      const savedAppHeaderState = localStorage.getItem('desainr_app_header_collapsed');
+      if (savedAppHeaderState !== null) {
+        setIsAppHeaderCollapsed(JSON.parse(savedAppHeaderState));
+      }
+    } catch (e) {
+      console.error('Failed to load collapse preferences:', e);
+    }
+  }, []);
+
+  // Add effect to set CSS variables for header and footer heights
+  useEffect(() => {
+    // Set CSS variables for header and footer heights
+    const root = document.documentElement;
+    
+    if (isMobile) {
+      // Mobile optimized sizes
+      root.style.setProperty('--header-height-chat', '50px');
+      root.style.setProperty('--footer-height-chat', '140px'); // Smaller for mobile
+      
+      // Additional mobile optimizations
+      root.style.setProperty('--collapse-button-size', '8px'); // Smaller buttons
+      root.style.setProperty('--collapse-button-width', '36px'); // Narrower buttons
+    } else {
+      // Desktop sizes
+      root.style.setProperty('--header-height-chat', '57px');
+      root.style.setProperty('--footer-height-chat', '160px');
+      
+      // Desktop button sizes
+      root.style.setProperty('--collapse-button-size', '10px');
+      root.style.setProperty('--collapse-button-width', '40px');
+    }
+    
+    // Set transition properties for smoother animations
+    root.style.setProperty('--collapse-transition', '0.3s ease-in-out');
+  }, [isMobile]);
+
   if (authLoading || (!currentSession && !profileLoading && !historyHookLoading) ) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-var(--header-height,0px))] bg-gradient-to-b from-background-start-hsl to-background-end-hsl">
@@ -2154,22 +2471,53 @@ export default function ChatPage() {
 
       {/* Main chat area - always visible regardless of history panel state */}
       <div className="flex flex-col flex-grow min-w-0 w-full h-full">
-        <div className="px-4 py-3 border-b flex items-center justify-between sticky top-0 bg-card/30 backdrop-blur-md z-10 shadow-md min-h-[57px] animate-fade-in transition-all duration-300">
-          <div className="flex items-center">
-            <Button variant="ghost" size="icon" onClick={() => setIsHistoryPanelOpen(prev => !prev)} aria-label="Toggle history panel" className="hover:bg-primary/20 btn-glow rounded-full">
-              {isMobile ? (isHistoryPanelOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />)
-                       : (isHistoryPanelOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />)}
-            </Button>
-            <h2 className="ml-3 font-semibold text-xl truncate text-gradient" title={currentSession?.name || "Chat"}>{currentSession?.name || "Chat"}</h2>
+        <div className="relative">
+          <div 
+            className={cn(
+              "px-4 py-3 border-b flex items-center justify-between sticky top-0 bg-card/30 backdrop-blur-md z-10 shadow-md min-h-[57px] animate-fade-in transition-all duration-300",
+              "origin-top transition-transform",
+              isHeaderCollapsed && "transform scale-y-0 h-0 min-h-0 py-0 opacity-0 overflow-hidden"
+            )}
+          >
+            <div className="flex items-center">
+              <Button variant="ghost" size="icon" onClick={() => setIsHistoryPanelOpen(prev => !prev)} aria-label="Toggle history panel" className="hover:bg-primary/20 btn-glow rounded-full">
+                {isMobile ? (isHistoryPanelOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />)
+                         : (isHistoryPanelOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />)}
+              </Button>
+              <h2 className="ml-3 font-semibold text-xl truncate text-gradient" title={currentSession?.name || "Chat"}>{currentSession?.name || "Chat"}</h2>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button variant="secondary" size="sm" onClick={handleNewChat} className="hover:bg-accent hover:text-accent-foreground transition-colors duration-300 rounded-full shadow-md btn-glow">
+                  <PlusCircle className="h-4 w-4 mr-2" /> New Chat
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="secondary" size="sm" onClick={handleNewChat} className="hover:bg-accent hover:text-accent-foreground transition-colors duration-300 rounded-full shadow-md btn-glow">
-                <PlusCircle className="h-4 w-4 mr-2" /> New Chat
-            </Button>
-          </div>
+          
+          <CollapseToggle 
+            isCollapsed={isHeaderCollapsed} 
+            onToggle={toggleHeader} 
+            position="bottom"
+          />
         </div>
 
-        <ScrollArea className="flex-1 p-2 md:p-4 overflow-y-auto" ref={chatAreaRef}>
+        <ScrollArea 
+          className={cn(
+            "flex-1 p-2 md:p-4 overflow-y-auto transition-all duration-300",
+            isHeaderCollapsed && "pt-8", // Add extra padding when header is collapsed
+            isFooterCollapsed && "pb-8"  // Add extra padding when footer is collapsed
+          )} 
+          ref={chatAreaRef}
+          style={{ 
+            height: isHeaderCollapsed && isFooterCollapsed && appHeaderCollapsed ? "100vh" :
+                   isHeaderCollapsed && isFooterCollapsed ? "calc(100vh - var(--header-height,0px))" :
+                   isHeaderCollapsed && appHeaderCollapsed ? "calc(100vh - var(--footer-height-chat,160px))" :
+                   isFooterCollapsed && appHeaderCollapsed ? "calc(100vh - var(--header-height-chat,57px))" :
+                   isHeaderCollapsed ? "calc(100vh - var(--header-height,0px) - var(--footer-height-chat,160px))" : 
+                   isFooterCollapsed ? "calc(100vh - var(--header-height,0px) - var(--header-height-chat,57px))" :  
+                   appHeaderCollapsed ? "calc(100vh - var(--header-height-chat,57px) - var(--footer-height-chat,160px))" :
+                   "calc(100vh - var(--header-height,0px) - var(--header-height-chat,57px) - var(--footer-height-chat,160px))"
+          }}
+        >
           <div className="space-y-4 w-full stagger-animation">
             {messages.map((msg) => (
               <ChatMessageDisplay
@@ -2208,93 +2556,153 @@ export default function ChatPage() {
           </div>
         )}
 
-        <div className={cn("relative border-t p-4 md:p-5 glass-panel bg-background/60 backdrop-blur-xl shadow-xl shrink-0", isDragging && "opacity-50")}>
-          <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-primary/10 via-primary/40 to-primary/10"></div>
+        <div className="relative">
+          <CollapseToggle 
+            isCollapsed={isFooterCollapsed} 
+            onToggle={toggleFooter} 
+            position="top"
+          />
+          
+          <div 
+            className={cn(
+              "border-t p-4 md:p-5 glass-panel bg-background/60 backdrop-blur-xl shadow-xl shrink-0", 
+              isDragging && "opacity-50",
+              "origin-bottom transition-transform duration-300",
+              isFooterCollapsed && "transform scale-y-0 h-0 py-0 opacity-0 overflow-hidden"
+            )}
+          >
+            <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-primary/10 via-primary/40 to-primary/10"></div>
 
-          {currentAttachedFilesData.length > 0 && (
-            <div className="mt-1 mb-3 text-xs glass-panel bg-background/80 p-3 rounded-xl border border-primary/10 shadow-md animate-fade-in flex items-center">
-              <div className="flex-1 truncate">
-                <span className="font-medium bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">Attached:</span>
-                <span className="ml-1 text-foreground/80">{currentAttachedFilesData.map(f => f.name).join(', ')}</span>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="ml-2 h-7 text-destructive/80 hover:text-destructive hover:bg-destructive/10 transition-all duration-300 rounded-full btn-glow"
-                onClick={clearSelectedFiles}
-              >
-                <X className="h-3.5 w-3.5 mr-1" /> Clear
-              </Button>
-            </div>
-          )}
-
-          <div className="flex items-end gap-2 animate-fade-in transition-all duration-300">
-            <div className="relative w-full group">
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 rounded-xl blur opacity-30 group-hover:opacity-70 transition-opacity duration-500"></div>
-              <Textarea
-                ref={inputTextAreaRef}
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Type here..."
-                className="relative flex-1 resize-none min-h-[65px] max-h-[150px] rounded-xl shadow-lg focus-visible:ring-2 focus-visible:ring-primary glass-panel border-primary/20 transition-all duration-300 w-full pr-24 z-10 bg-background/60 backdrop-blur-lg"
-                rows={Math.max(1, Math.min(5, inputMessage.split('\n').length))}
-              />
-              <div className="absolute bottom-3 right-3 flex items-center gap-2 opacity-70 group-hover:opacity-100 transition-opacity duration-300 z-20">
-                <TooltipProvider delayDuration={200}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="flex items-center gap-1.5">
-                        <div className="text-xs text-foreground/70 font-medium">Custom</div>
-                        <Checkbox
-                          id="custom-message-inline"
-                          checked={isCustomMessage}
-                          onCheckedChange={(checked) => setIsCustomMessage(checked as boolean)}
-                          className="data-[state=checked]:bg-accent data-[state=checked]:border-accent h-4 w-4"
-                        />
+            {currentAttachedFilesData.length > 0 && (
+              <div className="mt-1 mb-3 glass-panel bg-background/80 p-3 rounded-xl border border-primary/10 shadow-md animate-fade-in">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">Attached files:</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-destructive/80 hover:text-destructive hover:bg-destructive/10 transition-all duration-300 rounded-full btn-glow"
+                    onClick={clearSelectedFiles}
+                  >
+                    <X className="h-3.5 w-3.5 mr-1" /> Clear
+                  </Button>
+                </div>
+                
+                <div className="font-size-0 whitespace-nowrap" style={{ fontSize: 0, lineHeight: 0 }}>
+                  {currentAttachedFilesData.map((file, index) => (
+                    <div 
+                      key={index} 
+                      className="inline-block align-top whitespace-normal w-20"
+                      style={{ margin: 0, padding: 0 }}
+                    >
+                      <div className="group relative aspect-square overflow-hidden rounded-md border border-primary/10 hover:border-primary/30 transition-all duration-300">
+                        {file.type?.startsWith('image/') && file.dataUri ? (
+                          <>
+                            <img 
+                              src={file.dataUri} 
+                              alt={file.name}
+                              className="h-full w-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                          </>
+                        ) : (
+                          <div className="flex items-center justify-center h-full bg-muted/20">
+                            <FileText className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                        )}
+                        <button 
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const newFiles = [...selectedFiles];
+                            newFiles.splice(index, 1);
+                            setSelectedFiles(newFiles);
+                            
+                            const newFileData = [...currentAttachedFilesData];
+                            newFileData.splice(index, 1);
+                            setCurrentAttachedFilesData(newFileData);
+                          }}
+                          className="absolute top-0 right-0 bg-destructive/80 hover:bg-destructive text-destructive-foreground rounded-bl-md p-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                        <div className="absolute bottom-0 left-0 right-0 p-0.5 text-[8px] bg-background/80 backdrop-blur-sm truncate opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          {file.name.length > 10 ? file.name.substring(0, 8) + '...' : file.name}
+                        </div>
                       </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="glass-panel text-foreground shadow-xl rounded-lg p-3 animate-fade-in border border-accent/10 max-w-sm">
-                      <p className="font-semibold text-gradient">Custom Instructions</p>
-                      <p className="text-xs text-foreground/80 mt-1">
-                        When enabled, your message will be treated as a custom instruction for the AI. 
-                        Instead of standard analysis, you can tell the AI exactly what to generate from the client message.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="h-8 w-8 p-0 hover:bg-primary/10 rounded-full"
-                  aria-label="Attach files"
-                >
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-primary/10 rounded-full blur-sm animate-pulse-slow"></div>
-                    <Paperclip className="h-5 w-5 text-primary relative z-10" />
-                  </div>
-                </Button>
-                <input type="file" ref={fileInputRef} multiple onChange={handleFileChange} className="hidden" accept="image/*,application/pdf,.txt,.md,.json"/>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-end gap-2 animate-fade-in transition-all duration-300">
+              <div className="relative w-full group">
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 rounded-xl blur opacity-30 group-hover:opacity-70 transition-opacity duration-500"></div>
+                <Textarea
+                  ref={inputTextAreaRef}
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Type here..."
+                  className="relative flex-1 resize-none min-h-[65px] max-h-[150px] rounded-xl shadow-lg focus-visible:ring-2 focus-visible:ring-primary glass-panel border-primary/20 transition-all duration-300 w-full pr-24 z-10 bg-background/60 backdrop-blur-lg"
+                  rows={Math.max(1, Math.min(5, inputMessage.split('\n').length))}
+                />
+                <div className="absolute bottom-3 right-3 flex items-center gap-2 opacity-70 group-hover:opacity-100 transition-opacity duration-300 z-20">
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-1.5">
+                          <div className="text-xs text-foreground/70 font-medium">Custom</div>
+                          <Checkbox
+                            id="custom-message-inline"
+                            checked={isCustomMessage}
+                            onCheckedChange={(checked) => setIsCustomMessage(checked as boolean)}
+                            className="data-[state=checked]:bg-accent data-[state=checked]:border-accent h-4 w-4"
+                          />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="glass-panel text-foreground shadow-xl rounded-lg p-3 animate-fade-in border border-accent/10 max-w-sm">
+                        <p className="font-semibold text-gradient">Custom Instructions</p>
+                        <p className="text-xs text-foreground/80 mt-1">
+                          When enabled, your message will be treated as a custom instruction for the AI. 
+                          Instead of standard analysis, you can tell the AI exactly what to generate from the client message.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="h-8 w-8 p-0 hover:bg-primary/10 rounded-full"
+                    aria-label="Attach files"
+                  >
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-primary/10 rounded-full blur-sm animate-pulse-slow"></div>
+                      <Paperclip className="h-5 w-5 text-primary relative z-10" />
+                    </div>
+                  </Button>
+                  <input type="file" ref={fileInputRef} multiple onChange={handleFileChange} className="hidden" accept="image/*,application/pdf,.txt,.md,.json"/>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className={cn(
-              "flex flex-wrap items-center justify-between mt-4 gap-x-3 gap-y-2",
-               isMobile ? "flex-col items-stretch gap-y-3" : ""
-            )}>
-            <div className={cn("flex-1 flex justify-end animate-stagger", isMobile ? "w-full justify-center mt-0" : "")} style={{ animationDelay: '200ms' }}>
-              <ActionButtonsPanel
-                onAction={handleAction}
-                isLoading={isLoading}
-                currentUserMessage={inputMessage}
-                profile={profile}
-                currentAttachedFilesDataLength={currentAttachedFilesData.length}
-                isMobile={isMobile}
-                activeButton={activeActionButton}
-                lastSelectedButton={lastSelectedActionButton}
-              />
+            <div className={cn(
+                "flex flex-wrap items-center justify-between mt-4 gap-x-3 gap-y-2",
+                 isMobile ? "flex-col items-stretch gap-y-3" : ""
+               )}>
+              <div className={cn("flex-1 flex justify-end animate-stagger", isMobile ? "w-full justify-center mt-0" : "")} style={{ animationDelay: '200ms' }}>
+                <ActionButtonsPanel
+                  onAction={handleAction}
+                  isLoading={isLoading}
+                  currentUserMessage={inputMessage}
+                  profile={profile}
+                  currentAttachedFilesDataLength={currentAttachedFilesData.length}
+                  isMobile={isMobile}
+                  activeButton={activeActionButton}
+                  lastSelectedButton={lastSelectedActionButton}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -2397,6 +2805,43 @@ export default function ChatPage() {
           />
         </div>
       )}
+
+      {/* Browser toolbar toggle button */}
+      <div className="relative">
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-0 z-50">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleBrowserToolbar}
+            className="h-6 w-10 rounded-t-full rounded-b-none bg-card shadow-md hover:bg-accent hover:text-accent-foreground p-0 border border-border transition-all duration-300 hover:shadow-lg"
+            aria-label={isBrowserToolbarCollapsed ? "Show browser toolbar" : "Hide browser toolbar"}
+            aria-expanded={!isBrowserToolbarCollapsed}
+          >
+            {isBrowserToolbarCollapsed ? <ArrowUpToLine className="h-3 w-3" /> : <ArrowDownToLine className="h-3 w-3" />}
+          </Button>
+        </div>
+        
+        {/* Apply styling to hide the browser toolbar */}
+        <style jsx global>{`
+          ${isBrowserToolbarCollapsed ? `
+            html, body {
+              margin-bottom: 0 !important;
+              padding-bottom: 0 !important;
+            }
+            body:after {
+              content: "";
+              position: fixed;
+              left: 0;
+              right: 0;
+              bottom: 0;
+              height: 40px;
+              background: var(--background);
+              z-index: 49;
+              pointer-events: none;
+            }
+          ` : ''}
+        `}</style>
+      </div>
     </div>
   );
 }

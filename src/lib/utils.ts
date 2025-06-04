@@ -1,8 +1,47 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { ActionType } from "./types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
+}
+
+/**
+ * Converts an ActionType to a user-friendly display label
+ */
+export function getActionTypeLabel(actionType: ActionType | undefined): string {
+  switch (actionType) {
+    case 'processMessage':
+      return 'Chat';
+    case 'analyzeRequirements':
+      return 'Requirements';
+    case 'generateEngagementPack':
+      return 'Engagement Pack';
+    case 'generateDeliveryTemplates':
+      return 'Delivery';
+    case 'checkMadeDesigns':
+      return 'Check Designs';
+    case 'generateRevision':
+      return 'Revision';
+    case 'generateDesignIdeas':
+      return 'Design Ideas';
+    case 'generateDesignPrompts':
+      return 'Design Tools';
+    case 'generateEditingPrompts':
+      return 'Editing Prompts';
+    case 'checkBestDesign':
+      return 'Best Design';
+    case 'promptToReplicate':
+      return 'Replication';
+    case 'promptWithCustomSense':
+      return 'Custom Style';
+    case 'promptForMicroStockMarkets':
+      return 'Microstock';
+    case 'search':
+      return 'Search';
+    default:
+      return 'Chat';
+  }
 }
 
 // Helper function to fetch with a timeout
