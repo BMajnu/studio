@@ -1,529 +1,82 @@
-# DesAInR Feature Enhancement Plan
+# DesAInR UI Enhancement Plan
 
-## Phase 1: Enhance Requirements Analysis UI with Bilingual Split-View
-- [x] Update `AnalyzeClientRequirementsOutputSchema` in `src/ai/flows/analyze-client-requirements.ts` to include:
-  - keyPointsEnglish: Array of key requirements bullet points in English
-  - keyPointsBengali: Array of key requirements bullet points in Bengali
-  - detailedRequirementsEnglish: Paragraph explanation in simplified expert-to-beginner language
-  - detailedRequirementsBengali: Paragraph explanation in Bengali
-  - designMessageEnglish: Text/slogan/saying for the design in English
-  - designMessageBengali: Text/slogan/saying for the design in Bengali
-  - designNicheAndAudienceEnglish: Information about niche, theme, and target audience in English
-  - designNicheAndAudienceBengali: Information about niche, theme, and target audience in Bengali
-  - designItemsEnglish: Array of design items with descriptions in English
-  - designItemsBengali: Array of design items with descriptions in Bengali
-- [x] Create a new `DesignListItemSchema` for structured output of individual design items:
-  ```typescript
-  const DesignListItemSchema = z.object({
-    id: z.string(), // Unique identifier for the design item
-    title: z.string(), // Title/name of the design item
-    description: z.string(), // Brief description of the design
-    textContent: z.string().optional() // Text/saying/quote if included
-  });
-  ```
-- [x] Update the prompt in `analyzeClientRequirementsPrompt` to:
-  - Explicitly analyze the 5 sections in both languages
-  - Extract design items as actionable entities with clear titles
-  - Ensure text/quotes are properly identified for each design
-- [x] Create a `BilingualSplitView` component in `src/components/chat/bilingual-split-view.tsx`
-  - Split panel layout with English on left, Bengali on right
-  - Tab navigation between the 5 sections
-  - Parallel scrolling between English and Bengali content
-- [x] Create a `DesignItemsList` component in `src/components/chat/design-items-list.tsx`
-  - Display design items with action buttons
-  - Click handler to generate ideas for specific item
-- [x] Update `page.tsx`:
-  - Modify `analyzeRequirements` action handler to use new schema
-  - Use the new components for displaying analysis results
+## Phase 1: Implement Header and Footer Collapsible Functionality
 
-## Phase 2: Restore and Enhance Generate Design Ideas Flow
-- [x] Update `GenerateDesignIdeasOutputSchema` in `src/ai/flows/generate-design-ideas-flow.ts` to include:
-  ```typescript
-  const GenerateDesignIdeasOutputSchema = z.object({
-    extractedTextOrSaying: z.string(),
-    simulatedWebInspiration: z.array(WebSearchResultSchema),
-    graphicsCreativeIdeas: z.array(z.string()).length(4),
-    typographyDesignIdeas: z.array(z.string()).length(3),
-    typographyWithGraphicsIdeas: z.array(z.string()).length(3),
-  });
-  ```
-- [x] Update `generateDesignIdeasPrompt` to include instructions:
-  - Generate exactly 4 graphics-focused creative design ideas
-  - Generate exactly 3 typography-focused design ideas
-  - Generate exactly 3 mixed typography with graphics ideas
-  - Follow consistent detailed format with style, concept, elements, colors
-- [x] Modify `page.tsx` design ideas handling:
-  ```typescript
-  const designIdeasGroups = [];
-  
-  if (ideasOutput.graphicsCreativeIdeas && ideasOutput.graphicsCreativeIdeas.length > 0) {
-    designIdeasGroups.push({
-      category: "Graphics Creative Ideas",
-      items: ideasOutput.graphicsCreativeIdeas
-    });
-  }
-  
-  if (ideasOutput.typographyDesignIdeas && ideasOutput.typographyDesignIdeas.length > 0) {
-    designIdeasGroups.push({
-      category: "Typography Design Ideas", 
-      items: ideasOutput.typographyDesignIdeas
-    });
-  }
-  
-  if (ideasOutput.typographyWithGraphicsIdeas && ideasOutput.typographyWithGraphicsIdeas.length > 0) {
-    designIdeasGroups.push({
-      category: "Typography with Graphics Ideas",
-      items: ideasOutput.typographyWithGraphicsIdeas
-    });
-  }
-  ```
-
-## Phase 3: Update Generate AI Prompts Flow
-- [x] Update `GenerateDesignPromptsOutputSchema` in `src/ai/flows/generate-design-prompts-flow.ts`:
-  ```typescript
-  const GenerateDesignPromptsOutputSchema = z.object({
-    graphicsPrompts: z.array(z.string()).length(4),
-    typographyPrompts: z.array(z.string()).length(3),
-    mixedPrompts: z.array(z.string()).length(3),
-  });
-  ```
-- [x] Update `generateDesignPromptsPrompt` to:
-  - Identify all three categories of ideas from design ideas step
-  - Generate prompts that match the specific ideas in each category
-  - Maintain appropriate style and detail for each prompt type
-- [x] Update `page.tsx` prompt display:
-  ```typescript
-  // Add header for all prompts
-  finalAiResponseContent.push({ 
-    type: 'text', 
-    title: 'AI Image Generation Prompts', 
-    text: "The following prompts can be used with AI image generators to create visual concepts based on the design ideas."
-  });
+- [x] Create a collapsible state management system:
+  - [x] Add state variables in `src/app/page.tsx`:
+    ```typescript
+    const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
+    const [isFooterCollapsed, setIsFooterCollapsed] = useState(false);
+    ```
+  - [x] Create toggle functions for both components:
+    ```typescript
+    const toggleHeader = () => setIsHeaderCollapsed(prev => !prev);
+    const toggleFooter = () => setIsFooterCollapsed(prev => !prev);
+    ```
+  - [x] Add LocalStorage persistence to remember user preferences:
+    ```typescript
+    // Save preferences when changed
+    useEffect(() => {
+      localStorage.setItem('desainr_ui_header_collapsed', isHeaderCollapsed.toString());
+      localStorage.setItem('desainr_ui_footer_collapsed', isFooterCollapsed.toString());
+    }, [isHeaderCollapsed, isFooterCollapsed]);
     
-  // Add Graphics prompts
-  if (promptsOutput.graphicsPrompts && promptsOutput.graphicsPrompts.length > 0) {
-    finalAiResponseContent.push({ 
-      type: 'text', 
-      title: 'Graphics Design Prompts', 
-      text: "Prompts for graphics-focused designs:"
-    });
-      
-    promptsOutput.graphicsPrompts.forEach((prompt, index) => {
-      finalAiResponseContent.push({ 
-        type: 'code', 
-        title: `Graphics Prompt ${index + 1}`, 
-        code: prompt
-      });
-    });
-  }
-  
-  // Add Typography prompts
-  if (promptsOutput.typographyPrompts && promptsOutput.typographyPrompts.length > 0) {
-    finalAiResponseContent.push({ 
-      type: 'text', 
-      title: 'Typography Design Prompts', 
-      text: "Prompts for typography-focused designs:"
-    });
-      
-    promptsOutput.typographyPrompts.forEach((prompt, index) => {
-      finalAiResponseContent.push({ 
-        type: 'code', 
-        title: `Typography Prompt ${index + 1}`, 
-        code: prompt
-      });
-    });
-  }
-  
-  // Add Mixed Typography+Graphics prompts
-  if (promptsOutput.mixedPrompts && promptsOutput.mixedPrompts.length > 0) {
-    finalAiResponseContent.push({ 
-      type: 'text', 
-      title: 'Mixed Typography & Graphics Prompts', 
-      text: "Prompts for designs combining typography and graphics:"
-    });
-      
-    promptsOutput.mixedPrompts.forEach((prompt, index) => {
-      finalAiResponseContent.push({ 
-        type: 'code', 
-        title: `Mixed Prompt ${index + 1}`, 
-        code: prompt
-      });
-    });
-  }
-  ```
+    // Load preferences on startup
+    useEffect(() => {
+      const savedHeaderState = localStorage.getItem('desainr_ui_header_collapsed');
+      const savedFooterState = localStorage.getItem('desainr_ui_footer_collapsed');
+      if (savedHeaderState) setIsHeaderCollapsed(savedHeaderState === 'true');
+      if (savedFooterState) setIsFooterCollapsed(savedFooterState === 'true');
+    }, []);
+    ```
 
-## Phase 4: Implement UI Flow Connections
-- [x] Create a state management approach for selected design items:
-  ```typescript
-  // Add to ChatPage component
-  const [selectedDesignItem, setSelectedDesignItem] = useState<{
-    id: string;
-    title: string;
-    description: string;
-    textContent?: string;
-  } | null>(null);
-  ```
-- [x] Implement design selection button component:
-  ```typescript
-  // In DesignItemsList component
-  <Button 
-    onClick={() => onSelectDesign({
-      id: item.id,
-      title: item.title,
-      description: item.description,
-      textContent: item.textContent
-    })}
-    variant="outline"
-    size="sm"
-    className="mt-2"
-  >
-    <Lightbulb className="h-4 w-4 mr-2" />
-    Generate Ideas for This Design
-  </Button>
-  ```
-- [x] Update action handler:
-  ```typescript
-  // Modify in ChatPage
-  const handleDesignItemSelect = (designItem) => {
-    setSelectedDesignItem(designItem);
-    
-    // Construct a prompt that focuses on this specific design item
-    const designPrompt = `Generate design ideas for: ${designItem.title}. ${designItem.description} ${designItem.textContent ? `Include this text: "${designItem.textContent}"` : ''}`;
-    
-    // Call the generateDesignIdeas function with this specific prompt
-    handleSendMessage(designPrompt, 'generateDesignIdeas');
-  };
-  ```
-- [x] Add visual connection between requirements and idea generation:
-  - Add a "Selected Design" label in the design ideas response
-  - Add context banner to show which design item from requirements is being processed
+## Phase 2: Create Collapsible Header Component
 
-## Phase 5: Improve Search Keywords Generation
+- [x] Create collapsible header functionality:
+  - [x] Design a collapsible header that can smoothly transition between expanded and collapsed states
+  - [x] Add expand/collapse button with appropriate styling
+  - [x] Apply transition animations for smooth expanding/collapsing
+  - [x] Implement adaptive height calculation for smooth animations
+  - [x] Handle accessibility concerns (aria attributes)
 
-- [x] Update GenerateDesignIdeasOutputSchema to include AI-generated search keywords
-- [x] Update the prompt in generateDesignIdeasPrompt to instruct the AI to generate relevant keywords
-- [x] Update the handleDesignItemSelect function to provide clear design context for keyword generation
-- [x] Modify page.tsx to use dynamically generated keywords instead of hardcoded ones
-- [x] Add condition checking to ensure keywords are displayed when available
+- [x] Modify the chat interface header in `src/app/page.tsx`:
+  - [x] Add collapsible functionality to the header component
+  - [x] Ensure header remains accessible when collapsed (with expand button)
+  - [x] Adjust the main content area's height calculation to account for collapsed header
 
-## Phase 6: Testing and Documentation
-- [ ] Test script for Phase 1 (Requirements Analysis):
-  - Verify all 5 sections are correctly generated and displayed
-  - Check English/Bengali parallel display
-  - Validate interactive elements for design selection
-- [ ] Test script for Phase 2 (Design Ideas):
-  - Verify all 10 ideas (4+3+3) are generated
-  - Check category separation and display
-  - Test idea generation for specific design items
-- [ ] Test script for Phase 3 (AI Prompts):
-  - Verify all 10 prompts (4+3+3) are generated
-  - Check category separation and display
-  - Validate prompt quality and correspondence to ideas
-- [ ] Test script for Phase 4 (UI Flow):
-  - Verify end-to-end flow from requirements to ideas to prompts
-  - Test with various input types and selection scenarios
-- [ ] Test script for Phase 5 (Search Keywords):
-  - Verify keywords are generated and displayed correctly
-  - Check keyword relevance to design ideas
-- [ ] Create documentation files:
-  - Update README.md with new feature information
-  - Create/update user guide sections for the new workflow
+## Phase 3: Create Collapsible Footer Component
 
-## Phase 7: Add State Management for Collapsible Sections
-- [x] Add state variables to track collapsed state of header and footer:
-  ```typescript
-  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState<boolean>(false);
-  const [isFooterCollapsed, setIsFooterCollapsed] = useState<boolean>(false);
-  ```
-- [x] Create toggle functions for both sections:
-  ```typescript
-  const toggleHeader = useCallback(() => {
-    setIsHeaderCollapsed(prev => !prev);
-    setTimeout(() => {
-      if (chatAreaRef.current) {
-        chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
-      }
-    }, 300); // Adjust scroll after animation completes
-  }, []);
-  
-  const toggleFooter = useCallback(() => {
-    setIsFooterCollapsed(prev => !prev);
-    setTimeout(() => {
-      if (chatAreaRef.current) {
-        chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
-      }
-    }, 300); // Adjust scroll after animation completes
-  }, []);
-  ```
-- [x] Add user preference persistence to localStorage:
-  ```typescript
-  // Save preference when toggling
-  useEffect(() => {
-    try {
-      localStorage.setItem('desainr_header_collapsed', JSON.stringify(isHeaderCollapsed));
-    } catch (e) {
-      console.error('Failed to save header preference:', e);
-    }
-  }, [isHeaderCollapsed]);
-  
-  useEffect(() => {
-    try {
-      localStorage.setItem('desainr_footer_collapsed', JSON.stringify(isFooterCollapsed));
-    } catch (e) {
-      console.error('Failed to save footer preference:', e);
-    }
-  }, [isFooterCollapsed]);
-  ```
-- [x] Add effect to load saved preferences on component mount:
-  ```typescript
-  useEffect(() => {
-    try {
-      const savedHeaderState = localStorage.getItem('desainr_header_collapsed');
-      if (savedHeaderState !== null) {
-        setIsHeaderCollapsed(JSON.parse(savedHeaderState));
-      }
-      
-      const savedFooterState = localStorage.getItem('desainr_footer_collapsed');
-      if (savedFooterState !== null) {
-        setIsFooterCollapsed(JSON.parse(savedFooterState));
-      }
-    } catch (e) {
-      console.error('Failed to load collapse preferences:', e);
-    }
-  }, []);
-  ```
+- [x] Create collapsible footer functionality:
+  - [x] Design a collapsible footer with smooth transition animations
+  - [x] Add expand/collapse button
+  - [x] Implement minimal view mode showing just the essential elements when collapsed
+  - [x] Ensure proper event handling when collapsed
 
-## Phase 8: UI Elements for Collapse/Expand Controls
-- [x] Create a collapsible toggle button component:
-  ```typescript
-  const CollapseToggle = ({ 
-    isCollapsed, 
-    onToggle, 
-    position = 'bottom' 
-  }: { 
-    isCollapsed: boolean; 
-    onToggle: () => void; 
-    position?: 'top' | 'bottom' 
-  }) => {
-    return (
-      <div 
-        className={cn(
-          "absolute left-1/2 -translate-x-1/2 z-10",
-          position === 'top' ? "-top-3" : "-bottom-3",
-          "md:w-10 w-8" // Smaller on mobile
-        )}
-      >
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onToggle}
-          className="h-6 w-10 rounded-full bg-card shadow-md hover:bg-accent hover:text-accent-foreground p-0 border border-border"
-          aria-label={isCollapsed ? "Expand" : "Collapse"}
-          aria-expanded={!isCollapsed}
-        >
-          {position === 'top' && !isCollapsed && <ArrowUpToLine className="h-3 w-3" />}
-          {position === 'top' && isCollapsed && <ArrowDownToLine className="h-3 w-3" />}
-          {position === 'bottom' && !isCollapsed && <ArrowDownToLine className="h-3 w-3" />}
-          {position === 'bottom' && isCollapsed && <ArrowUpToLine className="h-3 w-3" />}
-        </Button>
-      </div>
-    );
-  };
-  ```
-- [x] Add toggle button to header section
-- [x] Add toggle button to footer section
+- [x] Modify the chat interface footer in `src/app/page.tsx`:
+  - [x] Implement collapsible functionality for the footer area
+  - [x] Design a minimized view for collapsed state
+  - [x] Ensure proper transitions between states
 
-## Phase 9: Header Section Modifications
-- [x] Modify the header section to be collapsible:
-  ```typescript
-  <div className="relative">
-    <div 
-      className={cn(
-        "px-4 py-3 border-b flex items-center justify-between sticky top-0 bg-card/30 backdrop-blur-md z-10 shadow-md min-h-[57px] animate-fade-in transition-all duration-300",
-        "origin-top transition-transform",
-        isHeaderCollapsed && "transform scale-y-0 h-0 min-h-0 py-0 opacity-0 overflow-hidden"
-      )}
-    >
-      <div className="flex items-center">
-        <Button variant="ghost" size="icon" onClick={() => setIsHistoryPanelOpen(prev => !prev)} aria-label="Toggle history panel" className="hover:bg-primary/20 btn-glow rounded-full">
-          {isMobile ? (isHistoryPanelOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />)
-                   : (isHistoryPanelOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />)}
-        </Button>
-        <h2 className="ml-3 font-semibold text-xl truncate text-gradient" title={currentSession?.name || "Chat"}>{currentSession?.name || "Chat"}</h2>
-      </div>
-      <div className="flex items-center gap-3">
-        <Button variant="secondary" size="sm" onClick={handleNewChat} className="hover:bg-accent hover:text-accent-foreground transition-colors duration-300 rounded-full shadow-md btn-glow">
-            <PlusCircle className="h-4 w-4 mr-2" /> New Chat
-        </Button>
-      </div>
-    </div>
-    
-    <CollapseToggle 
-      isCollapsed={isHeaderCollapsed} 
-      onToggle={toggleHeader} 
-      position="bottom"
-    />
-  </div>
-  ```
-- [x] Add CSS variables for header and footer heights:
-  ```typescript
-  useEffect(() => {
-    // Set CSS variables for header and footer heights
-    const root = document.documentElement;
-    root.style.setProperty('--header-height-chat', '57px');
-    root.style.setProperty('--footer-height-chat', '160px');
-    
-    // For mobile, set smaller heights
-    if (isMobile) {
-      root.style.setProperty('--header-height-chat', '50px');
-      root.style.setProperty('--footer-height-chat', '120px');
-    }
-  }, [isMobile]);
-  ```
+## Phase 4: Reorganize Header Layout
 
-## Phase 10: Footer Section Modifications
-- [x] Modify the footer section to be collapsible:
-  ```typescript
-  <div className="relative">
-    <CollapseToggle 
-      isCollapsed={isFooterCollapsed} 
-      onToggle={toggleFooter} 
-      position="top"
-    />
-    
-    <div 
-      className={cn(
-        "border-t p-4 md:p-5 glass-panel bg-background/60 backdrop-blur-xl shadow-xl shrink-0", 
-        isDragging && "opacity-50",
-        "origin-bottom transition-transform duration-300",
-        isFooterCollapsed && "transform scale-y-0 h-0 py-0 opacity-0 overflow-hidden"
-      )}
-    >
-      {/* Existing footer content */}
-    </div>
-  </div>
-  ```
-- [x] Ensure proper z-index layering and smooth animations:
-  ```typescript
-  // CSS classes added to handle transitions
-  "origin-bottom transition-transform duration-300"
-  
-  // CSS classes applied when collapsed
-  isFooterCollapsed && "transform scale-y-0 h-0 py-0 opacity-0 overflow-hidden"
-  ```
-- [x] Add special handling for the file attachment area to ensure proper collapse/expand behavior
-- [x] Ensure the input textarea and action buttons collapse smoothly
+- [x] Remove the chat name header bar below the app title:
+  - [x] Remove the chat name display from the header
+  - [x] Keep the toggle history panel button in place
 
-## Phase 11: Content Area Adjustment
-- [x] Update the ScrollArea component for dynamic height adjustment:
-  ```typescript
-  <ScrollArea 
-    className={cn(
-      "flex-1 p-2 md:p-4 overflow-y-auto transition-all duration-300",
-      isHeaderCollapsed && "pt-8", // Add padding when header is collapsed
-      isFooterCollapsed && "pb-8"  // Add padding when footer is collapsed
-    )} 
-    ref={chatAreaRef}
-    style={{ 
-      height: isHeaderCollapsed && isFooterCollapsed ? "calc(100vh - var(--header-height,0px))" :
-             isHeaderCollapsed ? "calc(100vh - var(--header-height,0px) - var(--footer-height-chat,160px))" : 
-             isFooterCollapsed ? "calc(100vh - var(--header-height,0px) - var(--header-height-chat,57px))" :  
-             "calc(100vh - var(--header-height,0px) - var(--header-height-chat,57px) - var(--footer-height-chat,160px))"
-    }}
-  >
-    <div className="space-y-4 w-full stagger-animation">
-      {/* Existing messages content */}
-    </div>
-  </ScrollArea>
-  ```
-- [x] Add extra padding to create space for the toggle buttons:
-  ```typescript
-  className={cn(
-    "flex-1 p-2 md:p-4 overflow-y-auto transition-all duration-300",
-    isHeaderCollapsed && "pt-8", // Add padding when header is collapsed
-    isFooterCollapsed && "pb-8"  // Add padding when footer is collapsed
-  )}
-  ```
-- [x] Implement smooth transitions for height changes:
-  ```typescript
-  // Added transition for smooth height changes
-  "transition-all duration-300"
-  ```
+- [x] Reorganize the main app header to incorporate needed elements:
+  - [x] Modify layout in `src/app/page.tsx` to reorganize the header:
+    - [x] Position the "New Chat" button as shown in the screenshot
+    - [x] Add "Collapse" button at the right edge
+    - [x] Ensure proper spacing and alignment of all elements
 
-## Phase 12: Mobile Optimization
-- [x] Add special handling for mobile devices:
-  ```typescript
-  useEffect(() => {
-    // Set CSS variables for header and footer heights
-    const root = document.documentElement;
-    
-    if (isMobile) {
-      // Mobile optimized sizes
-      root.style.setProperty('--header-height-chat', '50px');
-      root.style.setProperty('--footer-height-chat', '140px'); // Smaller for mobile
-      
-      // Additional mobile optimizations
-      root.style.setProperty('--collapse-button-size', '8px'); // Smaller buttons
-      root.style.setProperty('--collapse-button-width', '36px'); // Narrower buttons
-    } else {
-      // Desktop sizes
-      root.style.setProperty('--header-height-chat', '57px');
-      root.style.setProperty('--footer-height-chat', '160px');
-      
-      // Desktop button sizes
-      root.style.setProperty('--collapse-button-size', '10px');
-      root.style.setProperty('--collapse-button-width', '40px');
-    }
-    
-    // Set transition properties for smoother animations
-    root.style.setProperty('--collapse-transition', '0.3s ease-in-out');
-  }, [isMobile]);
-  ```
-- [x] Add responsive styling for toggle buttons on smaller screens:
-  ```typescript
-  // Added to CollapseToggle component
-  className={cn(
-    "h-6 rounded-full bg-card shadow-md hover:bg-accent hover:text-accent-foreground p-0 border border-border",
-    "w-10 md:w-10", // Responsive width
-    "transition-all duration-300 hover:shadow-lg"
-  )}
-  ```
-- [x] Optimize responsive layout for different screen sizes:
-  * Made toggle buttons more easily tappable on mobile devices
-  * Adjusted heights to provide more content space on smaller screens
-  * Added transition effects for smoother mobile animations
+## Phase 5: Testing and Documentation
 
-## Phase 13: Testing and Refinement
-- [ ] Verify smooth animations for collapsing/expanding:
-  - Check transitions on different browsers (Chrome, Firefox, Safari)
-  - Verify no layout shifts during animations
-- [ ] Test accessibility of toggle controls:
-  - Add aria-expanded attribute
-  - Ensure keyboard navigation works
-  - Add screen reader friendly labels
-- [ ] Browser compatibility testing:
-  - Test on Chrome, Firefox, Safari, and Edge
-  - Verify on iOS Safari and Android Chrome
-- [ ] Verify content scrolling works correctly after toggling sections:
-  - Messages should remain visible after collapse/expand
-  - New messages should correctly scroll into view
+- [ ] Perform comprehensive testing:
+  - [ ] Test full collapse/expand cycles of both components
+  - [ ] Test persistence of settings (localStorage) across page refreshes
+  - [ ] Test interactions between components (header/footer both collapsed)
+  - [ ] Test on different screen sizes and devices
 
-## Phase 14: App Header Collapsible Implementation
-- [x] Create app-header-context.tsx to manage app header collapse state:
-  - Add state management for collapsed header state
-  - Implement localStorage persistence for user preferences
-  - Create provider component and hook for app-wide access
-- [x] Update root layout to include AppHeaderProvider:
-  - Wrap application with provider to make context available
-  - Ensure proper component hierarchy with AuthProvider
-- [x] Modify app-layout.tsx to implement collapsible header:
-  - Add transition effects for smooth collapse/expand
-  - Create toggle button positioned at the center-bottom of header
-  - Connect UI state to app header context
-- [x] Update page.tsx chat area to respect app header state:
-  - Modify ScrollArea height calculations to account for all combinations
-    of collapsed sections (app header, chat header, and footer)
-  - Ensure proper scrolling behavior when toggling any section
-- [x] Enable full screen mode with zero margins:
-  - When all sections are collapsed, allow 100% viewport height for content
-  - Ensure only the toggle buttons are visible in fully collapsed state
+- [ ] Document implementation:
+  - [ ] Add comments to code explaining the collapsible functionality
+  - [ ] Update any relevant documentation

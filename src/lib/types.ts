@@ -68,7 +68,7 @@ export type ChatMessageContentPart =
     }
   | { 
       type: 'bilingual_analysis';
-      title?: string;
+  title?: string; 
       keyPoints: BilingualContent;
       detailedRequirements: BilingualContent;
       designMessage: BilingualContent;

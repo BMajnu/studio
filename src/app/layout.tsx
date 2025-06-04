@@ -4,7 +4,6 @@ import './globals.css';
 import { AppLayout } from '@/components/layout/app-layout';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/contexts/auth-context'; // Import AuthProvider
-import { AppHeaderProvider } from '@/contexts/app-header-context'; // Import AppHeaderProvider
 import { initializeLogger } from '@/lib/utils/logger-config';
 
 const geistSans = Geist({
@@ -39,12 +38,10 @@ export default function RootLayout({
         suppressHydrationWarning={true} // Add this line
       >
         <AuthProvider> {/* Wrap AppLayout with AuthProvider */}
-          <AppHeaderProvider> {/* Add AppHeaderProvider */}
-            <AppLayout>
-              {children}
-            </AppLayout>
-            <Toaster />
-          </AppHeaderProvider>
+          <AppLayout>
+            {children}
+          </AppLayout>
+          <Toaster />
         </AuthProvider>
       </body>
     </html>

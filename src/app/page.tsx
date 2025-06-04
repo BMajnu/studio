@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Paperclip, Loader2, BotIcon, Menu, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw, PlusCircle, Edit3, RefreshCw, LogIn, UserPlus, Languages, X, AlertTriangle, InfoIcon, ArrowUpToLine, ArrowDownToLine, FileText } from 'lucide-react';
+import { Paperclip, Loader2, BotIcon, Menu, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw, PlusCircle, Edit3, RefreshCw, LogIn, UserPlus, Languages, X, AlertTriangle, InfoIcon, ArrowUpToLine, ArrowDownToLine, FileText, ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -13,7 +13,6 @@ import { useToast } from "@/hooks/use-toast";
 import { safeToast } from "@/lib/safe-toast";
 import { useUserProfile } from '@/lib/hooks/use-user-profile';
 import { useChatHistory } from '@/lib/hooks/use-chat-history';
-import { useAppHeader } from '@/contexts/app-header-context';
 import type { ChatMessage, UserProfile, ChatMessageContentPart, AttachedFile, ChatSession, ChatSessionMetadata, EditHistoryEntry } from '@/lib/types';
 import { processClientMessage, type ProcessClientMessageInput, type ProcessClientMessageOutput } from '@/ai/flows/process-client-message';
 import { processCustomInstruction, type ProcessCustomInstructionInput, type ProcessCustomInstructionOutput } from '@/ai/flows/process-custom-instruction';
@@ -28,6 +27,9 @@ import { checkBestDesign, type CheckBestDesignInput, type CheckBestDesignOutput 
 import { promptToReplicate } from '@/ai/flows/prompt-to-replicate-flow';
 import { type PromptToReplicateInput, type PromptToReplicateOutput } from '@/ai/flows/prompt-to-replicate-types';
 
+// Add import for DesAInRLogo
+import { DesAInRLogo } from '@/components/icons/logo';
+import Link from 'next/link';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -164,44 +166,6 @@ const baseEnsureMessagesHaveUniqueIds = (messagesToProcess: ChatMessage[]): Chat
   });
 };
 
-// Collapsible toggle button component
-const CollapseToggle = ({ 
-  isCollapsed, 
-  onToggle, 
-  position = 'bottom' 
-}: { 
-  isCollapsed: boolean; 
-  onToggle: () => void; 
-  position?: 'top' | 'bottom' 
-}) => {
-  return (
-    <div 
-      className={cn(
-        "absolute left-1/2 -translate-x-1/2 z-10",
-        position === 'top' ? "-top-3" : "-bottom-3"
-      )}
-    >
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={onToggle}
-        className={cn(
-          "h-6 rounded-full bg-card shadow-md hover:bg-accent hover:text-accent-foreground p-0 border border-border",
-          "w-10 md:w-10", // Responsive width
-          "transition-all duration-300 hover:shadow-lg"
-        )}
-        aria-label={isCollapsed ? "Expand" : "Collapse"}
-        aria-expanded={!isCollapsed}
-      >
-        {position === 'top' && !isCollapsed && <ArrowDownToLine className="h-3 w-3" />}
-        {position === 'top' && isCollapsed && <ArrowUpToLine className="h-3 w-3" />}
-        {position === 'bottom' && !isCollapsed && <ArrowUpToLine className="h-3 w-3" />}
-        {position === 'bottom' && isCollapsed && <ArrowDownToLine className="h-3 w-3" />}
-      </Button>
-    </div>
-  );
-};
-
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -215,13 +179,9 @@ export default function ChatPage() {
   // State to store generated prompts for the Prompt to Replicate popup
   const [replicatePromptResults, setReplicatePromptResults] = useState<PromptToReplicateOutput | null>(null);
   const [isProcessingReplicatePrompts, setIsProcessingReplicatePrompts] = useState(false);
-
-  // State variables for collapsible header and footer
-  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState<boolean>(false);
-  const [isFooterCollapsed, setIsFooterCollapsed] = useState<boolean>(false);
-  const [isBrowserToolbarCollapsed, setIsBrowserToolbarCollapsed] = useState<boolean>(false);
-  const [isAppHeaderCollapsed, setIsAppHeaderCollapsed] = useState<boolean>(false);
-  const { isAppHeaderCollapsed: appHeaderCollapsed } = useAppHeader();
+  // Add state for collapsible header and footer
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
+  const [isFooterCollapsed, setIsFooterCollapsed] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -306,8 +266,33 @@ export default function ChatPage() {
   // Add a chatSidebarRef to access the history panel
   const chatSidebarRef = useRef<HTMLDivElement>(null);
 
+  // Toggle functions for collapsible header and footer
+  const toggleHeader = useCallback(() => {
+    setIsHeaderCollapsed(prev => !prev);
+  }, []);
+
+  const toggleFooter = useCallback(() => {
+    setIsFooterCollapsed(prev => !prev);
+  }, []);
+
   useEffect(() => {
     isMounted.current = true;
+    
+    // Load header and footer collapse state from localStorage
+    try {
+      const headerCollapsedState = localStorage.getItem('desainr_header_collapsed');
+      const footerCollapsedState = localStorage.getItem('desainr_footer_collapsed');
+      
+      if (headerCollapsedState !== null) {
+        setIsHeaderCollapsed(headerCollapsedState === 'true');
+      }
+      
+      if (footerCollapsedState !== null) {
+        setIsFooterCollapsed(footerCollapsedState === 'true');
+      }
+    } catch (error) {
+      console.error('Error loading collapse state from localStorage:', error);
+    }
     
     // Automatic localStorage cleanup for corrupted data
     try {
@@ -349,6 +334,30 @@ export default function ChatPage() {
     
     return () => { isMounted.current = false; };
   }, []);
+  
+  // Save collapse state to localStorage when it changes
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    // Update the CSS variable based on header state
+    document.documentElement.style.setProperty('--header-height', isHeaderCollapsed ? '0px' : '4rem');
+    
+    try {
+      localStorage.setItem('desainr_header_collapsed', isHeaderCollapsed.toString());
+    } catch (error) {
+      console.error('Error saving header collapse state to localStorage:', error);
+    }
+  }, [isHeaderCollapsed]);
+  
+  useEffect(() => {
+    if (!isMounted.current) return;
+    
+    try {
+      localStorage.setItem('desainr_footer_collapsed', isFooterCollapsed.toString());
+    } catch (error) {
+      console.error('Error saving footer collapse state to localStorage:', error);
+    }
+  }, [isFooterCollapsed]);
 
   const ensureMessagesHaveUniqueIds = useCallback(baseEnsureMessagesHaveUniqueIds, []);
 
@@ -1250,18 +1259,18 @@ export default function ChatPage() {
               });
             }
           } else if (currentActionType === 'generateDesignIdeas') {
-            const ideasInput: GenerateDesignIdeasInput = { 
+            const ideasInput: GenerateDesignIdeasInput = {
               ...baseInput, 
               designInputText: userMessageContent, 
               attachedFiles: filesForFlow, 
               chatHistory: chatHistoryForAI 
             };
             const ideasOutput = await generateDesignIdeas(ideasInput);
-            
+
             // If there's a selectedDesignItem, add a context banner showing which design is being processed
             if (selectedDesignItem && selectedDesignItem.id) {
-              finalAiResponseContent.push({
-                type: 'text',
+            finalAiResponseContent.push({ 
+              type: 'text', 
                 title: '🎨 Selected Design for Ideas Generation',
                 text: `**${selectedDesignItem.title}**\n\n${selectedDesignItem.description}\n\n${selectedDesignItem.textContent ? `**Text to include:** "${selectedDesignItem.textContent}"` : ''}`
               });
@@ -1278,8 +1287,8 @@ export default function ChatPage() {
               finalAiResponseContent.push({
                 type: 'text',
                 title: 'Core Text or Saying',
-                text: ideasOutput.extractedTextOrSaying
-              });
+              text: ideasOutput.extractedTextOrSaying
+            });
             }
             
             // Add web inspiration section
@@ -1302,14 +1311,14 @@ export default function ChatPage() {
                   ];
               
               // Create a section with clickable keyword buttons using a specialized component type
-              finalAiResponseContent.push({
+                finalAiResponseContent.push({ 
                 type: 'search_keywords',
                 title: 'Web Search Keywords',
                 keywords: searchKeywords.map(keyword => ({
                   text: keyword,
                   url: `https://www.google.com/search?q=${encodeURIComponent(keyword)}`
                 }))
-              });
+                });
             }
             
             // Create design ideas groups
@@ -1326,7 +1335,7 @@ export default function ChatPage() {
             // Add typography design ideas
             if (ideasOutput.typographyDesignIdeas && ideasOutput.typographyDesignIdeas.length > 0) {
               designIdeasGroups.push({
-                category: "Typography Design Ideas", 
+                category: "Typography Design Ideas",
                 items: ideasOutput.typographyDesignIdeas
               });
             }
@@ -1355,61 +1364,61 @@ export default function ChatPage() {
             const promptsOutput = await generateDesignPrompts(promptsInput);
             
             // Add header for all prompts
-            finalAiResponseContent.push({ 
-              type: 'text', 
-              title: 'AI Image Generation Prompts', 
-              text: "The following prompts can be used with AI image generators to create visual concepts based on the design ideas."
-            });
-              
+                finalAiResponseContent.push({ 
+                  type: 'text', 
+                  title: 'AI Image Generation Prompts', 
+                  text: "The following prompts can be used with AI image generators to create visual concepts based on the design ideas."
+                });
+                
             // Add Graphics prompts
             if (promptsOutput.graphicsPrompts && promptsOutput.graphicsPrompts.length > 0) {
-              finalAiResponseContent.push({ 
-                type: 'text', 
+                finalAiResponseContent.push({ 
+                  type: 'text', 
                 title: 'Graphics Design Prompts', 
                 text: "Prompts for graphics-focused designs:"
-              });
+                });
                 
               promptsOutput.graphicsPrompts.forEach((prompt, index) => {
-                finalAiResponseContent.push({ 
-                  type: 'code', 
+                  finalAiResponseContent.push({ 
+                    type: 'code', 
                   title: `Graphics Prompt ${index + 1}`, 
                   code: prompt
                 });
-              });
-            }
-            
+                  });
+                }
+                
             // Add Typography prompts
             if (promptsOutput.typographyPrompts && promptsOutput.typographyPrompts.length > 0) {
-              finalAiResponseContent.push({ 
-                type: 'text', 
+                  finalAiResponseContent.push({ 
+                    type: 'text', 
                 title: 'Typography Design Prompts', 
                 text: "Prompts for typography-focused designs:"
-              });
-                
+                  });
+                  
               promptsOutput.typographyPrompts.forEach((prompt, index) => {
-                finalAiResponseContent.push({ 
-                  type: 'code', 
+                    finalAiResponseContent.push({ 
+                      type: 'code', 
                   title: `Typography Prompt ${index + 1}`, 
                   code: prompt
                 });
-              });
-            }
-            
+                    });
+                  }
+                  
             // Add Mixed Typography+Graphics prompts
             if (promptsOutput.mixedPrompts && promptsOutput.mixedPrompts.length > 0) {
-              finalAiResponseContent.push({ 
-                type: 'text', 
+                    finalAiResponseContent.push({ 
+                      type: 'text', 
                 title: 'Mixed Typography & Graphics Prompts', 
                 text: "Prompts for designs combining typography and graphics:"
-              });
-                
+                    });
+                    
               promptsOutput.mixedPrompts.forEach((prompt, index) => {
-                finalAiResponseContent.push({ 
-                  type: 'code', 
+                      finalAiResponseContent.push({ 
+                        type: 'code', 
                   title: `Mixed Prompt ${index + 1}`, 
                   code: prompt
+                      });
                 });
-              });
             }
           } else if (currentActionType === 'checkMadeDesigns') {
             const designFile = filesForFlow.find(f => f.type?.startsWith('image/') && f.dataUri);
@@ -2239,124 +2248,28 @@ Please focus on this specific design request and generate search keywords that w
     };
   }, [handleDesignItemSelect]);
 
-  // Toggle functions for collapsible header and footer
-  const toggleHeader = useCallback(() => {
-    setIsHeaderCollapsed(prev => !prev);
-    setTimeout(() => {
-      if (chatAreaRef.current) {
-        chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
-      }
-    }, 300); // Adjust scroll after animation completes
-  }, []);
-  
-  const toggleFooter = useCallback(() => {
-    setIsFooterCollapsed(prev => !prev);
-    setTimeout(() => {
-      if (chatAreaRef.current) {
-        chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
-      }
-    }, 300); // Adjust scroll after animation completes
-  }, []);
-  
-  const toggleBrowserToolbar = useCallback(() => {
-    setIsBrowserToolbarCollapsed(prev => !prev);
-    setTimeout(() => {
-      if (chatAreaRef.current) {
-        chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
-      }
-    }, 300); // Adjust scroll after animation completes
-  }, []);
-  
-  const toggleAppHeader = useCallback(() => {
-    setIsAppHeaderCollapsed(prev => !prev);
-    // Update localStorage to remember user preference
-    try {
-      localStorage.setItem('desainr_app_header_collapsed', JSON.stringify(!isAppHeaderCollapsed));
-    } catch (e) {
-      console.error('Failed to save app header preference:', e);
-    }
-  }, [isAppHeaderCollapsed]);
-
-  // Save header collapsed state to localStorage
+  // After defining isHistoryPanelOpen and setIsHistoryPanelOpen
+  // Listen for top-level history toggle events
   useEffect(() => {
-    try {
-      localStorage.setItem('desainr_header_collapsed', JSON.stringify(isHeaderCollapsed));
-    } catch (e) {
-      console.error('Failed to save header preference:', e);
-    }
-  }, [isHeaderCollapsed]);
-  
-  // Save footer collapsed state to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('desainr_footer_collapsed', JSON.stringify(isFooterCollapsed));
-    } catch (e) {
-      console.error('Failed to save footer preference:', e);
-    }
-  }, [isFooterCollapsed]);
-  
-  // Save browser toolbar collapsed state to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('desainr_browser_toolbar_collapsed', JSON.stringify(isBrowserToolbarCollapsed));
-    } catch (e) {
-      console.error('Failed to save browser toolbar preference:', e);
-    }
-  }, [isBrowserToolbarCollapsed]);
-  
-  // Load saved preferences on component mount
-  useEffect(() => {
-    try {
-      const savedHeaderState = localStorage.getItem('desainr_header_collapsed');
-      if (savedHeaderState !== null) {
-        setIsHeaderCollapsed(JSON.parse(savedHeaderState));
-      }
-      
-      const savedFooterState = localStorage.getItem('desainr_footer_collapsed');
-      if (savedFooterState !== null) {
-        setIsFooterCollapsed(JSON.parse(savedFooterState));
-      }
-      
-      const savedBrowserToolbarState = localStorage.getItem('desainr_browser_toolbar_collapsed');
-      if (savedBrowserToolbarState !== null) {
-        setIsBrowserToolbarCollapsed(JSON.parse(savedBrowserToolbarState));
-      }
-      
-      const savedAppHeaderState = localStorage.getItem('desainr_app_header_collapsed');
-      if (savedAppHeaderState !== null) {
-        setIsAppHeaderCollapsed(JSON.parse(savedAppHeaderState));
-      }
-    } catch (e) {
-      console.error('Failed to load collapse preferences:', e);
-    }
+    const handleToggleHistory = () => {
+      setIsHistoryPanelOpen(prev => !prev);
+    };
+    window.addEventListener('toggle-history-panel', handleToggleHistory);
+    return () => {
+      window.removeEventListener('toggle-history-panel', handleToggleHistory);
+    };
   }, []);
 
-  // Add effect to set CSS variables for header and footer heights
+  // Listen for top-level new-chat events
   useEffect(() => {
-    // Set CSS variables for header and footer heights
-    const root = document.documentElement;
-    
-    if (isMobile) {
-      // Mobile optimized sizes
-      root.style.setProperty('--header-height-chat', '50px');
-      root.style.setProperty('--footer-height-chat', '140px'); // Smaller for mobile
-      
-      // Additional mobile optimizations
-      root.style.setProperty('--collapse-button-size', '8px'); // Smaller buttons
-      root.style.setProperty('--collapse-button-width', '36px'); // Narrower buttons
-    } else {
-      // Desktop sizes
-      root.style.setProperty('--header-height-chat', '57px');
-      root.style.setProperty('--footer-height-chat', '160px');
-      
-      // Desktop button sizes
-      root.style.setProperty('--collapse-button-size', '10px');
-      root.style.setProperty('--collapse-button-width', '40px');
-    }
-    
-    // Set transition properties for smoother animations
-    root.style.setProperty('--collapse-transition', '0.3s ease-in-out');
-  }, [isMobile]);
+    const handleNewChatEvent = () => {
+      handleNewChat();
+    };
+    window.addEventListener('new-chat', handleNewChatEvent);
+    return () => {
+      window.removeEventListener('new-chat', handleNewChatEvent);
+    };
+  }, [handleNewChat]);
 
   if (authLoading || (!currentSession && !profileLoading && !historyHookLoading) ) {
     return (
@@ -2471,53 +2384,7 @@ Please focus on this specific design request and generate search keywords that w
 
       {/* Main chat area - always visible regardless of history panel state */}
       <div className="flex flex-col flex-grow min-w-0 w-full h-full">
-        <div className="relative">
-          <div 
-            className={cn(
-              "px-4 py-3 border-b flex items-center justify-between sticky top-0 bg-card/30 backdrop-blur-md z-10 shadow-md min-h-[57px] animate-fade-in transition-all duration-300",
-              "origin-top transition-transform",
-              isHeaderCollapsed && "transform scale-y-0 h-0 min-h-0 py-0 opacity-0 overflow-hidden"
-            )}
-          >
-            <div className="flex items-center">
-              <Button variant="ghost" size="icon" onClick={() => setIsHistoryPanelOpen(prev => !prev)} aria-label="Toggle history panel" className="hover:bg-primary/20 btn-glow rounded-full">
-                {isMobile ? (isHistoryPanelOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />)
-                         : (isHistoryPanelOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />)}
-              </Button>
-              <h2 className="ml-3 font-semibold text-xl truncate text-gradient" title={currentSession?.name || "Chat"}>{currentSession?.name || "Chat"}</h2>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button variant="secondary" size="sm" onClick={handleNewChat} className="hover:bg-accent hover:text-accent-foreground transition-colors duration-300 rounded-full shadow-md btn-glow">
-                  <PlusCircle className="h-4 w-4 mr-2" /> New Chat
-              </Button>
-            </div>
-          </div>
-          
-          <CollapseToggle 
-            isCollapsed={isHeaderCollapsed} 
-            onToggle={toggleHeader} 
-            position="bottom"
-          />
-        </div>
-
-        <ScrollArea 
-          className={cn(
-            "flex-1 p-2 md:p-4 overflow-y-auto transition-all duration-300",
-            isHeaderCollapsed && "pt-8", // Add extra padding when header is collapsed
-            isFooterCollapsed && "pb-8"  // Add extra padding when footer is collapsed
-          )} 
-          ref={chatAreaRef}
-          style={{ 
-            height: isHeaderCollapsed && isFooterCollapsed && appHeaderCollapsed ? "100vh" :
-                   isHeaderCollapsed && isFooterCollapsed ? "calc(100vh - var(--header-height,0px))" :
-                   isHeaderCollapsed && appHeaderCollapsed ? "calc(100vh - var(--footer-height-chat,160px))" :
-                   isFooterCollapsed && appHeaderCollapsed ? "calc(100vh - var(--header-height-chat,57px))" :
-                   isHeaderCollapsed ? "calc(100vh - var(--header-height,0px) - var(--footer-height-chat,160px))" : 
-                   isFooterCollapsed ? "calc(100vh - var(--header-height,0px) - var(--header-height-chat,57px))" :  
-                   appHeaderCollapsed ? "calc(100vh - var(--header-height-chat,57px) - var(--footer-height-chat,160px))" :
-                   "calc(100vh - var(--header-height,0px) - var(--header-height-chat,57px) - var(--footer-height-chat,160px))"
-          }}
-        >
+        <ScrollArea className="flex-1 p-2 md:p-4 overflow-y-auto" ref={chatAreaRef}>
           <div className="space-y-4 w-full stagger-animation">
             {messages.map((msg) => (
               <ChatMessageDisplay
@@ -2556,155 +2423,174 @@ Please focus on this specific design request and generate search keywords that w
           </div>
         )}
 
-        <div className="relative">
-          <CollapseToggle 
-            isCollapsed={isFooterCollapsed} 
-            onToggle={toggleFooter} 
-            position="top"
-          />
-          
-          <div 
-            className={cn(
-              "border-t p-4 md:p-5 glass-panel bg-background/60 backdrop-blur-xl shadow-xl shrink-0", 
-              isDragging && "opacity-50",
-              "origin-bottom transition-transform duration-300",
-              isFooterCollapsed && "transform scale-y-0 h-0 py-0 opacity-0 overflow-hidden"
-            )}
-          >
-            <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-primary/10 via-primary/40 to-primary/10"></div>
+        <div 
+          className={cn(
+            "relative border-t glass-panel bg-background/60 backdrop-blur-xl shadow-xl shrink-0 transition-all duration-300", 
+            isDragging && "opacity-50",
+            isFooterCollapsed ? "h-2 py-0 overflow-visible" : "p-4 md:p-5"
+          )}
+        >
+          <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-primary/10 via-primary/40 to-primary/10"></div>
 
-            {currentAttachedFilesData.length > 0 && (
-              <div className="mt-1 mb-3 glass-panel bg-background/80 p-3 rounded-xl border border-primary/10 shadow-md animate-fade-in">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">Attached files:</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 text-destructive/80 hover:text-destructive hover:bg-destructive/10 transition-all duration-300 rounded-full btn-glow"
-                    onClick={clearSelectedFiles}
-                  >
-                    <X className="h-3.5 w-3.5 mr-1" /> Clear
-                  </Button>
+          {/* Modern collapse/expand button for footer */}
+          <div className={cn(
+            "absolute right-4 transition-all duration-300 z-[60]",
+            isFooterCollapsed ? "-top-3" : "-top-6"
+          )}>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={toggleFooter}
+              className="h-6 w-10 rounded-full bg-background backdrop-blur-sm border border-border/50 shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out flex items-center justify-center group"
+              aria-label={isFooterCollapsed ? "Expand input area" : "Collapse input area"}
+            >
+              <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div className={`transition-all duration-300 ${isFooterCollapsed ? "" : "transform rotate-180"}`}>
+                  <ChevronDown size={15} className="text-foreground/80 group-hover:text-primary transition-colors" />
                 </div>
-                
-                <div className="font-size-0 whitespace-nowrap" style={{ fontSize: 0, lineHeight: 0 }}>
-                  {currentAttachedFilesData.map((file, index) => (
-                    <div 
-                      key={index} 
-                      className="inline-block align-top whitespace-normal w-20"
-                      style={{ margin: 0, padding: 0 }}
+              </div>
+            </Button>
+          </div>
+
+          {!isFooterCollapsed && (
+            <>
+              {currentAttachedFilesData.length > 0 && (
+                <div className="mt-1 mb-3 glass-panel bg-background/80 p-3 rounded-xl border border-primary/10 shadow-md animate-fade-in">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">Attached files:</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-destructive/80 hover:text-destructive hover:bg-destructive/10 transition-all duration-300 rounded-full btn-glow"
+                      onClick={clearSelectedFiles}
                     >
-                      <div className="group relative aspect-square overflow-hidden rounded-md border border-primary/10 hover:border-primary/30 transition-all duration-300">
-                        {file.type?.startsWith('image/') && file.dataUri ? (
-                          <>
-                            <img 
-                              src={file.dataUri} 
-                              alt={file.name}
-                              className="h-full w-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                          </>
-                        ) : (
-                          <div className="flex items-center justify-center h-full bg-muted/20">
-                            <FileText className="h-5 w-5 text-muted-foreground" />
+                      <X className="h-3.5 w-3.5 mr-1" /> Clear
+                    </Button>
+                  </div>
+                  
+                  <div className="font-size-0 whitespace-nowrap" style={{ fontSize: 0, lineHeight: 0 }}>
+                    {currentAttachedFilesData.map((file, index) => (
+                      <div 
+                        key={index} 
+                        className="inline-block align-top whitespace-normal w-20"
+                        style={{ margin: 0, padding: 0 }}
+                      >
+                        <div className="group relative aspect-square overflow-hidden rounded-md border border-primary/10 hover:border-primary/30 transition-all duration-300">
+                          {file.type?.startsWith('image/') && file.dataUri ? (
+                            <>
+                              <img 
+                                src={file.dataUri} 
+                                alt={file.name}
+                                className="h-full w-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                            </>
+                          ) : (
+                            <div className="flex items-center justify-center h-full bg-muted/20">
+                              <FileText className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                          )}
+                          <button 
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const newFiles = [...selectedFiles];
+                              newFiles.splice(index, 1);
+                              setSelectedFiles(newFiles);
+                              
+                              const newFileData = [...currentAttachedFilesData];
+                              newFileData.splice(index, 1);
+                              setCurrentAttachedFilesData(newFileData);
+                            }}
+                            className="absolute top-0 right-0 bg-destructive/80 hover:bg-destructive text-destructive-foreground rounded-bl-md p-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                          <div className="absolute bottom-0 left-0 right-0 p-0.5 text-[8px] bg-background/80 backdrop-blur-sm truncate opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            {file.name.length > 10 ? file.name.substring(0, 8) + '...' : file.name}
                           </div>
-                        )}
-                        <button 
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const newFiles = [...selectedFiles];
-                            newFiles.splice(index, 1);
-                            setSelectedFiles(newFiles);
-                            
-                            const newFileData = [...currentAttachedFilesData];
-                            newFileData.splice(index, 1);
-                            setCurrentAttachedFilesData(newFileData);
-                          }}
-                          className="absolute top-0 right-0 bg-destructive/80 hover:bg-destructive text-destructive-foreground rounded-bl-md p-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                        <div className="absolute bottom-0 left-0 right-0 p-0.5 text-[8px] bg-background/80 backdrop-blur-sm truncate opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                          {file.name.length > 10 ? file.name.substring(0, 8) + '...' : file.name}
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-end gap-2 animate-fade-in transition-all duration-300">
+                <div className="relative w-full group">
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 rounded-xl blur opacity-30 group-hover:opacity-70 transition-opacity duration-500"></div>
+                  <Textarea
+                    ref={inputTextAreaRef}
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Type here..."
+                    className="relative flex-1 resize-none min-h-[65px] max-h-[150px] rounded-xl shadow-lg focus-visible:ring-2 focus-visible:ring-primary glass-panel border-primary/20 transition-all duration-300 w-full pr-24 z-10 bg-background/60 backdrop-blur-lg"
+                    rows={Math.max(1, Math.min(5, inputMessage.split('\n').length))}
+                  />
+                  <div className="absolute bottom-3 right-3 flex items-center gap-2 opacity-70 group-hover:opacity-100 transition-opacity duration-300 z-20">
+                    <TooltipProvider delayDuration={200}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center gap-1.5">
+                            <div className="text-xs text-foreground/70 font-medium">Custom</div>
+                            <Checkbox
+                              id="custom-message-inline"
+                              checked={isCustomMessage}
+                              onCheckedChange={(checked) => setIsCustomMessage(checked as boolean)}
+                              className="data-[state=checked]:bg-accent data-[state=checked]:border-accent h-4 w-4"
+                            />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="glass-panel text-foreground shadow-xl rounded-lg p-3 animate-fade-in border border-accent/10 max-w-sm">
+                          <p className="font-semibold text-gradient">Custom Instructions</p>
+                          <p className="text-xs text-foreground/80 mt-1">
+                            When enabled, your message will be treated as a custom instruction for the AI. 
+                            Instead of standard analysis, you can tell the AI exactly what to generate from the client message.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="h-8 w-8 p-0 hover:bg-primary/10 rounded-full"
+                      aria-label="Attach files"
+                    >
+                      <div className="relative">
+                        <div className="absolute inset-0 bg-primary/10 rounded-full blur-sm animate-pulse-slow"></div>
+                        <Paperclip className="h-5 w-5 text-primary relative z-10" />
+                      </div>
+                    </Button>
+                    <input type="file" ref={fileInputRef} multiple onChange={handleFileChange} className="hidden" accept="image/*,application/pdf,.txt,.md,.json"/>
+                  </div>
                 </div>
               </div>
-            )}
 
-            <div className="flex items-end gap-2 animate-fade-in transition-all duration-300">
-              <div className="relative w-full group">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 rounded-xl blur opacity-30 group-hover:opacity-70 transition-opacity duration-500"></div>
-                <Textarea
-                  ref={inputTextAreaRef}
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Type here..."
-                  className="relative flex-1 resize-none min-h-[65px] max-h-[150px] rounded-xl shadow-lg focus-visible:ring-2 focus-visible:ring-primary glass-panel border-primary/20 transition-all duration-300 w-full pr-24 z-10 bg-background/60 backdrop-blur-lg"
-                  rows={Math.max(1, Math.min(5, inputMessage.split('\n').length))}
-                />
-                <div className="absolute bottom-3 right-3 flex items-center gap-2 opacity-70 group-hover:opacity-100 transition-opacity duration-300 z-20">
-                  <TooltipProvider delayDuration={200}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center gap-1.5">
-                          <div className="text-xs text-foreground/70 font-medium">Custom</div>
-                          <Checkbox
-                            id="custom-message-inline"
-                            checked={isCustomMessage}
-                            onCheckedChange={(checked) => setIsCustomMessage(checked as boolean)}
-                            className="data-[state=checked]:bg-accent data-[state=checked]:border-accent h-4 w-4"
-                          />
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="glass-panel text-foreground shadow-xl rounded-lg p-3 animate-fade-in border border-accent/10 max-w-sm">
-                        <p className="font-semibold text-gradient">Custom Instructions</p>
-                        <p className="text-xs text-foreground/80 mt-1">
-                          When enabled, your message will be treated as a custom instruction for the AI. 
-                          Instead of standard analysis, you can tell the AI exactly what to generate from the client message.
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="h-8 w-8 p-0 hover:bg-primary/10 rounded-full"
-                    aria-label="Attach files"
-                  >
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-primary/10 rounded-full blur-sm animate-pulse-slow"></div>
-                      <Paperclip className="h-5 w-5 text-primary relative z-10" />
-                    </div>
-                  </Button>
-                  <input type="file" ref={fileInputRef} multiple onChange={handleFileChange} className="hidden" accept="image/*,application/pdf,.txt,.md,.json"/>
-                </div>
-              </div>
-            </div>
-
-            <div className={cn(
+              <div className={cn(
                 "flex flex-wrap items-center justify-between mt-4 gap-x-3 gap-y-2",
                  isMobile ? "flex-col items-stretch gap-y-3" : ""
-               )}>
-              <div className={cn("flex-1 flex justify-end animate-stagger", isMobile ? "w-full justify-center mt-0" : "")} style={{ animationDelay: '200ms' }}>
-                <ActionButtonsPanel
-                  onAction={handleAction}
-                  isLoading={isLoading}
-                  currentUserMessage={inputMessage}
-                  profile={profile}
-                  currentAttachedFilesDataLength={currentAttachedFilesData.length}
-                  isMobile={isMobile}
-                  activeButton={activeActionButton}
-                  lastSelectedButton={lastSelectedActionButton}
-                />
+              )}>
+                <div className={cn("flex-1 flex justify-end animate-stagger", isMobile ? "w-full justify-center mt-0" : "")} style={{ animationDelay: '200ms' }}>
+                  <ActionButtonsPanel
+                    onAction={handleAction}
+                    isLoading={isLoading}
+                    currentUserMessage={inputMessage}
+                    profile={profile}
+                    currentAttachedFilesDataLength={currentAttachedFilesData.length}
+                    isMobile={isMobile}
+                    activeButton={activeActionButton}
+                    lastSelectedButton={lastSelectedActionButton}
+                  />
+                </div>
               </div>
-            </div>
-          </div>
+            </>
+          )}
+          {isFooterCollapsed && (
+            <div className="h-0"></div>
+          )}
         </div>
       </div>
 
@@ -2805,43 +2691,6 @@ Please focus on this specific design request and generate search keywords that w
           />
         </div>
       )}
-
-      {/* Browser toolbar toggle button */}
-      <div className="relative">
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-0 z-50">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={toggleBrowserToolbar}
-            className="h-6 w-10 rounded-t-full rounded-b-none bg-card shadow-md hover:bg-accent hover:text-accent-foreground p-0 border border-border transition-all duration-300 hover:shadow-lg"
-            aria-label={isBrowserToolbarCollapsed ? "Show browser toolbar" : "Hide browser toolbar"}
-            aria-expanded={!isBrowserToolbarCollapsed}
-          >
-            {isBrowserToolbarCollapsed ? <ArrowUpToLine className="h-3 w-3" /> : <ArrowDownToLine className="h-3 w-3" />}
-          </Button>
-        </div>
-        
-        {/* Apply styling to hide the browser toolbar */}
-        <style jsx global>{`
-          ${isBrowserToolbarCollapsed ? `
-            html, body {
-              margin-bottom: 0 !important;
-              padding-bottom: 0 !important;
-            }
-            body:after {
-              content: "";
-              position: fixed;
-              left: 0;
-              right: 0;
-              bottom: 0;
-              height: 40px;
-              background: var(--background);
-              z-index: 49;
-              pointer-events: none;
-            }
-          ` : ''}
-        `}</style>
-      </div>
     </div>
   );
 }

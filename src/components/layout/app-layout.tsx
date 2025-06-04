@@ -2,14 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Settings, Menu, HelpCircle, Sun, Moon, LogOut, LogIn, XIcon, Languages, ArrowUpToLine, ArrowDownToLine } from 'lucide-react';
+import { Home, Settings, Menu, HelpCircle, Sun, Moon, LogOut, LogIn, XIcon, Languages, ChevronUp, ChevronDown, PlusCircle } from 'lucide-react';
 import { DesAInRLogo } from '@/components/icons/logo';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import React, { useState, useEffect } from 'react';
 import { FeaturesGuideModal } from '@/components/features-guide-modal';
 import { useAuth } from '@/contexts/auth-context';
-import { useAppHeader } from '@/contexts/app-header-context';
 import {
   Dialog,
   DialogContent as ModalContent, 
@@ -28,6 +27,10 @@ import { SignupForm } from '@/components/auth/signup-form';
 import { APP_FEATURES_GUIDE, APP_FEATURES_GUIDE_BN } from "@/lib/constants";
 import { useRouteChangeEvent } from '@/lib/utils/route-events';
 
+// Define a custom event for header/footer collapse
+export const HEADER_TOGGLE_EVENT = 'desainr_header_toggle';
+export const FOOTER_TOGGLE_EVENT = 'desainr_footer_toggle';
+
 interface NavItem {
   href?: string;
   label: string | { en: string; bn: string };
@@ -45,10 +48,49 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [effectiveTheme, setEffectiveTheme] = useState<'light' | 'dark'>('light');
   const [currentLanguage, setCurrentLanguage] = useState<'en' | 'bn'>('en');
   const { user, signOut, loading: authLoading } = useAuth();
-  const { isAppHeaderCollapsed, toggleAppHeader } = useAppHeader();
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
+  // Add state for header collapsed
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
+  
+  // Add event listener for header toggle events from child components
+  useEffect(() => {
+    const handleHeaderToggle = (event: Event) => {
+      setIsHeaderCollapsed(prev => !prev);
+    };
+    
+    window.addEventListener(HEADER_TOGGLE_EVENT, handleHeaderToggle);
+    
+    return () => {
+      window.removeEventListener(HEADER_TOGGLE_EVENT, handleHeaderToggle);
+    };
+  }, []);
+  
+  // Load header collapsed state from localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    try {
+      const headerCollapsed = localStorage.getItem('desainr_header_collapsed');
+      if (headerCollapsed !== null) {
+        setIsHeaderCollapsed(headerCollapsed === 'true');
+      }
+    } catch (error) {
+      console.error('Error loading header collapsed state from localStorage:', error);
+    }
+  }, []);
+  
+  // Save header collapsed state to localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    try {
+      localStorage.setItem('desainr_header_collapsed', isHeaderCollapsed.toString());
+    } catch (error) {
+      console.error('Error saving header collapsed state to localStorage:', error);
+    }
+  }, [isHeaderCollapsed]);
   
   // Add the route change event listener
   useRouteChangeEvent();
@@ -256,36 +298,53 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const sheetTitle = currentLanguage === 'bn' ? 'মেনু' : 'Menu';
 
   return (
-    <div className="flex min-h-screen max-h-screen flex-col" style={{ "--header-height": isAppHeaderCollapsed ? "0px" : "4rem" } as React.CSSProperties}>
-      <div className="relative">
-        <header 
-          className={`sticky top-0 z-50 flex h-16 items-center justify-between border-b bg-background/60 px-4 backdrop-blur-xl shrink-0 shadow-lg glass-panel animate-fade-in transition-all duration-300 ${
-            isAppHeaderCollapsed ? "transform scale-y-0 h-0 opacity-0 overflow-hidden" : ""
-          }`}
-        >
-          <Link href="/" className="flex items-center gap-2 transition-all duration-300 ease-in-out hover:opacity-90 hover:scale-110 group">
-            <div className="relative overflow-hidden rounded-full p-1 transition-all duration-300 group-hover:shadow-md group-hover:shadow-primary/20">
-              <DesAInRLogo className="animate-pulse-slow" />
-            </div>
-          </Link>
-
-          <div className="flex items-center gap-2">
-            {user && (
-              <div className="text-sm font-medium bg-gradient-to-r from-primary/20 to-secondary/20 px-4 py-1.5 rounded-full mr-2 hidden md:flex items-center animate-fade-in shadow-sm">
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
-                  {welcomeMessageText}
-                </span>
-              </div>
-            )}
-            <nav className="hidden md:flex items-center space-x-2 animate-fade-in">
-              {navItems.map((item, index) => (
-                <div key={`nav-${index}`} className="animate-stagger" style={{ animationDelay: `${index * 100}ms` }}>
-                  {renderNavItem(item, false)}
+    <div className="flex min-h-screen max-h-screen flex-col" style={{ "--header-height": isHeaderCollapsed ? "1rem" : "4rem" } as React.CSSProperties}>
+      <header className={`sticky top-0 z-50 flex items-center justify-between border-b bg-background/60 backdrop-blur-xl shrink-0 shadow-lg glass-panel animate-fade-in transition-all duration-300 ${isHeaderCollapsed ? "h-4 px-4 overflow-visible" : "h-16 px-4"}`}>
+        {!isHeaderCollapsed && (
+          <>
+            {/* Left section: History toggle, New Chat, App Logo */}
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => window.dispatchEvent(new Event('toggle-history-panel'))}
+                aria-label="Toggle chat history panel"
+                className="hover:bg-primary/20 btn-glow rounded-full"
+              >
+                <Menu className="h-5 w-5 text-foreground/80 hover:text-primary transition-colors" />
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => window.dispatchEvent(new Event('new-chat'))}
+                className="hover:bg-accent hover:text-accent-foreground transition-colors duration-300 rounded-full shadow-md btn-glow"
+              >
+                <PlusCircle className="h-4 w-4 mr-2" /> New Chat
+              </Button>
+              <Link href="/" className="flex items-center gap-2 transition-all duration-300 ease-in-out hover:opacity-90 hover:scale-110 group">
+                <div className="relative overflow-hidden rounded-full p-1 transition-all duration-300 group-hover:shadow-md group-hover:shadow-primary/20">
+                  <DesAInRLogo className="animate-pulse-slow" />
                 </div>
-              ))}
-            </nav>
-            
-            <div className="flex items-center space-x-2 ml-auto md:ml-4 animate-fade-in">
+              </Link>
+            </div>
+
+            {/* Right section: Welcome and navigation */}
+            <div className="flex items-center gap-2 ml-auto md:ml-4 animate-fade-in">
+              {user && (
+                <div className="text-sm font-medium bg-gradient-to-r from-primary/20 to-secondary/20 px-4 py-1.5 rounded-full hidden md:flex items-center animate-fade-in shadow-sm">
+                  <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+                    {welcomeMessageText}
+                  </span>
+                </div>
+              )}
+              <nav className="hidden md:flex items-center space-x-2 animate-fade-in">
+                {navItems.map((item, index) => (
+                  <div key={`nav-${index}`} className="animate-stagger" style={{ animationDelay: `${index * 100}ms` }}>
+                    {renderNavItem(item, false)}
+                  </div>
+                ))}
+              </nav>
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button 
@@ -362,27 +421,29 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 </SheetContent>
               </Sheet>
             </div>
-          </div>
-        </header>
-        
-        {/* App Header Toggle Button */}
-        <div className="absolute left-1/2 -translate-x-1/2 z-50 top-0">
-          <Button
+          </>
+        )}
+        {/* Modern, professional collapse/expand button */}
+        <div 
+          className={`absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-1/2 z-[60] transition-all duration-300 ${isHeaderCollapsed ? 'opacity-90' : 'opacity-70 hover:opacity-100'}`}
+        >
+          <Button 
             variant="outline"
-            size="sm"
-            onClick={toggleAppHeader}
-            className={`h-6 w-10 rounded-b-full rounded-t-none bg-card shadow-md hover:bg-accent hover:text-accent-foreground p-0 border border-border transition-all duration-300 hover:shadow-lg ${
-              isAppHeaderCollapsed ? "mt-0" : "mt-16"  // When expanded, push button to bottom of header
-            }`}
-            aria-label={isAppHeaderCollapsed ? "Expand app header" : "Collapse app header"}
-            aria-expanded={!isAppHeaderCollapsed}
+            size="icon"
+            onClick={() => setIsHeaderCollapsed(prev => !prev)}
+            className={`h-6 w-10 rounded-full bg-background backdrop-blur-sm border border-border/50 shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out flex items-center justify-center group ${isHeaderCollapsed ? 'transform translate-y-1' : ''}`}
+            aria-label={isHeaderCollapsed ? "Expand header" : "Collapse header"}
           >
-            {isAppHeaderCollapsed ? <ArrowDownToLine className="h-3 w-3" /> : <ArrowUpToLine className="h-3 w-3" />}
+            <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <div className={`transition-all duration-300 ${isHeaderCollapsed ? "" : "transform rotate-180"}`}>
+                <ChevronDown size={15} className="text-foreground/80 group-hover:text-primary transition-colors" />
+              </div>
+            </div>
           </Button>
         </div>
-      </div>
-      
-      <main className="flex-1 flex flex-col overflow-hidden h-[calc(100vh-var(--header-height,0px))] w-full">
+      </header>
+      <main className="flex-1 flex flex-col overflow-hidden h-[calc(100vh-var(--header-height))] w-full">
         {children}
       </main>
 
