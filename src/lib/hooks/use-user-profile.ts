@@ -1,4 +1,3 @@
-
 // src/lib/hooks/use-user-profile.ts
 "use client";
 
@@ -34,7 +33,7 @@ export function useUserProfile() {
       communicationStyleNotes: DEFAULT_USER_PROFILE.communicationStyleNotes,
       services: [...DEFAULT_USER_PROFILE.services],
       fiverrUsername: DEFAULT_USER_PROFILE.fiverrUsername,
-      geminiApiKey: DEFAULT_USER_PROFILE.geminiApiKey,
+      geminiApiKeys: DEFAULT_USER_PROFILE.geminiApiKeys,
       selectedGenkitModelId: DEFAULT_USER_PROFILE.selectedGenkitModelId,
       customSellerFeedbackTemplate: DEFAULT_USER_PROFILE.customSellerFeedbackTemplate,
       customClientFeedbackResponseTemplate: DEFAULT_USER_PROFILE.customClientFeedbackResponseTemplate,

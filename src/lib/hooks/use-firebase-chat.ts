@@ -391,7 +391,7 @@ export function useFirebaseChat() {
       if (localMetadataJson) {
         try {
           const localMetadata = JSON.parse(localMetadataJson);
-          const updatedMetadata = localMetadata.filter(m => m.id !== sessionId);
+          const updatedMetadata = localMetadata.filter((m: ChatSessionMetadata) => m.id !== sessionId);
           localStorage.setItem(`firebase_chat_sessions_${userId}`, JSON.stringify(updatedMetadata));
           setSessions(updatedMetadata);
         } catch (e) {

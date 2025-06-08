@@ -14,6 +14,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { CheckBestDesignOutput } from '@/ai/flows/check-best-design-flow';
+import Image from 'next/image';
 
 interface TopDesignsResultsProps {
   results: CheckBestDesignOutput | null;
@@ -272,18 +273,18 @@ export function TopDesignsResults({ results, className, onClose }: TopDesignsRes
             
             <CardContent className="p-4">
               <div className="aspect-video relative rounded-md overflow-hidden bg-muted border border-primary/20 shadow-inner">
-                <img 
-                  src={getImageFromDesign(design.designId) || placeholderImage} 
+                <Image
+                  src={getImageFromDesign(design.designId) || placeholderImage}
                   alt={`Design ${getDisplayName(design)}`}
-                  className="w-full h-full object-contain"
+                  fill
+                  className="object-contain"
+                  sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
                   onError={(e) => {
-                    // If image fails to load, replace with placeholder
-                    const target = e.target as HTMLImageElement;
+                    const target = e.currentTarget as HTMLImageElement;
                     if (target.src !== placeholderImage) {
                       target.src = placeholderImage;
                     }
                   }}
-                  loading="lazy"
                 />
               </div>
               

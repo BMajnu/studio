@@ -54,6 +54,7 @@ import { setLocalStorageItem, getLocalStorageItem } from '@/lib/storage-helpers'
 // Add import for BilingualSplitView component
 import { BilingualSplitView } from '@/components/chat/bilingual-split-view';
 import type { DesignListItem } from '@/lib/types';
+import Image from 'next/image';
 
 
 const getMessageText = (content: string | ChatMessageContentPart[] | undefined): string => {
@@ -2481,11 +2482,11 @@ Please focus on this specific design request and generate search keywords that w
                         <div className="group relative aspect-square overflow-hidden rounded-md border border-primary/10 hover:border-primary/30 transition-all duration-300">
                           {file.type?.startsWith('image/') && file.dataUri ? (
                             <>
-                              <img 
-                                src={file.dataUri} 
+                              <Image
+                                src={file.dataUri!}
                                 alt={file.name}
-                                className="h-full w-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
-                              />
+                                fill
+                                className="object-cover object-center group-hover:scale-105 transition-transform duration-300" />
                               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                             </>
                           ) : (

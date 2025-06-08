@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { Home, Settings, Menu, HelpCircle, Sun, Moon, LogOut, LogIn, XIcon, Languages, ChevronUp, ChevronDown, PlusCircle } from 'lucide-react';
 import { DesAInRLogo } from '@/components/icons/logo';
 import { Button } from '@/components/ui/button';
+import type { ButtonProps } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import React, { useState, useEffect } from 'react';
 import { FeaturesGuideModal } from '@/components/features-guide-modal';
@@ -206,9 +207,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       </>
     );
     
-    const commonButtonProps = {
-      variant: (item.href && pathname === item.href) ? "default" : "ghost" as "default" | "ghost",
-      rounded: "full" as "full",
+    const commonButtonProps: ButtonProps = {
+      variant: (item.href && pathname === item.href) ? "default" : "ghost",
+      rounded: "full",
       glow: true,
       animate: true,
       className: `font-medium transition-all duration-300 ease-in-out ${isMobile ? "w-full justify-start text-base py-3 h-auto" : ""}`

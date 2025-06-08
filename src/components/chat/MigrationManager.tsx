@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useDriveToFirebaseMigration } from '@/lib/hooks/use-drive-to-firebase-migration';
+import { useLocalToFirebaseMigration } from '@/lib/hooks/use-drive-to-firebase-migration';
 import { MigrationDialog } from './MigrationDialog';
 import { Button } from '@/components/ui/button';
 import { CloudIcon } from 'lucide-react';
@@ -20,7 +20,7 @@ export function MigrationManager() {
     migrationProgress,
     isMigrationInProgress,
     checkMigration
-  } = useDriveToFirebaseMigration();
+  } = useLocalToFirebaseMigration();
 
   // Show manual migration button if needed
   const showMigrationButton = isMigrationNeeded === true;

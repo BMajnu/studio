@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { ImageSearchResultItem } from '@/lib/services/search-service';
 import { cn } from '@/lib/utils';
 import { 
@@ -38,10 +39,12 @@ export function ImageResults({ results, searchQuery, className }: ImageResultsPr
             className="relative group cursor-pointer rounded-md overflow-hidden border border-primary/10 aspect-square hover:border-primary/30 transition-all duration-200"
             onClick={() => setSelectedImage(image)}
           >
-            <img 
-              src={image.thumbnail} 
+            <Image
+              src={image.thumbnail}
               alt={image.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              fill
+              sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
+              className="object-cover group-hover:scale-105 transition-transform duration-300"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
               <span className="text-xs text-white line-clamp-2">{image.title}</span>
@@ -69,10 +72,11 @@ export function ImageResults({ results, searchQuery, className }: ImageResultsPr
                 </a>
               </DialogHeader>
               <div className="relative flex-1 min-h-[400px] bg-muted/30 flex items-center justify-center p-4">
-                <img 
-                  src={selectedImage.url} 
+                <Image
+                  src={selectedImage.url}
                   alt={selectedImage.title}
-                  className="max-w-full max-h-[70vh] object-contain shadow-lg"
+                  fill
+                  className="object-contain shadow-lg"
                 />
                 <div className="absolute bottom-2 right-2 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
                   Source: {selectedImage.source}

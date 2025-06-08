@@ -23,6 +23,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import Image from 'next/image';
 
 // File export type
 type ExportFormat = 'svg' | 'json' | 'csv' | 'txt';
@@ -267,10 +268,12 @@ export function PromptForMicrostock({ userName, userApiKey, modelId, onClose, on
           {referenceImageDataUrl ? (
             <div className="mt-2 border rounded-lg p-3 bg-background/70 relative">
               <div className="aspect-video relative rounded-md overflow-hidden mb-2">
-                <img 
-                  src={referenceImageDataUrl} 
-                  alt="Reference" 
-                  className="object-contain w-full h-full"
+                <Image
+                  src={referenceImageDataUrl!}
+                  alt="Reference"
+                  fill
+                  className="object-contain"
+                  sizes="100vw"
                 />
                           </div>
               <div className="flex justify-between items-center">
