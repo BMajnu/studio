@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Lightbulb } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 // Define the data structure for each bilingual section
 interface BilingualContent {
@@ -286,13 +286,15 @@ function DesignItemCard({
       )}
       
       {showActionButton && (
-        <button 
-          onClick={() => onSelect?.(item)}
-          className="mt-3 px-4 py-2 text-sm rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors duration-300 flex items-center shadow-md hover:shadow-lg"
-        >
-          <Lightbulb className="h-4 w-4 mr-2" />
-          Generate Ideas
-        </button>
+        <div className="mt-2">
+          <button
+            onClick={() => onSelect?.(item)}
+            className="w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center"
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
+            Generate Prompts
+          </button>
+        </div>
       )}
     </div>
   );

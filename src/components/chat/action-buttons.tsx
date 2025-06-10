@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { BotMessageSquare, Plane, RotateCcw, ListChecks, ClipboardList, Sparkles, MessageSquarePlus, Palette, Lightbulb, Terminal, SearchCheck, ClipboardSignature, Edit3, AlertTriangle, Search, Wrench } from 'lucide-react';
+import { BotMessageSquare, Plane, RotateCcw, ListChecks, ClipboardList, Sparkles, MessageSquarePlus, Palette, Terminal, SearchCheck, ClipboardSignature, Edit3, AlertTriangle, Search, Wrench, CircleCheck, Trophy, Settings } from 'lucide-react';
 import type { UserProfile } from '@/lib/types';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -19,7 +19,6 @@ export type ActionType =
   | 'processMessage'
   | 'analyzeRequirements'
   | 'generateEngagementPack'
-  | 'generateDesignIdeas'
   | 'generateDesignPrompts'
   | 'checkMadeDesigns'
   | 'generateDeliveryTemplates'
@@ -28,7 +27,8 @@ export type ActionType =
   | 'checkBestDesign'
   | 'promptToReplicate'
   | 'promptWithCustomSense'
-  | 'promptForMicroStockMarkets';
+  | 'promptForMicroStockMarkets'
+  | 'custom';
 
 interface ActionButtonConfig {
   id: ActionType;
@@ -52,7 +52,11 @@ export type AnyActionConfig = ActionButtonConfig | DropdownActionConfig;
 
 
 const actionButtonsConfig: AnyActionConfig[] = [
+  // Chat
   { id: 'processMessage', label: 'Process Client Message', shortLabel: 'Chat', icon: BotMessageSquare, description: 'Full analysis, plan, Bengali translation.', isPrimaryAction: true },
+  // Requirements
+  { id: 'analyzeRequirements', label: 'Analyze Requirements', shortLabel: 'Requirements', icon: ListChecks, description: 'Detailed analysis of requirements, prioritization, Bangla translation, and design message.', isPrimaryAction: true },
+  // Design Tools dropdown
   {
     id: 'designActions', // ID for the dropdown trigger
     label: 'Design Tools', // Tooltip for the trigger
@@ -60,13 +64,11 @@ const actionButtonsConfig: AnyActionConfig[] = [
     icon: Palette,         // Icon for the trigger
     description: 'Access tools to generate design ideas and AI prompts.',
     subActions: [
-      { id: 'generateDesignIdeas', label: 'Generate Design Ideas', shortLabel: 'Idea', icon: Lightbulb, description: 'Generates creative design ideas, web inspiration, and typography concepts.', isPrimaryAction: false },
-      { id: 'generateDesignPrompts', label: 'Generate AI Prompts', shortLabel: 'Prompt', icon: Terminal, description: 'Converts design ideas into detailed prompts for AI image generation.', isPrimaryAction: false },
-      { id: 'checkBestDesign', label: 'Check the best design', shortLabel: 'Check', icon: SearchCheck, description: 'Analyzes and identifies the best design based on requirements.', isPrimaryAction: false },
+      { id: 'generateDesignPrompts', label: 'AI Prompts', shortLabel: 'Prompt', icon: Terminal, description: 'Converts design ideas into detailed prompts for AI image generation.', isPrimaryAction: false },
+      { id: 'checkBestDesign', label: 'Check the best design', shortLabel: 'Best', icon: Trophy, description: 'Analyzes and identifies the best design based on requirements.', isPrimaryAction: false },
     ]
   },
-  { id: 'generateEngagementPack', label: 'Generate Engagement Pack', shortLabel: 'Brief', icon: ClipboardList, description: 'Generates a personalized intro, job reply, budget/timeline/software ideas, and clarifying questions.', isPrimaryAction: true },
-  { id: 'analyzeRequirements', label: 'Analyze Requirements', shortLabel: 'Requirements', icon: ListChecks, description: 'Detailed analysis of requirements, prioritization, Bangla translation, and design message.', isPrimaryAction: true },
+  // Delivery Tools dropdown
   {
     id: 'deliveryActions', // ID for the dropdown trigger
     label: 'Delivery Tools', // Tooltip for the trigger
@@ -79,7 +81,11 @@ const actionButtonsConfig: AnyActionConfig[] = [
       { id: 'generateDeliveryTemplates', label: 'Delivery Templates', shortLabel: 'Templates', icon: ClipboardSignature, description: 'Generate Fiverr delivery messages and follow-ups.', isPrimaryAction: false },
     ]
   },
+  // Revision
   { id: 'generateRevision', label: 'Generate Revision Message', shortLabel: 'Revision', icon: RotateCcw, description: 'Platform-ready revision messages and follow-ups.', isPrimaryAction: true },
+  // Fiverr Brief
+  { id: 'generateEngagementPack', label: 'Fiverr Brief', shortLabel: 'Brief', icon: ClipboardList, description: 'Generates a personalized intro, job reply, budget/timeline/software ideas, and clarifying questions.', isPrimaryAction: true },
+  // Tools dropdown
   {
     id: 'toolsActions', // ID for the dropdown trigger
     label: 'Tools', // Tooltip for the trigger
@@ -91,7 +97,9 @@ const actionButtonsConfig: AnyActionConfig[] = [
       { id: 'promptWithCustomSense', label: 'Prompt with Custom Change', shortLabel: 'Custom', icon: MessageSquarePlus, description: 'Define design types and desired changes to generate varied prompts.', isPrimaryAction: false },
       { id: 'promptForMicroStockMarkets', label: 'Prompt for Micro Stock Markets (PMSM)', shortLabel: 'PMSM', icon: ClipboardSignature, description: 'Generate multiple prompts optimized for microstock markets, along with metadata.', isPrimaryAction: false },
     ]
-  }
+  },
+  // Custom Instruction (moved to very end)
+  { id: 'custom', label: 'Custom Instruction', shortLabel: 'Custom', icon: Settings, description: 'Treat input as a custom instruction for the AI.', isPrimaryAction: true }
 ];
 
 interface ActionButtonsPanelProps {
@@ -103,6 +111,7 @@ interface ActionButtonsPanelProps {
   isMobile: boolean;
   activeButton: ActionType | null; // Currently active button for visual feedback
   lastSelectedButton: ActionType | null; // Last selected button for logic
+  flat?: boolean; // If true, show all actions as a flat list
 }
 
 export function ActionButtonsPanel({ 
@@ -113,7 +122,8 @@ export function ActionButtonsPanel({
   currentAttachedFilesDataLength, 
   isMobile,
   activeButton,
-  lastSelectedButton
+  lastSelectedButton,
+  flat = false
 }: ActionButtonsPanelProps) {
 
   const isActionDisabled = (actionId?: ActionType) => {
@@ -162,8 +172,7 @@ export function ActionButtonsPanel({
     }
     
     // Dropdown containers are selected if any of their children are the lastSelectedButton
-    if (buttonId === 'designActions' && 
-        (lastSelectedButton === 'generateDesignIdeas' || lastSelectedButton === 'generateDesignPrompts')) {
+    if (buttonId === 'designActions' && lastSelectedButton === 'generateDesignPrompts') {
       return true;
     }
     
@@ -185,14 +194,53 @@ export function ActionButtonsPanel({
     return buttonId === lastSelectedButton;
   };
 
+  // Prepare configs: flatten sub-actions if flat mode
+  const mapConfigs = flat
+    ? actionButtonsConfig.flatMap(config => 'subActions' in config ? config.subActions : [config])
+    : actionButtonsConfig;
+
   return (
     <TooltipProvider>
       <div className={cn(
-          "flex flex-wrap items-center justify-end gap-2 md:gap-3 stagger-animation",
+          "flex items-center justify-end gap-2 md:gap-3 stagger-animation",
+          flat ? "flex-nowrap overflow-x-auto px-2" : "flex-wrap",
           isLoading && "opacity-60 pointer-events-none"
         )}
       >
-        {actionButtonsConfig.map((actionConfig) => {
+        {mapConfigs.map((actionConfig) => {
+          // flat mode: render all actions as buttons, no dropdown
+          if (flat) {
+            const btn = actionConfig as ActionButtonConfig;
+            const Icon = btn.icon;
+            const isSelected = (activeButton === btn.id) || (lastSelectedButton === btn.id);
+            const baseButtonClasses = cn(
+              "h-auto transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 focus-visible:ring-primary rounded-full shadow-md btn-glow",
+              isMobile ? "p-2" : "px-3 py-1.5 md:px-3.5 md:py-2"
+            );
+            return (
+              <Tooltip key={btn.id}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={isSelected ? "secondary" : "outline"}
+                    size="sm"
+                    onClick={() => onAction(btn.id)}
+                    disabled={isActionDisabled(btn.id)}
+                    className={cn(
+                      baseButtonClasses,
+                      isSelected ? "bg-primary text-primary-foreground hover:bg-primary-light ring-2 ring-primary/30" : ""
+                    )}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" align="center" alignOffset={0} sideOffset={5} className="glass-panel text-foreground shadow-xl rounded-lg p-3 animate-fade-in border border-primary/10">
+                  <p className="font-semibold text-gradient">{btn.label}</p>
+                  <p className="text-xs text-foreground/80 max-w-xs mt-1">{btn.description}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          }
+          // default mode: respect dropdowns vs primary actions
           const baseButtonClasses = cn(
               "h-auto transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 focus-visible:ring-primary rounded-full shadow-md btn-glow",
               isMobile ? "p-2" : "px-3 py-1.5 md:px-3.5 md:py-2"

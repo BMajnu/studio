@@ -1,7 +1,7 @@
 'use client';
 
 import type { ChatMessage, MessageRole, ChatMessageContentPart, AttachedFile, ActionType } from '@/lib/types';
-import { Bot, User, AlertTriangle, Paperclip, FileText, Image as ImageIcon, RotateCcw, Loader2, Edit3, Send, X, ChevronLeft, ChevronRight, CircleCheck, Copy, FolderOpen, Plus, PlusCircle, Zap, Check, SearchCheck, ClipboardSignature, ClipboardList, Palette, Lightbulb, Terminal, Search, Plane, Settings, Sparkles, FileImage, FileSpreadsheet } from 'lucide-react';
+import { Bot, User, AlertTriangle, Paperclip, FileText, Image as ImageIcon, RotateCcw, Loader2, Edit3, Send, X, ChevronLeft, ChevronRight, CircleCheck, Copy, FolderOpen, Plus, PlusCircle, Zap, Check, SearchCheck, ClipboardSignature, ClipboardList, Palette, Lightbulb, Terminal, Search, Plane, Settings, Sparkles, FileImage, FileSpreadsheet, Trophy } from 'lucide-react';
 import { TopDesignsResults } from './top-designs-results';
 import { CopyToClipboard, CopyableText, CopyableList } from '@/components/copy-to-clipboard';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -29,12 +29,24 @@ import {
   DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from '@/components/ui/badge';
+import { ActionButtonsPanel } from '@/components/chat/action-buttons';
+import type { UserProfile } from '@/lib/types';
+import { DesignPromptsTabs } from './design-prompts-tabs';
+import { PromptToReplicate } from './prompt-to-replicate';
 
 interface ChatMessageProps {
   message: ChatMessage;
   onRegenerate?: (requestDetails: ChatMessage['originalRequest'] & { messageIdToRegenerate: string }) => void;
   onConfirmEditAndResend?: (messageId: string, newContent: string, originalAttachments?: AttachedFile[], newActionType?: ActionType) => void;
   onStopRegeneration?: (messageId: string) => void;
+  onPerformAction?: (originalRequest: ChatMessage['originalRequest'], actionType: ActionType) => void;
+  isMobile: boolean;
+  profile: UserProfile | null;
+  activeActionButton: ActionType | null;
+  lastSelectedActionButton: ActionType | null;
+  isLoading: boolean;
+  currentUserMessage: string;
+  currentAttachedFilesDataLength: number;
 }
 
 function AttachedFileDisplay({ file }: { file: AttachedFile }) {
@@ -920,12 +932,36 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
         </div>
       );
 
+    case 'design_prompts_tabs':
+      return (
+        <div key={index} className={cn(commonClasses, "bg-card/80 backdrop-blur-sm border border-border rounded-lg shadow-md overflow-hidden")} style={{ animationDelay }}>
+          <div className="px-4 py-3 border-b flex items-center justify-between bg-gradient-to-r from-teal-500 to-cyan-600">
+            <div className='flex items-center'>
+              <span className="mr-2 text-lg">🎨</span>
+              <h4 className="font-semibold text-base text-white">
+                {part.title || 'AI Image Generation Prompts'}
+              </h4>
+            </div>
+            {part.promptsData && (
+              <Badge variant="secondary" className="font-mono text-xs">
+                {part.promptsData.reduce((acc, curr) => acc + curr.prompts.length, 0)} Prompts
+              </Badge>
+            )}
+          </div>
+          {part.promptsData && part.promptsData.length > 0 && (
+            <div className="p-1 sm:p-2">
+              <DesignPromptsTabs promptsData={part.promptsData} />
+            </div>
+          )}
+        </div>
+      );
+
     default:
       return null;
   }
 }
 
-export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndResend, onStopRegeneration }: ChatMessageProps) {
+export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndResend, onStopRegeneration, onPerformAction, isMobile, profile, activeActionButton, lastSelectedActionButton, isLoading, currentUserMessage, currentAttachedFilesDataLength }: ChatMessageProps) {
   const [isEditingThisMessage, setIsEditingThisMessage] = useState(false);
   const [editedText, setEditedText] = useState<string>('');
   const [editedAttachments, setEditedAttachments] = useState<AttachedFile[]>([]);
@@ -1098,14 +1134,12 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
         return <Palette className="h-3 w-3 mr-1.5" />;
       case 'generateRevision':
         return <RotateCcw className="h-3 w-3 mr-1.5" />;
-      case 'generateDesignIdeas':
-        return <Lightbulb className="h-3 w-3 mr-1.5" />;
       case 'generateDesignPrompts':
         return <Terminal className="h-3 w-3 mr-1.5" />;
       case 'generateEditingPrompts':
         return <Edit3 className="h-3 w-3 mr-1.5" />;
       case 'checkBestDesign':
-        return <CircleCheck className="h-3 w-3 mr-1.5" />;
+        return <Trophy className="h-3 w-3 mr-1.5" />;
       case 'promptToReplicate':
         return <Copy className="h-3 w-3 mr-1.5" />;
       case 'promptWithCustomSense':
@@ -1160,7 +1194,7 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
           
           <DropdownMenuItem onClick={() => onActionChange('generateEngagementPack')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-zinc-800/70 text-zinc-100">
             {getActionButtonIcon('generateEngagementPack')}
-            <span className="text-sm">Generate Engagement Pack</span>
+            <span className="text-sm">Fiverr Brief</span>
           </DropdownMenuItem>
           
           <DropdownMenuItem onClick={() => onActionChange('generateRevision')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-zinc-800/70 text-zinc-100">
@@ -1176,10 +1210,6 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
             </DropdownMenuSubTrigger>
             <DropdownMenuPortal>
               <DropdownMenuSubContent className="min-w-[180px] bg-zinc-900/95 backdrop-blur-lg border border-zinc-700 shadow-lg rounded-lg">
-                <DropdownMenuItem onClick={() => onActionChange('generateDesignIdeas')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-zinc-800/70 text-zinc-100">
-                  <Lightbulb className="h-4 w-4 text-green-500" />
-                  <span className="text-sm">Generate Design Ideas</span>
-                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onActionChange('generateDesignPrompts')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-zinc-800/70 text-zinc-100">
                   <Terminal className="h-4 w-4 text-teal-500" />
                   <span className="text-sm">Generate AI Prompts</span>
@@ -1565,37 +1595,52 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
           </div>
         )}
 
-        {/* Regenerate Button Area */}
+        {/* Action Buttons and Regenerate Area */}
         {!isEditingThisMessage && (
           <div className={cn(
-            "mt-3 pt-2 border-t flex justify-end items-center gap-3 animate-fade-in relative z-10",
+            "mt-3 pt-2 border-t flex justify-between items-center gap-3 animate-fade-in relative z-10",
             "border-emerald-200/30 dark:border-emerald-800/30"
           )} style={{ animationDelay: '0.5s' }}>
-            {isAssistant && message.canRegenerate && message.originalRequest && onRegenerate && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleRegenerateClick}
-                className="text-xs backdrop-blur-sm border border-emerald-300/20 shadow-sm hover:shadow-md hover:scale-105 text-emerald-700 dark:text-emerald-300 hover:text-emerald-800 dark:hover:text-emerald-200 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 transition-all duration-300"
-                title="Regenerate response"
-                disabled={message.isLoading}
-              >
-                <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-                Regenerate
-              </Button>
+            {isAssistant && message.originalRequest && onPerformAction && (
+              <ActionButtonsPanel
+                onAction={(actionType) => onPerformAction(message.originalRequest!, actionType)}
+                isLoading={isLoading}
+                currentUserMessage={currentUserMessage}
+                profile={profile}
+                currentAttachedFilesDataLength={currentAttachedFilesDataLength}
+                isMobile={isMobile}
+                activeButton={activeActionButton}
+                lastSelectedButton={lastSelectedActionButton}
+                flat
+              />
             )}
-            {isAssistant && message.isLoading && onStopRegeneration && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onStopRegeneration(message.id)}
-                className="text-xs backdrop-blur-sm border border-red-300/20 shadow-sm hover:shadow-md hover:scale-105 text-red-700 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 hover:bg-red-100/50 dark:hover:bg-red-900/30 transition-all duration-300"
-                title="Stop regeneration"
-              >
-                <X className="h-3.5 w-3.5 mr-1.5" />
-                Stop
-              </Button>
-            )}
+            <div className="flex items-center gap-3">
+              {isAssistant && message.canRegenerate && message.originalRequest && onRegenerate && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRegenerateClick}
+                  className="text-xs backdrop-blur-sm border border-emerald-300/20 shadow-sm hover:shadow-md hover:scale-105 text-emerald-700 dark:text-emerald-300 hover:text-emerald-800 dark:hover:text-emerald-200 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 transition-all duration-300"
+                  title="Regenerate response"
+                  disabled={message.isLoading}
+                >
+                  <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                  Regenerate
+                </Button>
+              )}
+              {isAssistant && message.isLoading && onStopRegeneration && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onStopRegeneration(message.id)}
+                  className="text-xs backdrop-blur-sm border border-red-300/20 shadow-sm hover:shadow-md hover:scale-105 text-red-700 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 hover:bg-red-100/50 dark:hover:bg-red-900/30 transition-all duration-300"
+                  title="Stop regeneration"
+                >
+                  <X className="h-3.5 w-3.5 mr-1.5" />
+                  Stop
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </div>

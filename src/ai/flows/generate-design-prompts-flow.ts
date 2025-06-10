@@ -1,8 +1,9 @@
 'use server';
 /**
- * @fileOverview Converts design ideas into detailed prompts for AI image generation.
+ * @fileOverview Generates detailed, creative AI image prompts directly from a design theme.
+ * This flow combines idea generation and prompt creation into a single step.
  *
- * - generateDesignPrompts - A function to generate image prompts.
+ * - generateDesignPrompts - A function to generate image prompts from a theme.
  * - GenerateDesignPromptsInput - The input type for the function.
  * - GenerateDesignPromptsOutput - The return type for the function.
  */
@@ -13,155 +14,175 @@ import { DEFAULT_MODEL_ID } from '@/lib/constants';
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
 
-const AttachedFileSchema = z.object({
-  name: z.string().describe("Name of the file"),
-  type: z.string().describe("MIME type of the file"),
-  dataUri: z.string().optional().describe("Base64 data URI for image files. Use {{media url=<dataUri>}} to reference in prompt."),
-  textContent: z.string().optional().describe("Text content for text files (e.g., .txt, .md).")
+// Internal schema for the ideas generated in the first step.
+const GeneratedIdeasSchema = z.object({
+  extractedTextOrSaying: z.string(),
+  searchKeywords: z.array(z.string()),
+  graphicsCreativeIdeas: z.array(z.string()).length(4),
+  typographyDesignIdeas: z.array(z.string()).length(3),
+  typographyWithGraphicsIdeas: z.array(z.string()).length(3),
 });
 
-const ChatHistoryMessageSchema = z.object({
-  role: z.enum(['user', 'assistant']),
-  text: z.string(),
-});
-
-// Schema for the flow's input
+// Schema for the flow's input - now takes the initial design theme.
 const GenerateDesignPromptsFlowInputSchema = z.object({
-  clientMessage: z.string().describe("The user's current message, which might contain design ideas or refer to ideas in history."),
+  designInputText: z.string().describe("The primary text, saying, or theme for the design (e.g., 'Coffee Beats Everything', 'DesAInR company launch')."),
   userName: z.string().describe('The name of the user (designer).'),
   communicationStyleNotes: z.string().describe('The communication style notes of the user.'),
-  attachedFiles: z.array(AttachedFileSchema).optional().describe("Files attached by the user. Analyze for context."),
-  chatHistory: z.array(ChatHistoryMessageSchema).optional().describe("Conversation history. Look for design ideas shared by the assistant in recent turns if not in clientMessage."),
   modelId: z.string().optional().describe('The Genkit model ID to use for this request.'),
   userApiKey: z.string().optional().describe('User-provided Gemini API key.'),
 });
 export type GenerateDesignPromptsInput = z.infer<typeof GenerateDesignPromptsFlowInputSchema>;
 
-// Schema for the prompt's specific input
-const GenerateDesignPromptsPromptInputSchema = z.object({
-  clientMessage: z.string().describe("The user's current message, which might contain design ideas or refer to ideas in history."),
-  userName: z.string().describe('The name of the user (designer).'),
-  communicationStyleNotes: z.string().describe('The communication style notes of the user.'),
-  attachedFiles: z.array(AttachedFileSchema).optional().describe("Attached files for context."),
-  chatHistory: z.array(ChatHistoryMessageSchema).optional().describe("Conversation history, especially recent assistant messages containing design ideas."),
-});
-
+// Schema for the final output, which is the detailed prompts.
 const GenerateDesignPromptsOutputSchema = z.object({
-  graphicsPrompts: z.array(z.string()).length(4).describe("Exactly 4 detailed prompts for graphics-focused designs, matching the style, concept, and elements of the graphics creative ideas."),
-  typographyPrompts: z.array(z.string()).length(3).describe("Exactly 3 detailed prompts for typography-focused designs, matching the style, concept, and elements of the typography design ideas."),
-  mixedPrompts: z.array(z.string()).length(3).describe("Exactly 3 detailed prompts for designs combining typography and graphics, matching the style, concept, and elements of the typography with graphics ideas.")
+  extractedTextOrSaying: z.string().describe("The extracted focal text or saying from the design input."),
+  searchKeywords: z.array(z.string()).describe("Search keywords generated to find design inspiration on Google."),
+  graphicsPrompts: z.array(z.string()).length(4).describe("Exactly 4 detailed prompts for graphics-focused designs."),
+  typographyPrompts: z.array(z.string()).length(3).describe("Exactly 3 detailed prompts for typography-focused designs."),
+  typographyWithGraphicsPrompts: z.array(z.string()).length(3).describe("Exactly 3 detailed prompts for designs combining typography and graphics.")
 });
 export type GenerateDesignPromptsOutput = z.infer<typeof GenerateDesignPromptsOutputSchema>;
 
 export async function generateDesignPrompts(flowInput: GenerateDesignPromptsInput): Promise<GenerateDesignPromptsOutput> {
-  const { userApiKey, modelId, clientMessage, userName, communicationStyleNotes, attachedFiles, chatHistory } = flowInput;
-  const actualPromptInputData = { clientMessage, userName, communicationStyleNotes, attachedFiles, chatHistory };
+  const { userApiKey, modelId, designInputText, userName, communicationStyleNotes } = flowInput;
   const modelToUse = modelId || DEFAULT_MODEL_ID;
-  const flowName = 'generateDesignPrompts';
+  const flowName = 'generateDesignPromptsUnified';
 
-  let currentAiInstance = ai; // Global Genkit instance by default
+  let currentAiInstance = ai;
   let apiKeySourceForLog = "GOOGLE_API_KEY from .env file";
 
   if (userApiKey) {
-    console.log(`INFO (${flowName}): Using user-provided API key.`);
     currentAiInstance = genkit({ plugins: [googleAI({ apiKey: userApiKey })] });
     apiKeySourceForLog = "User-provided API key from profile";
-  } else if (process.env.GOOGLE_API_KEY) {
-    console.log(`INFO (${flowName}): User API key not provided. Using GOOGLE_API_KEY from .env file.`);
-  } else {
-    console.error(`CRITICAL_ERROR (${flowName}): No API key available. Neither a user-provided API key nor the GOOGLE_API_KEY in the .env file is set.`);
-    throw new Error(`API key configuration error in ${flowName}. AI features are unavailable.`);
+  } else if (!process.env.GOOGLE_API_KEY) {
+    console.error(`CRITICAL_ERROR (${flowName}): No API key available.`);
+    throw new Error(`API key configuration error in ${flowName}.`);
   }
-
-  const generateDesignPromptsPrompt = currentAiInstance.definePrompt({
-    name: `${flowName}Prompt_${Date.now()}`,
-    input: { schema: GenerateDesignPromptsPromptInputSchema },
-    output: { schema: GenerateDesignPromptsOutputSchema },
-    prompt: `You are an expert AI Image Prompt Generator for a graphic designer named {{{userName}}}.
+  
+  // STEP 1: Define the prompt for generating creative ideas (from the old ideas-flow)
+  const ideaGenerationPrompt = currentAiInstance.definePrompt({
+    name: 'ideaGeneration',
+    input: { schema: GenerateDesignPromptsFlowInputSchema },
+    output: { schema: GeneratedIdeasSchema },
+    prompt: `You are an expert Design Idea Generator for a graphic designer named {{{userName}}}.
 Their communication style is: {{{communicationStyleNotes}}}.
 
-**Objective:** Create detailed AI image generation prompts for three categories of design ideas: Graphics-Focused, Typography-Focused, and Mixed Typography with Graphics.
+**Objective:** Generate creative design ideas in 3 distinct categories based on the provided "Design Input Text".
 
-**Context:**
-{{#if chatHistory.length}}
-Previous conversation context:
-{{#each chatHistory}}
-{{this.role}}: {{{this.text}}}
----
-{{/each}}
-{{/if}}
-
-{{#if attachedFiles.length}}
-Attached Files:
-{{#each attachedFiles}}
-- File: {{this.name}} (Type: {{this.type}})
-  {{#if this.dataUri}}
-    (This is an image. Analyze its content for design inspiration: {{media url=this.dataUri}})
-  {{else if this.textContent}}
-    Content of {{this.name}}:
-    {{{this.textContent}}}
-  {{else}}
-    (This file content is not directly viewable, but its existence might be relevant to the design needs.)
-  {{/if}}
-{{/each}}
-{{/if}}
-
-Client's Message: {{{clientMessage}}}
+Design Input Text: {{{designInputText}}}
 
 **Instructions:**
-1. Based on the client's message and any recent conversation history, identify the key design ideas in three categories:
-   - Graphics-Focused Creative Ideas (4 ideas)
-   - Typography-Focused Ideas (3 ideas)
-   - Typography with Graphics Ideas (3 ideas)
+1. First, identify or extract any specific text, saying, quote or theme that should be the focal point of designs.
+2. Generate 5-10 search keywords highly specific to this design request. These keywords should help the user find relevant design inspiration when searched on Google.
+3. Generate 3 categories of design ideas:
+   a. **Graphics-Focused Creative Ideas (4)**: Generate EXACTLY FOUR detailed graphics-focused design ideas.
+   b. **Typography-Focused Ideas (3)**: Generate EXACTLY THREE ideas where typography is the primary focus.
+   c. **Typography with Graphics Ideas (3)**: Generate EXACTLY THREE detailed ideas that blend interesting typography with complementary graphic elements.
 
-2. For each category, create detailed AI image generation prompts that would produce high-quality, professional results:
-   - For GRAPHICS-FOCUSED designs: Create EXACTLY 4 detailed prompts with clear visual descriptions, style references, color palettes, and composition details.
-   - For TYPOGRAPHY-FOCUSED designs: Create EXACTLY 3 detailed prompts emphasizing font styles, text layouts, typographic treatments, and minimal supporting graphics.
-   - For MIXED TYPOGRAPHY WITH GRAPHICS designs: Create EXACTLY 3 detailed prompts that balance both typography and graphic elements in an integrated design.
+**For each idea, include:**
+- Visual style and concept. Consider using one of the popular styles listed below.
+- Key visual elements and composition.
+- Color palette recommendations.
+- How the text is incorporated.
+- Typography suggestions where relevant.
 
-3. Each prompt should follow this structure:
-   - Start with a clear art direction (e.g., "Professional corporate logo", "Minimalist poster design")
-   - Include specific style references (e.g., "in the style of Swiss Design", "with Art Deco influences")
-   - Specify composition details (e.g., "centered composition with negative space", "asymmetrical layout")
-   - Mention color palette (e.g., "using a monochromatic blue palette", "with vibrant complementary colors")
-   - Include technical specifications (e.g., "high contrast", "with subtle texture", "sharp focus")
-   - End with quality indicators (e.g., "professional quality", "award-winning design", "trending on Behance")
+**Popular T-Shirt and POD Design Styles:**
+- **Minimalist, Vintage/Retro, Typography-Based, Illustrative, Geometric, Nature, Pop Culture, Hand-Drawn, Graffiti/Street Art, Sports, Funny/Sarcastic, Floral, Abstract, Cartoon, Grunge, Bohemian, Animal Prints.**
 
-**Example Prompt Format:**
-"Professional branding design for a coffee shop, featuring a stylized coffee bean character holding a trophy, in flat illustration style, warm orange and brown color palette with teal accents, centered composition with the text 'Coffee Beats Everything' curved around the trophy in bold sans-serif font, incorporating playful shadow effects and minimal shapes, high-quality vector style, trending on Dribbble, professional graphic design"
+**Example Idea Formats (Follow this structure):**
 
-Output Format:
-{
-  "graphicsPrompts": [
-    "Detailed graphics-focused prompt 1...",
-    "Detailed graphics-focused prompt 2...",
-    "Detailed graphics-focused prompt 3...",
-    "Detailed graphics-focused prompt 4..."
-  ],
-  "typographyPrompts": [
-    "Detailed typography-focused prompt 1...",
-    "Detailed typography-focused prompt 2...",
-    "Detailed typography-focused prompt 3..."
-  ],
-  "mixedPrompts": [
-    "Detailed mixed typography and graphics prompt 1...",
-    "Detailed mixed typography and graphics prompt 2...",
-    "Detailed mixed typography and graphics prompt 3..."
-  ]
-}
+*   **Graphics-Focused ("The Champion Bean"):**
+    Design Concept: "The Champion Bean"
+    Visual Elements: Heroic cartoon coffee bean flexing on a podium.
+    Style: Bold, graphic novel illustration.
+    Color palette: Warm browns, tans, vibrant reds/yellows.
+    Typography: "Coffee Beats Everything" in a comic book font.
+    Layout: Asymmetrical and dynamic.
+
+*   **Typography-Focused ("Vintage Type Declaration"):**
+    Design Concept: "Vintage Type Declaration"
+    Visual Elements: Almost entirely text-based with typographic ornaments.
+    Style: Vintage packaging/posters.
+    Color palette: Cream text on a dark brown background.
+    Typography: Mix of bold sans-serif, script, and slab serif fonts in a stack.
+    Layout: Symmetrical and balanced.
+
+*   **Typography with Graphics ("Organic Sketch"):**
+    Design Concept: "Organic Sketch"
+    Visual Elements: Hand-drawn coffee plant branch wrapping around text.
+    Style: Loose, organic, hand-sketched.
+    Color palette: Monochromatic sepia on a cream background.
+    Typography: Casual, hand-written font integrated with the illustration.
+    Layout: Asymmetrical and flowing.
+`,
+  });
+
+  // STEP 2: Define the prompt for converting ideas into final image prompts (from the old prompts-flow)
+  const promptCreationPrompt = currentAiInstance.definePrompt({
+    name: 'promptCreation',
+    input: { schema: GeneratedIdeasSchema },
+    output: { schema: GenerateDesignPromptsOutputSchema },
+    prompt: `You are an expert AI Image Prompt Generator. Your task is to convert the provided design ideas into detailed, high-quality image generation prompts.
+
+**Design Ideas Provided:**
+- Graphics-Focused:
+{{#each graphicsCreativeIdeas}}
+  - {{{this}}}
+{{/each}}
+- Typography-Focused:
+{{#each typographyDesignIdeas}}
+  - {{{this}}}
+{{/each}}
+- Typography with Graphics:
+{{#each typographyWithGraphicsIdeas}}
+  - {{{this}}}
+{{/each}}
+
+**Important Rules for All Prompts:**
+1.  **Start with an Action:** Every prompt must begin with "Make a," "Design a," or "Create a."
+2.  **Avoid Product-Specific Terms:** Use general terms like "graphic for printing," "vector illustration," "typographic design." Do NOT use "T-shirt," "mug," etc.
+3.  **Use Solid Backgrounds:** All designs must be on a solid black or white background. The color palette should be chosen to work on that background.
+
+**Instructions:**
+- For each design idea, create a detailed paragraph-long prompt.
+- Incorporate all details from the idea: style, subject, colors, composition, and typography.
+- Ensure the final prompt is a rich, descriptive paragraph ready for an AI image generator.
+
+**Example Prompt Output Structure:**
+
+*   **For Graphics-Focused:** "Create a graphic novel illustration of a heroic cartoon coffee bean flexing on a winner's podium, with dynamic action lines and a confident expression, on a solid black background. The text 'Coffee Beats Everything' is integrated in a bold comic book font. Use a color palette of warm browns and tans with vibrant red and yellow action effects. The composition is asymmetrical, with high contrast, sharp focus, professional vector art, trending on ArtStation."
+*   **For Typography-Focused:** "Design a vintage typographic artwork for printing, with the text 'Coffee Beats Everything' as the centerpiece, on a solid white background. Use a mix of bold condensed sans-serif, flowing script, and strong slab-serif fonts arranged in a balanced stack, framed with typographic ornaments like lines and stars, and a minimalist engraved coffee bean icon. The color palette is a simple cream and dark brown. The composition is symmetrical, with high detail and a textured effect, award-winning typography, classic craftsmanship."
+*   **For Typography with Graphics:** "Make a hand-sketched graphic illustration of a coffee plant branch with leaves and cherries organically wrapping around the text 'Coffee Beats Everything,' on a solid light cream background. The text should be in a casual, handwritten script font. The style is loose and organic with imperfect lines in a monochromatic sepia tone. The composition is asymmetrical and flowing, creating an authentic and artisanal feel. High resolution, detailed sketch, rustic aesthetic, trending on Behance for illustrations."
 `,
   });
   
   try {
-    console.log(`INFO (${flowName}): Making AI call using API key from: ${apiKeySourceForLog}`);
-    const {output} = await generateDesignPromptsPrompt(actualPromptInputData, { model: modelToUse });
-    if (!output) {
-      console.error(`ERROR (${flowName}): AI returned empty or undefined output.`);
-      throw new Error(`AI response was empty or undefined in ${flowName}.`);
+    // Execute STEP 1: Generate Ideas
+    console.log(`INFO (${flowName}): Generating creative ideas...`);
+    const { output: generatedIdeas } = await ideaGenerationPrompt(flowInput, { model: modelToUse });
+    if (!generatedIdeas) {
+      throw new Error("Idea generation step produced no output.");
     }
-    return output;
+    console.log(`INFO (${flowName}): Ideas generated successfully.`);
+
+    // Execute STEP 2: Create Prompts from Ideas
+    console.log(`INFO (${flowName}): Converting ideas into final prompts...`);
+    const { output: finalPrompts } = await promptCreationPrompt(generatedIdeas, { model: modelToUse });
+    if (!finalPrompts) {
+      throw new Error("Prompt creation step produced no output.");
+    }
+    console.log(`INFO (${flowName}): Final prompts created successfully.`);
+
+    return {
+      extractedTextOrSaying: generatedIdeas.extractedTextOrSaying,
+      searchKeywords: generatedIdeas.searchKeywords,
+      graphicsPrompts: finalPrompts.graphicsPrompts,
+      typographyPrompts: finalPrompts.typographyPrompts,
+      typographyWithGraphicsPrompts: finalPrompts.typographyWithGraphicsPrompts
+    };
+
   } catch (error) {
-    console.error(`ERROR (${flowName}): AI call failed (API key source: ${apiKeySourceForLog}). Error:`, error);
+    console.error(`ERROR (${flowName}): Flow failed (API key source: ${apiKeySourceForLog}). Error:`, error);
     throw new Error(`AI call failed in ${flowName}. Please check server logs for details. Original error: ${(error as Error).message}`);
   }
 } 

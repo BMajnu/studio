@@ -28,13 +28,13 @@ export type ActionType =
   | 'generateDeliveryTemplates'
   | 'checkMadeDesigns'
   | 'generateRevision'
-  | 'generateDesignIdeas'
   | 'generateDesignPrompts'
   | 'generateEditingPrompts'
   | 'checkBestDesign'
   | 'promptToReplicate'
   | 'promptWithCustomSense'
-  | 'promptForMicroStockMarkets';
+  | 'promptForMicroStockMarkets'
+  | 'custom';
 
 export interface DesignListItem {
   id: string;
@@ -92,6 +92,7 @@ export type ChatMessageContentPart =
   | { type: 'top_designs'; title?: string; text?: string; code?: string; language?: string; items?: string[]; english?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; bengali?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; data?: any }
   | { type: 'design_idea'; title?: string; text?: string; code?: string; language?: string; english?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; bengali?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; imageDataUri?: string }
   | { type: 'design_ideas_group'; title?: string; ideas: { category: string, items: string[] }[] }
+  | { type: 'design_prompts_tabs'; title?: string; promptsData: DesignPromptsData[] }
   | { type: 'prompt_tabs'; title?: string; text?: string; code?: string; language?: string; english?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; bengali?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; imageDataUri?: string; exactReplicationPrompt?: string; similarWithTweaksPrompt?: string; sameNichePrompt?: string; customPrompts?: { title: string, prompt: string }[]; microstockResults?: { 
     prompt: string; 
     metadata: { 
@@ -118,6 +119,11 @@ export interface AttachedFile {
   size: number;
   dataUri?: string; 
   textContent?: string; 
+}
+
+export interface DesignPromptsData {
+  category: string;
+  prompts: string[];
 }
 
 export interface EditHistoryEntry {

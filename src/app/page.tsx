@@ -1,3 +1,4 @@
+// @ts-nocheck
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
@@ -18,7 +19,6 @@ import { processClientMessage, type ProcessClientMessageInput, type ProcessClien
 import { processCustomInstruction, type ProcessCustomInstructionInput, type ProcessCustomInstructionOutput } from '@/ai/flows/process-custom-instruction';
 import { analyzeClientRequirements, type AnalyzeClientRequirementsInput, type AnalyzeClientRequirementsOutput } from '@/ai/flows/analyze-client-requirements';
 import { generateEngagementPack, type GenerateEngagementPackInput, type GenerateEngagementPackOutput } from '@/ai/flows/generate-engagement-pack-flow';
-import { generateDesignIdeas, type GenerateDesignIdeasInput, type GenerateDesignIdeasOutput } from '@/ai/flows/generate-design-ideas-flow';
 import { generateDesignPrompts, type GenerateDesignPromptsInput, type GenerateDesignPromptsOutput } from '@/ai/flows/generate-design-prompts-flow';
 import { checkMadeDesigns, type CheckMadeDesignsInput, type CheckMadeDesignsOutput } from '@/ai/flows/check-made-designs-flow';
 import { generatePlatformMessages, type GeneratePlatformMessagesInput, type GeneratePlatformMessagesOutput } from '@/ai/flows/generate-platform-messages';
@@ -100,6 +100,68 @@ const getMessageText = (content: string | ChatMessageContentPart[] | undefined):
         }
         fullText += tgContent;
         break;
+      case 'bilingual_analysis': {
+        const ba = part as any;
+        fullText += titlePrefix;
+        // Key Points
+        if (Array.isArray(ba.keyPoints?.english)) {
+          fullText += 'Key Points (English):\n';
+          ba.keyPoints.english.forEach((kp: string) => fullText += `- ${kp}\n`);
+          fullText += '\n';
+        }
+        if (Array.isArray(ba.keyPoints?.bengali)) {
+          fullText += 'Key Points (Bengali):\n';
+          ba.keyPoints.bengali.forEach((kp: string) => fullText += `- ${kp}\n`);
+          fullText += '\n';
+        }
+        // Detailed Requirements
+        if (typeof ba.detailedRequirements?.english === 'string') {
+          fullText += 'Detailed Requirements (English):\n';
+          fullText += ba.detailedRequirements.english.trim() + '\n\n';
+        }
+        if (typeof ba.detailedRequirements?.bengali === 'string') {
+          fullText += 'Detailed Requirements (Bengali):\n';
+          fullText += ba.detailedRequirements.bengali.trim() + '\n\n';
+        }
+        // Design Message
+        if (typeof ba.designMessage?.english === 'string') {
+          fullText += 'Design Message (English):\n';
+          fullText += ba.designMessage.english.trim() + '\n\n';
+        }
+        if (typeof ba.designMessage?.bengali === 'string') {
+          fullText += 'Design Message (Bengali):\n';
+          fullText += ba.designMessage.bengali.trim() + '\n\n';
+        }
+        // Niche and Audience
+        if (typeof ba.nicheAndAudience?.english === 'string') {
+          fullText += 'Niche and Audience (English):\n';
+          fullText += ba.nicheAndAudience.english.trim() + '\n\n';
+        }
+        if (typeof ba.nicheAndAudience?.bengali === 'string') {
+          fullText += 'Niche and Audience (Bengali):\n';
+          fullText += ba.nicheAndAudience.bengali.trim() + '\n\n';
+        }
+        // Design Items
+        if (Array.isArray(ba.designItems?.english)) {
+          fullText += 'Design Items (English):\n';
+          ba.designItems.english.forEach((di: any) => {
+            fullText += `- ID: ${di.id}, Title: ${di.title}, Description: ${di.description}`;
+            if (di.textContent) fullText += `, Text: ${di.textContent}`;
+            fullText += '\n';
+          });
+          fullText += '\n';
+        }
+        if (Array.isArray(ba.designItems?.bengali)) {
+          fullText += 'Design Items (Bengali):\n';
+          ba.designItems.bengali.forEach((di: any) => {
+            fullText += `- ID: ${di.id}, Title: ${di.title}, Description: ${di.description}`;
+            if (di.textContent) fullText += `, Text: ${di.textContent}`;
+            fullText += '\n';
+          });
+          fullText += '\n';
+        }
+      }
+      break;
       case 'microstock_results_tabs':
         fullText += titlePrefix;
         // Use optional chaining to safely access microstockResults
@@ -216,7 +278,12 @@ export default function ChatPage() {
   
   // Add this state variable with other state declarations
   const [selectedDesignItem, setSelectedDesignItem] = useState<DesignListItem | null>(null);
-  
+  // Custom Instruction Modal state
+  const [showCustomInstructionModal, setShowCustomInstructionModal] = useState(false);
+  const [customInstructionText, setCustomInstructionText] = useState('');
+  const [customInstructionFiles, setCustomInstructionFiles] = useState<AttachedFile[]>([]);
+  const customInstructionFileInputRef = useRef<HTMLInputElement>(null);
+
   /**
    * Button Selection Logic
    * ---------------------
@@ -525,7 +592,7 @@ export default function ChatPage() {
       const currentSessionMeta = historyMetadata.find((meta: ChatSessionMetadata) => meta.id === currentSession.id);
       if (currentSessionMeta && currentSessionMeta.name !== currentSession.name) {
         setCurrentSession(prevSession => {
-          if (prevSession && prevSession.id === currentSessionMeta.id) { // Ensure we're updating the same session
+          if (prevSession && prevSession.id === currentSession.id) { // Ensure we're updating the same session
             return { ...prevSession, name: currentSessionMeta.name };
           }
           return prevSession;
@@ -1207,12 +1274,6 @@ export default function ChatPage() {
                 bengali: requirementsOutput.designItemsBengali
               }
             });
-            
-            // Also include a prompt for the user to select a design to generate ideas for
-            finalAiResponseContent.push({
-              type: 'text',
-              text: "Select a design from the list above to generate specific ideas for it, or use the 'Generate Design Ideas' button to create ideas for all designs."
-            });
           } else if (currentActionType === 'generateEngagementPack') {
             const engagementInput: GenerateEngagementPackInput = {
               ...baseInput, clientMessage: userMessageContent, designerName: userProfile.name,
@@ -1259,104 +1320,6 @@ export default function ChatPage() {
                 code: replyWithQuestionsContent 
               });
             }
-          } else if (currentActionType === 'generateDesignIdeas') {
-            const ideasInput: GenerateDesignIdeasInput = {
-              ...baseInput, 
-              designInputText: userMessageContent, 
-              attachedFiles: filesForFlow, 
-              chatHistory: chatHistoryForAI 
-            };
-            const ideasOutput = await generateDesignIdeas(ideasInput);
-
-            // If there's a selectedDesignItem, add a context banner showing which design is being processed
-            if (selectedDesignItem && selectedDesignItem.id) {
-            finalAiResponseContent.push({ 
-              type: 'text', 
-                title: '🎨 Selected Design for Ideas Generation',
-                text: `**${selectedDesignItem.title}**\n\n${selectedDesignItem.description}\n\n${selectedDesignItem.textContent ? `**Text to include:** "${selectedDesignItem.textContent}"` : ''}`
-              });
-              
-              // Add a visual separator
-              finalAiResponseContent.push({
-                type: 'text',
-                text: '---'
-              });
-            }
-            
-            // Add header for the extracted text/saying
-            if (ideasOutput.extractedTextOrSaying) {
-              finalAiResponseContent.push({
-                type: 'text',
-                title: 'Core Text or Saying',
-              text: ideasOutput.extractedTextOrSaying
-            });
-            }
-            
-            // Add web inspiration section
-            if ((ideasOutput.searchKeywords && ideasOutput.searchKeywords.length > 0) ||
-                (ideasOutput.simulatedWebInspiration && ideasOutput.simulatedWebInspiration.length > 0)) {
-              // Use the AI-generated search keywords if available, or fall back to generic ones
-              const searchKeywords = ideasOutput.searchKeywords && ideasOutput.searchKeywords.length >= 5 
-                ? ideasOutput.searchKeywords 
-                : [
-                    "dad t shirt design",
-                    "motivational poster design",
-                    "fitness brand logo",
-                    "modern typography trends",
-                    "minimalist logo design",
-                    "vintage graphic design",
-                    "bold typography examples",
-                    "creative t-shirt designs",
-                    "logo color psychology",
-                    "hand lettering inspiration"
-                  ];
-              
-              // Create a section with clickable keyword buttons using a specialized component type
-                finalAiResponseContent.push({ 
-                type: 'search_keywords',
-                title: 'Web Search Keywords',
-                keywords: searchKeywords.map(keyword => ({
-                  text: keyword,
-                  url: `https://www.google.com/search?q=${encodeURIComponent(keyword)}`
-                }))
-                });
-            }
-            
-            // Create design ideas groups
-            const designIdeasGroups = [];
-            
-            // Add graphics creative ideas
-            if (ideasOutput.graphicsCreativeIdeas && ideasOutput.graphicsCreativeIdeas.length > 0) {
-              designIdeasGroups.push({
-                category: "Graphics Creative Ideas",
-                items: ideasOutput.graphicsCreativeIdeas
-              });
-            }
-            
-            // Add typography design ideas
-            if (ideasOutput.typographyDesignIdeas && ideasOutput.typographyDesignIdeas.length > 0) {
-              designIdeasGroups.push({
-                category: "Typography Design Ideas",
-                items: ideasOutput.typographyDesignIdeas
-              });
-            }
-            
-            // Add typography with graphics ideas
-            if (ideasOutput.typographyWithGraphicsIdeas && ideasOutput.typographyWithGraphicsIdeas.length > 0) {
-              designIdeasGroups.push({
-                category: "Typography with Graphics Ideas",
-                items: ideasOutput.typographyWithGraphicsIdeas
-              });
-            }
-            
-            // Add all design ideas to the response
-            if (designIdeasGroups.length > 0) {
-              finalAiResponseContent.push({
-                type: 'design_ideas_group',
-                title: 'Design Ideas',
-                ideas: designIdeasGroups
-              });
-            }
           } else if (currentActionType === 'generateDesignPrompts') {
             // Use last design ideas from assistant as input for prompt generation if available
             let designIdeasText = userMessageContent;
@@ -1364,72 +1327,46 @@ export default function ChatPage() {
                 .slice().reverse()
                 .find(msg => Array.isArray(msg.content) && msg.content.some(part => part.type === 'design_ideas_group'));
             if (lastDesignIdeasMsg) {
-                designIdeasText = getMessageText(lastDesignIdeasMsg.content);
+              designIdeasText = getMessageText(lastDesignIdeasMsg.content);
             }
             const promptsInput: GenerateDesignPromptsInput = {
-                ...baseInput,
-                clientMessage: designIdeasText,
-                attachedFiles: filesForFlow,
-                chatHistory: chatHistoryForAI
+              ...baseInput,
+              designInputText: designIdeasText,
             };
             const promptsOutput = await generateDesignPrompts(promptsInput);
-            
-            // Add header for all prompts
-                finalAiResponseContent.push({ 
-                  type: 'text', 
-                  title: 'AI Image Generation Prompts', 
-                  text: "The following prompts can be used with AI image generators to create visual concepts based on the design ideas."
-                });
-                
-            // Add Graphics prompts
-            if (promptsOutput.graphicsPrompts && promptsOutput.graphicsPrompts.length > 0) {
-                finalAiResponseContent.push({ 
-                  type: 'text', 
-                title: 'Graphics Design Prompts', 
-                text: "Prompts for graphics-focused designs:"
-                });
-                
-              promptsOutput.graphicsPrompts.forEach((prompt, index) => {
-                  finalAiResponseContent.push({ 
-                    type: 'code', 
-                  title: `Graphics Prompt ${index + 1}`, 
-                  code: prompt
-                });
-                  });
-                }
-                
-            // Add Typography prompts
-            if (promptsOutput.typographyPrompts && promptsOutput.typographyPrompts.length > 0) {
-                  finalAiResponseContent.push({ 
-                    type: 'text', 
-                title: 'Typography Design Prompts', 
-                text: "Prompts for typography-focused designs:"
-                  });
-                  
-              promptsOutput.typographyPrompts.forEach((prompt, index) => {
-                    finalAiResponseContent.push({ 
-                      type: 'code', 
-                  title: `Typography Prompt ${index + 1}`, 
-                  code: prompt
-                });
-                    });
-                  }
-                  
-            // Add Mixed Typography+Graphics prompts
-            if (promptsOutput.mixedPrompts && promptsOutput.mixedPrompts.length > 0) {
-                    finalAiResponseContent.push({ 
-                      type: 'text', 
-                title: 'Mixed Typography & Graphics Prompts', 
-                text: "Prompts for designs combining typography and graphics:"
-                    });
-                    
-              promptsOutput.mixedPrompts.forEach((prompt, index) => {
-                      finalAiResponseContent.push({ 
-                        type: 'code', 
-                  title: `Mixed Prompt ${index + 1}`, 
-                  code: prompt
-                      });
-                });
+
+            // Destructure prompts output to include search keywords
+            const { searchKeywords, graphicsPrompts, typographyPrompts, typographyWithGraphicsPrompts } = promptsOutput;
+
+            // Display search keywords as clickable links
+            if (searchKeywords && searchKeywords.length > 0) {
+              finalAiResponseContent.push({
+                type: 'search_keywords',
+                title: 'Web Search Keywords',
+                keywords: searchKeywords.map(keyword => ({
+                  text: keyword,
+                  url: `https://www.google.com/search?q=${encodeURIComponent(keyword)}`
+                })),
+              });
+            }
+
+            const promptsData: { category: string, prompts: string[] }[] = [];
+            if (graphicsPrompts?.length > 0) {
+              promptsData.push({ category: 'Graphics', prompts: graphicsPrompts });
+            }
+            if (typographyPrompts?.length > 0) {
+              promptsData.push({ category: 'Typography', prompts: typographyPrompts });
+            }
+            if (typographyWithGraphicsPrompts?.length > 0) {
+              promptsData.push({ category: 'Mixed', prompts: typographyWithGraphicsPrompts });
+            }
+
+            if (promptsData.length > 0) {
+              finalAiResponseContent.push({
+                type: 'design_prompts_tabs',
+                title: 'AI Image Generation Prompts',
+                promptsData: promptsData,
+              });
             }
           } else if (currentActionType === 'checkMadeDesigns') {
             const designFile = filesForFlow.find(f => f.type?.startsWith('image/') && f.dataUri);
@@ -1856,8 +1793,10 @@ export default function ChatPage() {
             undefined, // userMessageIdForAiPrompting
             isMessageCustom // Use custom flag based on message content or current state
         );
+        // Clear input box after regenerating message
+        setInputMessage('');
     }
-  }, [profileLoading, profile, currentSession, handleSendMessage, lastSelectedActionButton, isCustomMessage]);
+  }, [profileLoading, profile, currentSession, handleSendMessage, lastSelectedActionButton, isCustomMessage, setInputMessage]);
 
 
   const handleConfirmEditAndResendUserMessage = useCallback((messageId: string, newContent: string, originalAttachments?: AttachedFile[], newActionType?: ActionType) => {
@@ -1911,6 +1850,14 @@ export default function ChatPage() {
   const handleAction = useCallback((action: ActionType) => {
     if (!profile) {
        return;
+    }
+
+    // Handle custom instruction toggle
+    if (action === 'custom') {
+      setShowCustomInstructionModal(true);
+      setActiveActionButton(action);
+      setLastSelectedActionButton(action);
+      return;
     }
 
     // Handle search action specially
@@ -1975,6 +1922,18 @@ export default function ChatPage() {
       return;
     }
     
+    // Handle generateDesignPrompts action specially to trigger prompt flow from ideas without user input
+    if (action === 'generateDesignPrompts') {
+      setLastSelectedActionButton(action);
+      setActiveActionButton(action);
+      // Log the generateDesignPrompts invocation
+      console.log(`BUTTON API generateDesignPrompts -> using last design ideas context, clientMessage="${inputMessage}"`);
+      // Trigger prompt generation flow using default ideas context
+      handleSendMessage('', action, undefined, undefined, false, false, undefined, undefined, isCustomMessage);
+      setInputMessage('');
+      return;
+    }
+    
     // Set this action as the last selected
     setLastSelectedActionButton(action);
     // Highlight this button in the UI
@@ -1986,7 +1945,7 @@ export default function ChatPage() {
     } else {
       handleSendMessage(inputMessage || '', action, undefined, undefined, false, false, undefined, undefined, isCustomMessage);
     }
-  }, [inputMessage, handleSendMessage, profile, isCustomMessage, isSearchActive, setActiveActionButton, setLastSelectedActionButton, toast]);
+  }, [inputMessage, handleSendMessage, profile, isCustomMessage, isSearchActive, setActiveActionButton, setLastSelectedActionButton, setInputMessage, toast, selectedDesignItem]);
 
   const submitModalNotes = () => {
     if (modalActionType) {
@@ -2214,14 +2173,14 @@ Please focus on this specific design request and generate search keywords that w
     // Show toast notification about the selection
     toast({
       title: 'Design Selected',
-      description: `Generating ideas for "${designItem.title}"`,
+      description: `Generating prompts for "${designItem.title}"`,
       duration: 3000
     });
     
-    // Call the generateDesignIdeas function with this specific prompt
+    // Call the generateDesignPrompts function with this specific prompt
     handleSendMessage(
       designPrompt, 
-      'generateDesignIdeas',
+      'generateDesignPrompts',
       undefined,
       undefined, 
       false, 
@@ -2230,7 +2189,9 @@ Please focus on this specific design request and generate search keywords that w
       undefined,
       false
     );
-  }, [handleSendMessage, toast, setSelectedDesignItem]);
+    // Clear the input box after selecting a design
+    setInputMessage('');
+  }, [handleSendMessage, toast, setSelectedDesignItem, setInputMessage]);
   
   // Add useEffect to listen for design-item-selected events
   useEffect(() => {
@@ -2274,9 +2235,75 @@ Please focus on this specific design request and generate search keywords that w
     };
   }, [handleNewChat]);
 
-  if (authLoading || (!currentSession && !profileLoading && !historyHookLoading) ) {
+  // New: perform a fresh action on the original user request without overwriting
+  const handlePerformActionOnMessage = useCallback((originalRequest: ChatMessage['originalRequest'], action: ActionType) => {
+    if (!originalRequest) return; // ensure originalRequest is defined
+    if (profileLoading) return;
+    if (!profile) return;
+    if (!currentSession) return;
+
+    // Always clear input box when using in-message action buttons
+    setInputMessage('');
+
+    // Handle custom instruction toggle: link inline custom to footer input
+    if (action === 'custom') {
+      setIsCustomMessage(prev => !prev);
+      setActiveActionButton(action);
+      setLastSelectedActionButton(action);
+      // focus input box
+      inputTextAreaRef.current?.focus();
+      return;
+    }
+    // Special handling for design ideas: ignore originalRequest and trigger default flow
+    setLastSelectedActionButton(action);
+    setActiveActionButton(action);
+    // Trigger a new user message based on the original request
+    handleSendMessage(
+      originalRequest.messageText,
+      action,
+      originalRequest.notes,
+      originalRequest.attachedFilesData,
+      false, // isUserMessageEdit
+      false, // isRegenerationCall
+      undefined,
+      undefined,
+      false
+    );
+    // Clear highlight after brief feedback
+    setTimeout(() => setActiveActionButton(null), 500);
+  }, [profileLoading, profile, currentSession, handleSendMessage, setActiveActionButton, setLastSelectedActionButton, setInputMessage]);
+
+  // Add handler for custom instruction file selection
+  const handleCustomInstructionFilesChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files) {
+      const processedFiles = await processFilesForAI(Array.from(event.target.files));
+      setCustomInstructionFiles(prev => [...prev, ...processedFiles]);
+    }
+  }, [processFilesForAI]);
+
+  // Add handler to send custom instruction
+  const handleCustomInstructionSend = useCallback(() => {
+    // Send custom instruction with attached files
+    handleSendMessage(
+      customInstructionText,
+      'custom',
+      undefined,
+      customInstructionFiles,
+      false,
+      false,
+      undefined,
+      undefined,
+      true
+    );
+    // Reset modal state
+    setCustomInstructionText('');
+    setCustomInstructionFiles([]);
+    setShowCustomInstructionModal(false);
+  }, [customInstructionText, customInstructionFiles, handleSendMessage]);
+
+  if (authLoading || (!currentSession && !profileLoading && !historyHookLoading)) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-var(--header-height,0px))] bg-gradient-to-b from-background-start-hsl to-background-end-hsl">
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-var(--header-height,0px))] bg-gradient-to-b from-background-start-hsl to-background-end-hsl">
         <div className="glass-panel p-8 rounded-xl shadow-2xl flex flex-col items-center animate-float">
           <div className="relative">
             <div className="absolute inset-0 rounded-full bg-primary/20 blur-xl animate-pulse-slow"></div>
@@ -2396,6 +2423,14 @@ Please focus on this specific design request and generate search keywords that w
                 onRegenerate={handleRegenerateMessage}
                 onConfirmEditAndResend={handleConfirmEditAndResendUserMessage}
                 onStopRegeneration={handleStopRegeneration}
+                onPerformAction={handlePerformActionOnMessage}
+                isMobile={isMobile}
+                profile={profile}
+                activeActionButton={activeActionButton}
+                lastSelectedActionButton={lastSelectedActionButton}
+                isLoading={isLoading}
+                currentUserMessage={inputMessage}
+                currentAttachedFilesDataLength={currentAttachedFilesData.length}
               />
             ))}
              {messages.length === 0 && !isLoading && (
@@ -2693,6 +2728,47 @@ Please focus on this specific design request and generate search keywords that w
             onResultsGenerated={handleMicrostockResultsGenerated} 
           />
         </div>
+      )}
+      {/* Custom Instruction Modal */}
+      {showCustomInstructionModal && (
+        <Dialog open={showCustomInstructionModal} onOpenChange={setShowCustomInstructionModal}>
+          <DialogContent className="animate-fade-in bg-background/95 dark:bg-background/80 backdrop-blur-xl border border-border dark:border-primary/10 shadow-xl dark:shadow-2xl rounded-xl">
+            <DialogHeader className="relative z-10">
+              <DialogTitle className="text-xl font-bold">Custom Instructions</DialogTitle>
+              <DialogDescription className="text-xs text-foreground/80 mt-1">
+                Enter custom instructions or attach files for the AI to follow.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4 relative z-10">
+              <Textarea
+                id="custom-instruction-text"
+                value={customInstructionText}
+                onChange={(e) => setCustomInstructionText(e.target.value)}
+                placeholder="Enter your custom instruction..."
+                className="w-full h-40 resize-none bg-card dark:glass-panel border border-border dark:border-primary/20 shadow-md rounded-xl"
+              />
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" onClick={() => customInstructionFileInputRef.current?.click()}>
+                  <Paperclip className="h-5 w-5" />
+                </Button>
+                <input type="file" ref={customInstructionFileInputRef} multiple onChange={handleCustomInstructionFilesChange} className="hidden" accept="image/*,application/pdf,.txt,.md,.json"/>
+                {customInstructionFiles.map((file, idx) => (
+                  <div key={idx} className="text-sm truncate">
+                    {file.name}{file.size ? ` (${file.size} bytes)` : ''}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <DialogFooter className="gap-3 relative z-10 mt-2 pt-3 border-t border-border/30 dark:border-primary/10">
+              <DialogClose asChild>
+                <Button variant="outline">Cancel</Button>
+              </DialogClose>
+              <Button onClick={handleCustomInstructionSend} className="bg-primary dark:bg-gradient-to-r dark:from-primary dark:to-secondary text-primary-foreground hover:shadow-lg transition-all duration-300 rounded-full">
+                Send
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

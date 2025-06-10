@@ -16,17 +16,15 @@ export function getActionTypeLabel(actionType: ActionType | undefined): string {
     case 'analyzeRequirements':
       return 'Requirements';
     case 'generateEngagementPack':
-      return 'Engagement Pack';
+      return 'Fiverr Brief';
     case 'generateDeliveryTemplates':
       return 'Delivery';
     case 'checkMadeDesigns':
       return 'Check Designs';
     case 'generateRevision':
       return 'Revision';
-    case 'generateDesignIdeas':
-      return 'Design Ideas';
     case 'generateDesignPrompts':
-      return 'Design Tools';
+      return 'AI Prompts';
     case 'generateEditingPrompts':
       return 'Editing Prompts';
     case 'checkBestDesign':
@@ -39,6 +37,8 @@ export function getActionTypeLabel(actionType: ActionType | undefined): string {
       return 'Microstock';
     case 'search':
       return 'Search';
+    case 'custom':
+      return 'Custom';
     default:
       return 'Chat';
   }
