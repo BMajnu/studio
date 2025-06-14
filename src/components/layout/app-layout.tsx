@@ -299,7 +299,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const sheetTitle = currentLanguage === 'bn' ? 'মেনু' : 'Menu';
 
   return (
-    <div className="flex min-h-screen max-h-screen flex-col" style={{ "--header-height": isHeaderCollapsed ? "1rem" : "4rem" } as React.CSSProperties}>
+    <div className="flex min-h-[100dvh] max-h-[100dvh] flex-col" style={{ "--header-height": isHeaderCollapsed ? "1rem" : "4rem" } as React.CSSProperties}>
       <header className={`sticky top-0 z-50 flex items-center justify-between border-b bg-background/60 backdrop-blur-xl shrink-0 shadow-lg glass-panel animate-fade-in transition-all duration-300 ${isHeaderCollapsed ? "h-4 px-4 overflow-visible" : "h-16 px-4"}`}>
         {!isHeaderCollapsed && (
           <>
@@ -444,7 +444,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </Button>
         </div>
       </header>
-      <main className="flex-1 flex flex-col overflow-hidden h-[calc(100vh-var(--header-height))] w-full">
+      <main className="flex-1 flex flex-col overflow-hidden h-[calc(100dvh-var(--header-height))] w-full">
         {children}
       </main>
 

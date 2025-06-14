@@ -2358,7 +2358,7 @@ Please focus on this specific design request and generate search keywords that w
 
 
   return (
-    <div className="flex flex-row h-[calc(100vh-var(--header-height,0px))] overflow-hidden bg-gradient-to-b from-background-start-hsl to-background-end-hsl"
+    <div className="flex flex-row h-[calc(100dvh-var(--header-height,0px))] overflow-hidden bg-gradient-to-b from-background-start-hsl to-background-end-hsl"
          onDragOver={handleDragOver}
          onDragLeave={handleDragLeave}
          onDrop={handleDrop}
