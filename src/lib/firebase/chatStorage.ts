@@ -33,35 +33,60 @@ export class FirebaseChatStorage {
    */
   static async saveSession(userId: string, session: ChatSession): Promise<boolean> {
     try {
+      // Sanitize session object by removing undefined fields recursively
+      const sanitize = (val: any): any => {
+        if (Array.isArray(val)) {
+          // Recursively clean each element, then remove any that turned into undefined
+          return val.map(sanitize).filter((item) => item !== undefined);
+        }
+        if (val && typeof val === 'object') {
+          const cleaned: any = {};
+          Object.keys(val).forEach((k) => {
+            const v = (val as any)[k];
+            if (v !== undefined) {
+              const nested = sanitize(v);
+              if (nested !== undefined) {
+                cleaned[k] = nested;
+              }
+            }
+          });
+          return cleaned;
+        }
+        return val;
+      };
+
+      // Use JSON stringify/parse as final pass to guarantee no undefined remains
+      const cleanedSession: ChatSession = JSON.parse(JSON.stringify(sanitize(session)));
+
       // Get current timestamp for consistency
       const now = Date.now();
       
       // Create a lean copy of the session with metadata for efficient queries
       const sessionMetadata: ChatSessionMetadata = {
-        id: session.id,
-        name: session.name,
-        lastMessageTimestamp: session.messages.length > 0 
-          ? session.messages[session.messages.length - 1].timestamp 
+        id: cleanedSession.id,
+        name: cleanedSession.name,
+        lastMessageTimestamp: cleanedSession.messages.length > 0 
+          ? cleanedSession.messages[cleanedSession.messages.length - 1].timestamp 
           : now,
-        preview: session.messages.length > 0 
-          ? typeof session.messages[0].content === 'string'
-            ? session.messages[0].content.substring(0, 100)
-            : "Chat session" 
-          : "Empty chat",
-        messageCount: session.messages?.length || 0
+        preview: cleanedSession.messages.length > 0 
+          ? typeof cleanedSession.messages[0].content === 'string'
+            ? (cleanedSession.messages[0].content as string).substring(0, 100)
+            : 'Chat session' 
+          : 'Empty chat',
+        messageCount: cleanedSession.messages?.length || 0
       };
 
       // Reference to the session document
-      const sessionRef = doc(db, `users/${userId}/chatSessions/${session.id}`);
+      const sessionRef = doc(db, `users/${userId}/chatSessions/${cleanedSession.id}`);
       
       // Save the session data
       await setDoc(sessionRef, {
-        ...session,
+        ...cleanedSession,
         updatedAt: now
       }, { merge: true });
 
       // Also save to a separate metadata collection for efficient listing
-      const metadataRef = doc(db, `users/${userId}/chatSessionsMetadata/${session.id}`);
+      const metadataRef = doc(db, `users/${userId}/chatSessionsMetadata/${cleanedSession.id}`);
       await setDoc(metadataRef, sessionMetadata);
 
       return true;

@@ -11,6 +11,10 @@ import getConfig from 'next/config';
 import * as LZString from 'lz-string';
 import logger from '@/lib/utils/logger';
 import eventDebouncer from '@/lib/utils/event-debouncer';
+// INSERT: Firebase sync imports
+import { queueSessionForSync } from '@/lib/firebase/sync-utils';
+import { FirebaseChatStorage } from '@/lib/firebase/chatStorage';
+import { forceSyncSession } from '@/lib/firebase/sync-utils';
 const { session: sessionLogger, storage: storageLogger, history: historyLogger, ui: uiLogger, system: systemLogger } = logger;
 
 // Load configuration for session storage
@@ -901,6 +905,30 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
         }
       }
       
+      // INSERT: Merge Firebase metadata
+      if (typeof navigator !== 'undefined' && navigator.onLine && effectiveUserId !== DEFAULT_USER_ID) {
+        try {
+          const remoteMetadata = await FirebaseChatStorage.listSessionsMetadata(effectiveUserId);
+          if (Array.isArray(remoteMetadata) && remoteMetadata.length > 0) {
+            const metaMap = new Map<string, ChatSessionMetadata>();
+            [...localParsedIndex, ...remoteMetadata].forEach(meta => {
+              const existing = metaMap.get(meta.id);
+              if (!existing || meta.lastMessageTimestamp > existing.lastMessageTimestamp) {
+                metaMap.set(meta.id, meta);
+              }
+            });
+            localParsedIndex = Array.from(metaMap.values()).sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
+            try {
+              localStorage.setItem(chatHistoryIndexKeyLS, compressData(JSON.stringify(localParsedIndex)));
+            } catch (persistErr) {
+              historyLogger.warn('loadHistoryIndex: Unable to persist merged Firebase metadata', persistErr);
+            }
+          }
+        } catch (firebaseErr) {
+          historyLogger.error('loadHistoryIndex: Error fetching metadata from Firebase', firebaseErr);
+        }
+      }
+      
       // NEW: Update metadata with accurate session information during reload
       const updatedMetadata = [...localParsedIndex];
       let metadataUpdated = false;
@@ -1379,6 +1407,24 @@ const getSessionDirectly = async (sessionId: string, userId: string, prefix: str
       }
     }
 
+    // INSERT: Try Firebase if not found locally
+    if (!session && typeof navigator !== 'undefined' && navigator.onLine && effectiveUserId !== DEFAULT_USER_ID) {
+      try {
+        const remoteSession = await FirebaseChatStorage.getSession(effectiveUserId, sessionId);
+        if (remoteSession) {
+          try {
+            localStorage.setItem(`${chatSessionPrefixLS}${sessionId}`, JSON.stringify(remoteSession));
+          } catch (err) {
+            storageLogger.warn('getSession: Failed to cache Firebase session locally', err);
+          }
+          updateSessionMetadataOnReload(sessionId, remoteSession);
+          return remoteSession;
+        }
+      } catch (firebaseErr) {
+        historyLogger.error(`getSession: Error fetching session ${sessionId} from Firebase`, firebaseErr);
+      }
+    }
+
     return null;
   }, [effectiveUserId, chatSessionPrefixLS, chatHistoryIndexKeyLS]);
 
@@ -1694,6 +1740,20 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
       historyLogger.error(`saveSession: Failed to save session ${sessionToSave.id} anywhere!`);
     } else {
       historyLogger.debug(`saveSession: Successfully saved session ${sessionToSave.id} (localStorage: ${savedInLocalStorage}, IndexedDB: ${savedInIndexedDB})`);
+    }
+
+    // INSERT: Queue Firebase sync
+    if (typeof navigator !== 'undefined' && navigator.onLine && effectiveUserId !== DEFAULT_USER_ID) {
+      try {
+        // Queue for background sync
+        queueSessionForSync(effectiveUserId, sessionToSave);
+        // Also push immediately so user can reload in another device right away
+        forceSyncSession(effectiveUserId, sessionToSave).catch((err) => {
+          historyLogger.warn(`saveSession: Immediate Firebase sync failed for ${sessionToSave.id}, will retry in background`, err);
+        });
+      } catch (syncErr) {
+        historyLogger.warn(`saveSession: Could not queue session ${sessionToSave.id} for Firebase sync`, syncErr);
+      }
     }
 
     return sessionToSave;
