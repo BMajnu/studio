@@ -375,7 +375,15 @@ const safeJsonParse = (data: string): any => {
           }
         }
         
-        console.error('safeJsonParse: Could not extract valid JSON');
+        console.error('safeJsonParse: Could not extract valid JSON, attempting decompression fallback');
+        try {
+          const decompressed = decompressData(data);
+          if (decompressed && decompressed.trim()) {
+            return JSON.parse(decompressed);
+          }
+        } catch (decompressErr) {
+          console.error('safeJsonParse: Decompression fallback failed:', decompressErr);
+        }
         return null;
       }
     }
@@ -1560,10 +1568,15 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
     const shouldAutoGenerateName = hasDefaultName && validUserMessages.length > 0 && validAssistantMessages.length > 0 && !attemptNameGeneration;
     const finalAttemptNameGeneration = attemptNameGeneration || shouldAutoGenerateName;
     
-    // Prepare session for storage - limit size to avoid storage quota issues
-    const sessionToStore = limitSessionSize(createLeanSession(sessionToSave));
-    let sessionString = JSON.stringify(sessionToStore);
-    let storageValue = sessionString.length > 1000 ? compressData(sessionString) : sessionString;
+    // Prepare two variants: full for IndexedDB (keeps dataUri) and lean for localStorage (trims dataUri)
+    const sessionForIndexedDB = limitSessionSize(sessionToSave);
+    const sessionForLocalStorage = limitSessionSize(createLeanSession(sessionToSave));
+
+    const idbString = JSON.stringify(sessionForIndexedDB);
+    const idbValue = idbString.length > 1000 ? compressData(idbString) : idbString;
+
+    const localString = JSON.stringify(sessionForLocalStorage);
+    const localValue = localString.length > 1000 ? compressData(localString) : localString;
     
     // Track if we were able to save the session anywhere
     let savedSuccessfully = false;
@@ -1575,7 +1588,7 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
       try {
         const isDbAvailable = await sessionDB.isAvailable();
         if (isDbAvailable) {
-          const saved = await sessionDB.saveSession(`${sessionToSave.id}`, storageValue);
+          const saved = await sessionDB.saveSession(`${sessionToSave.id}`, idbValue);
           if (saved) {
             savedInIndexedDB = true;
             storageLogger.debug(`saveSession: Successfully saved session ${sessionToSave.id} to IndexedDB`);
@@ -1603,7 +1616,7 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
     // 2. Try localStorage (as backup or primary if IndexedDB failed)
     if (!savedInIndexedDB || chatSessionPrefixLS) {
       try {
-        localStorage.setItem(`${chatSessionPrefixLS}${sessionToSave.id}`, storageValue);
+        localStorage.setItem(`${chatSessionPrefixLS}${sessionToSave.id}`, localValue);
         storageLogger.debug(`saveSession: Successfully saved session ${sessionToSave.id} to localStorage`);
         savedInLocalStorage = true;
         savedSuccessfully = true;
@@ -1615,8 +1628,8 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
           try {
             // Create an extremely minimal session with just the essential data
             const minimalSession = { 
-              ...sessionToStore, 
-              messages: sessionToStore.messages.slice(-5), // Keep only the last 5 messages
+              ...sessionForLocalStorage, 
+              messages: sessionForLocalStorage.messages.slice(-5), // Keep only the last 5 messages
               files: [] 
             };
             const minimalJson = JSON.stringify(minimalSession);
@@ -1743,18 +1756,20 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
     }
 
     // INSERT: Queue Firebase sync
-    if (typeof navigator !== 'undefined' && navigator.onLine && effectiveUserId !== DEFAULT_USER_ID) {
-      try {
-        // Queue for background sync
-        queueSessionForSync(effectiveUserId, sessionToSave);
-        // Also push immediately so user can reload in another device right away
-        forceSyncSession(effectiveUserId, sessionToSave).catch((err) => {
-          historyLogger.warn(`saveSession: Immediate Firebase sync failed for ${sessionToSave.id}, will retry in background`, err);
-        });
-      } catch (syncErr) {
-        historyLogger.warn(`saveSession: Could not queue session ${sessionToSave.id} for Firebase sync`, syncErr);
-      }
-    }
+    if (effectiveUserId !== DEFAULT_USER_ID) {
+       try {
+         // Queue for background sync
+         queueSessionForSync(effectiveUserId, sessionToSave);
+         // If online, also attempt immediate sync so user sees it on other devices right away
+         if (typeof navigator === 'undefined' || navigator.onLine) {
+           forceSyncSession(effectiveUserId, sessionToSave).catch((err) => {
+             historyLogger.warn(`saveSession: Immediate Firebase sync failed for ${sessionToSave.id}, will retry in background`, err);
+           });
+         }
+       } catch (syncErr) {
+         historyLogger.warn(`saveSession: Could not queue session ${sessionToSave.id} for Firebase sync`, syncErr);
+       }
+     }
 
     return sessionToSave;
   }, [effectiveUserId, chatSessionPrefixLS, chatHistoryIndexKeyLS, isMounted, setHistoryMetadata]);

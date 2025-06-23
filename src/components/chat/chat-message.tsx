@@ -884,6 +884,7 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
             detailedRequirements={{ english: part.detailedRequirements.english, bengali: part.detailedRequirements.bengali }}
             designMessage={{ english: part.designMessage.english, bengali: part.designMessage.bengali }}
             nicheAndAudience={{ english: part.nicheAndAudience.english, bengali: part.nicheAndAudience.bengali }}
+            imageAnalysis={part.imageAnalysis ? { english: part.imageAnalysis.english, bengali: part.imageAnalysis.bengali } : undefined}
             designItems={{ english: part.designItems.english, bengali: part.designItems.bengali }}
             onSelectDesign={(designItem) => {
               // Create a custom event that page.tsx can listen for

@@ -1,0 +1,43 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+### ✅ Task: Interactive Task Loop with User Feedback
+
+1. **Check if `MagicInput.py` exists** in the root directory.
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     user_input = input("prompt: ")
+     ```
+
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+     ```
+   * The terminal should be opened in the chat window itself.
+
+   * Read the user's input.
+
+   * Based on the input, perform the next set of tasks.
+
+   * Repeat the process.
+
+3. **Exit Condition**:
+
+   * Don't exit the loop and terminate the process until if the user enters `"stop"` when prompted, exit the loop and terminate the process.
+
+4. **Your suggestions and asking user's suggestion, don't give summary**:
+
+   * Don't give your work or end summary instead it you will ask user and immediately perform "2. **Main Workflow**".
+
+
+   * If user ask any question/suggestions you will answer it and immediately perform "2. **Main Workflow**".

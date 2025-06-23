@@ -237,4 +237,27 @@ export async function syncAllPending(): Promise<number> {
 // Initialize sync system on module load
 if (typeof window !== 'undefined') {
   initSyncSystem();
+
+  // Ensure any pending syncs are flushed when the user closes or reloads the page
+  window.addEventListener('beforeunload', () => {
+    // Attempt synchronous flush; browsers may ignore async operations here, but we try
+    if (syncQueue.length > 0) {
+      // Best-effort: processRemaining synchronously
+      // eslint-disable-next-line no-console
+      console.debug('[sync-utils] Flushing pending Firebase sync operations before unload');
+      // We use navigator.sendBeacon when available to make a fire-and-forget request
+      // Fallback to synchronous XHR otherwise
+      syncQueue.slice().forEach((op) => {
+        try {
+          const url = `/api/save-session?uid=${encodeURIComponent(op.userId)}&sid=${encodeURIComponent(op.sessionId)}`;
+          const payload = JSON.stringify(op.session);
+          if (navigator.sendBeacon) {
+            navigator.sendBeacon(url, payload);
+          }
+        } catch (_) {
+          /* noop */
+        }
+      });
+    }
+  });
 } 

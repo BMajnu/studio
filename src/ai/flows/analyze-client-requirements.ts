@@ -64,7 +64,9 @@ const AnalyzeClientRequirementsOutputSchema = z.object({
   designNicheAndAudienceEnglish: z.string().describe('Information about the design niche, theme, and target audience in English'),
   designNicheAndAudienceBengali: z.string().describe('Information about the design niche, theme, and target audience in Bengali'),
   designItemsEnglish: z.array(DesignListItemSchema).describe('List of design items with descriptions in English'),
-  designItemsBengali: z.array(DesignListItemSchema).describe('List of design items with descriptions in Bengali')
+  designItemsBengali: z.array(DesignListItemSchema).describe('List of design items with descriptions in Bengali'),
+  imageAnalysisEnglish: z.string().describe('Detailed description of any attached image(s) and how they relate to the requirements in English'),
+  imageAnalysisBengali: z.string().describe('Detailed description of any attached image(s) and how they relate to the requirements in Bengali')
 });
 export type AnalyzeClientRequirementsOutput = z.infer<typeof AnalyzeClientRequirementsOutputSchema>;
 
@@ -153,6 +155,10 @@ Based on all the above information (latest message, attachments, and full histor
      * Any quotes/sayings that should be incorporated (if applicable)
    - Bengali: Create the same structured list in Bengali
 
+6. **Image Description & Connection (Only if images are attached)**
+   - English: Describe the main visual content of the attached image(s) in detail and explain how it connects to the client's request and possible design ideas.
+   - Bengali: Provide the same description and explanation in Bengali.
+
 Important Notes:
 - Give each design item a unique ID so it can be referenced later
 - Be specific about any text that should appear in the designs
@@ -176,7 +182,9 @@ Output Format (ensure your entire response is a single JSON object):
   "designItemsBengali": [
     {"id": "design_1", "title": "ডিজাইনের শিরোনাম", "description": "এই ডিজাইনে কী থাকা উচিত", "textContent": "যেকোনো টেক্সট অন্তর্ভুক্ত করতে"},
     ...
-  ]
+  ],
+  "imageAnalysisEnglish": "Description of image and its relation...",
+  "imageAnalysisBengali": "ছবির বর্ণনা এবং এর সম্পর্ক..."
 }
 `,
   });

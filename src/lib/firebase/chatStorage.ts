@@ -17,6 +17,72 @@ import {
 } from 'firebase/firestore';
 import type { ChatSession, ChatSessionMetadata } from '@/lib/types';
 
+// Maximum document size for Firestore (1 MiB) -- using 950 KB safety buffer
+const FIRESTORE_DOC_LIMIT = 950 * 1024;
+
+// Helper: return a trimmed copy small enough for Firestore
+const trimSessionForFirestore = (session: ChatSession): ChatSession => {
+  // Deep clone to avoid mutating caller
+  const clone: ChatSession = JSON.parse(JSON.stringify(session));
+
+  // Generic recursive stripper to delete binary fields
+  const stripBinary = (obj: any): void => {
+    if (!obj || typeof obj !== 'object') return;
+    for (const key of Object.keys(obj)) {
+      if (key === 'dataUri' || key === 'imageDataUri') {
+        delete obj[key];
+        continue;
+      }
+      const val = obj[key];
+      if (Array.isArray(val)) {
+        val.forEach(stripBinary);
+      } else if (typeof val === 'object') {
+        stripBinary(val);
+      }
+    }
+  };
+
+  stripBinary(clone);
+
+  // Remove large binary data from message parts
+  clone.messages = clone.messages.map((msg) => {
+    const newMsg = { ...msg } as any;
+    if (Array.isArray(newMsg.content)) {
+      newMsg.content = newMsg.content.map((part: any) => {
+        // Remove imageDataUri, or shorten long text
+        if (part.imageDataUri) {
+          return { ...part, imageDataUri: undefined };
+        }
+        if (part.text && typeof part.text === 'string' && part.text.length > 2000) {
+          return { ...part, text: part.text.substring(0, 2000) + '... (truncated)' };
+        }
+        return part;
+      });
+    }
+    if (newMsg.attachedFiles) {
+      newMsg.attachedFiles = newMsg.attachedFiles.map((f: any) => {
+        const { dataUri, textContent, ...rest } = f;
+        // Strip base64 data but keep metadata
+        const lean: any = { ...rest };
+        if (textContent && textContent.length < 5000) {
+          lean.textContent = textContent;
+        }
+        return lean;
+      });
+    }
+    return newMsg;
+  });
+
+  // If still too large, keep only last 100 messages then 50 then 20
+  const limits = [100, 50, 20, 5];
+  for (const max of limits) {
+    let str = JSON.stringify(clone);
+    if (str.length <= FIRESTORE_DOC_LIMIT) break;
+    clone.messages = clone.messages.slice(-max);
+  }
+  return clone;
+};
+
 // Initialize Firestore
 const db = getFirestore(firebaseAppInstance);
 
@@ -56,7 +122,12 @@ export class FirebaseChatStorage {
       };
 
       // Use JSON stringify/parse as final pass to guarantee no undefined remains
-      const cleanedSession: ChatSession = JSON.parse(JSON.stringify(sanitize(session)));
+      let cleanedSession: ChatSession = JSON.parse(JSON.stringify(sanitize(session)));
+
+      // Ensure size within Firestore limit
+      if (JSON.stringify(cleanedSession).length > FIRESTORE_DOC_LIMIT) {
+        cleanedSession = trimSessionForFirestore(cleanedSession);
+      }
 
       // Get current timestamp for consistency
       const now = Date.now();

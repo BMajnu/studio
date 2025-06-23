@@ -29,6 +29,7 @@ interface BilingualSplitViewProps {
     english: DesignListItem[];
     bengali: DesignListItem[];
   };
+  imageAnalysis?: BilingualContent;
   onSelectDesign?: (designItem: DesignListItem) => void;
 }
 
@@ -38,6 +39,7 @@ export function BilingualSplitView({
   designMessage,
   nicheAndAudience,
   designItems,
+  imageAnalysis,
   onSelectDesign
 }: BilingualSplitViewProps) {
   const [activeTab, setActiveTab] = useState('keyPoints');
@@ -192,6 +194,25 @@ export function BilingualSplitView({
           </div>
         );
         
+      case 'imageAnalysis':
+        return (
+          <div className="flex flex-row gap-1 h-full">
+            <ScrollArea ref={englishScrollRef} className="flex-1 h-full p-4 rounded-md">
+              <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
+              <div className="text-foreground whitespace-pre-wrap">
+                {typeof imageAnalysis?.english === 'string' ? imageAnalysis?.english : (imageAnalysis?.english || []).join('\n\n')}
+              </div>
+            </ScrollArea>
+            <div className="w-px bg-border mx-2 h-full"></div>
+            <ScrollArea ref={bengaliScrollRef} className="flex-1 h-full p-4 rounded-md">
+              <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
+              <div className="text-foreground whitespace-pre-wrap">
+                {typeof imageAnalysis?.bengali === 'string' ? imageAnalysis?.bengali : (imageAnalysis?.bengali || []).join('\n\n')}
+              </div>
+            </ScrollArea>
+          </div>
+        );
+        
       case 'designItems':
         return <DesignItemsList designItems={designItems} onSelectDesign={onSelectDesign} />;
         
@@ -205,11 +226,12 @@ export function BilingualSplitView({
       <h3 className="text-xl font-semibold text-center mb-4 text-gradient">Bilingual Requirements Analysis</h3>
       
       <Tabs defaultValue="keyPoints" value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-5 mb-4">
+        <TabsList className="grid grid-cols-6 mb-4">
           <TabsTrigger value="keyPoints">Key Points</TabsTrigger>
           <TabsTrigger value="detailedRequirements">Details</TabsTrigger>
           <TabsTrigger value="designMessage">Message</TabsTrigger>
           <TabsTrigger value="nicheAndAudience">Audience</TabsTrigger>
+          <TabsTrigger value="imageAnalysis">Image</TabsTrigger>
           <TabsTrigger value="designItems">Designs</TabsTrigger>
         </TabsList>
         

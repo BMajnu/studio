@@ -73,6 +73,7 @@ export type ChatMessageContentPart =
       detailedRequirements: BilingualContent;
       designMessage: BilingualContent;
       nicheAndAudience: BilingualContent;
+      imageAnalysis?: BilingualContent;
       designItems: {
         english: DesignListItem[];
         bengali: DesignListItem[];

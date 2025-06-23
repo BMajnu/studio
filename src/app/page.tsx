@@ -1269,6 +1269,10 @@ export default function ChatPage() {
                 english: requirementsOutput.designNicheAndAudienceEnglish,
                 bengali: requirementsOutput.designNicheAndAudienceBengali
               },
+              imageAnalysis: {
+                english: requirementsOutput.imageAnalysisEnglish,
+                bengali: requirementsOutput.imageAnalysisBengali
+              },
               designItems: {
                 english: requirementsOutput.designItemsEnglish,
                 bengali: requirementsOutput.designItemsBengali
