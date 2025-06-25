@@ -496,23 +496,20 @@ const limitSessionSize = (session: ChatSession): ChatSession => {
     };
   }
   
-  // Check individual message sizes and trim any that are extremely large
+  // For individual messages, avoid mutating content; rely on compression.
+  // Only perform very aggressive trimming if compression still cannot keep size under quota
   if (session.messages) {
-    const trimmedMessages = session.messages.map(msg => {
-      if (typeof msg.content === 'string' && msg.content.length > 100000) {
-        // Trim excessively large string content
-        return {...msg, content: msg.content.substring(0, 50000) + '... (content trimmed to save storage)'};
-      } else if (Array.isArray(msg.content) && JSON.stringify(msg.content).length > 100000) {
-        // For array content, keep only essential parts
-        return {...msg, content: [{
-          type: 'text' as const, 
-          text: 'Large content was trimmed to save storage space.'
-        }]};
+    const processedMsgs = session.messages.map(msg => {
+      if (typeof msg.content === 'string' && msg.content.length > 250000) {
+        // Extremely large plain-text messages — keep first 200k chars then note remainder
+        return {
+          ...msg,
+          content: msg.content.substring(0, 200000) + '\n... (content truncated – original preserved in backup)',
+        };
       }
       return msg;
     });
-    
-    return {...session, messages: trimmedMessages};
+    return { ...session, messages: processedMsgs };
   }
   
   return session;
@@ -2168,6 +2165,69 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
       historyLogger.error('Error updating auto-refresh setting', error);
     }
   }, []);
+
+  // NEW: Prefetch & cache full session data shortly after metadata is available
+  // ------------------------------------------------------------------------
+  useEffect(() => {
+    // Only run when we have a valid user, some metadata and the browser is online
+    if (!effectiveUserId || historyMetadata.length === 0) return;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+
+    let cancelled = false;
+
+    const prefetchSessionsInBackground = async () => {
+      const CONCURRENCY_LIMIT = 3; // Don't overwhelm network / Firestore
+      const queue = [...historyMetadata]; // copy so we can mutate
+
+      const worker = async () => {
+        while (!cancelled && queue.length > 0) {
+          const meta = queue.shift();
+          if (!meta) break;
+          const sessionId = meta.id;
+
+          try {
+            // 1️⃣ Skip if we already have a cached version (localStorage / IndexedDB)
+            const localKey = `${chatSessionPrefixLS}${sessionId}`;
+            if (localStorage.getItem(localKey)) continue;
+            if (sessionDB) {
+              const idbData = await sessionDB.getSession(sessionId);
+              if (idbData) continue;
+            }
+
+            // 2️⃣ Fetch from Firebase
+            const remoteSession = await FirebaseChatStorage.getSession(effectiveUserId, sessionId);
+            if (!remoteSession) continue;
+
+            // 3️⃣ Persist to preferred storage
+            const sessionString = JSON.stringify(remoteSession);
+            try {
+              if (sessionDB) {
+                await sessionDB.saveSession(sessionId, sessionString);
+                // quick flag so next reload knows it is in IDB
+                localStorage.setItem(`${localKey}_idb`, '1');
+              } else {
+                const valueToStore = sessionString.length > 1000 ? compressData(sessionString) : sessionString;
+                localStorage.setItem(localKey, valueToStore);
+              }
+            } catch (persistErr) {
+              historyLogger.warn(`prefetchSessions: failed to cache ${sessionId}`, persistErr);
+            }
+          } catch (err) {
+            historyLogger.warn(`prefetchSessions: error processing ${sessionId}`, err);
+          }
+        }
+      };
+
+      // Spin up limited concurrent workers
+      await Promise.all(Array.from({ length: CONCURRENCY_LIMIT }, () => worker()));
+    };
+
+    prefetchSessionsInBackground();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveUserId, historyMetadata]);
 
   return {
     historyMetadata,

@@ -92,30 +92,43 @@ Output all five prompts as separate fields.
 `,
   });
 
-  try {
-    console.log(`INFO (${flowName}): Processing request for design type: ${designType}, description: ${description}`);
-    const { output } = await customSensePrompt(
-      { designType, description, userName }, 
-      { model: modelToUse }
-    );
-    
-    if (!output) {
-      console.error(`ERROR (${flowName}): AI returned empty or undefined output.`);
-      throw new Error(`Failed to generate prompts in ${flowName}.`);
+  const MAX_RETRIES = 3;
+  const BASE_DELAY_MS = 2000;
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      console.log(`INFO (${flowName}): [Attempt ${attempt}/${MAX_RETRIES}] Processing request for design type: ${designType}`);
+      const { output } = await customSensePrompt(
+        { designType, description, userName },
+        { model: modelToUse }
+      );
+      if (!output) throw new Error('AI returned empty output');
+
+      const formattedPrompts = [
+        { title: "Exactly Similar", prompt: output.exactlySimilarPrompt },
+        { title: "Modern Style", prompt: output.modernStylePrompt },
+        { title: "Vintage Style", prompt: output.vintageStylePrompt },
+        { title: "Sci-Fi Style", prompt: output.sciFiStylePrompt },
+        { title: "Colorful Style", prompt: output.colorfulStylePrompt }
+      ];
+
+      return { prompts: formattedPrompts };
+    } catch (err: any) {
+      const errMsg = err?.message || String(err);
+      const isRetryable = errMsg.includes('503') || errMsg.includes('overloaded') || errMsg.includes('temporarily') || errMsg.includes('unavailable');
+
+      console.warn(`WARN (${flowName}): Attempt ${attempt} failed: ${errMsg}`);
+
+      if (!isRetryable || attempt === MAX_RETRIES) {
+        console.error(`ERROR (${flowName}): All attempts failed.`);
+        throw new Error(`Failed to generate custom sense prompts: ${errMsg}`);
+      }
+
+      // Exponential backoff before retrying
+      const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+      await new Promise(res => setTimeout(res, delay));
     }
-    
-    // Format the output into the expected structure
-    const formattedPrompts = [
-      { title: "Exactly Similar", prompt: output.exactlySimilarPrompt },
-      { title: "Modern Style", prompt: output.modernStylePrompt },
-      { title: "Vintage Style", prompt: output.vintageStylePrompt },
-      { title: "Sci-Fi Style", prompt: output.sciFiStylePrompt },
-      { title: "Colorful Style", prompt: output.colorfulStylePrompt }
-    ];
-    
-    return { prompts: formattedPrompts };
-  } catch (error) {
-    console.error(`ERROR (${flowName}): AI call failed (API key source: ${apiKeySourceForLog}). Error:`, error);
-    throw new Error(`Failed to generate custom sense prompts: ${error instanceof Error ? error.message : String(error)}`);
   }
+
+  throw new Error(`Unknown failure in ${flowName}`);
 } 

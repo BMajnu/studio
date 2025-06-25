@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Paperclip, Loader2, BotIcon, Menu, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw, PlusCircle, Edit3, RefreshCw, LogIn, UserPlus, Languages, X, AlertTriangle, InfoIcon, ArrowUpToLine, ArrowDownToLine, FileText, ChevronUp, ChevronDown } from 'lucide-react';
+import { Paperclip, Loader2, BotIcon, Menu, PanelLeftOpen, PanelLeftClose, Palette, SearchCheck, ClipboardSignature, ListChecks, ClipboardList, Lightbulb, Terminal, Plane, RotateCcw, PlusCircle, Edit3, RefreshCw, LogIn, UserPlus, Languages, X, AlertTriangle, InfoIcon, ArrowUpToLine, ArrowDownToLine, FileText, ChevronUp, ChevronDown, Moon, Sun, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -56,6 +56,9 @@ import { BilingualSplitView } from '@/components/chat/bilingual-split-view';
 import type { DesignListItem } from '@/lib/types';
 import Image from 'next/image';
 
+import { promptWithCustomSense } from '@/ai/flows/prompt-with-custom-sense-flow';
+import type { PromptWithCustomSenseOutput } from '@/ai/flows/prompt-with-custom-sense-types';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const getMessageText = (content: string | ChatMessageContentPart[] | undefined): string => {
   if (!content) return '';
@@ -284,6 +287,9 @@ export default function ChatPage() {
   const [customInstructionFiles, setCustomInstructionFiles] = useState<AttachedFile[]>([]);
   const customInstructionFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Add state for custom sense prefill
+  const [customSensePrefill, setCustomSensePrefill] = useState<CustomSensePrefill | null>(null);
+
   /**
    * Button Selection Logic
    * ---------------------
@@ -326,7 +332,18 @@ export default function ChatPage() {
 
   const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
   const isMobile = useIsMobile();
-  const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState<boolean | undefined>(undefined);
+  // Sidebar open / closed – persist to localStorage so the state survives refreshes
+  const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('desainr_sidebar_open');
+      if (stored !== null) {
+        return stored === 'true';
+      }
+      // default: open on desktop, closed on mobile
+      return window.innerWidth >= 768;
+    }
+    return true;
+  });
   const currentApiKeyIndexRef = useRef(0);
   const isMounted = useRef(false);
   const initialSessionLoadAttemptedRef = useRef(false);
@@ -430,11 +447,22 @@ export default function ChatPage() {
   const ensureMessagesHaveUniqueIds = useCallback(baseEnsureMessagesHaveUniqueIds, []);
 
   useEffect(() => {
-    if (isMobile !== undefined && isHistoryPanelOpen === undefined) {
-        setIsHistoryPanelOpen(!isMobile);
-    }
-  }, [isMobile, isHistoryPanelOpen]);
+    /* When viewport changes through resize, auto-close if mobile, open if desktop (unless user explicitly toggled) */
+    setIsHistoryPanelOpen(prev => {
+      const desired = !isMobile;
+      // if prev equals desired no change
+      return prev === desired ? prev : desired;
+    });
+  }, [isMobile]);
 
+  // Persist sidebar state whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('desainr_sidebar_open', isHistoryPanelOpen ? 'true' : 'false');
+    } catch (_) {
+      /* ignore */
+    }
+  }, [isHistoryPanelOpen]);
 
   useEffect(() => {
     const loadOrCreateSession = async () => {
@@ -1649,7 +1677,7 @@ export default function ChatPage() {
           }
 
           if (finalAiResponseContent.length === 0 && !aiCallError) {
-            finalAiResponseContent.push({type: 'text', text: "Action processed. No specific textual output to display for this action."});
+            finalAiResponseContent.push({ type: 'text', text: '✅ Done' });
           }
 
           if (!aiCallError && isMounted.current) {
@@ -1740,8 +1768,90 @@ export default function ChatPage() {
 
 
   useEffect(() => {
-    if (pendingAiRequestAfterEdit && isMounted.current) {
-      const { content, attachments, isUserMessageEdit: isEdit, editedUserMessageId, actionType } = pendingAiRequestAfterEdit;
+    if (!pendingAiRequestAfterEdit || !isMounted.current) return;
+
+    const { content, attachments, isUserMessageEdit: isEdit, editedUserMessageId, actionType } = pendingAiRequestAfterEdit;
+
+    const run = async () => {
+      if (actionType === 'promptWithCustomSense') {
+        // Parse designType and description from content
+        let designType = 'POD Design';
+        let description = content;
+
+        try {
+          const typeMatch = content.match(/Design Type:\s*"([^"]+)"/i);
+          const descMatch = content.match(/Description:\s*"([^"]+)"/i);
+          if (typeMatch) designType = typeMatch[1];
+          if (descMatch) description = descMatch[1];
+        } catch (_) { /* ignore */ }
+
+        try {
+          let placeholderAssistantId: string | null = null; // declare once here
+
+          // Create placeholder assistant message with loading state
+          placeholderAssistantId = addMessage(
+            'assistant',
+            'Processing...',
+            [],
+            true, // isLoading
+            false,
+            undefined,
+            editedUserMessageId,
+            'promptWithCustomSense'
+          );
+
+          const promptsResult: PromptWithCustomSenseOutput = await promptWithCustomSense({
+            designType,
+            description,
+            userName: profile?.name,
+            userApiKey: profile?.geminiApiKeys ? profile.geminiApiKeys[0] : undefined,
+            modelId: profile?.selectedGenkitModelId,
+          });
+
+          const assistantParts: ChatMessageContentPart[] = [
+            {
+              type: 'custom_prompts_tabs',
+              title: `${designType} Style Variations`,
+              customPrompts: promptsResult.prompts.map(p => ({ title: p.title || 'Generated Prompt', prompt: p.prompt }))
+            }
+          ];
+
+          // Update placeholder with actual content
+          if (placeholderAssistantId) {
+            updateMessageById(
+              placeholderAssistantId,
+              assistantParts,
+              false,
+              false,
+              undefined,
+              editedUserMessageId,
+              'promptWithCustomSense'
+            );
+          } else {
+            addMessage('assistant', assistantParts, [], false, false, undefined, editedUserMessageId, 'promptWithCustomSense');
+          }
+        } catch (err) {
+          console.error('Failed to regenerate custom prompts:', err);
+          if (placeholderAssistantId) {
+            updateMessageById(
+              placeholderAssistantId,
+              'Error regenerating custom prompts. Please try again.',
+              false,
+              true,
+              undefined,
+              editedUserMessageId,
+              'promptWithCustomSense'
+            );
+          } else {
+            addMessage('assistant', 'Error regenerating custom prompts. Please try again.', [], false, true, undefined, editedUserMessageId, 'promptWithCustomSense');
+          }
+        }
+
+        setPendingAiRequestAfterEdit(null);
+        return;
+      }
+
+      // Default behaviour for other action types
       handleSendMessage(
         content,
         'processMessage',
@@ -1751,12 +1861,14 @@ export default function ChatPage() {
         false,
         undefined,
         editedUserMessageId,
-        isCustomMessage, // Pass the current custom flag state
-        actionType // Pass the current action type
+        isCustomMessage,
+        actionType
       );
       setPendingAiRequestAfterEdit(null);
-    }
-  }, [pendingAiRequestAfterEdit, handleSendMessage, isCustomMessage]);
+    };
+
+    run();
+  }, [pendingAiRequestAfterEdit, handleSendMessage, isCustomMessage, profile, addMessage]);
 
 
   const handleRegenerateMessage = useCallback((originalRequestDetailsWithMessageId?: ChatMessage['originalRequest'] & { messageIdToRegenerate: string }) => {
@@ -2043,29 +2155,63 @@ export default function ChatPage() {
   const handleCustomSensePromptsGenerated = useCallback(( 
     prompts: PromptWithCustomSenseOutput['prompts'], 
     designType: string, 
-    description: string
+    description: string,
+    attachedFile?: AttachedFile,
+    originalUserMessageId?: string
   ) => {
-    const userMessageText = `[Prompt with Custom Change] Requested prompts for Design Type: "${designType}". Description: "${description}"`;
-    const userMessageId = addMessage('user', userMessageText);
+    if (originalUserMessageId) {
+      // update existing user message
+      const newContent = `[Prompt with Custom Change] Requested prompts for Design Type: "${designType}". Description: "${description}"`;
+      handleConfirmEditAndResendUserMessage(originalUserMessageId, newContent, attachedFile ? [attachedFile] : undefined, 'promptWithCustomSense');
+      return;
+    }
 
-    // Create a single content part that uses custom_prompts_tabs
+    const userMessageText = `[Prompt with Custom Change] Requested prompts for Design Type: "${designType}". Description: "${description}"`;
+    const userMessageId = addMessage(
+      'user',
+      userMessageText,
+      attachedFile ? [attachedFile] : undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'promptWithCustomSense'
+    );
+
+    // Create assistant content part
     const assistantResponseParts: ChatMessageContentPart[] = [{
       type: 'custom_prompts_tabs',
       title: `${designType} Style Variations`,
       customPrompts: prompts.map(promptItem => ({
         title: promptItem.title || 'Generated Prompt',
-        prompt: promptItem.prompt
-      }))
+        prompt: promptItem.prompt,
+      })),
     }];
 
-    if (prompts.length > 0) {
-      addMessage('assistant', assistantResponseParts, undefined, false, false, undefined, userMessageId);
-    } else {
-      addMessage('assistant', "No prompts were generated for your request.", undefined, false, false, undefined, userMessageId);
-    }
+    addMessage(
+      'assistant',
+      prompts.length > 0 ? assistantResponseParts : "No prompts were generated for your request.",
+      undefined,
+      false,
+      false,
+      undefined,
+      userMessageId
+    );
 
-    // The PromptWithCustomSense component will call its onClose, so no need to setShowPromptWithCustomSense(false) here.
-  }, [addMessage]);
+    // Persist session
+    if (currentSession && userIdForHistory) {
+      setMessages(prevMsgs => {
+        const updatedMsgs = ensureMessagesHaveUniqueIds(prevMsgs);
+        const sessionForSave: ChatSession = {
+          ...currentSession,
+          messages: updatedMsgs,
+          updatedAt: Date.now(),
+        };
+        saveSession(sessionForSave, false);
+        return updatedMsgs;
+      });
+    }
+  }, [addMessage, ensureMessagesHaveUniqueIds, currentSession, saveSession, userIdForHistory, setMessages, handleConfirmEditAndResendUserMessage]);
 
   // Handler for Microstock results
   const handleMicrostockResultsGenerated = useCallback((
@@ -2305,6 +2451,37 @@ Please focus on this specific design request and generate search keywords that w
     setShowCustomInstructionModal(false);
   }, [customInstructionText, customInstructionFiles, handleSendMessage]);
 
+  // Handler to open editor with prefill
+  const openPromptWithCustomSenseEditor = useCallback((message: ChatMessage) => {
+    if (message.actionType !== 'promptWithCustomSense') return;
+    // Parse designType and description
+    let designType = 'POD Design';
+    let description = '';
+    if (typeof message.content === 'string') {
+      const typeMatch = message.content.match(/Design Type:\s*"([^"]+)"/i);
+      const descMatch = message.content.match(/Description:\s*"([^"]+)"/i);
+      if (typeMatch) designType = typeMatch[1];
+      if (descMatch) description = descMatch[1];
+    }
+    const attachedFile = message.attachedFiles && message.attachedFiles[0] ? message.attachedFiles[0] : undefined;
+
+    setCustomSensePrefill({ designType, description, attachedFile, originalUserMessageId: message.id });
+    setShowPromptWithCustomSense(true);
+  }, []);
+
+  const handleRegenerateCustomSense = useCallback((msg: ChatMessage) => {
+    if (msg.actionType !== 'promptWithCustomSense') return;
+    if (typeof msg.content !== 'string') return;
+
+    setPendingAiRequestAfterEdit({
+      content: msg.content,
+      attachments: msg.attachedFiles,
+      isUserMessageEdit: false,
+      editedUserMessageId: msg.id,
+      actionType: 'promptWithCustomSense'
+    });
+  }, []);
+
   if (authLoading || (!currentSession && !profileLoading && !historyHookLoading)) {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-var(--header-height,0px))] bg-gradient-to-b from-background-start-hsl to-background-end-hsl">
@@ -2368,32 +2545,52 @@ Please focus on this specific design request and generate search keywords that w
          onDrop={handleDrop}
          ref={dropZoneRef}>
       {/* History panel - mobile version */}
-      {isMobile && isHistoryPanelOpen && (
-        <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={() => setIsHistoryPanelOpen(false)}>
-          <div ref={chatSidebarRef} className="absolute left-0 top-0 h-full w-4/5 max-w-[300px] glass-panel border-r border-primary/20 shadow-2xl animate-slide-in-left" onClick={(e) => e.stopPropagation()}>
-            <HistoryPanel
-              sessions={historyMetadata} 
-              activeSessionId={currentSession?.id || null}
-              onSelectSession={handleSelectSession} 
-              onNewChat={handleNewChat}
-              onDeleteSession={handleDeleteSession} 
-              isLoading={historyHookLoading}
-              isLoggedIn={!!authUser} 
-              onRefreshHistory={handleRefreshHistory}
-              isAutoRefreshEnabled={isAutoRefreshEnabled}
-              setAutoRefreshEnabled={setAutoRefreshEnabled}
-            />
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {isMobile && isHistoryPanelOpen && (
+          <motion.div
+            key="backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+            onClick={() => setIsHistoryPanelOpen(false)}
+          >
+            <motion.div
+              key="mobileSidebar"
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', stiffness: 260, damping: 30 }}
+              ref={chatSidebarRef}
+              className="absolute left-0 top-0 h-full w-4/5 max-w-[300px] glass-panel border-r border-primary/20 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <HistoryPanel
+                sessions={historyMetadata}
+                activeSessionId={currentSession?.id || null}
+                onSelectSession={handleSelectSession}
+                onNewChat={handleNewChat}
+                onDeleteSession={handleDeleteSession}
+                isLoading={historyHookLoading}
+                isLoggedIn={!!authUser}
+                onRefreshHistory={handleRefreshHistory}
+                isAutoRefreshEnabled={isAutoRefreshEnabled}
+                setAutoRefreshEnabled={setAutoRefreshEnabled}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       
       {/* History panel - desktop version */}
       {!isMobile && (
         <div
           ref={chatSidebarRef}
+          style={{ width: isHistoryPanelOpen ? 'var(--sidebar-width,300px)' : 0 }}
           className={cn(
             "glass-panel shrink-0 transition-all duration-300 ease-in-out h-full overflow-hidden shadow-lg",
-            isHistoryPanelOpen ? "w-[300px] border-r border-primary/20" : "w-0 opacity-0"
+            isHistoryPanelOpen ? "border-r border-primary/20" : "opacity-0"
           )}
         >
           {isHistoryPanelOpen && (
@@ -2418,7 +2615,7 @@ Please focus on this specific design request and generate search keywords that w
 
       {/* Main chat area - always visible regardless of history panel state */}
       <div className="flex flex-col flex-grow min-w-0 w-full h-full">
-        <ScrollArea className="flex-1 p-2 md:p-4 overflow-y-auto" ref={chatAreaRef}>
+        <ScrollArea className="flex-1 p-2 md:p-4 overflow-y-auto pb-48" ref={chatAreaRef}>
           <div className="space-y-4 w-full stagger-animation">
             {messages.map((msg) => (
               <ChatMessageDisplay
@@ -2435,6 +2632,8 @@ Please focus on this specific design request and generate search keywords that w
                 isLoading={isLoading}
                 currentUserMessage={inputMessage}
                 currentAttachedFilesDataLength={currentAttachedFilesData.length}
+                onOpenCustomSenseEditor={openPromptWithCustomSenseEditor}
+                onRegenerateCustomSense={handleRegenerateCustomSense}
               />
             ))}
              {messages.length === 0 && !isLoading && (
@@ -2467,9 +2666,9 @@ Please focus on this specific design request and generate search keywords that w
 
         <div 
           className={cn(
-            "relative border-t glass-panel bg-background/60 backdrop-blur-xl shadow-xl shrink-0 transition-all duration-300", 
+            "fixed bottom-0 left-1/2 -translate-x-1/2 z-50 w-full max-w-3xl border-t glass-panel bg-background/70 backdrop-blur-xl shadow-2xl rounded-t-xl transition-all duration-300 pb-[env(safe-area-inset-bottom)]", 
             isDragging && "opacity-50",
-            isFooterCollapsed ? "h-2 py-0 overflow-visible" : "p-4 md:p-5"
+            isFooterCollapsed ? "h-3 py-0 overflow-visible" : "p-4 md:p-5"
           )}
         >
           <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-primary/10 via-primary/40 to-primary/10"></div>
@@ -2715,8 +2914,13 @@ Please focus on this specific design request and generate search keywords that w
             userName={profile?.name}
             userApiKey={profile?.geminiApiKeys?.[0]}
             modelId={profile?.selectedGenkitModelId || DEFAULT_MODEL_ID}
-            onClose={() => setShowPromptWithCustomSense(false)}
-            onPromptsGenerated={handleCustomSensePromptsGenerated} // Pass the new handler
+            onClose={() => { setShowPromptWithCustomSense(false); setCustomSensePrefill(null);} }
+            onPromptsGenerated={handleCustomSensePromptsGenerated}
+            initialDesignType={customSensePrefill?.designType}
+            initialDesignStyles={customSensePrefill?.designStyles}
+            initialDescription={customSensePrefill?.description}
+            initialAttachedFile={customSensePrefill?.attachedFile}
+            originalUserMessageId={customSensePrefill?.originalUserMessageId}
           />
         </div>
       )}

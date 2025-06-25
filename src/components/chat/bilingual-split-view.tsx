@@ -309,13 +309,13 @@ function DesignItemCard({
       
       {showActionButton && (
         <div className="mt-2">
-          <button
-            onClick={() => onSelect?.(item)}
+        <button 
+          onClick={() => onSelect?.(item)}
             className="w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center"
-          >
+        >
             <Sparkles className="h-4 w-4 mr-2" />
             Generate Prompts
-          </button>
+        </button>
         </div>
       )}
     </div>

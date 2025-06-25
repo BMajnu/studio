@@ -79,7 +79,7 @@ export type ChatMessageContentPart =
         bengali: DesignListItem[];
       };
     }
-  | { type: 'search_keywords'; title?: string; keywords: Array<{ text: string, url: string }> }
+  | { type: 'search_keywords'; title?: string; keywords: Array<string | { text: string; url?: string }> }
   | { type: 'custom'; title?: string; text?: string; code?: string; language?: string; items?: string[]; english?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; bengali?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; suggestions?: { english: string[], bengali: string[] }; data?: any; ideas?: { category: string, items: string[] }[]; imageDataUri?: string; exactReplicationPrompt?: string; similarWithTweaksPrompt?: string; sameNichePrompt?: string; customPrompts?: { title: string, prompt: string }[]; microstockResults?: { 
     prompt: string; 
     metadata: { 

@@ -38,8 +38,10 @@ interface ChatMessageProps {
   message: ChatMessage;
   onRegenerate?: (requestDetails: ChatMessage['originalRequest'] & { messageIdToRegenerate: string }) => void;
   onConfirmEditAndResend?: (messageId: string, newContent: string, originalAttachments?: AttachedFile[], newActionType?: ActionType) => void;
+  onOpenCustomSenseEditor?: (message: ChatMessage) => void;
   onStopRegeneration?: (messageId: string) => void;
   onPerformAction?: (originalRequest: ChatMessage['originalRequest'], actionType: ActionType) => void;
+  onRegenerateCustomSense?: (message: ChatMessage) => void;
   isMobile: boolean;
   profile: UserProfile | null;
   activeActionButton: ActionType | null;
@@ -897,7 +899,29 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
         </div>
       );
 
-    case 'search_keywords':
+    case 'search_keywords': {
+      // Normalize keyword entries so that each has text and url.
+      const normalizedKeywords = (part.keywords || []).map((kw: any) => {
+        if (typeof kw === 'string') {
+          return {
+            text: kw,
+            url: `https://www.google.com/search?q=${encodeURIComponent(kw)}`,
+          };
+        }
+        if (typeof kw === 'object' && kw !== null) {
+          return {
+            text: kw.text ?? String(kw),
+            url: kw.url ?? `https://www.google.com/search?q=${encodeURIComponent(kw.text ?? String(kw))}`,
+          };
+        }
+        // Fallback for unexpected types
+        const kwString = String(kw);
+        return {
+          text: kwString,
+          url: `https://www.google.com/search?q=${encodeURIComponent(kwString)}`,
+        };
+      });
+
       return (
         <div key={index} className={cn(commonClasses, "bg-card/80 backdrop-blur-sm border border-border rounded-lg shadow-md overflow-hidden")} style={{ animationDelay }}>
           <div className="px-4 py-3 border-b flex items-center bg-gradient-to-r from-sky-500 to-blue-600">
@@ -911,16 +935,16 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
               Click on any keyword to find design inspiration on Google:
             </p>
             <div className="flex flex-wrap gap-2">
-              {part.keywords.map((keyword, i) => (
+              {normalizedKeywords.map((keyword, i) => (
                 <Button
                   key={`search-keyword-${i}`}
                   variant="outline"
                   className="rounded-full bg-primary/5 hover:bg-primary/20 border-primary/20 text-sm py-1 h-auto transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 hover:scale-105"
                   asChild
                 >
-                  <a 
-                    href={keyword.url} 
-                    target="_blank" 
+                  <a
+                    href={keyword.url}
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center"
                   >
@@ -932,6 +956,7 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
           </div>
         </div>
       );
+    }
 
     case 'design_prompts_tabs':
       return (
@@ -962,7 +987,7 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
   }
 }
 
-export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndResend, onStopRegeneration, onPerformAction, isMobile, profile, activeActionButton, lastSelectedActionButton, isLoading, currentUserMessage, currentAttachedFilesDataLength }: ChatMessageProps) {
+export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndResend, onOpenCustomSenseEditor, onStopRegeneration, onPerformAction, onRegenerateCustomSense, isMobile, profile, activeActionButton, lastSelectedActionButton, isLoading, currentUserMessage, currentAttachedFilesDataLength }: ChatMessageProps) {
   const [isEditingThisMessage, setIsEditingThisMessage] = useState(false);
   const [editedText, setEditedText] = useState<string>('');
   const [editedAttachments, setEditedAttachments] = useState<AttachedFile[]>([]);
@@ -1338,17 +1363,45 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
                   </div>
                 </div>
                 <div className="flex items-center gap-1 opacity-100 transition-opacity"> {/* Removed opacity-0 and group-hover:opacity-100 */}
-                  {isUser && onConfirmEditAndResend && !isEditingThisMessage && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleStartEdit}
-                      className="text-xs backdrop-blur-sm border border-primary/20 shadow-sm hover:shadow-md hover:scale-105 text-primary hover:text-primary hover:bg-primary/10 transition-all duration-300"
-                      title="Edit & Resend this message"
-                    >
-                      <Edit3 className="h-3.5 w-3.5 mr-1.5" />
-                      Edit & Resend
-                    </Button>
+                  {isUser && !isEditingThisMessage && (
+                    <>
+                      {onConfirmEditAndResend && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleStartEdit}
+                          className="text-xs backdrop-blur-sm border border-primary/20 shadow-sm hover:shadow-md hover:scale-105 text-primary hover:text-primary hover:bg-primary/10 transition-all duration-300"
+                          title="Edit & Resend this message"
+                        >
+                          <Edit3 className="h-3.5 w-3.5 mr-1.5" />
+                          Edit & Resend
+                        </Button>
+                      )}
+                      {onOpenCustomSenseEditor && message.actionType === 'promptWithCustomSense' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onOpenCustomSenseEditor(message)}
+                          className="text-xs border border-primary/20 backdrop-blur-sm shadow-sm hover:shadow-md hover:scale-105 text-primary hover:text-primary hover:bg-primary/10 transition-all duration-300"
+                          title="Modify prompt settings"
+                        >
+                          <Settings className="h-3.5 w-3.5 mr-1" />
+                          Edit Settings
+                        </Button>
+                      )}
+                      {onRegenerateCustomSense && message.actionType === 'promptWithCustomSense' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onRegenerateCustomSense(message)}
+                          className="text-xs border border-primary/20 backdrop-blur-sm shadow-sm hover:shadow-md hover:scale-105 text-primary hover:text-primary hover:bg-primary/10 transition-all duration-300"
+                          title="Regenerate with same settings"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                          Regenerate
+                        </Button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
