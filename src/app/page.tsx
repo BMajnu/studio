@@ -2312,13 +2312,11 @@ export default function ChatPage() {
     
     // Construct a prompt that focuses on this specific design item,
     // with enough detail for the AI to generate relevant search keywords
-    const designPrompt = `Generate design ideas for: "${designItem.title}". 
+    const mustFollowSection = designItem.mustFollow && designItem.mustFollow.length > 0
+      ? `\n\nMust follow:\n${designItem.mustFollow.map(p => `- ${p}`).join('\n')}`
+      : '';
 
-DESIGN DESCRIPTION: ${designItem.description}
-
-${designItem.textContent ? `TEXT TO INCLUDE: "${designItem.textContent}"` : ''}
-
-Please focus on this specific design request and generate search keywords that would help me find inspiration for this particular design.`;
+    const designPrompt = `Generate design ideas for: "${designItem.title}".\n\nDESIGN DESCRIPTION: ${designItem.description}\n\n${designItem.textContent ? `TEXT TO INCLUDE: "${designItem.textContent}"\n\n` : ''}${mustFollowSection}`;
     
     // Show toast notification about the selection
     toast({

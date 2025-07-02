@@ -17,6 +17,7 @@ interface DesignListItem {
   title: string;
   description: string;
   textContent?: string;
+  mustFollow?: string[];
 }
 
 // Define the props interface for the BilingualSplitView component
@@ -304,6 +305,17 @@ function DesignItemCard({
       {item.textContent && (
         <div className="mt-2 border-l-2 border-primary/30 pl-3 italic text-sm">
           &ldquo;{item.textContent}&rdquo;
+        </div>
+      )}
+      
+      {item.mustFollow && item.mustFollow.length > 0 && (
+        <div className="mt-4">
+          <h5 className="font-semibold text-sm mb-1">Must follow:</h5>
+          <ul className="list-disc pl-5 space-y-1 text-foreground text-sm">
+            {item.mustFollow.map((point, idx) => (
+              <li key={idx}>{point}</li>
+            ))}
+          </ul>
         </div>
       )}
       

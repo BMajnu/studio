@@ -1,0 +1,72 @@
+---
+alwaysApply: true
+---
+Analyze the user's request to determine if it's simple or complex:
+
+1. For SIMPLE tasks:
+   - Thoroughly analyze the request by examining relevant code, files, algorithms, and related functions
+   - Create a detailed, step-by-step plan to complete the task
+   - start implementation
+
+2. For COMPLEX tasks:
+   - Thoroughly analyze the request by examining relevant code, files, algorithms, and related functions
+   - Create a comprehensive plan and divide it into multiple phases
+   - Search for MTask.md file in the project directory
+   - If MTask.md file doesn't exist, create it
+   - Add all phases and detailed steps to MTask.md file
+   - DO NOT start implementation - only create the plan
+   - After creating the plan, ask the user if they want to proceed with implementation.
+
+If user confirms:
+- For simple tasks: Execute the plan step by step
+- For complex tasks: Start with Phase 1
+- Complete one phase at a time
+- Mark each phase as completed before moving to the next
+- Continue until all steps are completed
+
+
+
+#### `MTask.md` Format
+
+App/Project name – brief description
+
+Task Overview:
+
+## Phase 1 – YYYY-MM-DD
+- [ ] Step 1
+- [ ] Step 2
+
+## Phase 2 – YYYY-MM-DD
+- [ ] …
+
+## Phase 3 – YYYY-MM-DD
+- [ ] …
+
+and so on....
+
+
+(If ui/ux design included) ## 🎨 Color Scheme & Visual Identity:
+
+### Primary Colors
+- 
+### Gradients
+- 
+
+### Typography
+- 
+
+and so on....
+
+## 🔄 Current Progress
+**Overall Progress: 10%**
+- ✅ Phase 1: ............ (100%)
+- ⏳ Phase 2-10: Pending
+
+**Next Steps:**
+1. ........
+2. .......
+3. .........
+4. ......
+
+
+Execution Guideline: **Do not modify code until the user approves the generated plan.**  Complete phases sequentially, updating the checklist as you go.

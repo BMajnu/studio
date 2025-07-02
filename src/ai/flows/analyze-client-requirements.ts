@@ -29,7 +29,8 @@ const DesignListItemSchema = z.object({
   id: z.string().describe("Unique identifier for the design item"),
   title: z.string().describe("Title/name of the design item"),
   description: z.string().describe("Brief description of the design"),
-  textContent: z.string().optional().describe("Text/saying/quote if included in this design")
+  textContent: z.string().optional().describe("Text/saying/quote if included in this design"),
+  mustFollow: z.array(z.string()).optional().describe("Specific key requirement points that MUST be followed for this design")
 });
 
 // Schema for the flow's input, including modelId and userApiKey
@@ -153,7 +154,8 @@ Based on all the above information (latest message, attachments, and full histor
      * A clear title describing the design
      * A brief description of what it should include
      * Any quotes/sayings that should be incorporated (if applicable)
-   - Bengali: Create the same structured list in Bengali
+     * **A "Must follow:" section that lists the specific key requirement bullet points relevant to THIS design.** Present these bullet points as a bulleted list directly under the description so that the UI can render them together.
+   - Bengali: Create the same structured list in Bengali, including the "Must follow:" bullet list translated into Bengali
 
 6. **Image Description & Connection (Only if images are attached)**
    - English: Describe the main visual content of the attached image(s) in detail and explain how it connects to the client's request and possible design ideas.
@@ -176,11 +178,11 @@ Output Format (ensure your entire response is a single JSON object):
   "designNicheAndAudienceEnglish": "Information about niche and target audience",
   "designNicheAndAudienceBengali": "নিশ এবং টার্গেট অডিয়েন্স সম্পর্কে তথ্য",
   "designItemsEnglish": [
-    {"id": "design_1", "title": "Design Title", "description": "What this design should include", "textContent": "Any text to include"},
+    {"id": "design_1", "title": "Design Title", "description": "What this design should include", "textContent": "Any text to include", "mustFollow": ["Requirement 1", "Requirement 2"]},
     ...
   ],
   "designItemsBengali": [
-    {"id": "design_1", "title": "ডিজাইনের শিরোনাম", "description": "এই ডিজাইনে কী থাকা উচিত", "textContent": "যেকোনো টেক্সট অন্তর্ভুক্ত করতে"},
+    {"id": "design_1", "title": "ডিজাইনের শিরোনাম", "description": "এই ডিজাইনে কী থাকা উচিত", "textContent": "যেকোনো টেক্সট অন্তর্ভুক্ত করতে", "mustFollow": ["দাবি ১", "দাবি ২"]},
     ...
   ],
   "imageAnalysisEnglish": "Description of image and its relation...",
