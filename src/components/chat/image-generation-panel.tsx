@@ -34,14 +34,18 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
   const [previewImage, setPreviewImage] = useState<GeneratedImage | null>(null);
   const [previewIndex, setPreviewIndex] = useState<number>(0);
   
-  // Format prompt for filename (remove special chars, limit length)
+  // Build the download file name in the format:
+  //   DesAInR - [prompt text] - <n>.png
+  // Special characters are stripped and spaces turned into hyphens so the
+  // resulting file name is safe on all operating systems.
   const getImageFilename = (index: number) => {
     const cleanPrompt = prompt
-      .replace(/[^\w\s-]/g, '')  // Remove special characters
-      .replace(/\s+/g, '-')      // Replace spaces with hyphens
-      .substring(0, 50);         // Limit length
-    
-    return `DesAInR-${cleanPrompt}-${index + 1}.png`;
+      .replace(/[^\w\s-]/g, '')   // Remove special characters
+      .trim()
+      .replace(/\s+/g, '-')        // Convert whitespace to hyphens
+      .substring(0, 80);            // Keep it reasonably short
+
+    return `DesAInR - [${cleanPrompt}] - ${index + 1}.png`;
   };
   
   // Handle generate button click
@@ -143,9 +147,9 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
       
       {/* Controls in a compact card */}
       <div className="bg-muted/40 rounded-lg p-4">
-        <div className="flex flex-col space-y-6">
-          {/* Settings row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="flex flex-col space-y-4">
+          {/* Settings row plus action button */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             {/* Number of images */}
             <div>
               <div className="flex justify-between mb-2">
@@ -164,10 +168,10 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
             </div>
             
             {/* Aspect ratio */}
-            <div>
-              <Label htmlFor="aspect-ratio" className="text-sm font-medium block mb-2">Aspect Ratio</Label>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="aspect-ratio" className="text-sm font-medium whitespace-nowrap">Aspect Ratio</Label>
               <Select value={aspectRatio} onValueChange={(value: '1:1' | '4:3' | '3:4' | '16:9' | '9:16') => setAspectRatio(value)}>
-                <SelectTrigger id="aspect-ratio" className="w-full">
+                <SelectTrigger id="aspect-ratio" className="w-full md:w-44">
                   <SelectValue placeholder="Select ratio" />
                 </SelectTrigger>
                 <SelectContent>
@@ -192,40 +196,35 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
                 max={2}
                 step={0.1}
                 value={[temperature]}
-                onValueChange={(val) => setTemperature(parseFloat(val[0].toFixed(1)))}
+                onValueChange={(val) => setTemperature(parseFloat(val[0].toFixed(1))) }
                 className="w-full"
               />
             </div>
-          </div>
-          
-          {/* Prompt preview */}
-          <div className="bg-background rounded p-3 text-sm text-muted-foreground border border-border">
-            <p className="line-clamp-2 italic">"{prompt}"</p>
-          </div>
-          
-          {/* Generate button */}
-          <div className="flex justify-center">
-            <Button
-              onClick={handleGenerate}
-              disabled={isGenerating}
-              size="lg"
-              className={cn(
-                "transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 focus-visible:ring-primary rounded-full shadow-md btn-glow px-8",
-                "bg-primary dark:bg-gradient-to-r dark:from-primary dark:to-secondary text-primary-foreground"
-              )}
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-5 w-5" />
-                  Generate Images
-                </>
-              )}
-            </Button>
+
+            {/* Generate button (4th column) */}
+            <div className="flex md:justify-end justify-center md:col-span-1 col-span-full mt-4 md:mt-0">
+              <Button
+                onClick={handleGenerate}
+                disabled={isGenerating}
+                size="lg"
+                className={cn(
+                  "transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 focus-visible:ring-primary rounded-full shadow-md btn-glow px-8",
+                  "bg-primary dark:bg-gradient-to-r dark:from-primary dark:to-secondary text-primary-foreground"
+                )}
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-5 w-5" />
+                    Generate Images
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </div>

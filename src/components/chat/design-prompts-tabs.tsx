@@ -88,22 +88,19 @@ export function DesignPromptsTabs({
                                             </Button>
                                         </div>
                                     </div>
-                                    
-                                    {/* Show generation panel if this prompt is selected */}
-                                    {generatingPrompt && 
-                                     generatingPrompt.category === categoryData.category && 
-                                     generatingPrompt.promptIndex === index && (
-                                        <div className="mt-2 border-t pt-4 pb-2 px-4">
-                                            <ImageGenerationPanel 
-                                                prompt={prompt}
-                                                onClose={handleCloseGenerationPanel}
-                                            />
-                                        </div>
-                                    )}
                                 </div>
                             </TabsContent>
                         ))}
                     </Tabs>
+                    {/* Persist generation panel across prompt tab switches */}
+                    {generatingPrompt && generatingPrompt.category === categoryData.category && (
+                        <div className="mt-4">
+                            <ImageGenerationPanel
+                                prompt={generatingPrompt.prompt}
+                                onClose={handleCloseGenerationPanel}
+                            />
+                        </div>
+                    )}
                 </TabsContent>
             ))}
         </Tabs>
