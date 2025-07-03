@@ -62,3 +62,51 @@ Phase 3 complete – Phase 4 (mobile overlay smooth slide & backdrop) ready to b
 ## Phase 4 – 2025-06-28
 - [ ] Implement mobile overlay: when sidebar closed width=0, when opened it slides over chat with semi-transparent backdrop; clicking backdrop closes sidebar.
 - [ ] Add `<Transition>`
+
+---
+
+DesAInR – Gemini 2.0 Image Generation Feature
+
+Task Overview:
+Add on-platform image generation powered by Google Gemini 2.0 (image generation preview).  Designers will be able to press a **Generate** button (placed beside each AI prompt) to choose settings (e.g. number of designs) and receive generated images displayed inline under the prompt block.
+
+## Phase 1 – 2025-07-03
+- [ ] Research Gemini 2.0 image generation API: endpoint, auth, allowed parameters (prompt text, n, aspect/size, style presets).
+- [ ] Decide server integration approach: call directly from server action vs. Next.js API route.
+- [ ] Define TypeScript types for request/response and error mapping.
+- [ ] Sketch UX wireframe for: a) Generate button/icon placement; b) expand/collapse result section; c) settings dialog (image count, size).
+
+## Phase 2 – 2025-07-04
+- [ ] Implement backend flow `generateImages` in `src/ai/flows/generate-images-flow.ts` mirroring other flows.
+- [ ] Parameters: `prompt`, `numImages` (1-8), `size` (e.g. 512×512), `userApiKey`, `modelId` (default Gemini-image-preview).
+- [ ] Return array of `{url|dataUri, alt}`.
+- [ ] Unit-test the flow with mock Gemini responses.
+
+## Phase 3 – 2025-07-05
+- [ ] Extend `DesignPromptsTabs` component: add small **Generate** button next to the existing Copy icon for each prompt.
+- [ ] Clicking opens `ImageGenerationPanel` directly beneath the prompt row.
+- [ ] `ImageGenerationPanel` shows settings form (defaults: 4 images, 512px) and a "Run" button.
+
+## Phase 4 – 2025-07-06
+- [ ] On Run: call backend flow; show loading skeletons / progress.
+- [ ] Render returned images in responsive grid with download & copy-link buttons.
+- [ ] Emit custom event `images-generated` for possible reuse elsewhere.
+
+## Phase 5 – 2025-07-07
+- [ ] Handle failures, quota errors, missing API key (surface user-friendly toast).
+- [ ] Persist last-used settings in `localStorage`.
+- [ ] Add feature-flag (env var `ENABLE_GEMINI_IMAGE_GEN`) to allow gradual rollout.
+
+## 🎨 Color Scheme & Visual Identity:
+• Re-use existing gradient buttons (`btn-glow`) for **Generate**.  
+• Loading skeleton uses `bg-primary/10` pulsating gradient.
+
+## 🔄 Current Progress
+**Overall Progress: 0%**
+- ⏳ Phase 1–5: Pending
+
+**Next Steps:**
+1. Complete Phase 1 research & UX wireframe.
+2. Review with product owner – confirm button placement & API quota.
+3. Begin Phase 2 backend flow.
+4. …

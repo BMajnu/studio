@@ -2809,8 +2809,8 @@ export default function ChatPage() {
               </div>
 
               <div className={cn(
-                "flex flex-wrap items-center justify-between mt-4 gap-x-3 gap-y-2",
-                 isMobile ? "flex-col items-stretch gap-y-3" : ""
+                "flex items-center justify-between mt-4 gap-x-3 gap-y-2",
+                 isMobile ? "flex-col items-stretch gap-y-3" : "flex-nowrap overflow-x-auto"
               )}>
                 <div className={cn("flex-1 flex justify-end animate-stagger", isMobile ? "w-full justify-center mt-0" : "")} style={{ animationDelay: '200ms' }}>
                   <ActionButtonsPanel

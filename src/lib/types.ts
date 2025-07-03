@@ -80,6 +80,7 @@ export type ChatMessageContentPart =
       };
     }
   | { type: 'search_keywords'; title?: string; keywords: Array<string | { text: string; url?: string }> }
+  | { type: 'generated_images'; title?: string; prompt: string; images: GeneratedImage[] }
   | { type: 'custom'; title?: string; text?: string; code?: string; language?: string; items?: string[]; english?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; bengali?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; suggestions?: { english: string[], bengali: string[] }; data?: any; ideas?: { category: string, items: string[] }[]; imageDataUri?: string; exactReplicationPrompt?: string; similarWithTweaksPrompt?: string; sameNichePrompt?: string; customPrompts?: { title: string, prompt: string }[]; microstockResults?: { 
     prompt: string; 
     metadata: { 
@@ -125,6 +126,11 @@ export interface AttachedFile {
 export interface DesignPromptsData {
   category: string;
   prompts: string[];
+}
+
+export interface GeneratedImage {
+  dataUri: string;
+  alt: string;
 }
 
 export interface EditHistoryEntry {

@@ -200,3 +200,6 @@ export const APP_FEATURES_GUIDE_BN = `
 
 আমরা আশা করি DesAInR আপনার ওয়ার্কফ্লোকে সহজ করবে এবং আপনাকে কার্যকরভাবে যোগাযোগ করতে সাহায্য করবে!
 `;
+
+// Feature flags
+export const ENABLE_GEMINI_IMAGE_GEN = process.env.ENABLE_GEMINI_IMAGE_GEN === 'true';

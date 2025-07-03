@@ -1,16 +1,45 @@
 'use client';
 
+import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CopyToClipboard } from '@/components/copy-to-clipboard';
 import { DesignPromptsData } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Copy, Sparkles } from 'lucide-react';
+import { useState } from 'react';
+import { ImageGenerationPanel } from './image-generation-panel';
 
-export function DesignPromptsTabs({ promptsData }: { promptsData: DesignPromptsData[] }) {
+export function DesignPromptsTabs({ 
+    promptsData 
+}: { 
+    promptsData: DesignPromptsData[] 
+}) {
     if (!promptsData || promptsData.length === 0) {
         return <div>No prompts available.</div>;
     }
 
     const defaultCategory = promptsData[0]?.category;
+    
+    // Track which prompt is being generated
+    const [generatingPrompt, setGeneratingPrompt] = useState<{
+        category: string;
+        promptIndex: number;
+        prompt: string;
+    } | null>(null);
+    
+    // Handle generate button click
+    const handleGenerate = (category: string, promptIndex: number, prompt: string) => {
+        setGeneratingPrompt({
+            category,
+            promptIndex,
+            prompt
+        });
+    };
+    
+    // Close generation panel
+    const handleCloseGenerationPanel = () => {
+        setGeneratingPrompt(null);
+    };
     
     return (
         <Tabs defaultValue={defaultCategory} className="w-full">
@@ -33,7 +62,45 @@ export function DesignPromptsTabs({ promptsData }: { promptsData: DesignPromptsD
                         </TabsList>
                         {categoryData.prompts.map((prompt, index) => (
                             <TabsContent key={index} value={index.toString()} className="mt-4">
-                                <CopyToClipboard textToCopy={prompt} />
+                                <div className="relative rounded-md border bg-card/50 shadow-sm my-2">
+                                    <div className="p-4">
+                                        <pre className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground font-mono">
+                                            <code>{prompt}</code>
+                                        </pre>
+                                        <div className="absolute top-2 right-2 flex space-x-2">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                                onClick={() => navigator.clipboard.writeText(prompt)}
+                                                aria-label="Copy to clipboard"
+                                            >
+                                                <Copy className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 text-muted-foreground hover:text-primary"
+                                                onClick={() => handleGenerate(categoryData.category, index, prompt)}
+                                                aria-label="Generate images"
+                                            >
+                                                <Sparkles className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Show generation panel if this prompt is selected */}
+                                    {generatingPrompt && 
+                                     generatingPrompt.category === categoryData.category && 
+                                     generatingPrompt.promptIndex === index && (
+                                        <div className="mt-2 border-t pt-4 pb-2 px-4">
+                                            <ImageGenerationPanel 
+                                                prompt={prompt}
+                                                onClose={handleCloseGenerationPanel}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
                             </TabsContent>
                         ))}
                     </Tabs>
