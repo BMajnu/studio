@@ -6,11 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X, Download, Loader2, Sparkles } from 'lucide-react';
+import { X, Download, Loader2, Sparkles, Maximize2, ArrowLeft } from 'lucide-react';
 import { GeneratedImage } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useUserProfile } from '@/lib/hooks/use-user-profile';
+import { Dialog, DialogContent as BaseDialogContent, DialogTitle, DialogPortal, DialogOverlay } from '@/components/ui/dialog';
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 
 interface ImageGenerationPanelProps {
   prompt: string;
@@ -27,6 +29,10 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
   const [temperature, setTemperature] = useState<number>(1);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
+  
+  // Preview modal state
+  const [previewImage, setPreviewImage] = useState<GeneratedImage | null>(null);
+  const [previewIndex, setPreviewIndex] = useState<number>(0);
   
   // Format prompt for filename (remove special chars, limit length)
   const getImageFilename = (index: number) => {
@@ -102,6 +108,25 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // Handle preview image
+  const handlePreview = (image: GeneratedImage, index: number) => {
+    setPreviewImage(image);
+    setPreviewIndex(index);
+  };
+
+  // Navigate between images in preview
+  const navigatePreview = (direction: 'next' | 'prev') => {
+    if (direction === 'next') {
+      const nextIndex = (previewIndex + 1) % generatedImages.length;
+      setPreviewIndex(nextIndex);
+      setPreviewImage(generatedImages[nextIndex]);
+    } else {
+      const prevIndex = (previewIndex - 1 + generatedImages.length) % generatedImages.length;
+      setPreviewIndex(prevIndex);
+      setPreviewImage(generatedImages[prevIndex]);
+    }
   };
   
   return (
@@ -233,24 +258,115 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
                 <img
                   src={image.dataUri}
                   alt={image.alt}
-                  className="w-full h-auto rounded-md border border-border transition-transform duration-300 group-hover:scale-105"
+                  className="w-full h-auto rounded-md border border-border transition-transform duration-300 group-hover:scale-105 cursor-pointer"
+                  onClick={() => handlePreview(image, index)}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center p-3">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => handleDownload(image.dataUri, index)}
-                    className="w-full bg-white/90 hover:bg-white text-black shadow-lg"
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </Button>
+                  <div className="flex w-full space-x-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePreview(image, index);
+                      }}
+                      className="flex-1 bg-white/90 hover:bg-white text-black shadow-lg"
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownload(image.dataUri, index);
+                      }}
+                      className="flex-1 bg-white/90 hover:bg-white text-black shadow-lg"
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         </div>
       )}
+      
+      {/* Image Preview Modal */}
+      <Dialog 
+        open={previewImage !== null} 
+        onOpenChange={(open) => !open && setPreviewImage(null)}
+      >
+        <DialogPortal>
+          <DialogOverlay />
+          <DialogPrimitive.Content
+            className={cn(
+              "fixed left-[50%] top-[50%] z-50 grid w-full max-w-4xl translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-0 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg max-h-[90vh] bg-background/95 backdrop-blur-md overflow-hidden"
+            )}
+          >
+          {previewImage && (
+            <div className="relative flex flex-col h-full">
+              {/* Preview header */}
+              <div className="flex items-center justify-between p-4 border-b">
+                <DialogTitle className="text-lg font-medium">
+                  Image {previewIndex + 1} of {generatedImages.length}
+                </DialogTitle>
+                <div className="flex space-x-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleDownload(previewImage.dataUri, previewIndex)}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setPreviewImage(null)}
+                    aria-label="Close preview"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Image container */}
+              <div className="flex-1 overflow-auto p-4 flex items-center justify-center">
+                <img
+                  src={previewImage.dataUri}
+                  alt={previewImage.alt}
+                  className="max-w-full max-h-[calc(90vh-120px)] object-contain"
+                />
+              </div>
+              
+              {/* Navigation controls */}
+              {generatedImages.length > 1 && (
+                <div className="absolute inset-y-0 left-0 right-0 flex items-center justify-between px-4 pointer-events-none">
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="rounded-full bg-black/30 hover:bg-black/50 pointer-events-auto"
+                    onClick={() => navigatePreview('prev')}
+                  >
+                    <ArrowLeft className="h-5 w-5" />
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="rounded-full bg-black/30 hover:bg-black/50 pointer-events-auto"
+                    onClick={() => navigatePreview('next')}
+                  >
+                    <ArrowLeft className="h-5 w-5 rotate-180" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+          </DialogPrimitive.Content>
+        </DialogPortal>
+      </Dialog>
     </div>
   );
 } 
