@@ -7112,3 +7112,13 @@ Prompt:
 stop
 
 
+Prompt:
+There is showing multi braces
+
+Prompt:
+Shows as three branches:
+First, merge changes.
+Second, staged changes.
+Third, changes.
+And accordingly, merge changes is 26, staged changes 65, and changes zero.
+
