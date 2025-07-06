@@ -8,11 +8,10 @@
  * - CheckBestDesignOutput - Output type.
  */
 
-import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
-import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
+import { GeminiClient } from '@/lib/ai/gemini-client';
+import { createGeminiAiInstance } from '@/lib/ai/genkit-utils';
 
 // Schema for a design object
 const DesignSchema = z.object({
@@ -94,19 +93,8 @@ export async function checkBestDesign(flowInput: CheckBestDesignInput): Promise<
   const modelToUse = modelId || DEFAULT_MODEL_ID;
   const flowName = 'checkBestDesign';
   
-  let currentAiInstance = ai; // Global Genkit instance by default
-  let apiKeySourceForLog = "GOOGLE_API_KEY from .env file";
-
-  if (userApiKey) {
-    console.log(`INFO (${flowName}): Using user-provided API key.`);
-    currentAiInstance = genkit({ plugins: [googleAI({ apiKey: userApiKey })] });
-    apiKeySourceForLog = "User-provided API key from profile";
-  } else if (process.env.GOOGLE_API_KEY) {
-    console.log(`INFO (${flowName}): User API key not provided. Using GOOGLE_API_KEY from .env file.`);
-  } else {
-    console.error(`CRITICAL_ERROR (${flowName}): No API key available. Neither a user-provided API key nor the GOOGLE_API_KEY in the .env file is set.`);
-    throw new Error(`API key configuration error in ${flowName}. AI features are unavailable.`);
-  }
+  const profileStub = userApiKey ? ({ userId: 'tmp', name: 'tmp', services: [], geminiApiKeys: [userApiKey] } as any) : null;
+  const client = new GeminiClient({ profile: profileStub });
 
   // Prepare the prompt input data
   const promptInput = {
@@ -122,12 +110,7 @@ export async function checkBestDesign(flowInput: CheckBestDesignInput): Promise<
     userName: userName,
   };
 
-  // Define the prompt with the Genkit API
-  const checkBestDesignPrompt = currentAiInstance.definePrompt({
-    name: `${flowName}Prompt_${Date.now()}`,
-    input: { schema: CheckBestDesignPromptInputSchema },
-    output: { schema: CheckBestDesignOutputSchema },
-    prompt: `
+  const promptText = `
     You are an expert design evaluator specialized in ranking visual designs based on quality and alignment with requirements.
     Your task is to evaluate a collection of designs and rank the top 5 based on both predefined and expert-level criteria.
     
@@ -176,23 +159,25 @@ export async function checkBestDesign(flowInput: CheckBestDesignInput): Promise<
     {{/if}}
     ---
     {{/each}}
-    `
-  });
+    `;
 
-  // Execute the prompt
   try {
-    console.log(`INFO (${flowName}): Executing design evaluation prompt with ${apiKeySourceForLog}`);
-    const {output} = await checkBestDesignPrompt(promptInput, { model: modelToUse });
-    console.log(`INFO (${flowName}): Successfully completed evaluation of ${designs.length} designs.`);
-    
-    if (!output) {
-      console.error(`ERROR (${flowName}): AI returned empty or undefined output.`);
-      throw new Error(`AI response was empty or undefined in ${flowName}.`);
-    }
+    const { data: output, apiKeyUsed } = await client.request(async (apiKey) => {
+      const instance = createGeminiAiInstance(apiKey);
+      const promptDef = instance.definePrompt({
+        name: `${flowName}Prompt_${Date.now()}`,
+        input: { schema: CheckBestDesignPromptInputSchema },
+        output: { schema: CheckBestDesignOutputSchema },
+        prompt: promptText
+      });
+      const { output } = await promptDef(promptInput, { model: modelToUse });
+      return output as CheckBestDesignOutput;
+    });
+    console.log(`INFO (${flowName}): Successfully completed evaluation of ${designs.length} designs using key ...${apiKeyUsed.slice(-4)}`);
     
     return output;
   } catch (error) {
-    console.error('Error in checkBestDesign flow:', error);
+    console.error(`ERROR (${flowName}): Failed after rotating through available keys:`, error);
     throw new Error(`Failed to evaluate designs: ${error instanceof Error ? error.message : String(error)}`);
   }
 }

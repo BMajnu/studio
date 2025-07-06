@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview AI flow to generate image editing prompts based on a design to edit,
@@ -10,11 +9,11 @@
  * - GenerateEditingPromptsOutput - Output type.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { ai } from '@/ai/genkit';
+import { z } from 'genkit';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
-import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
+import { GeminiClient } from '@/lib/ai/gemini-client';
+import { createGeminiAiInstance } from '@/lib/ai/genkit-utils';
 
 const AttachedFileSchema = z.object({ // Only for consistency within ChatHistory type, not directly used as primary input file
   name: z.string().describe("Name of the file"),
@@ -66,25 +65,11 @@ export async function generateEditingPrompts(flowInput: GenerateEditingPromptsIn
   const modelToUse = modelId || DEFAULT_MODEL_ID;
   const flowName = 'generateEditingPrompts';
 
-  let currentAiInstance = ai;
-  let apiKeySourceForLog = "GOOGLE_API_KEY from .env file";
+  const profileStub = userApiKey ? ({ userId: 'tmp', name: 'tmp', services: [], geminiApiKeys: [userApiKey] } as any) : null;
 
-  if (userApiKey) {
-    console.log(`INFO (${flowName}): Using user-provided API key.`);
-    currentAiInstance = genkit({ plugins: [googleAI({ apiKey: userApiKey })] });
-    apiKeySourceForLog = "User-provided API key from profile";
-  } else if (process.env.GOOGLE_API_KEY) {
-    console.log(`INFO (${flowName}): User API key not provided. Using GOOGLE_API_KEY from .env file.`);
-  } else {
-    console.error(`CRITICAL_ERROR (${flowName}): No API key available. Neither a user-provided API key nor the GOOGLE_API_KEY in the .env file is set.`);
-    throw new Error(`API key configuration error in ${flowName}. AI features are unavailable.`);
-  }
+  const client = new GeminiClient({ profile: profileStub });
 
-  const generateEditingPromptsPrompt = currentAiInstance.definePrompt({
-    name: `${flowName}Prompt_${Date.now()}`,
-    input: { schema: GenerateEditingPromptsPromptInputSchema },
-    output: { schema: GenerateEditingPromptsOutputSchema },
-    prompt: `You are an expert AI Prompt Engineer for {{{userName}}}, a graphic designer.
+  const promptText = `You are an expert AI Prompt Engineer for {{{userName}}}, a graphic designer.
 Their communication style is: {{{communicationStyleNotes}}}.
 
 **Objective:** Generate 5 distinct, detailed prompts for revising an existing design image using an AI image generation/editing tool.
@@ -155,12 +140,22 @@ Ensure the entire response is a single JSON object matching the \`GenerateEditin
 If an image is found, the \`editingPrompts\` array should contain 5 objects, each with a \`type\` (e.g., "must_need_edits") and a \`prompt\` string.
 If no image is found, the \`editingPrompts\` array should contain a single object as described in Task 1.
 Example for one prompt object: \`{ "type": "must_need_edits", "prompt": "Revise the provided image to correct the text alignment for the headline and change the primary icon's color to #FF5733, maintaining all other elements. Ensure the background remains white." }\`
-`,
-  });
+`;
 
   try {
-    console.log(`INFO (${flowName}): Making AI call using API key from: ${apiKeySourceForLog}`);
-    const {output} = await generateEditingPromptsPrompt(actualPromptInputData, { model: modelToUse });
+    const { data: output, apiKeyUsed } = await client.request(async (apiKey) => {
+      const instance = createGeminiAiInstance(apiKey);
+      const promptDef = instance.definePrompt({
+        name: `${flowName}Prompt_${Date.now()}`,
+        input: { schema: GenerateEditingPromptsPromptInputSchema },
+        output: { schema: GenerateEditingPromptsOutputSchema },
+        prompt: promptText
+      });
+      const { output } = await promptDef(actualPromptInputData, { model: modelToUse });
+      return output as GenerateEditingPromptsOutput;
+    });
+
+    console.log(`INFO (${flowName}): AI call succeeded using key ending with ...${apiKeyUsed.slice(-4)}`);
     if (!output || !output.editingPrompts || output.editingPrompts.length === 0) {
       console.error(`ERROR (${flowName}): AI returned empty or invalid editingPrompts output.`);
       // Return a default or error structure if needed, or throw
@@ -172,7 +167,7 @@ Example for one prompt object: \`{ "type": "must_need_edits", "prompt": "Revise 
     }
     return output;
   } catch (error) {
-    console.error(`ERROR (${flowName}): AI call failed (API key source: ${apiKeySourceForLog}). Error:`, error);
+    console.error(`ERROR (${flowName}): AI call failed after rotating through available keys. Error:`, error);
     throw new Error(`AI call failed in ${flowName}. Please check server logs for details. Original error: ${(error as Error).message}`);
   }
 }

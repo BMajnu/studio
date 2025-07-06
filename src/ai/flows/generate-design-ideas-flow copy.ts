@@ -8,11 +8,10 @@
  * - GenerateDesignIdeasOutput - The return type for the function.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { z } from 'genkit';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
-import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
+import { GeminiClient } from '@/lib/ai/gemini-client';
+import { createGeminiAiInstance } from '@/lib/ai/genkit-utils';
 
 const AttachedFileSchema = z.object({
   name: z.string().describe("Name of the file"),
@@ -69,25 +68,10 @@ export async function generateDesignIdeas(flowInput: GenerateDesignIdeasInput): 
   const modelToUse = modelId || DEFAULT_MODEL_ID;
   const flowName = 'generateDesignIdeas';
 
-  let currentAiInstance = ai; // Global Genkit instance by default
-  let apiKeySourceForLog = "GOOGLE_API_KEY from .env file";
+  const profileStub = userApiKey ? ({ userId: 'tmp', name: 'tmp', services: [], geminiApiKeys: [userApiKey] } as any) : null;
+  const client = new GeminiClient({ profile: profileStub });
 
-  if (userApiKey) {
-    console.log(`INFO (${flowName}): Using user-provided API key.`);
-    currentAiInstance = genkit({ plugins: [googleAI({ apiKey: userApiKey })] });
-    apiKeySourceForLog = "User-provided API key from profile";
-  } else if (process.env.GOOGLE_API_KEY) {
-    console.log(`INFO (${flowName}): User API key not provided. Using GOOGLE_API_KEY from .env file.`);
-  } else {
-    console.error(`CRITICAL_ERROR (${flowName}): No API key available. Neither a user-provided API key nor the GOOGLE_API_KEY in the .env file is set.`);
-    throw new Error(`API key configuration error in ${flowName}. AI features are unavailable.`);
-  }
-  
-  const generateDesignIdeasPrompt = currentAiInstance.definePrompt({
-    name: `${flowName}Prompt_${Date.now()}`,
-    input: { schema: GenerateDesignIdeasPromptInputSchema },
-    output: { schema: GenerateDesignIdeasOutputSchema },
-    prompt: `You are an expert Design Idea Generator for a graphic designer named {{{userName}}}.
+  const promptText = `You are an expert Design Idea Generator for a graphic designer named {{{userName}}}.
 Their communication style is: {{{communicationStyleNotes}}}.
 
 **Objective:** Generate creative design ideas in 3 distinct categories based on the provided "Design Input Text".
@@ -257,23 +241,23 @@ Output Format:
     "Detailed mixed typography and graphics idea 3..."
   ]
 }
-`,
-  });
-  
-  // Debug: render and log the fully resolved prompt text for analysis
-  const renderedPrompt = await (generateDesignIdeasPrompt as any).render(actualPromptInputData);
-  console.log(`FULL (${flowName}) RENDERED PROMPT: ${JSON.stringify(renderedPrompt, null, 2)}`);
-  
+`;
+
   try {
-    console.log(`INFO (${flowName}): Making AI call using API key from: ${apiKeySourceForLog}`);
-    const {output} = await generateDesignIdeasPrompt(actualPromptInputData, { model: modelToUse });
-    if (!output) {
-      console.error(`ERROR (${flowName}): AI returned empty or undefined output.`);
-      throw new Error(`AI response was empty or undefined in ${flowName}.`);
-    }
+    const { data: output, apiKeyUsed } = await client.request(async (apiKey) => {
+      const instance = createGeminiAiInstance(apiKey);
+      const promptDef = instance.definePrompt({
+        name: `${flowName}Prompt_${Date.now()}`,
+        input: { schema: GenerateDesignIdeasPromptInputSchema },
+        output: { schema: GenerateDesignIdeasOutputSchema },
+        prompt: promptText
+      });
+      const { output } = await promptDef(actualPromptInputData, { model: modelToUse });
+      return output as GenerateDesignIdeasOutput;
+    });
     return output;
   } catch (error) {
-    console.error(`ERROR (${flowName}): AI call failed (API key source: ${apiKeySourceForLog}). Error:`, error);
-    throw new Error(`AI call failed in ${flowName}. Please check server logs for details. Original error: ${(error as Error).message}`);
+    console.error(`ERROR (${flowName}): Failed after rotating keys:`, error);
+    throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);
   }
 }

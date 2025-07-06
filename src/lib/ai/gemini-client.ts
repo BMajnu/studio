@@ -1,0 +1,81 @@
+import { GeminiKeyManager } from './gemini-key-manager';
+import { UserProfile } from '@/lib/types';
+
+export type GeminiRequestFn<T> = (apiKey: string) => Promise<T>;
+
+interface GeminiClientOptions {
+  profile: UserProfile | null;
+  autoRotate?: boolean;
+}
+
+export class GeminiClient {
+  private manager: GeminiKeyManager;
+  private autoRotate: boolean;
+  private envKey?: string;
+  private userId?: string;
+
+  constructor({ profile, autoRotate = true }: GeminiClientOptions) {
+    this.manager = new GeminiKeyManager(profile);
+    this.autoRotate = autoRotate;
+    this.envKey = process.env.GOOGLE_API_KEY;
+    this.userId = profile?.userId;
+
+    // include env key (if not already) so manager can use it as last resort
+    if (this.envKey && !profile?.geminiApiKeys?.includes(this.envKey)) {
+      this.manager = new GeminiKeyManager({
+        ...profile,
+        geminiApiKeys: [...(profile?.geminiApiKeys || []), this.envKey]
+      } as UserProfile);
+    }
+  }
+
+  /**
+   * Executes requestFn with active key, auto-retrying with next keys on quota error.
+   */
+  async request<T>(requestFn: GeminiRequestFn<T>, maxAttempts = 5): Promise<{ data: T; apiKeyUsed: string }> {
+    let attempts = 0;
+    let lastError: any;
+
+    const allKeys = this.manager.getAllKeys();
+    const maxRetries = Math.min(maxAttempts, allKeys.length);
+
+    while (attempts < maxRetries) {
+      const key = this.manager.getActiveKey();
+      if (!key) {
+        throw new Error('No Gemini API keys available (all cooling down or invalid)');
+      }
+      try {
+        const data = await requestFn(key);
+        this.manager.reportSuccess(key);
+        if (this.userId && typeof window !== 'undefined') {
+          try {
+            localStorage.setItem(`desainr_active_gemini_key_${this.userId}`, key);
+          } catch {}
+        }
+        return { data, apiKeyUsed: key };
+      } catch (err: any) {
+        attempts++;
+        lastError = err;
+        const msg = err?.message?.toLowerCase() || '';
+
+        // Detect quota error 429 or RESOURCE_EXHAUSTED
+        if (msg.includes('429') || msg.includes('resource_exhausted')) {
+          this.manager.reportQuotaError(key);
+          if (!this.autoRotate) throw err;
+          continue; // retry with next key
+        }
+        
+        // Detect invalid key error
+        if (msg.includes('400') && (msg.includes('api key not valid') || msg.includes('invalid api key'))) {
+          this.manager.reportInvalidKey(key);
+          if (!this.autoRotate) throw err;
+          continue; // retry with next key
+        }
+
+        // other error types – rethrow immediately
+        throw err;
+      }
+    }
+    throw lastError || new Error('All Gemini keys exhausted');
+  }
+} 

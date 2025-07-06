@@ -9,11 +9,10 @@
  * - ProcessClientMessageOutput - The return type for the processClientMessage function.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { z } from 'genkit';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
-import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
+import { GeminiClient } from '@/lib/ai/gemini-client';
+import { createGeminiAiInstance } from '@/lib/ai/genkit-utils';
 
 const AttachedFileSchema = z.object({
   name: z.string().describe("Name of the file"),
@@ -67,29 +66,10 @@ export async function processClientMessage(flowInput: ProcessClientMessageInput)
   const modelToUse = modelId || DEFAULT_MODEL_ID;
   const flowName = 'processClientMessage';
 
-  let currentAiInstance = ai; // Global Genkit instance by default
-  let apiKeySourceForLog = "GOOGLE_API_KEY from .env file";
+  const profileStub = userApiKey ? ({ userId: 'tmp', name: 'tmp', services: [], geminiApiKeys: [userApiKey] } as any) : null;
+  const client = new GeminiClient({ profile: profileStub });
 
-  if (userApiKey) {
-    console.log(`INFO (${flowName}): Using user-provided API key.`);
-    currentAiInstance = genkit({ plugins: [googleAI({ apiKey: userApiKey })] });
-    apiKeySourceForLog = "User-provided API key from profile";
-  } else if (process.env.GOOGLE_API_KEY) {
-    console.log(`INFO (${flowName}): User API key not provided. Using GOOGLE_API_KEY from .env file.`);
-  } else {
-    console.error(`CRITICAL_ERROR (${flowName}): No API key available. Neither a user-provided API key nor the GOOGLE_API_KEY in the .env file is set.`);
-    throw new Error(`API key configuration error in ${flowName}. AI features are unavailable.`);
-  }
-  
-  const processMessagePrompt = currentAiInstance.definePrompt({
-    name: `${flowName}Prompt_${Date.now()}`,
-    input: {
-      schema: ProcessClientMessagePromptInputSchema, 
-    },
-    output: {
-      schema: ProcessClientMessageOutputSchema,
-    },
-    prompt: `You are a helpful AI assistant for a graphic designer named {{{userName}}}.
+  const promptText = `You are a helpful AI assistant for a graphic designer named {{{userName}}}.
 Their communication style is: {{{communicationStyleNotes}}}.
 
 **Your Primary Task:** Analyze the "Client's Current Message" in the context of the "Previous conversation context" (if available) and any "Attached Files". Provide a comprehensive analysis, a simplified request, a step-by-step plan, and a Bengali translation of these parts, all focused on the *current state of the client's needs as understood from the entire interaction so far*. Additionally, generate two distinct, professional English replies to the client's current message and their Bengali translations.
@@ -161,20 +141,23 @@ Output Format (ensure your entire response is a single JSON object matching this
   "bengaliTranslation": "বিশ্লেষণ: ...\\nসরলীকৃত অনুরোধ: ...\\nধাপে ধাপে পদ্ধতি: ...",
   "suggestedEnglishReplies": ["Reply 1 text...", "Reply 2 text..."],
   "suggestedBengaliReplies": ["Bengali translation of Reply 1...", "Bengali translation of Reply 2..."]
-}
-`,
-  });
+}`;
 
   try {
-    console.log(`INFO (${flowName}): Making AI call using API key from: ${apiKeySourceForLog}`);
-    const {output} = await processMessagePrompt(actualPromptInputData, { model: modelToUse });
-    if (!output) {
-      console.error(`ERROR (${flowName}): AI returned empty or undefined output.`);
-      throw new Error(`AI response was empty or undefined in ${flowName}.`);
-    }
+    const { data: output, apiKeyUsed } = await client.request(async (apiKey) => {
+      const instance = createGeminiAiInstance(apiKey);
+      const promptDef = instance.definePrompt({
+        name: `${flowName}Prompt_${Date.now()}`,
+        input: { schema: ProcessClientMessagePromptInputSchema },
+        output: { schema: ProcessClientMessageOutputSchema },
+        prompt: promptText
+      });
+      const { output } = await promptDef(actualPromptInputData, { model: modelToUse });
+      return output as ProcessClientMessageOutput;
+    });
     return output;
   } catch (error) {
-    console.error(`ERROR (${flowName}): AI call failed (API key source: ${apiKeySourceForLog}). Error:`, error);
-    throw new Error(`AI call failed in ${flowName}. Please check server logs for details. Original error: ${(error as Error).message}`);
+    console.error(`ERROR (${flowName}): Failed after rotating keys:`, error);
+    throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);
   }
 }

@@ -6,10 +6,9 @@
  * - promptWithCustomSense - Function to generate the five prompt variations
  */
 
-import { ai } from '@/ai/genkit';
-import { genkit } from 'genkit';
 import { z } from 'zod';
-import { googleAI } from '@genkit-ai/googleai';
+import { GeminiClient } from '@/lib/ai/gemini-client';
+import { createGeminiAiInstance } from '@/lib/ai/genkit-utils';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
 import {
   PromptWithCustomSenseInput,
@@ -23,25 +22,10 @@ export async function promptWithCustomSense(flowInput: PromptWithCustomSenseInpu
   const modelToUse = modelId || DEFAULT_MODEL_ID;
   const flowName = 'promptWithCustomSense';
 
-  let currentAiInstance = ai; // Global Genkit instance by default
-  let apiKeySourceForLog = "GOOGLE_API_KEY from .env file";
+  const profileStub = userApiKey ? ({ userId: 'tmp', name: 'tmp', services: [], geminiApiKeys: [userApiKey] } as any) : null;
+  const client = new GeminiClient({ profile: profileStub });
 
-  if (userApiKey) {
-    console.log(`INFO (${flowName}): Using user-provided API key.`);
-    currentAiInstance = genkit({ plugins: [googleAI({ apiKey: userApiKey })] });
-    apiKeySourceForLog = "User-provided API key from profile";
-  } else if (process.env.GOOGLE_API_KEY) {
-    console.log(`INFO (${flowName}): User API key not provided. Using GOOGLE_API_KEY from .env file.`);
-  } else {
-    console.error(`CRITICAL_ERROR (${flowName}): No API key available. Neither a user-provided API key nor the GOOGLE_API_KEY in the .env file is set.`);
-    throw new Error(`API key configuration error in ${flowName}. AI features are unavailable.`);
-  }
-
-  const customSensePrompt = currentAiInstance.definePrompt({
-    name: `${flowName}Prompt_${Date.now()}`,
-    input: { schema: PromptWithCustomSensePromptInputSchema },
-    output: { schema: PromptWithCustomSensePromptOutputSchema },
-    prompt: `You are an expert AI Prompt Engineer for {{#if userName}}{{{userName}}}{{else}}a graphic designer{{/if}}.
+  const promptText = `You are an expert AI Prompt Engineer for {{#if userName}}{{{userName}}}{{else}}a graphic designer{{/if}}.
 
 **Objective:** Generate five distinct versions of a design prompt based on the provided design type and description.
 
@@ -89,8 +73,7 @@ For each prompt:
 - Each prompt should be at least 100 words to provide sufficient detail
 
 Output all five prompts as separate fields.
-`,
-  });
+`;
 
   const MAX_RETRIES = 3;
   const BASE_DELAY_MS = 2000;
@@ -98,18 +81,26 @@ Output all five prompts as separate fields.
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       console.log(`INFO (${flowName}): [Attempt ${attempt}/${MAX_RETRIES}] Processing request for design type: ${designType}`);
-      const { output } = await customSensePrompt(
-        { designType, description, userName },
-        { model: modelToUse }
-      );
-      if (!output) throw new Error('AI returned empty output');
+      const { data: raw } = await client.request(async (apiKey) => {
+        const instance = createGeminiAiInstance(apiKey);
+        const promptDef = instance.definePrompt({
+          name: `${flowName}Prompt_${Date.now()}`,
+          input: { schema: PromptWithCustomSensePromptInputSchema },
+          output: { schema: PromptWithCustomSensePromptOutputSchema },
+          prompt: promptText
+        });
+        const { output } = await promptDef({ designType, description, userName }, { model: modelToUse });
+        return output;
+      });
+      if (!raw) throw new Error('AI returned empty output');
 
+      const o = raw as any;
       const formattedPrompts = [
-        { title: "Exactly Similar", prompt: output.exactlySimilarPrompt },
-        { title: "Modern Style", prompt: output.modernStylePrompt },
-        { title: "Vintage Style", prompt: output.vintageStylePrompt },
-        { title: "Sci-Fi Style", prompt: output.sciFiStylePrompt },
-        { title: "Colorful Style", prompt: output.colorfulStylePrompt }
+        { title: "Exactly Similar", prompt: o.exactlySimilarPrompt },
+        { title: "Modern Style", prompt: o.modernStylePrompt },
+        { title: "Vintage Style", prompt: o.vintageStylePrompt },
+        { title: "Sci-Fi Style", prompt: o.sciFiStylePrompt },
+        { title: "Colorful Style", prompt: o.colorfulStylePrompt }
       ];
 
       return { prompts: formattedPrompts };

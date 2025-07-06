@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview AI flow to check a user-made design for mistakes based on a client's prompt/requirements.
@@ -9,11 +8,10 @@
  * - CheckMadeDesignsOutput - Output type.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { z } from 'genkit';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
-import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
+import { GeminiClient } from '@/lib/ai/gemini-client';
+import { createGeminiAiInstance } from '@/lib/ai/genkit-utils';
 
 // Schema for the flow's input
 const CheckMadeDesignsFlowInputSchema = z.object({
@@ -58,25 +56,10 @@ export async function checkMadeDesigns(flowInput: CheckMadeDesignsInput): Promis
   const modelToUse = modelId || DEFAULT_MODEL_ID;
   const flowName = 'checkMadeDesigns';
 
-  let currentAiInstance = ai; // Global Genkit instance by default
-  let apiKeySourceForLog = "GOOGLE_API_KEY from .env file";
+  const profileStub = userApiKey ? ({ userId: 'tmp', name: 'tmp', services: [], geminiApiKeys: [userApiKey] } as any) : null;
+  const client = new GeminiClient({ profile: profileStub });
 
-  if (userApiKey) {
-    console.log(`INFO (${flowName}): Using user-provided API key.`);
-    currentAiInstance = genkit({ plugins: [googleAI({ apiKey: userApiKey })] });
-    apiKeySourceForLog = "User-provided API key from profile";
-  } else if (process.env.GOOGLE_API_KEY) {
-    console.log(`INFO (${flowName}): User API key not provided. Using GOOGLE_API_KEY from .env file.`);
-  } else {
-    console.error(`CRITICAL_ERROR (${flowName}): No API key available. Neither a user-provided API key nor the GOOGLE_API_KEY in the .env file is set.`);
-    throw new Error(`API key configuration error in ${flowName}. AI features are unavailable.`);
-  }
-  
-  const checkMadeDesignsPrompt = currentAiInstance.definePrompt({
-    name: `${flowName}Prompt_${Date.now()}`,
-    input: { schema: CheckMadeDesignsPromptInputSchema },
-    output: { schema: CheckMadeDesignsOutputSchema },
-    prompt: `You are an expert design reviewer assisting a designer named {{{userName}}}. Their communication style is: {{{communicationStyleNotes}}}.
+  const promptText = `You are an expert design reviewer assisting a designer named {{{userName}}}. Their communication style is: {{{communicationStyleNotes}}}.
 The designer made a design based on a client's requirements and wants you to check it thoroughly for mistakes.
 Your entire response MUST be in Bangla.
 
@@ -120,20 +103,23 @@ Output Format (ensure your entire response is a single JSON object matching this
     "otherMistakes": "..."
   },
   "overallSummary": "..."
-}
-`,
-  });
+}`;
   
   try {
-    console.log(`INFO (${flowName}): Making AI call using API key from: ${apiKeySourceForLog}`);
-    const {output} = await checkMadeDesignsPrompt(actualPromptInputData, { model: modelToUse });
-    if (!output) {
-      console.error(`ERROR (${flowName}): AI returned empty or undefined output.`);
-      throw new Error(`AI response was empty or undefined in ${flowName}.`);
-    }
+    const { data: output, apiKeyUsed } = await client.request(async (apiKey) => {
+      const instance = createGeminiAiInstance(apiKey);
+      const promptDef = instance.definePrompt({
+        name: `${flowName}Prompt_${Date.now()}`,
+        input: { schema: CheckMadeDesignsPromptInputSchema },
+        output: { schema: CheckMadeDesignsOutputSchema },
+        prompt: promptText
+      });
+      const { output } = await promptDef(actualPromptInputData, { model: modelToUse });
+      return output as CheckMadeDesignsOutput;
+    });
     return output;
   } catch (error) {
-    console.error(`ERROR (${flowName}): AI call failed (API key source: ${apiKeySourceForLog}). Error:`, error);
-    throw new Error(`AI call failed in ${flowName}. Please check server logs for details. Original error: ${(error as Error).message}`);
+    console.error(`ERROR (${flowName}): Failed after rotating keys:`, error);
+    throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);
   }
 }

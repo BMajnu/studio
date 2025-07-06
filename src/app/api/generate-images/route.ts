@@ -23,12 +23,15 @@ export async function POST(request: Request) {
       userName: requestData.userName || 'User',
       communicationStyleNotes: requestData.communicationStyleNotes || '',
       modelId: requestData.modelId,
-      userApiKey: requestData.userApiKey,
+      userApiKeys: requestData.userApiKeys,
     };
     
     // Call the generateImages function
     const result = await generateImages(generateImagesInput);
-    
+
+    // NOTE: Remote persistence is now handled client-side after the response to avoid Firestore
+    // permission issues on unauthenticated server requests. See image-generation-panel.tsx.
+
     // Return the generated images
     return NextResponse.json(result);
   } catch (error) {

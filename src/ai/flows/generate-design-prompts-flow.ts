@@ -8,11 +8,10 @@
  * - GenerateDesignPromptsOutput - The return type for the function.
  */
 
-import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
-import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
+import { GeminiClient } from '@/lib/ai/gemini-client';
+import { createGeminiAiInstance } from '@/lib/ai/genkit-utils';
 
 // Internal schema for the ideas generated in the first step.
 const GeneratedIdeasSchema = z.object({
@@ -48,23 +47,11 @@ export async function generateDesignPrompts(flowInput: GenerateDesignPromptsInpu
   const modelToUse = modelId || DEFAULT_MODEL_ID;
   const flowName = 'generateDesignPromptsUnified';
 
-  let currentAiInstance = ai;
-  let apiKeySourceForLog = "GOOGLE_API_KEY from .env file";
-
-  if (userApiKey) {
-    currentAiInstance = genkit({ plugins: [googleAI({ apiKey: userApiKey })] });
-    apiKeySourceForLog = "User-provided API key from profile";
-  } else if (!process.env.GOOGLE_API_KEY) {
-    console.error(`CRITICAL_ERROR (${flowName}): No API key available.`);
-    throw new Error(`API key configuration error in ${flowName}.`);
-  }
+  const profileStub = userApiKey ? ({ userId: 'tmp', name: 'tmp', services: [], geminiApiKeys: [userApiKey] } as any) : null;
+  const client = new GeminiClient({ profile: profileStub });
   
   // STEP 1: Define the prompt for generating creative ideas (from the old ideas-flow)
-  const ideaGenerationPrompt = currentAiInstance.definePrompt({
-    name: 'ideaGeneration',
-    input: { schema: GenerateDesignPromptsFlowInputSchema },
-    output: { schema: GeneratedIdeasSchema },
-    prompt: `You are an expert Design Idea Generator for a graphic designer named {{{userName}}}.
+  const ideaGenPromptText = `You are an expert Design Idea Generator for a graphic designer named {{{userName}}}.
 Their communication style is: {{{communicationStyleNotes}}}.
 
 **Objective:** Generate creative design ideas in 3 distinct categories based on the provided "Design Input Text".
@@ -114,15 +101,10 @@ Design Input Text: {{{designInputText}}}
     Color palette: Monochromatic sepia on a cream background.
     Typography: Casual, hand-written font integrated with the illustration.
     Layout: Asymmetrical and flowing.
-`,
-  });
+`;
 
   // STEP 2: Define the prompt for converting ideas into final image prompts (from the old prompts-flow)
-  const promptCreationPrompt = currentAiInstance.definePrompt({
-    name: 'promptCreation',
-    input: { schema: GeneratedIdeasSchema },
-    output: { schema: GenerateDesignPromptsOutputSchema },
-    prompt: `You are an expert AI Image Prompt Generator. Your task is to convert the provided design ideas into detailed, high-quality image generation prompts.
+  const promptCreationPromptText = `You are an expert AI Image Prompt Generator. Your task is to convert the provided design ideas into detailed, high-quality image generation prompts.
 
 **Design Ideas Provided:**
 - Graphics-Focused:
@@ -153,25 +135,36 @@ Design Input Text: {{{designInputText}}}
 *   **For Graphics-Focused:** "Create a graphic novel illustration of a heroic cartoon coffee bean flexing on a winner's podium, with dynamic action lines and a confident expression, on a solid black background. The text 'Coffee Beats Everything' is integrated in a bold comic book font. Use a color palette of warm browns and tans with vibrant red and yellow action effects. The composition is asymmetrical, with high contrast, sharp focus, professional vector art, trending on ArtStation."
 *   **For Typography-Focused:** "Design a vintage typographic artwork for printing, with the text 'Coffee Beats Everything' as the centerpiece, on a solid white background. Use a mix of bold condensed sans-serif, flowing script, and strong slab-serif fonts arranged in a balanced stack, framed with typographic ornaments like lines and stars, and a minimalist engraved coffee bean icon. The color palette is a simple cream and dark brown. The composition is symmetrical, with high detail and a textured effect, award-winning typography, classic craftsmanship."
 *   **For Typography with Graphics:** "Make a hand-sketched graphic illustration of a coffee plant branch with leaves and cherries organically wrapping around the text 'Coffee Beats Everything,' on a solid light cream background. The text should be in a casual, handwritten script font. The style is loose and organic with imperfect lines in a monochromatic sepia tone. The composition is asymmetrical and flowing, creating an authentic and artisanal feel. High resolution, detailed sketch, rustic aesthetic, trending on Behance for illustrations."
-`,
-  });
+`;
   
   try {
     // Execute STEP 1: Generate Ideas
-    console.log(`INFO (${flowName}): Generating creative ideas...`);
-    const { output: generatedIdeas } = await ideaGenerationPrompt(flowInput, { model: modelToUse });
-    if (!generatedIdeas) {
-      throw new Error("Idea generation step produced no output.");
-    }
-    console.log(`INFO (${flowName}): Ideas generated successfully.`);
+    const { data: generatedIdeas } = await client.request(async (apiKey) => {
+      const instance = createGeminiAiInstance(apiKey);
+      const promptDef = instance.definePrompt({
+        name: 'ideaGeneration',
+        input: { schema: GenerateDesignPromptsFlowInputSchema },
+        output: { schema: GeneratedIdeasSchema },
+        prompt: ideaGenPromptText
+      });
+      const { output } = await promptDef(flowInput, { model: modelToUse });
+      if (!output) throw new Error("AI returned empty output");
+      return output;
+    });
 
     // Execute STEP 2: Create Prompts from Ideas
-    console.log(`INFO (${flowName}): Converting ideas into final prompts...`);
-    const { output: finalPrompts } = await promptCreationPrompt(generatedIdeas, { model: modelToUse });
-    if (!finalPrompts) {
-      throw new Error("Prompt creation step produced no output.");
-    }
-    console.log(`INFO (${flowName}): Final prompts created successfully.`);
+    const { data: finalPrompts } = await client.request(async (apiKey) => {
+      const instance = createGeminiAiInstance(apiKey);
+      const promptDef = instance.definePrompt({
+        name: 'promptCreation',
+        input: { schema: GeneratedIdeasSchema },
+        output: { schema: GenerateDesignPromptsOutputSchema },
+        prompt: promptCreationPromptText
+      });
+      const { output } = await promptDef(generatedIdeas, { model: modelToUse });
+      if (!output) throw new Error("AI returned empty output");
+      return output;
+    });
 
     return {
       extractedTextOrSaying: generatedIdeas.extractedTextOrSaying,
@@ -182,7 +175,7 @@ Design Input Text: {{{designInputText}}}
     };
 
   } catch (error) {
-    console.error(`ERROR (${flowName}): Flow failed (API key source: ${apiKeySourceForLog}). Error:`, error);
+    console.error(`ERROR (${flowName}): Flow failed after rotating keys. Error:`, error);
     throw new Error(`AI call failed in ${flowName}. Please check server logs for details. Original error: ${(error as Error).message}`);
   }
 } 

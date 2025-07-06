@@ -9,6 +9,7 @@ import type { ButtonProps } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import React, { useState, useEffect } from 'react';
 import { FeaturesGuideModal } from '@/components/features-guide-modal';
+import GeneratedImagesCleaner from '@/components/GeneratedImagesCleaner';
 import { useAuth } from '@/contexts/auth-context';
 import {
   Dialog,
@@ -300,6 +301,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-[100dvh] max-h-[100dvh] flex-col" style={{ "--header-height": isHeaderCollapsed ? "1rem" : "4rem" } as React.CSSProperties}>
+      <GeneratedImagesCleaner />
       <header className={`sticky top-0 z-50 flex items-center justify-between border-b bg-background/60 backdrop-blur-xl shrink-0 shadow-lg glass-panel animate-fade-in transition-all duration-300 ${isHeaderCollapsed ? "h-4 px-4 overflow-visible" : "h-16 px-4"}`}>
         {!isHeaderCollapsed && (
           <>

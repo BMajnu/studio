@@ -22,6 +22,11 @@ service cloud.firestore {
         // Only allow the owner to read/write their own chat session metadata
         allow read, write, delete: if request.auth != null && request.auth.uid == userId;
       }
+
+      // Generated images retained for 1 hour
+      match /generated_images/{imageId} {
+        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
     // Support for previous userProfiles collection structure

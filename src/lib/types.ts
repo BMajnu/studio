@@ -16,6 +16,7 @@ export interface UserProfile {
   rawPersonalStatement?: string;
   createdAt?: string; 
   updatedAt?: string; 
+  autoRotateGeminiKeys?: boolean;
 }
 
 export type MessageRole = 'user' | 'assistant' | 'system';
@@ -129,8 +130,11 @@ export interface DesignPromptsData {
 }
 
 export interface GeneratedImage {
+  id?: string; // Unique identifier for the image (uuid)
   dataUri: string;
   alt: string;
+  createdAt?: number; // Unix ms timestamp when generated
+  expiresAt?: number; // Unix ms timestamp when image should expire (createdAt + 1h)
 }
 
 export interface EditHistoryEntry {

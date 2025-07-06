@@ -22,6 +22,8 @@ import { PlusCircle, Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useEffect } from "react";
+import { useActiveGeminiKey } from "@/lib/hooks/use-active-gemini-key";
+import { Badge } from "@/components/ui/badge";
 
 const profileFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }).max(50),
@@ -40,6 +42,7 @@ const profileFormSchema = z.object({
   customSellerFeedbackTemplate: z.string().max(1000).optional().nullable(),
   customClientFeedbackResponseTemplate: z.string().max(1000).optional().nullable(),
   rawPersonalStatement: z.string().max(2000).optional().nullable(),
+  autoRotateGeminiKeys: z.boolean().optional().default(true),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -51,6 +54,7 @@ interface ProfileFormProps {
 
 export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
   const { toast } = useToast();
+  const { activeKey, refreshActiveKey } = useActiveGeminiKey(initialProfile?.userId);
   
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -69,31 +73,10 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
       customSellerFeedbackTemplate: initialProfile?.customSellerFeedbackTemplate || DEFAULT_USER_PROFILE.customSellerFeedbackTemplate || "",
       customClientFeedbackResponseTemplate: initialProfile?.customClientFeedbackResponseTemplate || DEFAULT_USER_PROFILE.customClientFeedbackResponseTemplate || "",
       rawPersonalStatement: initialProfile?.rawPersonalStatement || DEFAULT_USER_PROFILE.rawPersonalStatement || "",
+      autoRotateGeminiKeys: initialProfile?.autoRotateGeminiKeys !== undefined ? initialProfile.autoRotateGeminiKeys : true,
     },
     mode: "onChange",
   });
-
-  useEffect(() => {
-    if (initialProfile) {
-      form.reset({
-        name: initialProfile.name || DEFAULT_USER_PROFILE.name,
-        professionalTitle: initialProfile.professionalTitle || DEFAULT_USER_PROFILE.professionalTitle || "",
-        yearsOfExperience: initialProfile.yearsOfExperience || DEFAULT_USER_PROFILE.yearsOfExperience || "",
-        portfolioLink: initialProfile.portfolioLink || DEFAULT_USER_PROFILE.portfolioLink || "",
-        communicationStyleNotes: initialProfile.communicationStyleNotes || DEFAULT_USER_PROFILE.communicationStyleNotes || "",
-        services: initialProfile.services && initialProfile.services.length > 0 ? initialProfile.services : DEFAULT_USER_PROFILE.services || [],
-        fiverrUsername: initialProfile.fiverrUsername || DEFAULT_USER_PROFILE.fiverrUsername || "",
-        geminiApiKeys: initialProfile.geminiApiKeys && initialProfile.geminiApiKeys.length > 0 ? initialProfile.geminiApiKeys : DEFAULT_USER_PROFILE.geminiApiKeys || [''],
-        selectedGenkitModelId: initialProfile.selectedGenkitModelId || DEFAULT_USER_PROFILE.selectedGenkitModelId || DEFAULT_MODEL_ID,
-        useAlternativeAiImpl: initialProfile.useAlternativeAiImpl !== undefined ? initialProfile.useAlternativeAiImpl : DEFAULT_USER_PROFILE.useAlternativeAiImpl,
-        useFirebaseAI: initialProfile.useFirebaseAI !== undefined ? initialProfile.useFirebaseAI : false,
-        customSellerFeedbackTemplate: initialProfile.customSellerFeedbackTemplate || DEFAULT_USER_PROFILE.customSellerFeedbackTemplate || "",
-        customClientFeedbackResponseTemplate: initialProfile.customClientFeedbackResponseTemplate || DEFAULT_USER_PROFILE.customClientFeedbackResponseTemplate || "",
-        rawPersonalStatement: initialProfile.rawPersonalStatement || DEFAULT_USER_PROFILE.rawPersonalStatement || "",
-      });
-    }
-  }, [initialProfile, form.reset]);
-
 
   const { fields: serviceFields, append: appendService, remove: removeService } = useFieldArray({
     control: form.control,
@@ -123,6 +106,7 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
       customSellerFeedbackTemplate: data.customSellerFeedbackTemplate === null ? undefined : data.customSellerFeedbackTemplate,
       customClientFeedbackResponseTemplate: data.customClientFeedbackResponseTemplate === null ? undefined : data.customClientFeedbackResponseTemplate,
       rawPersonalStatement: data.rawPersonalStatement === null ? undefined : data.rawPersonalStatement,
+      autoRotateGeminiKeys: data.autoRotateGeminiKeys,
     };
     
     onSave(processedData);
@@ -130,7 +114,35 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
       title: "Profile Updated",
       description: "Your profile has been successfully saved.",
     });
+    refreshActiveKey();
   }
+
+  useEffect(() => {
+    if (initialProfile) {
+      form.reset({
+        name: initialProfile.name || DEFAULT_USER_PROFILE.name,
+        professionalTitle: initialProfile.professionalTitle || DEFAULT_USER_PROFILE.professionalTitle || "",
+        yearsOfExperience: initialProfile.yearsOfExperience || DEFAULT_USER_PROFILE.yearsOfExperience || "",
+        portfolioLink: initialProfile.portfolioLink || DEFAULT_USER_PROFILE.portfolioLink || "",
+        communicationStyleNotes: initialProfile.communicationStyleNotes || DEFAULT_USER_PROFILE.communicationStyleNotes || "",
+        services: initialProfile.services && initialProfile.services.length > 0 ? initialProfile.services : DEFAULT_USER_PROFILE.services || [],
+        fiverrUsername: initialProfile.fiverrUsername || DEFAULT_USER_PROFILE.fiverrUsername || "",
+        geminiApiKeys: initialProfile.geminiApiKeys && initialProfile.geminiApiKeys.length > 0 ? initialProfile.geminiApiKeys : DEFAULT_USER_PROFILE.geminiApiKeys || [''],
+        selectedGenkitModelId: initialProfile.selectedGenkitModelId || DEFAULT_USER_PROFILE.selectedGenkitModelId || DEFAULT_MODEL_ID,
+        useAlternativeAiImpl: initialProfile.useAlternativeAiImpl !== undefined ? initialProfile.useAlternativeAiImpl : DEFAULT_USER_PROFILE.useAlternativeAiImpl,
+        useFirebaseAI: initialProfile.useFirebaseAI !== undefined ? initialProfile.useFirebaseAI : false,
+        customSellerFeedbackTemplate: initialProfile.customSellerFeedbackTemplate || DEFAULT_USER_PROFILE.customSellerFeedbackTemplate || "",
+        customClientFeedbackResponseTemplate: initialProfile.customClientFeedbackResponseTemplate || DEFAULT_USER_PROFILE.customClientFeedbackResponseTemplate || "",
+        rawPersonalStatement: initialProfile.rawPersonalStatement || DEFAULT_USER_PROFILE.rawPersonalStatement || "",
+        autoRotateGeminiKeys: initialProfile.autoRotateGeminiKeys !== undefined ? initialProfile.autoRotateGeminiKeys : true,
+      });
+    }
+  }, [initialProfile, form.reset]);
+
+  // When component mounts or user changes, get the active key.
+  useEffect(() => {
+    refreshActiveKey();
+  }, [refreshActiveKey]);
 
   return (
     <Form {...form}>
@@ -289,11 +301,15 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
 
           {/* AI Settings - Collapsed by Default */}
           <div className="bg-white dark:bg-gray-800/50 rounded-lg p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-            <h3 className="font-medium text-lg mb-3">AI Configuration</h3>
+            <h3 className="font-medium text-lg mb-3">API Keys & AI Model Settings</h3>
+            <FormDescription className="mb-4">
+              Manage your Gemini API keys and select your preferred AI model.
+            </FormDescription>
             
             <div className="space-y-4">
+              {/* Gemini API Keys */}
               <div>
-                <FormLabel htmlFor="apiKeys">Gemini API Keys</FormLabel>
+                <FormLabel>Gemini API Keys *</FormLabel>
                 {apiKeyFields.map((field, index) => (
                   <FormField
                     control={form.control}
@@ -303,40 +319,54 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
                       <FormItem className="mb-2">
                         <div className="flex items-center gap-2">
                           <FormControl>
-                            <Input 
-                              type="password"
-                              placeholder="Enter your Gemini API Key" 
-                              {...itemField} 
-                            />
+                            <Input placeholder="Enter your Gemini API Key" type="password" {...itemField} />
                           </FormControl>
-                          {index > 0 && (
+                          {activeKey === itemField.value && (
+                            <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-white animate-pulse">ACTIVE</Badge>
+                          )}
                             <Button 
                               type="button" 
                               variant="ghost" 
                               size="icon" 
+                            onClick={() => removeApiKey(index)} 
                               className="shrink-0"
-                              onClick={() => removeApiKey(index)} 
-                              aria-label="Remove API key"
+                            aria-label="Remove API Key"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
-                          )}
                         </div>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="mt-1"
-                  onClick={() => appendApiKey("")}
-                >
-                  <PlusCircle className="mr-2 h-4 w-4" /> Add Another API Key
+                <Button type="button" variant="outline" size="sm" onClick={() => appendApiKey("")}>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add New Key
                 </Button>
               </div>
+
+              {/* Auto-rotate keys switch */}
+              <FormField
+                control={form.control}
+                name="autoRotateGeminiKeys"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-gray-50 dark:bg-gray-800/60">
+                    <div className="space-y-0.5">
+                      <FormLabel>Auto-Rotate Keys</FormLabel>
+                      <FormDescription>
+                        Automatically switch to the next available key if a quota error occurs.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}

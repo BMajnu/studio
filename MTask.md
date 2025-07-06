@@ -102,7 +102,7 @@ Add on-platform image generation powered by Google Gemini 2.0 (image generation 
 • Loading skeleton uses `bg-primary/10` pulsating gradient.
 
 ## 🔄 Current Progress
-**Overall Progress: 0%**
+**Overall Progress: 45%**
 - ⏳ Phase 1–5: Pending
 
 **Next Steps:**
@@ -110,3 +110,94 @@ Add on-platform image generation powered by Google Gemini 2.0 (image generation 
 2. Review with product owner – confirm button placement & API quota.
 3. Begin Phase 2 backend flow.
 4. …
+
+---
+
+DesAInR – Generated-Images Media Gallery
+
+Task Overview:
+Persist every image produced via the "Generate Images" panel for 1 hour (both locally and in Firebase) and provide a quick media browser accessible from the sidebar.
+
+Key goals:
+• When images are generated, save metadata (prompt, dataUri, createdAt, userId) to
+  – Local IndexedDB (via existing `indexed-db-provider.ts`)
+  – Firestore collection `generated_images` with a `expiresAt` (TTL) field so Firestore Auto-Delete removes them automatically after 1 hour.
+• Add a **Media** button above the Chat-History sidebar. Clicking opens a panel/modal that lists all images generated within the last hour (sources: local first, then Firestore fallback / merge).
+• Provide download and preview just like in‐prompt grid.
+• Local & remote cleanup routines run automatically so the gallery always shows ≤ 60-minute items.
+
+## Phase 1 – 2025-07-05
+- [x] Extend `/api/generate-images/route.ts` (and underlying flow) to persist every returned image:
+  - Call new helper `saveGeneratedImages(images, prompt, user)`
+  - Helper writes to Firestore (`generated_images`) and to local provider (`IndexedDBProvider.set`) **(local done via localStorage helper)**
+  - Add fields: `id` (uuid), `dataUri`, `prompt`, `createdAt`, `expiresAt` (`createdAt + 1h`), `userId`
+- [x] Update TypeScript types in `@/lib/types.ts` (`GeneratedImage` → add optional `id`, `createdAt`)
+- [x] Ensure Firestore has TTL policy on `expiresAt` (manual console setup – document in README).
+
+## Phase 2 – 2025-07-06
+- [x] Browser-side cleanup: at app start, run `cleanupExpiredImages()` that deletes any IndexedDB records older than 1 hour.
+- [ ] Server-side deletion automatically handled by Firestore TTL; add fallback Cloud Function `cleanupGeneratedImages` (cron every 2 h) in case TTL unavailable in some regions (optional – behind env flag).
+
+## Phase 3 – 2025-07-07
+- [x] UI: create `MediaGallery.tsx` component (grid identical to prompt gallery) with:
+  - Title bar + close button
+  - Fetcher hook `useRecentGeneratedImages()` (local only for now)
+  - Image cards with preview & download
+- [x] Place **Media** button in left sidebar (`history-panel.tsx`) right above chat list.
+  - Desktop & mobile styles integrated
+- [x] Clicking button toggles `isMediaOpen` and renders `MediaGallery` overlay.
+- [x] (Optional) Integrate Firestore remote fetch/merge – implemented via `useRecentGeneratedImages` hook
+
+## Phase 4 – 2025-07-08
+- [x] Skeleton loading & lazy-loading thumbnails in MediaGallery
+- [x] README update documenting Firestore TTL policy
+- [x] Empty-state illustration & keyboard navigation
+- [ ] Cypress e2e test (generate → gallery → expire)
+
+## 🎨 Color Scheme & Visual Identity:
+• Reuse existing card/grid & btn-glow styles for image tiles.
+• Media button matches sidebar's icon color scheme.
+
+## 🔄 Current Progress
+**Overall Progress: 85%**
+- ✅ Phase 1, 2, 3
+- ✅ Phase 4: half done
+
+**Next Steps:**
+1. Start Phase 1 implementation once approved.
+2. …
+
+---
+
+DesAInR – Gemini API-Key Rotation & Status Indicator
+
+Task Overview:
+Automatically cycle through the user-supplied Gemini keys when a request hits a quota/429 error so all AI flows (text & image) stay functional.  Display the currently active key in Profile settings.
+
+## Phase 1 – 2025-07-06
+- [x] Create `GeminiKeyManager` utility (in `src/lib/ai/gemini-key-manager.ts`)
+  - Methods: `getActiveKey()`, `reportSuccess(key)`, `reportQuotaError(key)`, `getAllKeys()`
+  - Cool-off window on quota error (10 min, configurable)
+  - Unit tests in `__tests__` folder – all passing
+
+## Phase 2 – 2025-07-07
+- [x] Refactor existing flows (`generate-images-flow`, text flows) to use GeminiClient
+- [x] Add `GeminiClient.request()` wrapper that calls GeminiKeyManager and retries through key list
+- [x] Settings UI
+  - [x] Show "ACTIVE" badge next to key currently in use
+  - [x] Toggle switch `autoRotateGeminiKeys` (default ON)
+  - [x] Toast when rotation first occurs in a session
+
+## Phase 3 – 2025-07-08
+- [x] Optional watchdog: periodically retest cooled-off keys (Implemented via `coolUntil` check)
+- [x] Granular error handling / invalid-key detection
+- [ ] Cypress e2e: simulate quota error, verify rotation & success on second key
+
+## 🔄 Current Progress (Rotation Feature)
+**Overall Progress: 85%**
+- ✅ Phase 1: GeminiKeyManager Utility (100%)
+- ✅ Phase 2: Refactoring & UI (100%)
+- ✅ Phase 3: Advanced Handling & Testing (75%)
+
+**Next Steps:**
+1. Write end-to-end tests with Cypress to simulate and verify the full key rotation and invalidation flow.

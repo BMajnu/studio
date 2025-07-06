@@ -5,7 +5,8 @@ import type { ChatSessionMetadata } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { PlusCircle, Trash2, MessageSquare, Loader2, XIcon, PencilIcon, CheckIcon, RefreshCw } from 'lucide-react';
+import { PlusCircle, Trash2, MessageSquare, Loader2, XIcon, PencilIcon, CheckIcon, RefreshCw, GalleryHorizontal } from 'lucide-react';
+import MediaGallery from './media-gallery';
 import { formatDistanceToNow } from 'date-fns';
 import {
   AlertDialog,
@@ -87,6 +88,7 @@ export function HistoryPanel({
   const editInputRef = useRef<HTMLInputElement>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editNameValue, setEditNameValue] = useState("");
+  const [isMediaOpen, setIsMediaOpen] = useState(false);
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [sessionBeingSelected, setSessionBeingSelected] = useState<string | null>(null);
   const initialRenderRef = useRef(true);
@@ -484,59 +486,14 @@ export function HistoryPanel({
           <h2 className="text-lg font-semibold text-gradient">Chat History</h2>
         </div>
         <div className="flex items-center gap-2">
-          {/* Manual refresh button - always visible */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => onRefreshHistory && onRefreshHistory(true)}
-                  disabled={isLoading}
-                  className="hover:bg-primary/10 hover:text-primary transition-colors btn-glow rounded-full"
-                >
-                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="animate-fade-in">Refresh History</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          {/* Auto-refresh toggle - only show if prop is provided */}
-          {setAutoRefreshEnabled && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant={isAutoRefreshEnabled ? "secondary" : "outline"} 
-                    size="icon" 
-                    onClick={() => setAutoRefreshEnabled(!isAutoRefreshEnabled)}
-                    className={`hover:bg-primary/10 hover:text-primary transition-colors rounded-full ${isAutoRefreshEnabled ? 'bg-primary/20 text-primary' : ''}`}
-                  >
-                    {isAutoRefreshEnabled ? 
-                      <span className="relative flex h-3 w-3">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-30"></span>
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
-                      </span> : 
-                      <span className="h-3 w-3 rounded-full border border-current"></span>
-                    }
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="animate-fade-in">
-                  {isAutoRefreshEnabled ? "Auto-Refresh On" : "Auto-Refresh Off"}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-          
-          <Button 
-            variant="outline" 
-            size="icon" 
-            onClick={onNewChat} 
-            title="New Chat" 
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setIsMediaOpen(true)}
+            title="Media"
             className="hover:bg-primary/10 hover:text-primary transition-colors duration-300 rounded-full shadow-sm hover:shadow-md btn-glow"
           >
-            <PlusCircle className="h-5 w-5" />
+            <GalleryHorizontal className="h-5 w-5" />
           </Button>
         </div>
       </div>
@@ -608,6 +565,8 @@ export function HistoryPanel({
           </div>
         </ScrollArea>
       )}
+      {/* Media Gallery Dialog */}
+      <MediaGallery open={isMediaOpen} onOpenChange={setIsMediaOpen} />
     </div>
   );
 }

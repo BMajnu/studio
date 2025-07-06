@@ -8,6 +8,7 @@ import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { X, Download, Loader2, Sparkles, Maximize2, ArrowLeft } from 'lucide-react';
 import { GeneratedImage } from '@/lib/types';
+import { saveGeneratedImagesLocal } from '@/lib/storage/generated-images-local';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useUserProfile } from '@/lib/hooks/use-user-profile';
@@ -74,8 +75,9 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
           aspectRatio,
           temperature,
           userName: profile.name,
+          userId: profile.userId,
           communicationStyleNotes: profile.communicationStyleNotes || '',
-          userApiKey: profile.geminiApiKeys?.[0],
+          userApiKeys: profile.geminiApiKeys,
           modelId: profile.selectedGenkitModelId
         }),
       });
@@ -86,7 +88,27 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
       }
       
       const data = await response.json();
-      setGeneratedImages(data.images);
+
+      // Attach unique IDs to each generated image (needed for proper deduping)
+      const now = Date.now();
+      const ONE_HOUR_MS = 60 * 60 * 1000;
+      const imagesWithIds: GeneratedImage[] = data.images.map((img: GeneratedImage) => ({
+        ...img,
+        id: globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2),
+        createdAt: now,
+        expiresAt: now + ONE_HOUR_MS,
+      }));
+
+      setGeneratedImages(imagesWithIds);
+
+      // Persist locally for Media gallery
+      if (profile.userId) {
+        saveGeneratedImagesLocal(profile.userId, imagesWithIds);
+
+        // Images are now saved only to localStorage; hooks will react via the
+        // `generated-images-updated` event already dispatched inside
+        // `saveGeneratedImagesLocal`, so no further action is required here.
+      }
       
       toast({
         title: "Images Generated",
@@ -149,7 +171,7 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
       <div className="bg-muted/40 rounded-lg p-4">
         <div className="flex flex-col space-y-4">
           {/* Settings row plus action button */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
             {/* Number of images */}
             <div>
               <div className="flex justify-between mb-2">
@@ -171,7 +193,7 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
             <div className="flex items-center gap-2">
               <Label htmlFor="aspect-ratio" className="text-sm font-medium whitespace-nowrap">Aspect Ratio</Label>
               <Select value={aspectRatio} onValueChange={(value: '1:1' | '4:3' | '3:4' | '16:9' | '9:16') => setAspectRatio(value)}>
-                <SelectTrigger id="aspect-ratio" className="w-full md:w-44">
+                <SelectTrigger id="aspect-ratio" className="w-full">
                   <SelectValue placeholder="Select ratio" />
                 </SelectTrigger>
                 <SelectContent>

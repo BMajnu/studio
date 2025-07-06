@@ -7,11 +7,10 @@
  * - AnalyzeClientRequirementsOutput - The return type for the analyzeClientRequirements function.
  */
 
-import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
-import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
+import { GeminiClient } from '@/lib/ai/gemini-client';
+import { createGeminiAiInstance } from '@/lib/ai/genkit-utils';
 
 const AttachedFileSchema = z.object({
   name: z.string().describe("Name of the file"),
@@ -77,29 +76,10 @@ export async function analyzeClientRequirements(flowInput: AnalyzeClientRequirem
   const modelToUse = modelId || DEFAULT_MODEL_ID;
   const flowName = 'analyzeClientRequirements';
 
-  let currentAiInstance = ai; // Global Genkit instance by default
-  let apiKeySourceForLog = "GOOGLE_API_KEY from .env file";
+  const profileStub = userApiKey ? ({ userId: 'tmp', name: 'tmp', services: [], geminiApiKeys: [userApiKey] } as any) : null;
+  const client = new GeminiClient({ profile: profileStub });
 
-  if (userApiKey) {
-    console.log(`INFO (${flowName}): Using user-provided API key.`);
-    currentAiInstance = genkit({ plugins: [googleAI({ apiKey: userApiKey })] });
-    apiKeySourceForLog = "User-provided API key from profile";
-  } else if (process.env.GOOGLE_API_KEY) {
-    console.log(`INFO (${flowName}): User API key not provided. Using GOOGLE_API_KEY from .env file.`);
-  } else {
-    console.error(`CRITICAL_ERROR (${flowName}): No API key available. Neither a user-provided API key nor the GOOGLE_API_KEY in the .env file is set.`);
-    throw new Error(`API key configuration error in ${flowName}. AI features are unavailable.`);
-  }
-
-  const analyzeClientRequirementsPrompt = currentAiInstance.definePrompt({
-    name: `${flowName}Prompt_${Date.now()}`,
-    input: {
-      schema: AnalyzeClientRequirementsPromptInputSchema, 
-    },
-    output: {
-      schema: AnalyzeClientRequirementsOutputSchema, 
-    },
-    prompt: `You are a helpful AI assistant for a graphic designer named {{{userName}}}.
+  const promptText = `You are a helpful AI assistant for a graphic designer named {{{userName}}}.
 Their communication style is: {{{communicationStyleNotes}}}.
 
 Your task is to thoroughly analyze the client's request based on their latest message, any attached files, and the conversation history. Provide a structured bilingual analysis in English and Bengali.
@@ -188,19 +168,25 @@ Output Format (ensure your entire response is a single JSON object):
   "imageAnalysisEnglish": "Description of image and its relation...",
   "imageAnalysisBengali": "ছবির বর্ণনা এবং এর সম্পর্ক..."
 }
-`,
-  });
+`;
 
   try {
-    console.log(`INFO (${flowName}): Making AI call using API key from: ${apiKeySourceForLog}`);
-    const {output} = await analyzeClientRequirementsPrompt(actualPromptInputData, { model: modelToUse });
-    if (!output) {
-      console.error(`ERROR (${flowName}): AI returned empty or undefined output.`);
-      throw new Error(`AI response was empty or undefined in ${flowName}.`);
-    }
+    const { data: output, apiKeyUsed } = await client.request(async (apiKey) => {
+      const instance = createGeminiAiInstance(apiKey);
+      const promptDef = instance.definePrompt({
+        name: `${flowName}Prompt_${Date.now()}`,
+        input: { schema: AnalyzeClientRequirementsPromptInputSchema },
+        output: { schema: AnalyzeClientRequirementsOutputSchema },
+        prompt: promptText
+      });
+      const { output } = await promptDef(actualPromptInputData, { model: modelToUse });
+      if (!output) throw new Error('AI returned empty output');
+      return output;
+    });
+    console.log(`INFO (${flowName}): AI call succeeded using key ending with ...${apiKeyUsed.slice(-4)}`);
     return output;
   } catch (error) {
-    console.error(`ERROR (${flowName}): AI call failed (API key source: ${apiKeySourceForLog}). Error:`, error);
+    console.error(`ERROR (${flowName}): Failed after rotating through available keys. Error:`, error);
     throw new Error(`AI call failed in ${flowName}. Please check server logs for details. Original error: ${(error as Error).message}`);
   }
 }

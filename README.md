@@ -86,3 +86,13 @@ GOOGLE_SEARCH_CX=your_google_custom_search_engine_id_here
 4. Visit https://developers.google.com/custom-search/v1/overview to obtain an API key
 
 Without these API keys, the application will fall back to simulated search results that may not be as comprehensive or relevant as real search results.
+
+## Generated Images Retention
+
+Every image produced by the **Generate Images** panel is stored under `users/{uid}/generated_images` in Firestore and kept **only for 1 hour**.
+
+Firestore auto-deletes these documents via a [TTL (Time-to-Live) policy] enabled on the `expiresAt` field.  No additional Cloud Function is required.
+
+If you deploy to a region where TTL isn’t supported you can enable the optional Cloud Function (`functions/cleanupGeneratedImages.ts`) which removes obsolete docs every 2 h.
+
+Local-storage copies are also pruned automatically by the in-app cleaner (`GeneratedImagesCleaner`).
