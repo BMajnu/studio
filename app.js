@@ -3,37 +3,30 @@ const fs = require('fs');
 const path = require('path');
 
 // This intelligent launcher script is a workaround for broken cPanel NPM tooling.
-// It checks if dependencies are installed and installs them if needed, before starting the app.
+// It checks if dependencies AND the build exist, and regenerates them if needed
+// before starting the application.
 
 const NODE_MODULES = path.join(__dirname, 'node_modules');
+const NEXT_BUILD = path.join(__dirname, '.next');
 
 function runCommand(command, args = []) {
   console.log(`[Launcher] Running command: ${command} ${args.join(' ')}`);
   try {
-    // Using execSync for simplicity in this sequential script.
-    // This will block until the command is complete.
     execSync(`${command} ${args.join(' ')}`, { stdio: 'inherit' });
     return true;
   } catch (e) {
     console.error(`[Launcher] Command failed: ${command} ${args.join(' ')}`);
-    // The error object from execSync often has useful details in stdout/stderr.
-    console.error(e.stdout ? e.stdout.toString() : '');
-    console.error(e.stderr ? e.stderr.toString() : '');
     return false;
   }
 }
 
 function startApp() {
   console.log('[Launcher] Starting Next.js application...');
-  // Use spawn for the long-running Next.js process.
   const app = spawn('npm', ['start'], { stdio: 'inherit', shell: true });
-
   app.on('close', (code) => {
     console.log(`[Launcher] Application process exited with code ${code}`);
-    // If the app crashes, exit the launcher script.
     process.exit(code);
   });
-
   app.on('error', (err) => {
     console.error('[Launcher] Failed to start Next.js application.', err);
     process.exit(1);
@@ -41,25 +34,31 @@ function startApp() {
 }
 
 // --- Main Execution ---
-
 console.log('[Launcher] Initializing...');
 
-// Check if node_modules exists.
-if (!fs.existsSync(NODE_MODULES)) {
-  console.log('[Launcher] node_modules not found. Running clean installation...');
+// Check if node_modules or the production build folder is missing.
+if (!fs.existsSync(NODE_MODULES) || !fs.existsSync(NEXT_BUILD)) {
+  
+  if (!fs.existsSync(NODE_MODULES)) {
+    console.log('[Launcher] node_modules not found. Running clean installation...');
+    const installSuccess = runCommand('npm', ['install', '--omit=dev', '--no-audit']);
+    if (!installSuccess) {
+      console.error('[Launcher] Installation failed. Exiting.');
+      process.exit(1);
+    }
+  }
 
-  // Run a clean production install.
-  // Using --omit=dev is the modern equivalent of --production.
-  const installSuccess = runCommand('npm', ['install', '--omit=dev', '--no-audit']);
-
-  if (installSuccess) {
-    console.log('[Launcher] Installation successful.');
-    startApp();
-  } else {
-    console.error('[Launcher] Installation failed. See logs above. Exiting.');
+  console.log('[Launcher] Running production build...');
+  const buildSuccess = runCommand('npm', ['run', 'build']);
+  if (!buildSuccess) {
+    console.error('[Launcher] Build failed. Exiting.');
     process.exit(1);
   }
+
+  console.log('[Launcher] Setup complete. Starting application.');
+  startApp();
+
 } else {
-  console.log('[Launcher] node_modules found. Starting application directly.');
+  console.log('[Launcher] Dependencies and build found. Starting application directly.');
   startApp();
 } 
