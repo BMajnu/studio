@@ -37,7 +37,7 @@ const highlightSearchTerms = (text: string, searchQuery: string): React.ReactNod
   let parts: React.ReactNode[] = [text];
   
   sortedTerms.forEach((term, termIndex) => {
-    parts = parts.flatMap((part, partIndex) => {
+    parts = parts.flatMap<React.ReactNode>((part, partIndex) => {
       if (typeof part !== 'string') return [part];
       
       const splitParts = part.split(new RegExp(`(${term})`, 'gi'));
