@@ -1,6 +1,7 @@
-import type {NextConfig} from 'next';
+const path = require('path');
 
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   /* config options here */
   reactStrictMode: true,
   env: {
@@ -30,9 +31,6 @@ const nextConfig: NextConfig = {
   serverRuntimeConfig: {
     port: 9003,
   },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   // Session storage configuration
   publicRuntimeConfig: {
     sessionStorageConfig: {
@@ -46,4 +44,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;
