@@ -1,0 +1,18 @@
+# cPanel deployment configuration for a Next.js application.
+# This file assumes that the Node.js application is run directly
+# from the repository's root directory in the cPanel environment.
+---
+deployment:
+  tasks:
+    # Install npm dependencies.
+    # We install all dependencies including devDependencies because the build
+    # process might require them.
+    - npm install --production=false
+
+    # Build the Next.js application for production.
+    - npm run build
+
+    # Restart the Phusion Passenger server (if used by the cPanel Node.js setup).
+    # This is done by creating/touching the restart.txt file in the tmp directory.
+    - mkdir -p tmp
+    - touch tmp/restart.txt 

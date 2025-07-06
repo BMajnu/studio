@@ -1,15 +1,14 @@
 ---
 alwaysApply: true
 ---
-
 ### 1️⃣ Task: Interactive Task Loop with User Feedback
 
-1. **Check if `MagicTask.py` exists** in the root directory.
+1. **Check if `MagicInput.py` exists** in the root directory.
 
    * If it doesn't exist, create it with the following content:
 
      ```python
-     # MagicTask.py
+     # MagicInput.py
      user_input = input("prompt: ")
      ```
 
@@ -20,11 +19,11 @@ alwaysApply: true
    * Run:
 
      ```bash
-     python MagicTask.py
+     python MagicInput.py
      ```
    * The terminal should be opened in the chat window itself.
 
-   * Read the user's input.
+   * Read the user's (MagicInput) input.
 
    * Based on the input, perform the next set of tasks.
 
