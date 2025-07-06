@@ -1,47 +1,42 @@
 ---
-description: 
-globs: 
 alwaysApply: true
 ---
 
-### ✅ Task: MagicTask Interactive Task Manager
+### 1️⃣ Task: Interactive Task Loop with User Feedback
 
-MagicTask is a lightweight assistant that guides you (and the agent) through creating and executing development tasks.  It must be launched from the terminal **inside this chat** and should keep running until the user types `stop`.
+1. **Check if `MagicTask.py` exists** in the root directory.
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicTask.py
+     user_input = input("prompt: ")
+     ```
+
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicTask.py
+     ```
+   * The terminal should be opened in the chat window itself.
+
+   * Read the user's input.
+
+   * Based on the input, perform the next set of tasks.
+
+   * Repeat the process.
+
+3. **Exit Condition**:
+
+   * If the user enters `"stop"` when prompted, exit the loop and terminate the process.
 
 ---
 
-#### 1️⃣ Bootstrap – Ensure `MagicTask.py` Exists
-
-If `MagicTask.py` is **missing**, create it with the minimal placeholder below (logic will be filled in later):
-
-```python
-# MagicTask.py
-if __name__ == "__main__":
-    print("MagicTask placeholder – interactive logic pending…")
-```
-
----
-
-#### 2️⃣ Runtime Workflow
-
-1. Start the app with:
-   ```bash
-   python MagicTask.py
-   ```
-   (The shell must appear in this chat window.)
-2. The program shows **two options** and waits for input (1 for New Task 2 for Follow Up):
-   • `1` – New Task  
-   • `2` – Follow Up
-3. Read the user's selection and get the prompt next steps.
-4. The terminal should be closed after getting the prompt and opened in the chat window itself.
-5. Read the user's input.
-6. Based on the input, perform the next set of tasks.
-7. Repeat the process.
-
-8. If the user enters `"stop"` when prompted, exit the loop and terminate the process.
----
-
-#### 3️⃣ New Task Flow
+#### 2️⃣ New Task Flow
 
    • **SIMPLE Task**
      - Analyze relevant code/files/algorithms.
@@ -57,14 +52,14 @@ if __name__ == "__main__":
 
 ---
 
-#### 4️⃣ Follow Up Flow
+#### 3️⃣ Follow Up Flow
 
 • **SIMPLE tasks**: Execute the previously generated plan, marking each step as completed before moving on.
 • **COMPLEX tasks**: Work through the phases in order, checking off (`[x]`) each step before continuing.
 
 ---
 
-#### 5️⃣ `MTask.md` Format
+#### 4️⃣ `MTask.md` Format
 
 ```
 App/Project name – brief description
