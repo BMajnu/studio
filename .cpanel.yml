@@ -4,15 +4,14 @@
 ---
 deployment:
   tasks:
-    # Install npm dependencies.
-    # We install all dependencies including devDependencies because the build
-    # process might require them.
-    - npm install --production=false
+    # Install npm dependencies and redirect all output (stdout and stderr) to a log file.
+    # This captures the detailed error message when the cPanel UI hides it.
+    - /bin/npm install --production=false > npm_install.log 2>&1
 
     # Build the Next.js application for production.
-    - npm run build
+    - /bin/npm run build
 
     # Restart the Phusion Passenger server (if used by the cPanel Node.js setup).
     # This is done by creating/touching the restart.txt file in the tmp directory.
-    - mkdir -p tmp
-    - touch tmp/restart.txt 
+    - /bin/mkdir -p tmp
+    - /bin/touch tmp/restart.txt 

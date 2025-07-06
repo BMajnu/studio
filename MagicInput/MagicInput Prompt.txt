@@ -4,3 +4,9 @@ fix it yourself
 Prompt:
 fix it yourself
 
+Prompt:
+Shows error in npm install
+
+Prompt:
+Shows error in npm install
+
