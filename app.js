@@ -22,7 +22,8 @@ function runCommand(command, args = []) {
 
 function startApp() {
   console.log('[Launcher] Starting Next.js application...');
-  const app = spawn('npm', ['start'], { stdio: 'inherit', shell: true });
+  // Use npx to ensure we're using the local installation of next
+  const app = spawn('npx', ['next', 'start'], { stdio: 'inherit', shell: true });
   app.on('close', (code) => {
     console.log(`[Launcher] Application process exited with code ${code}`);
     process.exit(code);
@@ -49,7 +50,8 @@ if (!fs.existsSync(NODE_MODULES) || !fs.existsSync(NEXT_BUILD)) {
   }
 
   console.log('[Launcher] Running production build...');
-  const buildSuccess = runCommand('npm', ['run', 'build']);
+  // Use npx to ensure we're using the local installation of next
+  const buildSuccess = runCommand('npx', ['next', 'build']);
   if (!buildSuccess) {
     console.error('[Launcher] Build failed. Exiting.');
     process.exit(1);
