@@ -4,23 +4,14 @@
 ---
 deployment:
   tasks:
-    # The Node.js environment in cPanel uses a global directory for modules, which can get corrupted.
-    # The following command forcefully removes this specific directory to ensure a clean slate.
-    # The path is derived from the npm error log.
-    - /bin/rm -rf /home/desainrs/nodevenv/repositories/studio/22/lib/node_modules
-
-    # We also remove the local node_modules and package-lock.json for good measure.
-    - /bin/rm -rf node_modules package-lock.json
-
-    # Clean the npm cache.
+    # Remove potentially corrupted global and local node_modules and lock files
+    - /bin/rm -rf /home/desainrs/nodevenv/repositories/studio/22/lib/node_modules node_modules package-lock.json
+    # Clean npm cache
     - /bin/npm cache clean --force
-
-    # Re-run the installation, logging the output.
-    - /bin/npm install --production=false > npm_install.log 2>&1
-
-    # Build the Next.js application for production.
+    # Clean install only production dependencies to avoid installing dev deps like babel-jest
+    - /bin/npm ci --omit=dev --no-audit --no-fund > npm_install.log 2>&1
+    # Build the Next.js app
     - /bin/npm run build
-
-    # Restart the Phusion Passenger server.
+    # Restart server
     - /bin/mkdir -p tmp
     - /bin/touch tmp/restart.txt 
