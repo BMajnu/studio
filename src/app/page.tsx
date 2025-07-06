@@ -290,6 +290,9 @@ export default function ChatPage() {
   // Add state for custom sense prefill
   const [customSensePrefill, setCustomSensePrefill] = useState<CustomSensePrefill | null>(null);
 
+  // New state for collapsed history panel
+  const [isHistoryPanelCollapsed, setIsHistoryPanelCollapsed] = useState(false);
+
   /**
    * Button Selection Logic
    * ---------------------
@@ -358,6 +361,10 @@ export default function ChatPage() {
 
   const toggleFooter = useCallback(() => {
     setIsFooterCollapsed(prev => !prev);
+  }, []);
+
+  const toggleHistoryPanelCollapse = useCallback(() => {
+    setIsHistoryPanelCollapsed(prev => !prev);
   }, []);
 
   useEffect(() => {
@@ -2091,6 +2098,16 @@ export default function ChatPage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
+  const handleRemoveFile = (index: number) => {
+    const newFiles = [...selectedFiles];
+    newFiles.splice(index, 1);
+    setSelectedFiles(newFiles);
+    
+    const newFileData = [...currentAttachedFilesData];
+    newFileData.splice(index, 1);
+    setCurrentAttachedFilesData(newFileData);
+  }
+
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
@@ -2529,7 +2546,7 @@ export default function ChatPage() {
 
 
   return (
-    <div className="flex flex-row h-[calc(100dvh-var(--header-height,0px))] overflow-hidden bg-gradient-to-b from-background-start-hsl to-background-end-hsl"
+    <div className="flex flex-row h-full overflow-hidden bg-gradient-to-b from-background-start-hsl to-background-end-hsl"
          onDragOver={handleDragOver}
          onDragLeave={handleDragLeave}
          onDrop={handleDrop}
@@ -2577,7 +2594,7 @@ export default function ChatPage() {
       {!isMobile && (
         <div
           ref={chatSidebarRef}
-          style={{ width: isHistoryPanelOpen ? 'var(--sidebar-width,300px)' : 0 }}
+          style={{ width: isHistoryPanelOpen ? (isHistoryPanelCollapsed ? '60px' : 'var(--sidebar-width,300px)') : 0 }}
           className={cn(
             "glass-panel shrink-0 transition-all duration-300 ease-in-out h-full overflow-hidden shadow-lg",
             isHistoryPanelOpen ? "border-r border-primary/20" : "opacity-0"
@@ -2586,17 +2603,19 @@ export default function ChatPage() {
           {isHistoryPanelOpen && (
             <div className="h-full overflow-hidden animate-fade-in">
               <HistoryPanel
-                sessions={historyMetadata} 
+                sessions={historyMetadata}
                 activeSessionId={currentSession?.id || null}
-                onSelectSession={handleSelectSession} 
+                onSelectSession={handleSelectSession}
                 onNewChat={handleNewChat}
-                onDeleteSession={handleDeleteSession} 
+                onDeleteSession={handleDeleteSession}
                 isLoading={historyHookLoading}
                 isLoggedIn={!!authUser}
                 className="animate-fade-in" 
                 onRefreshHistory={handleRefreshHistory}
                 isAutoRefreshEnabled={isAutoRefreshEnabled}
                 setAutoRefreshEnabled={setAutoRefreshEnabled}
+                isCollapsed={isHistoryPanelCollapsed}
+                onToggleCollapse={toggleHistoryPanelCollapse}
               />
             </div>
           )}
@@ -2605,8 +2624,11 @@ export default function ChatPage() {
 
       {/* Main chat area - always visible regardless of history panel state */}
       <div className="flex flex-col flex-grow min-w-0 w-full h-full">
-        <ScrollArea className="flex-1 p-2 md:p-4 overflow-y-auto pb-48" ref={chatAreaRef}>
-          <div className="space-y-4 w-full stagger-animation">
+        <ScrollArea className="flex-1 overflow-y-auto" ref={chatAreaRef}>
+          <div className={cn(
+            "space-y-4 w-full stagger-animation pb-48 px-2",
+            isHistoryPanelOpen ? (isHistoryPanelCollapsed ? "pl-2" : "pl-2") : ""
+          )}>
             {messages.map((msg) => (
               <ChatMessageDisplay
                 key={msg.id}
@@ -2656,172 +2678,158 @@ export default function ChatPage() {
 
         <div 
           className={cn(
-            "fixed bottom-0 left-1/2 -translate-x-1/2 z-50 w-full max-w-3xl border-t glass-panel bg-background/70 backdrop-blur-xl shadow-2xl rounded-t-xl transition-all duration-300 pb-[env(safe-area-inset-bottom)]", 
-            isDragging && "opacity-50",
-            isFooterCollapsed ? "h-3 py-0 overflow-visible" : "p-4 md:p-5"
+            "fixed bottom-0 left-0 right-0 z-50 w-full transition-all duration-300 pb-[env(safe-area-inset-bottom)]", 
+            isHistoryPanelOpen ? (isHistoryPanelCollapsed ? "pl-[60px]" : "pl-[300px]") : "pl-0"
           )}
         >
-          <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-primary/10 via-primary/40 to-primary/10"></div>
-
-          {/* Modern collapse/expand button for footer */}
-          <div className={cn(
-            "absolute right-4 transition-all duration-300 z-[60]",
-            isFooterCollapsed ? "-top-3" : "-top-6"
-          )}>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={toggleFooter}
-              className="h-6 w-10 rounded-full bg-background backdrop-blur-sm border border-border/50 shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out flex items-center justify-center group"
-              aria-label={isFooterCollapsed ? "Expand input area" : "Collapse input area"}
-            >
-              <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className={`transition-all duration-300 ${isFooterCollapsed ? "" : "transform rotate-180"}`}>
-                  <ChevronDown size={15} className="text-foreground/80 group-hover:text-primary transition-colors" />
-                </div>
-              </div>
-            </Button>
-          </div>
-
-          {!isFooterCollapsed && (
-            <>
-              {currentAttachedFilesData.length > 0 && (
-                <div className="mt-1 mb-3 glass-panel bg-background/80 p-3 rounded-xl border border-primary/10 shadow-md animate-fade-in">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">Attached files:</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 text-destructive/80 hover:text-destructive hover:bg-destructive/10 transition-all duration-300 rounded-full btn-glow"
-                      onClick={clearSelectedFiles}
-                    >
-                      <X className="h-3.5 w-3.5 mr-1" /> Clear
-                    </Button>
+          <div
+            className={cn(
+              "max-w-5xl mx-auto w-full relative",
+              isDragging && "opacity-50",
+              !isFooterCollapsed && "border-t glass-panel bg-background/70 backdrop-blur-xl shadow-2xl rounded-t-xl p-4 md:p-5"
+            )}
+          >
+            {/* Modern collapse/expand button for footer */}
+            <div className={cn(
+              "absolute right-4 transition-all duration-300 z-[60]",
+              isFooterCollapsed ? "-top-3" : "-top-6"
+            )}>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={toggleFooter}
+                className="h-6 w-10 rounded-full bg-background backdrop-blur-sm border border-border/50 shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out flex items-center justify-center group"
+                aria-label={isFooterCollapsed ? "Expand input area" : "Collapse input area"}
+              >
+                <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  <div className={`transition-all duration-300 ${isFooterCollapsed ? "" : "transform rotate-180"}`}>
+                    <ChevronDown size={15} className="text-foreground/80 group-hover:text-primary transition-colors" />
                   </div>
-                  
-                  <div className="font-size-0 whitespace-nowrap" style={{ fontSize: 0, lineHeight: 0 }}>
-                    {currentAttachedFilesData.map((file, index) => (
-                      <div 
-                        key={index} 
-                        className="inline-block align-top whitespace-normal w-20"
-                        style={{ margin: 0, padding: 0 }}
+                </div>
+              </Button>
+            </div>
+
+            {!isFooterCollapsed && (
+              <>
+                <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-primary/10 via-primary/40 to-primary/10"></div>
+                {currentAttachedFilesData.length > 0 && (
+                  <div className="mt-2 mb-4 w-full">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-primary/80">Attached files:</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-destructive/80 hover:text-destructive hover:bg-destructive/10 transition-all duration-300 rounded-full"
+                        onClick={clearSelectedFiles}
                       >
-                        <div className="group relative aspect-square overflow-hidden rounded-md border border-primary/10 hover:border-primary/30 transition-all duration-300">
-                          {file.type?.startsWith('image/') && file.dataUri ? (
-                            <>
-                              <Image
-                                src={file.dataUri!}
-                                alt={file.name}
-                                fill
-                                className="object-cover object-center group-hover:scale-105 transition-transform duration-300" />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                            </>
-                          ) : (
-                            <div className="flex items-center justify-center h-full bg-muted/20">
-                              <FileText className="h-5 w-5 text-muted-foreground" />
+                        <X className="h-3.5 w-3.5 mr-1" /> Clear All
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-2 items-center">
+                      {currentAttachedFilesData.map((file, index) => (
+                        <div key={index} className="relative group">
+                          <div className="w-16 h-16 rounded-md border border-primary/20 bg-card/50 flex items-center justify-center overflow-hidden">
+                            {file.type?.startsWith('image/') ? (
+                              <img 
+                                src={file.dataUri} 
+                                alt={file.name} 
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <FileText className="h-8 w-8 text-primary/70" />
+                            )}
+                            <button 
+                              onClick={() => handleRemoveFile(index)}
+                              className="absolute top-0 right-0 bg-destructive/80 hover:bg-destructive text-destructive-foreground rounded-bl-md p-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                            <div className="absolute bottom-0 left-0 right-0 p-0.5 text-[8px] bg-background/80 backdrop-blur-sm truncate opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                              {file.name.length > 10 ? file.name.substring(0, 8) + '...' : file.name}
                             </div>
-                          )}
-                          <button 
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const newFiles = [...selectedFiles];
-                              newFiles.splice(index, 1);
-                              setSelectedFiles(newFiles);
-                              
-                              const newFileData = [...currentAttachedFilesData];
-                              newFileData.splice(index, 1);
-                              setCurrentAttachedFilesData(newFileData);
-                            }}
-                            className="absolute top-0 right-0 bg-destructive/80 hover:bg-destructive text-destructive-foreground rounded-bl-md p-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                          <div className="absolute bottom-0 left-0 right-0 p-0.5 text-[8px] bg-background/80 backdrop-blur-sm truncate opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                            {file.name.length > 10 ? file.name.substring(0, 8) + '...' : file.name}
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-end gap-2 animate-fade-in transition-all duration-300 w-full">
+                  <div className="relative w-full group">
+                    <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 rounded-xl blur opacity-30 group-hover:opacity-70 transition-opacity duration-500"></div>
+                    <Textarea
+                      ref={inputTextAreaRef}
+                      value={inputMessage}
+                      onChange={(e) => setInputMessage(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder="Type here..."
+                      className="relative flex-1 resize-none min-h-[65px] max-h-[150px] rounded-xl shadow-lg focus-visible:ring-2 focus-visible:ring-primary glass-panel border-primary/20 transition-all duration-300 w-full pr-24 z-10 bg-background/60 backdrop-blur-lg"
+                      rows={Math.max(1, Math.min(5, inputMessage.split('\n').length))}
+                    />
+                    <div className="absolute bottom-3 right-3 flex items-center gap-2 opacity-70 group-hover:opacity-100 transition-opacity duration-300 z-20">
+                      <TooltipProvider delayDuration={200}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1.5">
+                              <div className="text-xs text-foreground/70 font-medium">Custom</div>
+                              <Checkbox
+                                id="custom-message-inline"
+                                checked={isCustomMessage}
+                                onCheckedChange={(checked) => setIsCustomMessage(checked as boolean)}
+                                className="data-[state=checked]:bg-accent data-[state=checked]:border-accent h-4 w-4"
+                              />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="glass-panel text-foreground shadow-xl rounded-lg p-3 animate-fade-in border border-accent/10 max-w-sm">
+                            <p className="font-semibold text-gradient">Custom Instructions</p>
+                            <p className="text-xs text-foreground/80 mt-1">
+                              When enabled, your message will be treated as a custom instruction for the AI. 
+                              Instead of standard analysis, you can tell the AI exactly what to generate from the client message.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="h-8 w-8 p-0 hover:bg-primary/10 rounded-full"
+                        aria-label="Attach files"
+                      >
+                        <div className="relative">
+                          <div className="absolute inset-0 bg-primary/10 rounded-full blur-sm animate-pulse-slow"></div>
+                          <Paperclip className="h-5 w-5 text-primary relative z-10" />
+                        </div>
+                      </Button>
+                      <input type="file" ref={fileInputRef} multiple onChange={handleFileChange} className="hidden" accept="image/*,application/pdf,.txt,.md,.json"/>
+                    </div>
                   </div>
                 </div>
-              )}
 
-              <div className="flex items-end gap-2 animate-fade-in transition-all duration-300">
-                <div className="relative w-full group">
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 rounded-xl blur opacity-30 group-hover:opacity-70 transition-opacity duration-500"></div>
-                  <Textarea
-                    ref={inputTextAreaRef}
-                    value={inputMessage}
-                    onChange={(e) => setInputMessage(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Type here..."
-                    className="relative flex-1 resize-none min-h-[65px] max-h-[150px] rounded-xl shadow-lg focus-visible:ring-2 focus-visible:ring-primary glass-panel border-primary/20 transition-all duration-300 w-full pr-24 z-10 bg-background/60 backdrop-blur-lg"
-                    rows={Math.max(1, Math.min(5, inputMessage.split('\n').length))}
-                  />
-                  <div className="absolute bottom-3 right-3 flex items-center gap-2 opacity-70 group-hover:opacity-100 transition-opacity duration-300 z-20">
-                    <TooltipProvider delayDuration={200}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="flex items-center gap-1.5">
-                            <div className="text-xs text-foreground/70 font-medium">Custom</div>
-                            <Checkbox
-                              id="custom-message-inline"
-                              checked={isCustomMessage}
-                              onCheckedChange={(checked) => setIsCustomMessage(checked as boolean)}
-                              className="data-[state=checked]:bg-accent data-[state=checked]:border-accent h-4 w-4"
-                            />
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="glass-panel text-foreground shadow-xl rounded-lg p-3 animate-fade-in border border-accent/10 max-w-sm">
-                          <p className="font-semibold text-gradient">Custom Instructions</p>
-                          <p className="text-xs text-foreground/80 mt-1">
-                            When enabled, your message will be treated as a custom instruction for the AI. 
-                            Instead of standard analysis, you can tell the AI exactly what to generate from the client message.
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="h-8 w-8 p-0 hover:bg-primary/10 rounded-full"
-                      aria-label="Attach files"
-                    >
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-primary/10 rounded-full blur-sm animate-pulse-slow"></div>
-                        <Paperclip className="h-5 w-5 text-primary relative z-10" />
-                      </div>
-                    </Button>
-                    <input type="file" ref={fileInputRef} multiple onChange={handleFileChange} className="hidden" accept="image/*,application/pdf,.txt,.md,.json"/>
+                <div className={cn(
+                  "flex items-center justify-between mt-4 gap-x-3 gap-y-2 w-full",
+                   isMobile ? "flex-col items-stretch gap-y-3" : "flex-nowrap overflow-x-auto"
+                )}>
+                  <div className={cn("flex-1 flex justify-end animate-stagger", isMobile ? "w-full justify-center mt-0" : "")} style={{ animationDelay: '200ms' }}>
+                    <ActionButtonsPanel
+                      onAction={handleAction}
+                      isLoading={isLoading}
+                      currentUserMessage={inputMessage}
+                      profile={profile}
+                      currentAttachedFilesDataLength={currentAttachedFilesData.length}
+                      isMobile={isMobile}
+                      activeButton={activeActionButton}
+                      lastSelectedButton={lastSelectedActionButton}
+                    />
                   </div>
                 </div>
-              </div>
-
-              <div className={cn(
-                "flex items-center justify-between mt-4 gap-x-3 gap-y-2",
-                 isMobile ? "flex-col items-stretch gap-y-3" : "flex-nowrap overflow-x-auto"
-              )}>
-                <div className={cn("flex-1 flex justify-end animate-stagger", isMobile ? "w-full justify-center mt-0" : "")} style={{ animationDelay: '200ms' }}>
-                  <ActionButtonsPanel
-                    onAction={handleAction}
-                    isLoading={isLoading}
-                    currentUserMessage={inputMessage}
-                    profile={profile}
-                    currentAttachedFilesDataLength={currentAttachedFilesData.length}
-                    isMobile={isMobile}
-                    activeButton={activeActionButton}
-                    lastSelectedButton={lastSelectedActionButton}
-                  />
-                </div>
-              </div>
-            </>
-          )}
-          {isFooterCollapsed && (
-            <div className="h-0"></div>
-          )}
+              </>
+            )}
+            {isFooterCollapsed && (
+              <div className="h-3"></div>
+            )}
+          </div>
         </div>
       </div>
 

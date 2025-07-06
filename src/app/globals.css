@@ -1,3 +1,8 @@
+/* 
+ * This file uses Tailwind CSS directives.
+ * VS Code may show errors for @tailwind and @apply directives, but they are valid in the context of Tailwind CSS.
+ * These errors can be safely ignored as they don't affect the actual functionality.
+ */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -131,6 +136,7 @@ body {
     
     /* Vibrant primary colors */
     --primary: 221 89% 60%; /* Vibrant blue #4285F4 */
+    --primary-rgb: 66, 133, 244; /* RGB values for primary color */
     --primary-light: 221 89% 70%; /* Lighter version for hover states */
     --primary-dark: 221 89% 50%; /* Darker version for active states */
     --primary-foreground: 210 40% 98%; /* White/very light text for primary */
@@ -199,6 +205,7 @@ body {
     
     /* Vibrant primary colors - slightly adjusted for dark mode */
     --primary: 221 89% 65%; /* Slightly brighter blue in dark mode #4D90F5 */
+    --primary-rgb: 77, 144, 245; /* RGB values for primary color in dark mode */
     --primary-light: 221 89% 75%; /* Lighter version for hover states */
     --primary-dark: 221 89% 55%; /* Darker version for active states */
     --primary-foreground: 210 40% 98%;
@@ -383,4 +390,16 @@ html, body {
 
 .animate-slideUpSlightly {
   animation: slideUpSlightly 0.5s ease-out forwards;
+}
+
+@keyframes pulseHighlight {
+  0% { box-shadow: 0 0 0 0 rgba(var(--primary-rgb), 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(var(--primary-rgb), 0); }
+  100% { box-shadow: 0 0 0 0 rgba(var(--primary-rgb), 0); }
+}
+
+.animate-pulse-highlight {
+  animation: pulseHighlight 1s ease-in-out 3;
+  position: relative;
+  z-index: 10;
 }

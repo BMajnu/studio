@@ -202,8 +202,8 @@ export function ActionButtonsPanel({
   return (
     <TooltipProvider>
       <div className={cn(
-          "flex items-center justify-end gap-2 md:gap-3 stagger-animation",
-          isMobile ? "flex-wrap" : "flex-nowrap overflow-x-auto px-2",
+          "flex items-center justify-end gap-2 stagger-animation",
+          isMobile ? "flex-wrap" : "flex-nowrap overflow-x-auto px-3",
           isLoading && "opacity-60 pointer-events-none"
         )}
       >

@@ -19,7 +19,8 @@ export function ChatHistory({ userId, activeSessionId, onSelectSession, onNewCha
     isSyncing, 
     renameSession, 
     isAutoRefreshEnabled, 
-    setAutoRefreshEnabled 
+    setAutoRefreshEnabled,
+    getSession
   } = useChatHistory(userId);
 
   const handleDeleteSession = (sessionId: string) => {
@@ -73,6 +74,9 @@ export function ChatHistory({ userId, activeSessionId, onSelectSession, onNewCha
         className=""
         isAutoRefreshEnabled={isAutoRefreshEnabled}
         setAutoRefreshEnabled={setAutoRefreshEnabled}
+        isCollapsed={false}
+        onToggleCollapse={() => {}}
+        loadFullSession={getSession}
       />
     </div>
   );

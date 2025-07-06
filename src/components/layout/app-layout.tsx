@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Settings, Menu, HelpCircle, Sun, Moon, LogOut, LogIn, XIcon, Languages, ChevronUp, ChevronDown, PlusCircle } from 'lucide-react';
+import { Home, Settings, Menu, HelpCircle, Sun, Moon, LogOut, LogIn, XIcon, Languages, ChevronUp, ChevronDown, PlusCircle, User } from 'lucide-react';
 import { DesAInRLogo } from '@/components/icons/logo';
 import { Button } from '@/components/ui/button';
 import type { ButtonProps } from '@/components/ui/button';
@@ -24,6 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LoginForm } from '@/components/auth/login-form';
 import { SignupForm } from '@/components/auth/signup-form';
 import { APP_FEATURES_GUIDE, APP_FEATURES_GUIDE_BN } from "@/lib/constants";
@@ -53,46 +54,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
-  // Add state for header collapsed
-  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
-  
-  // Add event listener for header toggle events from child components
-  useEffect(() => {
-    const handleHeaderToggle = (event: Event) => {
-      setIsHeaderCollapsed(prev => !prev);
-    };
-    
-    window.addEventListener(HEADER_TOGGLE_EVENT, handleHeaderToggle);
-    
-    return () => {
-      window.removeEventListener(HEADER_TOGGLE_EVENT, handleHeaderToggle);
-    };
-  }, []);
-  
-  // Load header collapsed state from localStorage
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
-    try {
-      const headerCollapsed = localStorage.getItem('desainr_header_collapsed');
-      if (headerCollapsed !== null) {
-        setIsHeaderCollapsed(headerCollapsed === 'true');
-      }
-    } catch (error) {
-      console.error('Error loading header collapsed state from localStorage:', error);
-    }
-  }, []);
-  
-  // Save header collapsed state to localStorage
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
-    try {
-      localStorage.setItem('desainr_header_collapsed', isHeaderCollapsed.toString());
-    } catch (error) {
-      console.error('Error saving header collapsed state to localStorage:', error);
-    }
-  }, [isHeaderCollapsed]);
   
   // Add the route change event listener
   useRouteChangeEvent();
@@ -103,8 +64,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   };
   
   const navItems: NavItem[] = [
-    { href: '/', label: { en: 'Home', bn: 'হোম' }, icon: Home },
-    { href: '/profile', label: { en: 'Profile', bn: 'প্রোফাইল' }, icon: Settings, requiresAuth: true },
     { label: { en: 'Features Guide', bn: 'ফিচার গাইড' }, icon: HelpCircle, isModalTrigger: true, modalType: 'features' },
     {
       label: { en: 'Login', bn: 'লগইন করুন' },
@@ -122,7 +81,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       modalType: 'signup',
       dialogTitle: { en: 'Create DesAInR Account', bn: 'DesAInR অ্যাকাউন্ট তৈরি করুন' }
     },
-    { label: { en: 'Logout', bn: 'লগআউট' }, icon: LogOut, requiresAuth: true, action: async () => { await signOut(); setIsMobileSheetOpen(false); } },
   ];
 
   useEffect(() => {
@@ -203,8 +161,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
     const buttonContent = (
       <>
-        <item.icon className={isMobile ? "h-5 w-5 mr-3" : "h-5 w-5 mr-2"} /> 
-        {itemLabel}
+        <item.icon className={isMobile ? "h-5 w-5 mr-3" : "h-6 w-6"} /> 
+        {!isMobile && item.modalType === 'features' ? null : <span className={isMobile ? "" : "ml-2"}>{itemLabel}</span>}
       </>
     );
     
@@ -300,54 +258,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const sheetTitle = currentLanguage === 'bn' ? 'মেনু' : 'Menu';
 
   return (
-    <div className="flex min-h-[100dvh] max-h-[100dvh] flex-col" style={{ "--header-height": isHeaderCollapsed ? "1rem" : "4rem" } as React.CSSProperties}>
+    <div className="relative flex h-[100dvh] flex-col">
       <GeneratedImagesCleaner />
-      <header className={`sticky top-0 z-50 flex items-center justify-between border-b bg-background/60 backdrop-blur-xl shrink-0 shadow-lg glass-panel animate-fade-in transition-all duration-300 ${isHeaderCollapsed ? "h-4 px-4 overflow-visible" : "h-16 px-4"}`}>
-        {!isHeaderCollapsed && (
-          <>
-            {/* Left section: History toggle, New Chat, App Logo */}
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => window.dispatchEvent(new Event('toggle-history-panel'))}
-                aria-label="Toggle chat history panel"
-                className="hover:bg-primary/20 btn-glow rounded-full"
-              >
-                <Menu className="h-5 w-5 text-foreground/80 hover:text-primary transition-colors" />
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => window.dispatchEvent(new Event('new-chat'))}
-                className="hover:bg-accent hover:text-accent-foreground transition-colors duration-300 rounded-full shadow-md btn-glow"
-              >
-                <PlusCircle className="h-4 w-4 mr-2" /> New Chat
-              </Button>
-              <Link href="/" className="flex items-center gap-2 transition-all duration-300 ease-in-out hover:opacity-90 hover:scale-110 group">
-                <div className="relative overflow-hidden rounded-full p-1 transition-all duration-300 group-hover:shadow-md group-hover:shadow-primary/20">
-                  <DesAInRLogo className="animate-pulse-slow" />
-                </div>
-              </Link>
-            </div>
-
-            {/* Right section: Welcome and navigation */}
-            <div className="flex items-center gap-2 ml-auto md:ml-4 animate-fade-in">
-              {user && (
-                <div className="text-sm font-medium bg-gradient-to-r from-primary/20 to-secondary/20 px-4 py-1.5 rounded-full hidden md:flex items-center animate-fade-in shadow-sm">
-                  <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
-                    {welcomeMessageText}
-                  </span>
-                </div>
-              )}
-              <nav className="hidden md:flex items-center space-x-2 animate-fade-in">
+      
+      <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
                 {navItems.map((item, index) => (
-                  <div key={`nav-${index}`} className="animate-stagger" style={{ animationDelay: `${index * 100}ms` }}>
+          <React.Fragment key={`nav-${index}`}>
                     {renderNavItem(item, false)}
-                  </div>
+          </React.Fragment>
                 ))}
-              </nav>
-
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button 
@@ -359,7 +278,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     className="backdrop-blur-sm border border-border/20 shadow-sm hover:shadow-md hover:bg-primary/10 transition-all duration-300 ease-in-out" 
                     aria-label={srChangeLanguage}
                   >
-                    <Languages className="h-5 w-5 text-foreground/80 hover:text-primary transition-colors" />
+              <Languages className="h-6 w-6 text-foreground/80 hover:text-primary transition-colors" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="glass-panel backdrop-blur-md border-border/30 shadow-lg animate-fade-in">
@@ -389,64 +308,48 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 aria-label={srToggleTheme}
               >
                 {effectiveTheme === 'dark' ? 
-                  <Moon className="h-5 w-5 text-foreground/80 hover:text-primary transition-colors" /> : 
-                  <Sun className="h-5 w-5 text-foreground/80 hover:text-primary transition-colors" />}
+            <Moon className="h-6 w-6 text-foreground/80 hover:text-primary transition-colors" /> : 
+            <Sun className="h-6 w-6 text-foreground/80 hover:text-primary transition-colors" />}
               </Button>
             
-              <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
-                <SheetTrigger asChild>
+        {user && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
                   <Button 
                     variant="ghost" 
                     size="icon" 
                     rounded="full" 
                     glow
                     animate
-                    className="md:hidden backdrop-blur-sm border border-border/20 shadow-sm hover:shadow-md hover:bg-primary/10 transition-all duration-300 ease-in-out" 
-                    aria-label={srToggleMenu}
+                className="backdrop-blur-sm border border-border/20 shadow-sm hover:shadow-md hover:bg-primary/10 transition-all duration-300 ease-in-out"
                   >
-                    <span className="sr-only">{srMainMenu}</span>
-                    {isMobileSheetOpen ? <XIcon className="h-5 w-5" /> : <Menu className="h-5 w-5 text-foreground/80 hover:text-primary transition-colors" />}
+                <Avatar className="h-9 w-9">
+                  <AvatarImage src={user.photoURL || ''} alt={user.displayName || 'User'} />
+                  <AvatarFallback>
+                    <User className="h-6 w-6 text-foreground/80" />
+                  </AvatarFallback>
+                </Avatar>
                   </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="w-72 glass-panel backdrop-blur-lg border-r border-border/20 shadow-xl">
-                  <SheetHeader className="space-y-1 text-left">
-                    <SheetTitle className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
-                       {sheetTitle}
-                    </SheetTitle>
-                  </SheetHeader>
-                  <nav className="flex flex-col space-y-3 mt-8">
-                    {navItems.map((item, index) => (
-                      <div key={`mobile-nav-${index}`} className="animate-stagger" style={{ animationDelay: `${index * 150}ms` }}>
-                        {renderNavItem(item, true)}
-                      </div>
-                    ))}
-                  </nav>
-                </SheetContent>
-              </Sheet>
-            </div>
-          </>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="glass-panel backdrop-blur-md border-border/30 shadow-lg animate-fade-in">
+              <DropdownMenuItem 
+                asChild
+                className="transition-colors hover:text-primary hover:bg-primary/10"
+              >
+                <Link href="/profile">View Profile</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={async () => await signOut()}
+                className="transition-colors hover:text-primary hover:bg-primary/10"
+              >
+                Logout
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
-        {/* Modern, professional collapse/expand button */}
-        <div 
-          className={`absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-1/2 z-[60] transition-all duration-300 ${isHeaderCollapsed ? 'opacity-90' : 'opacity-70 hover:opacity-100'}`}
-        >
-          <Button 
-            variant="outline"
-            size="icon"
-            onClick={() => setIsHeaderCollapsed(prev => !prev)}
-            className={`h-6 w-10 rounded-full bg-background backdrop-blur-sm border border-border/50 shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out flex items-center justify-center group ${isHeaderCollapsed ? 'transform translate-y-1' : ''}`}
-            aria-label={isHeaderCollapsed ? "Expand header" : "Collapse header"}
-          >
-            <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <div className={`transition-all duration-300 ${isHeaderCollapsed ? "" : "transform rotate-180"}`}>
-                <ChevronDown size={15} className="text-foreground/80 group-hover:text-primary transition-colors" />
               </div>
-            </div>
-          </Button>
-        </div>
-      </header>
-      <main className="flex-1 flex flex-col overflow-hidden h-[calc(100dvh-var(--header-height))] w-full">
+
+      <main className="flex-1 flex flex-col overflow-y-auto">
         {children}
       </main>
 

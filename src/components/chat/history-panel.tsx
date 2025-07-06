@@ -1,11 +1,11 @@
 // src/components/chat/history-panel.tsx
 'use client';
 
-import type { ChatSessionMetadata } from '@/lib/types';
+import type { ChatSessionMetadata, ChatSession } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { PlusCircle, Trash2, MessageSquare, Loader2, XIcon, PencilIcon, CheckIcon, RefreshCw, GalleryHorizontal } from 'lucide-react';
+import { PlusCircle, Trash2, MessageSquare, Loader2, XIcon, PencilIcon, CheckIcon, RefreshCw, GalleryHorizontal, PanelLeftClose, Search, Edit, PanelLeftOpen, Image, X } from 'lucide-react';
 import MediaGallery from './media-gallery';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -30,6 +30,8 @@ import { cn } from '@/lib/utils';
 import { ChatHistoryItem } from './ChatHistoryItem';
 import logger from '@/lib/utils/logger';
 import eventDebouncer from '@/lib/utils/event-debouncer';
+import { DesAInRLogo } from '../icons/logo';
+import { ChatSearchDialog } from './chat-search-dialog';
 const { history: historyLogger, ui: uiLogger } = logger;
 
 // Custom hook for debounce
@@ -64,6 +66,9 @@ interface HistoryPanelProps {
   onRefreshHistory: (fromHistoryPanel?: boolean) => void;
   isAutoRefreshEnabled?: boolean;
   setAutoRefreshEnabled?: (enabled: boolean) => void;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
+  loadFullSession?: (sessionId: string) => Promise<ChatSession | null>;
 }
 
 export function HistoryPanel({
@@ -81,6 +86,9 @@ export function HistoryPanel({
   onRefreshHistory,
   isAutoRefreshEnabled,
   setAutoRefreshEnabled,
+  isCollapsed,
+  onToggleCollapse,
+  loadFullSession
 }: HistoryPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [animateItems, setAnimateItems] = useState(false);
@@ -89,11 +97,13 @@ export function HistoryPanel({
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editNameValue, setEditNameValue] = useState("");
   const [isMediaOpen, setIsMediaOpen] = useState(false);
+  const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [sessionBeingSelected, setSessionBeingSelected] = useState<string | null>(null);
   const initialRenderRef = useRef(true);
   const lastActiveSessionId = useRef<string | null>(activeSessionId);
   const [lastRenderedSessions, setLastRenderedSessions] = useState<ChatSessionMetadata[]>([]);
+  const [hasActiveHighlights, setHasActiveHighlights] = useState(false);
   
   // NEW: Add refs to prevent infinite loops
   const reloadHandledRef = useRef(false);
@@ -479,94 +489,327 @@ export function HistoryPanel({
     };
   }, [onRefreshHistory, activeSessionId, isLoading, isAutoRefreshEnabled]);
 
-  return (
-    <div className={cn("flex h-full flex-col bg-gradient-to-b from-background-start-hsl to-background-end-hsl", className)}>
-      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-primary/10 to-secondary/10 backdrop-blur-sm border-b animate-fade-in shadow-md">
-        <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold text-gradient">Chat History</h2>
+  // Function to handle opening the search dialog
+  const handleOpenSearchDialog = () => {
+    setIsSearchDialogOpen(true);
+  };
+
+  // Function to clear search highlights
+  const handleClearSearchHighlights = () => {
+    const event = new CustomEvent('clear-search-highlights');
+    window.dispatchEvent(event);
+    setHasActiveHighlights(false);
+  };
+
+  // Handle session selection from search dialog with search query
+  const handleSearchSessionSelect = (sessionId: string, searchQuery?: string) => {
+    onSelectSession(sessionId);
+    
+    // Dispatch a custom event to highlight search terms in the chat
+    if (searchQuery && searchQuery.trim()) {
+      const event = new CustomEvent('highlight-search-terms', {
+        detail: { searchQuery: searchQuery.trim() }
+      });
+      window.dispatchEvent(event);
+      setHasActiveHighlights(true);
+    }
+  };
+
+  // Default loadFullSession implementation if not provided
+  const defaultLoadFullSession = async (sessionId: string): Promise<ChatSession | null> => {
+    console.warn('loadFullSession not provided to HistoryPanel');
+    return null;
+  };
+
+  const effectiveLoadFullSession = loadFullSession || defaultLoadFullSession;
+
+  // Check for active highlights on mount
+  useEffect(() => {
+    try {
+      const savedQuery = localStorage.getItem('desainr_search_query');
+      if (savedQuery) {
+        setHasActiveHighlights(true);
+      }
+    } catch (error) {
+      console.error('Error checking localStorage for search query:', error);
+    }
+  }, []);
+
+  if (isCollapsed) {
+    return (
+      <div className={cn(
+        "flex flex-col h-full border-r border-border/50 bg-sidebar shadow-sm transition-all duration-300 relative overflow-hidden",
+        "w-[60px] min-w-[60px]",
+        className
+      )}>
+        {/* Logo with unfold button on hover */}
+        <div className="px-3 pt-3 pb-2 relative">
+          <div className="w-full h-10 flex items-center justify-center relative group">
+            <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent opacity-50 rounded-md"></div>
+            <div className="opacity-100 group-hover:opacity-0 transition-opacity duration-200 flex items-center justify-center absolute inset-0">
+              <DesAInRLogo className="h-6 w-6 text-primary/80" />
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+              onClick={onToggleCollapse}
+              title="Expand sidebar"
+            >
+              <PanelLeftOpen className="h-5 w-5 text-primary" />
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        
+        {/* New Chat Button */}
+        <div className="px-3 pt-4 pb-2">
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setIsMediaOpen(true)}
-            title="Media"
-            className="hover:bg-primary/10 hover:text-primary transition-colors duration-300 rounded-full shadow-sm hover:shadow-md btn-glow"
+            className="w-full h-10 flex items-center justify-center border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors"
+            onClick={onNewChat}
+            title="New Chat"
           >
-            <GalleryHorizontal className="h-5 w-5" />
+            <PlusCircle className="h-5 w-5 text-primary/80" />
           </Button>
         </div>
+        
+        {/* Gallery Button */}
+        <div className="px-3 pb-2">
+          <Button
+            variant="outline"
+            size="icon"
+            className="w-full h-10 flex items-center justify-center border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors"
+            onClick={() => setIsMediaOpen(true)}
+            title="Media Gallery"
+          >
+            <Image className="h-5 w-5 text-primary/80" />
+          </Button>
+        </div>
+        
+        {/* Search Button */}
+        <div className="px-3 pb-2">
+          <Button
+            variant="outline"
+            size="icon"
+            className="w-full h-10 flex items-center justify-center border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors"
+            onClick={handleOpenSearchDialog}
+            title="Search Chats"
+          >
+            <Search className="h-5 w-5 text-primary/80" />
+          </Button>
+        </div>
+        
+        {/* Clear Highlights Button - Only shown when search has been performed */}
+        {hasActiveHighlights && (
+          <div className="px-3 pb-2">
+            <Button
+              variant="outline"
+              size="icon"
+              className="w-full h-10 flex items-center justify-center border-destructive/20 bg-destructive/5 hover:bg-destructive/10 transition-colors"
+              onClick={handleClearSearchHighlights}
+              title="Clear Search Highlights"
+            >
+              <X className="h-5 w-5 text-destructive/80" />
+            </Button>
+          </div>
+        )}
+        
+        {/* Media Gallery Dialog */}
+        <MediaGallery
+          open={isMediaOpen}
+          onOpenChange={setIsMediaOpen}
+        />
+        
+        {/* Search Dialog */}
+        <ChatSearchDialog
+          isOpen={isSearchDialogOpen}
+          onClose={() => setIsSearchDialogOpen(false)}
+          sessions={sessions}
+          onSelectSession={handleSearchSessionSelect}
+          loadFullSession={effectiveLoadFullSession}
+        />
       </div>
-      <div className="relative animate-slide-in-right" style={{animationDelay: '0.1s'}}>
+    );
+  }
+
+  return (
+    <div className={cn("flex h-full flex-col border-r", className)}
+      style={{ 
+        background: 'linear-gradient(to bottom, hsl(var(--sidebar-background)), hsl(var(--sidebar-background) / 0.95))',
+        borderColor: 'hsl(var(--sidebar-border))'
+      }}>
+      <div className="flex items-center justify-between p-3 border-b animate-fade-in shadow-md"
+        style={{ 
+          background: 'linear-gradient(to right, hsl(var(--sidebar-primary) / 0.1), hsl(var(--sidebar-accent) / 0.1))',
+          backdropFilter: 'blur(8px)',
+          borderColor: 'hsl(var(--sidebar-border))'
+        }}>
+        <div className="flex items-center">
+          <DesAInRLogo width={30} height={30} className="mr-2" />
+          <h1 className="text-xl font-semibold text-gradient">DesAInR</h1>
+        </div>
+        <Button variant="ghost" size="icon" onClick={onToggleCollapse} 
+          className="h-8 w-8 hover:bg-transparent"
+          style={{ color: 'hsl(var(--sidebar-foreground) / 0.7)' }}>
+          <PanelLeftClose className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <div className="px-3 py-4">
+        <Button variant="outline" className="w-full justify-start gap-2 border-0"
+          style={{ 
+            color: 'hsl(var(--sidebar-foreground) / 0.8)',
+            borderColor: 'hsl(var(--sidebar-border))'
+          }}
+          onClick={onNewChat}>
+          <PlusCircle className="h-4 w-4" />
+          <span>New Chat</span>
+        </Button>
+      </div>
+      
+      {/* Gallery Button */}
+      <div className="px-3 pb-2">
+        <Button 
+          variant="outline" 
+          className="w-full justify-start gap-2 border-0"
+          style={{ 
+            color: 'hsl(var(--sidebar-foreground) / 0.8)',
+            borderColor: 'hsl(var(--sidebar-border))'
+          }}
+          onClick={() => setIsMediaOpen(true)}
+        >
+          <Image className="h-4 w-4" />
+          <span>Gallery</span>
+        </Button>
+      </div>
+
+      {/* Clear Search Highlights Button - Only shown when search has been performed */}
+      {hasActiveHighlights && (
+        <div className="px-3 pb-2">
+          <Button 
+            variant="outline" 
+            className="w-full justify-start gap-2 border border-primary/20 bg-primary/5"
+            onClick={handleClearSearchHighlights}
+          >
+            <X className="h-4 w-4" />
+            <span>Clear Highlights</span>
+          </Button>
+        </div>
+      )}
+
+      <div className="relative px-3 pb-4 animate-slide-in-right" style={{animationDelay: '0.1s'}}>
         <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" 
+            style={{ color: 'hsl(var(--sidebar-foreground) / 0.5)' }} />
           <Input
             ref={searchInputRef}
+            placeholder="Search chats..."
+            className="w-full pl-9 rounded-md border-x-0 focus-visible:ring-1 focus-visible:ring-offset-0 transition-all duration-300 backdrop-blur-sm"
+            style={{ 
+              backgroundColor: 'hsl(var(--card) / 0.4)',
+              borderColor: 'hsl(var(--sidebar-border))',
+              color: 'hsl(var(--sidebar-foreground))'
+            }}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-none border-x-0 focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:ring-offset-0 transition-all duration-300 bg-card/40 backdrop-blur-sm"
-            placeholder="Search chats..."
+            onFocus={handleOpenSearchDialog}
           />
           {searchQuery && (
             <Button
               variant="ghost"
               size="icon"
-              className="absolute right-1 top-1/2 h-6 w-6 -translate-y-1/2 transition-all duration-200 hover:bg-destructive/10 hover:text-destructive rounded-full"
+              className="absolute right-1 top-1/2 h-6 w-6 -translate-y-1/2 transition-all duration-200 rounded-full"
+              style={{ 
+                color: 'hsl(var(--sidebar-foreground) / 0.7)'
+              }}
               onClick={() => setSearchQuery("")}
             >
               <XIcon className="h-3 w-3" />
             </Button>
           )}
         </div>
-        
-        <div className="absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-primary/5 via-primary/30 to-primary/5"></div>
+        <div className="absolute inset-x-0 bottom-0 h-[1px]" 
+          style={{ 
+            background: 'linear-gradient(to right, hsl(var(--sidebar-primary) / 0.05), hsl(var(--sidebar-primary) / 0.3), hsl(var(--sidebar-primary) / 0.05))' 
+          }}></div>
       </div>
-      
-      {isLoading && (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="glass-panel p-6 rounded-full shadow-lg animate-pulse-slow">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        </div>
-      )}
 
-      {!isLoading && displayedSessions.length === 0 && (
-        <div className="flex h-full flex-col items-center justify-center p-4 text-center text-muted-foreground animate-fade-in" style={{animationDelay: '0.2s'}}>
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-sm animate-pulse-slow shadow-lg">
-            <MessageSquare className="h-10 w-10 text-primary" />
-          </div>
-          <h3 className="mt-4 text-lg font-semibold text-gradient">No chats found</h3>
-          <p className="mt-2 text-sm">
-            {searchQuery ? "Try a different search term" : "Start a new chat to get started"}
-          </p>
-          <Button 
-            variant="outline" 
-            className="mt-6 rounded-full bg-gradient-to-r from-primary/10 to-secondary/10 hover:from-primary/20 hover:to-secondary/20 shadow-md btn-glow"
-            onClick={onNewChat}
-          >
-            <PlusCircle className="h-4 w-4 mr-2" /> New Chat
-          </Button>
-        </div>
-      )}
-
-      {!isLoading && displayedSessions.length > 0 && (
-        <ScrollArea className="flex-1 overflow-y-auto relative" style={{ height: 'calc(100vh - 160px)', minHeight: '200px' }}>
-          <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-primary/5 via-primary/20 to-primary/5"></div>
-          <div className="px-3 py-2 space-y-2 pb-10">
-            {displayedSessions.map((session, index) => (
-              <ChatHistoryItem
+      <ScrollArea className="flex-1 px-2">
+        <div className="flex flex-col gap-1 pb-4">
+          {isLoading && displayedSessions.length === 0 ? (
+            [...Array(5)].map((_, i) => (
+              <div key={i} className="h-16 w-full animate-pulse rounded-md" 
+                style={{ backgroundColor: 'hsl(var(--sidebar-foreground) / 0.1)' }} />
+            ))
+          ) : (
+            displayedSessions.map((session, index) => (
+              <div
                 key={session.id}
-                session={session}
-                isActive={session.id === activeSessionId}
-                onClick={handleSessionSelect}
-                onDelete={onDeleteSession}
-                onRename={onRenameSession}
-              />
-            ))}
-          </div>
-        </ScrollArea>
-      )}
-      {/* Media Gallery Dialog */}
+                className={cn(
+                  "group relative flex flex-col rounded-md px-3 py-2 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 animate-fade-in",
+                  activeSessionId === session.id
+                    ? "text-primary"
+                    : "",
+                )}
+                style={{ 
+                  backgroundColor: activeSessionId === session.id ? 'hsl(var(--sidebar-primary) / 0.1)' : 'transparent',
+                  color: activeSessionId === session.id ? 'hsl(var(--sidebar-primary))' : 'hsl(var(--sidebar-foreground) / 0.8)',
+                  animationDelay: `${index * 0.05}s`,
+                  '--ring-color': 'hsl(var(--sidebar-ring))'
+                } as React.CSSProperties}
+                onClick={() => handleSessionSelect(session.id)}
+                tabIndex={0}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span className="truncate font-medium">{session.name || session.preview}</span>
+                  <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-transparent"
+                          style={{ 
+                            color: 'hsl(var(--sidebar-foreground) / 0.6)'
+                          }}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete this chat session.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => onDeleteSession(session.id)}>
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+                <div className="flex items-center text-xs mt-1" 
+                  style={{ color: 'hsl(var(--sidebar-foreground) / 0.5)' }}>
+                  <span>{session.messageCount} msg</span>
+                  <span className="mx-1">•</span>
+                  <span>about {formatDistanceToNow(new Date(session.lastMessageTimestamp), { addSuffix: false })}</span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </ScrollArea>
+      
       <MediaGallery open={isMediaOpen} onOpenChange={setIsMediaOpen} />
+      <ChatSearchDialog 
+        isOpen={isSearchDialogOpen}
+        onClose={() => setIsSearchDialogOpen(false)}
+        sessions={sessions}
+        onSelectSession={handleSearchSessionSelect}
+        loadFullSession={effectiveLoadFullSession}
+      />
     </div>
   );
 }

@@ -372,3 +372,780 @@ https://nextjs.org/docs/messages/module-not-found
 
 > Build failed because of webpack error
 
+Prompt:
+Make the icons and buttons a little bigger and closer, I mean reduce the gap between the buttons.
+
+Prompt:
+I want to completely remove the header bar, but just keep the app name, the buttons, and profile icon or image. Everything, just remove the header bar and make it full space of the context space of the chat as like ChatGPT or other chat AI.
+
+Prompt:
+I can see you just removed the background color. But I want the buttons are not keeping some space in their background. I want they will be completely floating. And the main chat interface and context can be behind them. I hope you understand what I am talking about.
+
+Prompt:
+I can see still same everything. So first, remove the collapse button where using the user can fold and unfold the header bar. And so, first, remove the fold and unfold button, the arrow button, and make it everything will be folded. That's mean, remove the completely total header section. But keep the buttons as floating. I hope you understand.
+
+Prompt:
+You remove the collapse button, but still I can see the header section is there. So, first please remove the header section completely.
+
+Prompt:
+Now add the profile button. I button. Language changing button and theme changing button. Add in the top right corner as a floating button. No background. Keep the background transparent. And it will not make any section. It will be completely react as a floating button.
+
+Prompt:
+Now I can see there is a big bottom section. Nothing showing in the bottom section. It's just showing black. So, I remove it. So again, remove the bottom section completely.
+
+Prompt:
+Still, the bottom section is not removed. Please analyze the code properly and remove it.
+
+Prompt:
+stop
+
+
+Prompt:
+nothing changed
+
+
+Prompt:
+ReferenceError: isFooterCollapsed is not defined
+    at ChatPage (http://localhost:9003/_next/static/chunks/src_app_page_tsx_b025fed5._.js:422:9)
+    at ClientPageRoot (http://localhost:9003/_next/static/chunks/node_modules_next_dist_1a6ee436._.js:2053:50)
+
+Prompt:
+stop
+
+
+Prompt:
+stopIn the top, or in the header of the main area of the main UI of the app, there everything is fit, but in the bottom section of the chat interface, I can see there is a blank, very big area. So, make it everything fit in the top and in the bottom, in both sections.
+
+Prompt:
+Okay great it works now. 
+
+Prompt:
+add the name beside the button icon
+
+
+Prompt:
+Make a border or different color so user can identify the button section always. 
+
+Prompt:
+stop
+
+
+Prompt:
+Add the gallery button top of the search bar and link the gallery button to the gallery function, which now has the functionality in the app. So, search it and link to it.
+
+Prompt:
+Add the gallery button top of the search bar and link the gallery button to the gallery function, which now has the functionality in the app. So, search it and link to it.
+
+Prompt:
+Add the gallery button top of the search bar and link the gallery button to the gallery function, which now has the functionality in the app. So, search it and link to it.
+
+Prompt:
+I want the functionality of when the chat history section is folded. The functionality is when the mouse cursor is hovered over the logo (hover on the logo), then the logo will be converted as the unfold button, as like Chat GPT.
+
+Prompt:
+I want the functionality of when the chat history section is folded. The functionality is when the mouse cursor is hovered over the logo (hover on the logo), then the logo will be converted as the unfold button, as like Chat GPT.
+
+Prompt:
+I want the functionality of when the chat history section is folded. The functionality is when the mouse cursor is hovered over the logo (hover on the logo), then the logo will be converted as the unfold button, as like Chat GPT.
+
+Prompt:
+Now it's working as hover, but it's not clickable. So make it clickable and working.
+
+Prompt:
+Now it's working as hover, but it's not clickable. So make it clickable and working.
+
+Prompt:
+So, I can see now the chat history section, that's mean sidebar, chat history sidebar, are working just for dark mode. It's not working for light mode. So, make sure it has the light mode and dark mode both. And I can see the background color and the sidebar color, main background color of the main app UI, and the sidebar color doesn't match. So, make them match.
+
+Prompt:
+Okay, good. Now I can see the main UI section is too fitted to the left and right sides. So, on the left and right sides, keep some radius area so it looks professional.
+
+Prompt:
+Okay, good. Now I can see the main UI section is too fitted to the left and right sides. So, on the left and right sides, keep some radius area so it looks professional.
+
+Prompt:
+Now it is too much gap. Please reduce the gap more, many more.
+
+Prompt:
+Reduce the gap, left and right side, many many more. It's still too much gap between the two sides.
+
+Prompt:
+Reduce the gap, left and right side, many many more. It's still too much gap between the two sides.
+
+Prompt:
+still it too much gap. Also, make sure it will increase and decrease when the sidebar is folded or unfolded.
+
+Prompt:
+still it too much gap. Also, make sure it will increase and decrease when the sidebar is folded or unfolded.
+
+Prompt:
+stop
+
+Prompt:
+Now it has become as fast very fit. That means two fit. Please keep a very minimal gap between the left and right side. Very minimal.
+
+Prompt:
+Yes, now it's good, pretty good. Now I want the similar gap in the right side as well.
+
+Prompt:
+Yes, now it's good, pretty good. Now I want the similar gap in the right side as well.
+
+Prompt:
+Now, it's very well.
+So, now I want to focus on the sidebar again.
+I can see when it's unfolded, the new chat button not matching the style of other button.
+So, make sure the new chat button style, color, and things match the other buttons.
+
+Prompt:
+Now, it's very well.
+So, now I want to focus on the sidebar again.
+I can see when it's unfolded, the new chat button not matching the style of other button.
+So, make sure the new chat button style, color, and things match the other buttons.
+
+Prompt:
+Now I will work on the search button.
+So, match the color style to the other buttons.
+Also, when the user clicks on the search button, it will open a pop-up to search the history.
+And implement the logic of not only name search but also context search under the chat.
+
+Prompt:
+Now I will work on the search button.
+So, match the color style to the other buttons.
+Also, when the user clicks on the search button, it will open a pop-up to search the history.
+And implement the logic of not only name search but also context search under the chat.
+
+Prompt:
+Now I will work on the search button.
+So, match the color style to the other buttons.
+Also, when the user clicks on the search button, it will open a pop-up to search the history.
+And implement the logic of not only name search but also context search under the chat.
+
+Prompt:
+Error: Encountered two children with the same key, `1`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+    at createUnhandledError (http://localhost:9003/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js:879:71)
+    at handleClientError (http://localhost:9003/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js:1052:56)
+    at console.error (http://localhost:9003/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js:1191:56)
+    at http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:6688:33
+    at runWithFiberInDEV (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:3501:74)
+    at warnOnInvalidKey (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:6687:21)
+    at reconcileChildrenArray (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:6713:160)
+    at reconcileChildFibersImpl (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:6819:117)
+    at http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:6846:39
+    at reconcileChildren (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:7068:51)
+    at beginWork (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:7831:1573)
+    at runWithFiberInDEV (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:3501:74)
+    at performUnitOfWork (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:10168:97)
+    at workLoopSync (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:10060:40)
+    at renderRootSync (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:10043:13)
+    at performWorkOnRoot (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:9784:212)
+    at performWorkOnRootViaSchedulerTask (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:10796:9)
+    at MessagePort.performWorkUntilDeadline (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:1952:64)
+    at mark (<anonymous>)
+    at http://localhost:9003/_next/static/chunks/src_components_chat_d32a410a._.js:7744:236
+    at Array.map (<anonymous>)
+    at http://localhost:9003/_next/static/chunks/src_components_chat_d32a410a._.js:7742:31
+    at Array.flatMap (<anonymous>)
+    at http://localhost:9003/_next/static/chunks/src_components_chat_d32a410a._.js:7737:23
+    at Array.forEach (<anonymous>)
+    at highlightSearchTerms (http://localhost:9003/_next/static/chunks/src_components_chat_d32a410a._.js:7736:17)
+    at http://localhost:9003/_next/static/chunks/src_components_chat_d32a410a._.js:8015:63
+    at Array.map (<anonymous>)
+    at ChatSearchDialog (http://localhost:9003/_next/static/chunks/src_components_chat_d32a410a._.js:8006:53)
+    at HistoryPanel (http://localhost:9003/_next/static/chunks/src_components_chat_d32a410a._.js:9257:215)
+    at ChatPage (http://localhost:9003/_next/static/chunks/src_app_page_tsx_b025fed5._.js:3037:233)
+    at ClientPageRoot (http://localhost:9003/_next/static/chunks/node_modules_next_dist_1a6ee436._.js:2053:50)
+
+Prompt:
+Error: Encountered two children with the same key, `1`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+    at createUnhandledError (http://localhost:9003/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js:879:71)
+    at handleClientError (http://localhost:9003/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js:1052:56)
+    at console.error (http://localhost:9003/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js:1191:56)
+    at http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:6688:33
+    at runWithFiberInDEV (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:3501:74)
+    at warnOnInvalidKey (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:6687:21)
+    at reconcileChildrenArray (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:6713:160)
+    at reconcileChildFibersImpl (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:6819:117)
+    at http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:6846:39
+    at reconcileChildren (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:7068:51)
+    at beginWork (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:7831:1573)
+    at runWithFiberInDEV (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:3501:74)
+    at performUnitOfWork (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:10168:97)
+    at workLoopSync (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:10060:40)
+    at renderRootSync (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:10043:13)
+    at performWorkOnRoot (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:9784:212)
+    at performWorkOnRootViaSchedulerTask (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:10796:9)
+    at MessagePort.performWorkUntilDeadline (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:1952:64)
+    at mark (<anonymous>)
+    at http://localhost:9003/_next/static/chunks/src_components_chat_d32a410a._.js:7744:236
+    at Array.map (<anonymous>)
+    at http://localhost:9003/_next/static/chunks/src_components_chat_d32a410a._.js:7742:31
+    at Array.flatMap (<anonymous>)
+    at http://localhost:9003/_next/static/chunks/src_components_chat_d32a410a._.js:7737:23
+    at Array.forEach (<anonymous>)
+    at highlightSearchTerms (http://localhost:9003/_next/static/chunks/src_components_chat_d32a410a._.js:7736:17)
+    at http://localhost:9003/_next/static/chunks/src_components_chat_d32a410a._.js:8015:63
+    at Array.map (<anonymous>)
+    at ChatSearchDialog (http://localhost:9003/_next/static/chunks/src_components_chat_d32a410a._.js:8006:53)
+    at HistoryPanel (http://localhost:9003/_next/static/chunks/src_components_chat_d32a410a._.js:9257:215)
+    at ChatPage (http://localhost:9003/_next/static/chunks/src_app_page_tsx_b025fed5._.js:3037:233)
+    at ClientPageRoot (http://localhost:9003/_next/static/chunks/node_modules_next_dist_1a6ee436._.js:2053:50)
+
+Prompt:
+So, make it more professional. And when a user searches for a thing, it will show a short view of the context (wher it is) in the search popup, in somewhere Also, it will remember the previous search also. Also, when user click on a chat, it will Enter the chat and highlighted the searched keyword or searched text.
+
+Prompt:
+So, make it more professional. And when a user searches for a thing, it will show a short view of the context (wher it is) in the search popup, in somewhere Also, it will remember the previous search also. Also, when user click on a chat, it will Enter the chat and highlighted the searched keyword or searched text.
+
+Prompt:
+I don't think you understand what I mean about highlighted. I mean, when the user opens a chat from the search, it will show some effect, like zoom in, zoom out, something like that, or highlight the part he was looking for. And in the search page, it will find the exact part where is the text being looked for, and it will highlight that part in the pop-up UI. I hope it's now clear.
+
+Prompt:
+I don't think you understand what I mean about highlighted. I mean, when the user opens a chat from the search, it will show some effect, like zoom in, zoom out, something like that, or highlight the part he was looking for. And in the search page, it will find the exact part where is the text being looked for, and it will highlight that part in the pop-up UI. I hope it's now clear.
+
+Prompt:
+Still not working properly.
+
+Prompt:
+Still not working properly.
+
+Prompt:
+Still not working properly.
+
+Prompt:
+Still not working properly.
+
+Prompt:
+[{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @tailwind",
+	"source": "css",
+	"startLineNumber": 1,
+	"startColumn": 1,
+	"endLineNumber": 1,
+	"endColumn": 10,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @tailwind",
+	"source": "css",
+	"startLineNumber": 2,
+	"startColumn": 1,
+	"endLineNumber": 2,
+	"endColumn": 10,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @tailwind",
+	"source": "css",
+	"startLineNumber": 3,
+	"startColumn": 1,
+	"endLineNumber": 3,
+	"endColumn": 10,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @apply",
+	"source": "css",
+	"startLineNumber": 254,
+	"startColumn": 5,
+	"endLineNumber": 254,
+	"endColumn": 11,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @apply",
+	"source": "css",
+	"startLineNumber": 257,
+	"startColumn": 5,
+	"endLineNumber": 257,
+	"endColumn": 11,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @apply",
+	"source": "css",
+	"startLineNumber": 266,
+	"startColumn": 5,
+	"endLineNumber": 266,
+	"endColumn": 11,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @apply",
+	"source": "css",
+	"startLineNumber": 346,
+	"startColumn": 3,
+	"endLineNumber": 346,
+	"endColumn": 9,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @apply",
+	"source": "css",
+	"startLineNumber": 350,
+	"startColumn": 3,
+	"endLineNumber": 350,
+	"endColumn": 9,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @apply",
+	"source": "css",
+	"startLineNumber": 354,
+	"startColumn": 3,
+	"endLineNumber": 354,
+	"endColumn": 9,
+	"modelVersionId": 17
+}]
+
+Prompt:
+[{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @tailwind",
+	"source": "css",
+	"startLineNumber": 1,
+	"startColumn": 1,
+	"endLineNumber": 1,
+	"endColumn": 10,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @tailwind",
+	"source": "css",
+	"startLineNumber": 2,
+	"startColumn": 1,
+	"endLineNumber": 2,
+	"endColumn": 10,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @tailwind",
+	"source": "css",
+	"startLineNumber": 3,
+	"startColumn": 1,
+	"endLineNumber": 3,
+	"endColumn": 10,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @apply",
+	"source": "css",
+	"startLineNumber": 254,
+	"startColumn": 5,
+	"endLineNumber": 254,
+	"endColumn": 11,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @apply",
+	"source": "css",
+	"startLineNumber": 257,
+	"startColumn": 5,
+	"endLineNumber": 257,
+	"endColumn": 11,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @apply",
+	"source": "css",
+	"startLineNumber": 266,
+	"startColumn": 5,
+	"endLineNumber": 266,
+	"endColumn": 11,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @apply",
+	"source": "css",
+	"startLineNumber": 346,
+	"startColumn": 3,
+	"endLineNumber": 346,
+	"endColumn": 9,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @apply",
+	"source": "css",
+	"startLineNumber": 350,
+	"startColumn": 3,
+	"endLineNumber": 350,
+	"endColumn": 9,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @apply",
+	"source": "css",
+	"startLineNumber": 354,
+	"startColumn": 3,
+	"endLineNumber": 354,
+	"endColumn": 9,
+	"modelVersionId": 17
+}]
+
+Prompt:
+[{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @tailwind",
+	"source": "css",
+	"startLineNumber": 1,
+	"startColumn": 1,
+	"endLineNumber": 1,
+	"endColumn": 10,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @tailwind",
+	"source": "css",
+	"startLineNumber": 2,
+	"startColumn": 1,
+	"endLineNumber": 2,
+	"endColumn": 10,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @tailwind",
+	"source": "css",
+	"startLineNumber": 3,
+	"startColumn": 1,
+	"endLineNumber": 3,
+	"endColumn": 10,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @apply",
+	"source": "css",
+	"startLineNumber": 254,
+	"startColumn": 5,
+	"endLineNumber": 254,
+	"endColumn": 11,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @apply",
+	"source": "css",
+	"startLineNumber": 257,
+	"startColumn": 5,
+	"endLineNumber": 257,
+	"endColumn": 11,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @apply",
+	"source": "css",
+	"startLineNumber": 266,
+	"startColumn": 5,
+	"endLineNumber": 266,
+	"endColumn": 11,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @apply",
+	"source": "css",
+	"startLineNumber": 346,
+	"startColumn": 3,
+	"endLineNumber": 346,
+	"endColumn": 9,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @apply",
+	"source": "css",
+	"startLineNumber": 350,
+	"startColumn": 3,
+	"endLineNumber": 350,
+	"endColumn": 9,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @apply",
+	"source": "css",
+	"startLineNumber": 354,
+	"startColumn": 3,
+	"endLineNumber": 354,
+	"endColumn": 9,
+	"modelVersionId": 17
+}]
+
+Prompt:
+Fix the errors on globals.css file:
+
+[{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @tailwind",
+	"source": "css",
+	"startLineNumber": 1,
+	"startColumn": 1,
+	"endLineNumber": 1,
+	"endColumn": 10,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @tailwind",
+	"source": "css",
+	"startLineNumber": 2,
+	"startColumn": 1,
+	"endLineNumber": 2,
+	"endColumn": 10,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @tailwind",
+	"source": "css",
+	"startLineNumber": 3,
+	"startColumn": 1,
+	"endLineNumber": 3,
+	"endColumn": 10,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @apply",
+	"source": "css",
+	"startLineNumber": 254,
+	"startColumn": 5,
+	"endLineNumber": 254,
+	"endColumn": 11,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @apply",
+	"source": "css",
+	"startLineNumber": 257,
+	"startColumn": 5,
+	"endLineNumber": 257,
+	"endColumn": 11,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @apply",
+	"source": "css",
+	"startLineNumber": 266,
+	"startColumn": 5,
+	"endLineNumber": 266,
+	"endColumn": 11,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @apply",
+	"source": "css",
+	"startLineNumber": 346,
+	"startColumn": 3,
+	"endLineNumber": 346,
+	"endColumn": 9,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @apply",
+	"source": "css",
+	"startLineNumber": 350,
+	"startColumn": 3,
+	"endLineNumber": 350,
+	"endColumn": 9,
+	"modelVersionId": 17
+},{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @apply",
+	"source": "css",
+	"startLineNumber": 354,
+	"startColumn": 3,
+	"endLineNumber": 354,
+	"endColumn": 9,
+	"modelVersionId": 17
+}]
+
+Prompt:
+still not fixed:
+
+[{
+	"resource": "/e:/App/DesAInR/studio/src/app/globals.css",
+	"owner": "_generated_diagnostic_collection_name_#3",
+	"code": "unknownAtRules",
+	"severity": 4,
+	"message": "Unknown at rule @tailwind",
+	"source": "css",
+	"startLineNumber": 6,
+	"startColumn": 1,
+	"endLineNumber": 6,
+	"endColumn": 10,
+	"modelVersionId": 19
+}]
+
+Prompt:
+So I found the problem. So when it's open for a millisecond or a second, it shows the keyword or text what for searching are selected, that means highlighted. And instantly it refreshes the page and the highlighted parts vanish. So make sure when it is searching then it will refresh the full app, or the search or the chat history. And when entering the set, it will not refresh. Or if it refreshes one time, it brings back the mark, which means the highlighted part, as before.
+
+Prompt:
+Now I can see, when I search and enter on it, there is no selected area showing, that means highlighted area is showing. But when I search again and open a new page or this page again, then for a second or millisecond, showing the highlighted part and as usual, it vanishes when the new page is opened. I mean, new chat is opened.
+
+Prompt:
+Now I can see, when I search and enter on it, there is no selected area showing, that means highlighted area is showing. But when I search again and open a new page or this page again, then for a second or millisecond, showing the highlighted part and as usual, it vanishes when the new page is opened. I mean, new chat is opened.
+
+Prompt:
+Okay, now I am focusing on reordering the buttons for when it is folded. First, logo or fold unfold button, then new chat, then gallery, then search. I hope you understand.
+
+Prompt:
+Okay, now I am focusing on reordering the buttons for when it is folded. First, logo or fold unfold button, then new chat, then gallery, then search. I hope you understand.
+
+Prompt:
+Okay, now I am focusing on reordering the buttons for when it is folded. First, logo or fold unfold button, then new chat, then gallery, then search. I hope you understand.
+
+Prompt:
+Back the gallery back icon as before, as like real gallery icon. And I can see when I hover to the logo, now it moves slightly left, not centered. And on the back of it, showing the logo. So, when I will hover on the logo, it will completely hide the logo and show just the expand icon as before. Please fix it.
+
+Prompt:
+Back the gallery back icon as before, as like real gallery icon. And I can see when I hover to the logo, now it moves slightly left, not centered. And on the back of it, showing the logo. So, when I will hover on the logo, it will completely hide the logo and show just the expand icon as before. Please fix it.
+
+Prompt:
+Okay, great. But still I can see the expand icon not in the same alignment of the other buttons. So fix it.
+
+Prompt:
+Okay, great. But still I can see the expand icon not in the same alignment of the other buttons. So fix it.
+
+Prompt:
+Now I need to focus on the text or user input box on the bottom of the main app UI. I can see it's completely fit to the left and right right side. But as I said before, it will be just in a short area and in the middle of the app. Not cover full and it will not fully fit to the left and right side. It will be center with your with its required area to fit all the button in the area. That's all.
+
+Prompt:
+Now I need to focus on the text or user input box on the bottom of the main app UI. I can see it's completely fit to the left and right right side. But as I said before, it will be just in a short area and in the middle of the app. Not cover full and it will not fully fit to the left and right side. It will be center with your with its required area to fit all the button in the area. That's all.
+
+Prompt:
+Background of the input box.
+I mean, the button area and the other area
+which is connected to the input box and the buttons, control buttons.
+That means input box and control button area still fit to the left and right side.
+And nothing changed on it.
+
+Prompt:
+Background of the input box.
+I mean, the button area and the other area
+which is connected to the input box and the buttons, control buttons.
+That means input box and control button area still fit to the left and right side.
+And nothing changed on it.
+
+Prompt:
+stop
+
+Prompt:
+stop
+
+Prompt:
+Okay great. Now increse the size of the input box, button aria and the glass effect arias so all buttons can be fit. Also please reduce the gap between the buttons. 
+
+Prompt:
+Okay great. Now increse the size of the input box, button aria and the glass effect arias so all buttons can be fit. Also please reduce the gap between the buttons. 
+
+Prompt:
+Increase the width a little bit and decrease the gap of the button a little bit. Just a little.
+
+Prompt:
+Increase the width a little bit and decrease the gap of the button a little bit. Just a little.
+
+Prompt:
+stop
+
+

@@ -88,8 +88,8 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="w-full h-full flex justify-center overflow-y-auto">
-      <div className="w-full max-w-4xl px-4 py-6">
+    <div className="w-full flex justify-center overflow-y-auto">
+      <div className="w-full max-w-4xl px-4">
         <Card className="mb-6">
           <CardHeader className="pb-4">
             <CardTitle className="text-2xl font-bold">User Profile</CardTitle>

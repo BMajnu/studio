@@ -12,12 +12,13 @@ interface FirebaseChatHistoryProps {
 
 export function FirebaseChatHistory({ activeSessionId, onSelectSession, onNewChat }: FirebaseChatHistoryProps) {
   const { 
-    sessions,
-    isLoading,
-    deleteSession,
+    sessions, 
+    isLoading, 
+    deleteSession, 
     isMigrationInProgress,
     migrationProgress,
-    syncWithFirebase
+    syncWithFirebase,
+    loadSession
   } = useFirebaseChat();
   
   // Add local state for auto-refresh
@@ -39,7 +40,7 @@ export function FirebaseChatHistory({ activeSessionId, onSelectSession, onNewCha
       });
     }
   };
-
+  
   const handleRenameSession = useCallback(async (sessionId: string, newName: string) => {
     toast({
       title: "Rename Operation",
@@ -47,7 +48,7 @@ export function FirebaseChatHistory({ activeSessionId, onSelectSession, onNewCha
     });
     return false;
   }, []);
-
+  
   const handleRefreshHistory = useCallback((forced = false) => {
     // Limit refresh frequency to prevent performance issues
     const now = Date.now();
@@ -81,6 +82,9 @@ export function FirebaseChatHistory({ activeSessionId, onSelectSession, onNewCha
         onRefreshHistory={handleRefreshHistory}
         isAutoRefreshEnabled={isAutoRefreshEnabled}
         setAutoRefreshEnabled={setAutoRefreshEnabled}
+        isCollapsed={false}
+        onToggleCollapse={() => {}}
+        loadFullSession={loadSession}
       />
       
       {isMigrationInProgress && (
