@@ -1,4 +1,7 @@
 ---
 deployment:
   tasks:
-    - /bin/echo "Deployment test successful. The .cpanel.yml file is valid." 
+    # On every deployment, we forcefully remove everything that our smart launcher
+    # script will regenerate. This ensures a completely fresh start. This includes
+    # the global and local node_modules, the .next build folder, old logs, and lock files.
+    - /bin/rm -rf /home/desainrs/nodevenv/repositories/studio/20/lib/node_modules node_modules .next npm_install.log package-lock.json 
