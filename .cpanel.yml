@@ -4,14 +4,18 @@
 ---
 deployment:
   tasks:
-    # Install npm dependencies and redirect all output (stdout and stderr) to a log file.
-    # This captures the detailed error message when the cPanel UI hides it.
+    # Forcefully clean the npm cache to resolve potential corruption.
+    - /bin/npm cache clean --force
+
+    # Remove the existing node_modules and package-lock.json to ensure a completely clean install.
+    - /bin/rm -rf node_modules package-lock.json
+
+    # Install npm dependencies and log the output for debugging.
     - /bin/npm install --production=false > npm_install.log 2>&1
 
     # Build the Next.js application for production.
     - /bin/npm run build
 
-    # Restart the Phusion Passenger server (if used by the cPanel Node.js setup).
-    # This is done by creating/touching the restart.txt file in the tmp directory.
+    # Restart the Phusion Passenger server.
     - /bin/mkdir -p tmp
     - /bin/touch tmp/restart.txt 
