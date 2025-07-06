@@ -27,7 +27,7 @@ alwaysApply: true
 
    * Based on the input, perform the next set of tasks.
 
-   * Repeat the process.
+   * Repeat the process. If it fails/shows error or terminate without any user input then run it again. Don't try to solve error/problems.
 
 3. **Exit Condition**:
 
