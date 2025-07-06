@@ -42,6 +42,23 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  webpack(config) {
+    // Suppress warnings triggered by dynamic requires in 3rd-party libs we cannot control.
+    config.ignoreWarnings = [
+      // @opentelemetry/instrumentation: dynamic dependency expression
+      {
+        module: /@opentelemetry[\\/]instrumentation/,
+        message: /Critical dependency: the request of a dependency is an expression/,
+      },
+      // handlebars: require.extensions usage
+      {
+        module: /handlebars[\\/]lib[\\/]index\.js/,
+        message: /require\.extensions is not supported by webpack/,
+      },
+    ];
+
+    return config;
+  },
 };
 
 module.exports = nextConfig;
