@@ -473,20 +473,20 @@ export default function ChatPage() {
       // Prevent re-running if a session for the current user is already loaded,
       // unless this is the very first attempt for this userIdForHistory.
       if (initialSessionLoadAttemptedRef.current && currentSession && currentSession.userId === userIdForHistory) {
-        console.log("ChatPage: loadOrCreateSession - Session already active and initialized for user, skipping redundant load.", userIdForHistory);
+        // console.log("ChatPage: loadOrCreateSession - Session already active and initialized for user, skipping redundant load.", userIdForHistory);
         return;
       }
       initialSessionLoadAttemptedRef.current = true;
 
 
-      console.log(`ChatPage: loadOrCreateSession - Running for user ${userIdForHistory}. History Meta Count: ${historyMetadata.length}`);
+      // console.log(`ChatPage: loadOrCreateSession - Running for user ${userIdForHistory}. History Meta Count: ${historyMetadata.length}`);
 
       const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + userIdForHistory;
       let lastActiveSessionId = null;
       
       try {
         lastActiveSessionId = localStorage.getItem(lastActiveSessionIdKey);
-        console.log(`ChatPage: loadOrCreateSession - Last active session ID from localStorage: ${lastActiveSessionId || 'none'}`);
+        // console.log(`ChatPage: loadOrCreateSession - Last active session ID from localStorage: ${lastActiveSessionId || 'none'}`);
       } catch (error) {
         console.error(`ChatPage: loadOrCreateSession - Error reading last active session ID:`, error);
       }
@@ -494,30 +494,31 @@ export default function ChatPage() {
       let sessionToLoad: ChatSession | null = null;
 
       if (lastActiveSessionId && lastActiveSessionId.startsWith(userIdForHistory + '_')) {
-        console.log(`ChatPage: loadOrCreateSession - Attempting to load last active session ${lastActiveSessionId}`);
+        // console.log(`ChatPage: loadOrCreateSession - Attempting to load last active session ${lastActiveSessionId}`);
         
         try {
           sessionToLoad = await getSession(lastActiveSessionId); // getSession now depends on historyMetadata being loaded
           
           if (sessionToLoad) {
-            console.log(`ChatPage: loadOrCreateSession - Successfully loaded session ${lastActiveSessionId}`);
+            // console.log(`ChatPage: loadOrCreateSession - Successfully loaded session ${lastActiveSessionId}`);
           } else {
-            console.warn(`ChatPage: loadOrCreateSession - Last active session ID ${lastActiveSessionId} not found by getSession`);
+            // console.warn(`ChatPage: loadOrCreateSession - Last active session ID ${lastActiveSessionId} not found by getSession`);
           }
         } catch (error) {
           console.error(`ChatPage: loadOrCreateSession - Error loading session ${lastActiveSessionId}:`, error);
         }
 
         if (sessionToLoad && sessionToLoad.userId !== userIdForHistory) {
-          console.warn(`ChatPage: loadOrCreateSession - Loaded session ${lastActiveSessionId} for wrong user. Discarding.`);
+          // console.warn(`ChatPage: loadOrCreateSession - Loaded session ${lastActiveSessionId} for wrong user. Discarding.`);
           sessionToLoad = null;
           try {
             localStorage.removeItem(lastActiveSessionIdKey);
+            console.error(`ChatPage: loadOrCreateSession - Error removing invalid session ID:`, error);
           } catch (error) {
             console.error(`ChatPage: loadOrCreateSession - Error removing invalid session ID:`, error);
           }
         } else if (!sessionToLoad && lastActiveSessionId) {
-           console.warn(`ChatPage: loadOrCreateSession - Last active session ID ${lastActiveSessionId} from LS not found by getSession or is invalid. Clearing LS key.`);
+           // console.warn(`ChatPage: loadOrCreateSession - Last active session ID ${lastActiveSessionId} from LS not found by getSession or is invalid. Clearing LS key.`);
            try {
              localStorage.removeItem(lastActiveSessionIdKey);
            } catch (error) {
@@ -525,7 +526,7 @@ export default function ChatPage() {
            }
         }
       } else if (lastActiveSessionId) {
-        console.warn(`ChatPage: loadOrCreateSession - lastActiveSessionId ${lastActiveSessionId} does not match user ${userIdForHistory}. Clearing LS key.`);
+        // console.warn(`ChatPage: loadOrCreateSession - lastActiveSessionId ${lastActiveSessionId} does not match user ${userIdForHistory}. Clearing LS key.`);
         try {
           localStorage.removeItem(lastActiveSessionIdKey);
         } catch (error) {
@@ -535,21 +536,22 @@ export default function ChatPage() {
 
       // Try to load from history if last active session wasn't found
       if (!sessionToLoad && historyMetadata.length > 0) {
-        console.log(`ChatPage: loadOrCreateSession - Last active session not found, trying most recent from history (${historyMetadata.length} sessions available)`);
+        // console.log(`ChatPage: loadOrCreateSession - Last active session not found, trying most recent from history (${historyMetadata.length} sessions available)`);
         // Sort by lastMessageTimestamp to get the most recent session
         const sortedHistory = [...historyMetadata].sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
         
         if (sortedHistory.length > 0) {
           const mostRecentSessionId = sortedHistory[0].id;
-          console.log(`ChatPage: loadOrCreateSession - Attempting to load most recent session ${mostRecentSessionId}`);
+          // console.log(`ChatPage: loadOrCreateSession - Attempting to load most recent session ${mostRecentSessionId}`);
           
           try {
             sessionToLoad = await getSession(mostRecentSessionId);
             if (sessionToLoad) {
-              console.log(`ChatPage: loadOrCreateSession - Successfully loaded most recent session ${mostRecentSessionId}`);
+              // console.log(`ChatPage: loadOrCreateSession - Successfully loaded most recent session ${mostRecentSessionId}`);
               // Update last active session ID
               try {
                 localStorage.setItem(lastActiveSessionIdKey, mostRecentSessionId);
+                // console.log(`ChatPage: loadOrCreateSession - Set ${mostRecentSessionId} as last active session for user ${userIdForHistory}`);
               } catch (error) {
                 console.error(`ChatPage: loadOrCreateSession - Error updating last active session ID:`, error);
               }
@@ -571,9 +573,9 @@ export default function ChatPage() {
         setCurrentSession(updatedSession);
         setMessages(updatedSession.messages);
         setIsLoading(false); // Ensure global loading state is reset
-        console.log(`ChatPage: loadOrCreateSession - Loaded session ${updatedSession.id} with ${updatedSession.messages.length} messages.`);
+        // console.log(`ChatPage: loadOrCreateSession - Loaded session ${updatedSession.id} with ${updatedSession.messages.length} messages.`);
       } else if (isMounted.current) {
-        console.log(`ChatPage: loadOrCreateSession - No valid session found or to load, creating new for ${userIdForHistory}.`);
+        // console.log(`ChatPage: loadOrCreateSession - No valid session found or to load, creating new for ${userIdForHistory}.`);
         const modelIdToUse = profile?.selectedGenkitModelId || DEFAULT_MODEL_ID;
         // Remove the third parameter (userApiKeyForNameGen)
         const newSession = createNewSession([], modelIdToUse);
@@ -585,23 +587,18 @@ export default function ChatPage() {
         if (newSession.id && newSession.id.startsWith(userIdForHistory + '_')) {
           try {
             localStorage.setItem(lastActiveSessionIdKey, newSession.id);
-            console.log(`ChatPage: loadOrCreateSession - Set ${newSession.id} as last active session for user ${userIdForHistory}`);
+            // console.log(`ChatPage: loadOrCreateSession - Set ${newSession.id} as last active session for user ${userIdForHistory}`);
             
             // Save the empty session to ensure it appears in history
-            saveSession(newSession, true)
-              .then(() => {
-                console.log(`ChatPage: loadOrCreateSession - Saved new empty session ${newSession.id} to history`);
-              })
-              .catch(error => {
-                console.error(`ChatPage: loadOrCreateSession - Error saving new session:`, error);
-              });
+            await saveSession(newSession, true);
+            // console.log(`ChatPage: loadOrCreateSession - Saved new empty session ${newSession.id} to history`);
           } catch (error) {
-            console.error(`ChatPage: loadOrCreateSession - Error setting last active session ID:`, error);
+            console.error(`ChatPage: loadOrCreateSession - Error in session creation/saving process:`, error);
           }
         } else {
-          console.warn("ChatPage: loadOrCreateSession (New Session) - New session ID mismatch or null.", newSession?.id, userIdForHistory);
+          // console.warn("ChatPage: loadOrCreateSession (New Session) - New session ID mismatch or null.", newSession?.id, userIdForHistory);
         }
-        console.log(`ChatPage: loadOrCreateSession - Created new session ${newSession.id}.`);
+        // console.log(`ChatPage: loadOrCreateSession - Created new session ${newSession.id}.`);
       }
     };
 
@@ -611,7 +608,7 @@ export default function ChatPage() {
     }
   // Reduced dependencies to prevent re-running due to minor metadata updates.
   // It primarily reacts to changes in auth/profile status and the initial history load completion.
-  }, [authLoading, profileLoading, historyHookLoading, userIdForHistory, getSession, createNewSession, ensureMessagesHaveUniqueIds, profile, currentSession]);
+  }, [authLoading, profileLoading, historyHookLoading, userIdForHistory, getSession, createNewSession, saveSession, ensureMessagesHaveUniqueIds, profile, currentSession]);
 
 
   // Effect to sync currentSession.name from historyMetadata if it changes (e.g., by AI naming)
@@ -633,11 +630,11 @@ export default function ChatPage() {
   useEffect(() => {
     const handleChatNameUpdated = (event: CustomEvent) => {
       const { sessionId, newName } = event.detail;
-      console.log(`Received chat-name-updated event: sessionId=${sessionId}, newName=${newName}`);
+      // console.log(`Received chat-name-updated event: sessionId=${sessionId}, newName=${newName}`);
       
       // Only update if this is the current active session
       if (currentSession && currentSession.id === sessionId && newName && newName !== currentSession.name) {
-        console.log(`Updating current session name from "${currentSession.name}" to "${newName}"`);
+        // console.log(`Updating current session name from "${currentSession.name}" to "${newName}"`);
         
         // Force an immediate update to the current session
         setCurrentSession(prevSession => {
@@ -765,7 +762,7 @@ export default function ChatPage() {
     });
   }, [ensureMessagesHaveUniqueIds]);
 
-  const handleNewChat = useCallback(() => {
+  const handleNewChat = useCallback(async () => {
     initialSessionLoadAttemptedRef.current = false; // Allow loadOrCreateSession to run for new chat
     const modelIdToUse = (profile?.selectedGenkitModelId || DEFAULT_MODEL_ID);
     
@@ -794,38 +791,32 @@ export default function ChatPage() {
       const lastActiveSessionIdKey = LAST_ACTIVE_SESSION_ID_KEY_PREFIX + userIdForHistory;
       try {
         localStorage.setItem(lastActiveSessionIdKey, newSession.id);
-        console.log(`handleNewChat: Set ${newSession.id} as last active session for user ${userIdForHistory}`);
+        // console.log(`handleNewChat: Set ${newSession.id} as last active session for user ${userIdForHistory}`);
       } catch (error) {
-        console.warn(`handleNewChat: Error setting last active session ID:`, error);
+        // console.warn(`handleNewChat: Error setting last active session ID:`, error);
       }
       
       // Explicitly save the new empty session to ensure it appears in history
-      console.log('Explicitly saving new empty session to history:', newSession.id);
+      // console.log('Explicitly saving new empty session to history:', newSession.id);
       
       // Make sure to save with name generation enabled (true) to ensure it shows up in history properly
-      saveSession(newSession, true)
-        .then((savedSession) => {
-          console.log('New empty session saved successfully to history:', savedSession.id);
-          
-          // Force refresh history UI immediately
-          const historyEvent = new CustomEvent('history-updated', {
-            detail: { sessionId: savedSession.id, force: true, source: 'new_chat' }
-          });
-          window.dispatchEvent(historyEvent);
-        })
-        .catch((error) => {
-          console.error('Error saving new empty session to history:', error);
-        });
+      const savedSession = await saveSession(newSession, true);
+      // console.log('New empty session saved successfully to history:', savedSession.id);
+      
+      // Force refresh history UI immediately
+      const historyEvent = new CustomEvent('history-updated', {
+        detail: { sessionId: savedSession.id, force: true, source: 'new_chat' }
+      });
+      window.dispatchEvent(historyEvent);
     } else {
-      console.warn('handleNewChat: Invalid session ID or missing userIdForHistory:', 
-                   newSession.id, userIdForHistory);
+      // console.warn('handleNewChat: Invalid session ID or missing userIdForHistory:', newSession.id, userIdForHistory);
     }
     
     if (isMobile) setIsHistoryPanelOpen(false);
   }, [createNewSession, userIdForHistory, isMobile, profile, saveSession]);
 
   const handleSelectSession = useCallback(async (sessionId: string) => {
-    console.log(`ChatPage: handleSelectSession called for session ${sessionId}`);
+    // console.log(`ChatPage: handleSelectSession called for session ${sessionId}`);
     initialSessionLoadAttemptedRef.current = true; // Mark that we've attempted to load a session
     
     if (!userIdForHistory) {
@@ -840,7 +831,7 @@ export default function ChatPage() {
 
     // Validate session ID format
     if (!sessionId.startsWith(userIdForHistory + '_')) {
-      console.warn(`ChatPage: handleSelectSession - Invalid session ID format: ${sessionId}`);
+      // console.warn(`ChatPage: handleSelectSession - Invalid session ID format: ${sessionId}`);
         localStorage.removeItem(LAST_ACTIVE_SESSION_ID_KEY_PREFIX + userIdForHistory);
         handleNewChat();
         return;
@@ -862,7 +853,7 @@ export default function ChatPage() {
       }
       
     if (selected && selected.id === sessionId && selected.userId === userIdForHistory) {
-        console.log(`ChatPage: handleSelectSession - Successfully loaded session: ${sessionId}`);
+        // console.log(`ChatPage: handleSelectSession - Successfully loaded session: ${sessionId}`);
         
       // Ensure no messages are in a loading state when loading a session from history
       const migratedMessages = ensureMessagesHaveUniqueIds(selected.messages).map(msg => ({
@@ -892,7 +883,7 @@ export default function ChatPage() {
           });
         }
     } else {
-        console.warn(`ChatPage: handleSelectSession - Session validation failed: ${sessionId}`);
+        // console.warn(`ChatPage: handleSelectSession - Session validation failed: ${sessionId}`);
         toast({ 
           title: "Invalid Chat Session", 
           description: "The selected chat data appears to be corrupted. Starting a new chat.", 
@@ -1740,9 +1731,10 @@ export default function ChatPage() {
               };
               const apiKeyForNameGen = (profile?.geminiApiKeys && profile.geminiApiKeys.length > 0 && profile.geminiApiKeys[0]) ? profile.geminiApiKeys[0] : undefined;
 
+              const hasDefaultName = !currentSession.name || currentSession.name === "New Chat" || /^Chat \d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?$/i.test(currentSession.name);
               saveSession(
                   sessionForSave,
-                  (!messageIdToUpdate && !isUserMessageEdit) && (sessionForSave.messages.length <= 2 || !currentSession.name || currentSession.name === "New Chat")
+                  (!messageIdToUpdate && !isUserMessageEdit) && (sessionForSave.messages.length <= 2 || hasDefaultName)
               ).then((sessionAfterSave: ChatSession) => {
                   if (sessionAfterSave && isMounted.current) {
                       setCurrentSession(prev => {

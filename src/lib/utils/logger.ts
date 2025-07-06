@@ -21,7 +21,7 @@ type LoggerFunction = (message: string, ...args: any[]) => void;
 type LoggerCategory = Record<string, LoggerFunction>;
 
 // Default configuration
-const DEFAULT_LOG_LEVEL = process.env.NODE_ENV === 'production' ? LogLevel.WARN : LogLevel.DEBUG;
+const DEFAULT_LOG_LEVEL = process.env.NODE_ENV === 'production' ? LogLevel.WARN : LogLevel.WARN;
 
 // Default categories
 const CATEGORIES = [

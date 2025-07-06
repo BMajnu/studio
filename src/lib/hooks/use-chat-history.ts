@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { ChatSession, ChatSessionMetadata, ChatMessage, AttachedFile } from '@/lib/types';
+import type { ChatSession, ChatSessionMetadata, ChatMessage, AttachedFile, ChatMessageContentPart } from '@/lib/types';
 import { DEFAULT_USER_ID, DEFAULT_MODEL_ID } from '@/lib/constants';
 import { generateSessionName, generateSessionNameFromMessage } from '@/lib/session-naming';
 import { useAuth } from '@/contexts/auth-context';
@@ -37,6 +37,16 @@ const STORE_NAME = 'chat_sessions';
 
 // Global flag to track if the loading procedure has already executed
 let globalInitialized = false;
+
+// -----------------------------
+// AI Chat Title Generation
+// -----------------------------
+/** Endpoint that returns a JSON { title: string } given chat messages */
+const AI_CHAT_TITLE_ENDPOINT = '/api/generate-chat-title';
+/** Tracks which session IDs have already triggered an AI rename attempt in this runtime */
+const aiRenameAttempts: Set<string> = new Set();
+/** Model ID to always use for chat-title generation */
+const TITLE_MODEL_ID = 'googleai/gemini-2.5-flash-lite-preview-06-17';
 
 // IndexedDB helper for chat session storage - provides higher storage limits than localStorage
 class SessionStorageDB {
@@ -760,6 +770,48 @@ const setSessionName = async (sessionId: string): Promise<boolean> => {
   }
 };
 
+async function triggerRename(session: ChatSession): Promise<string | null> {
+  const userMessages = session.messages
+    .filter((msg) => msg.role === 'user' && msg.content)
+    .slice(-2);
+  
+  if (userMessages.length === 0) {
+    return null;
+  }
+  
+  try {
+    const response = await fetch('/api/generate-chat-title', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: userMessages.map(m => ({
+          role: 'user',
+          // Extract text from content, whether it's a string or complex parts
+          text: typeof m.content === 'string'
+            ? m.content
+            : (m.content as ChatMessageContentPart[])
+                .map(p => p.type === 'text' ? p.text : '')
+                .join(' ')
+                .trim()
+        })),
+        modelId: TITLE_MODEL_ID,
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Failed to generate chat title:', response.status, errorText);
+      return null;
+    }
+    
+    const data = await response.json();
+    return data.title || null;
+  } catch (error) {
+    console.error('Error in triggerRename:', error);
+    return null;
+  }
+}
+
 export function useChatHistory(userIdFromProfile: string | undefined) {
   const { user: authUser, googleAccessToken } = useAuth(); // Removed triggerGoogleSignInFromAuth as it's not used
   const { toast } = useToast();
@@ -802,24 +854,10 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
 
   useEffect(() => {
     isMounted.current = true;
-    const handleChatNameUpdated = (event: CustomEvent) => {
-      if (isMounted.current) {
-        const { newName } = event.detail;
-        if (newName) {
-          toast({
-            title: "Chat Named",
-            description: `Chat automatically named: "${newName}"`,
-            duration: 3000
-          });
-        }
-      }
-    };
-    window.addEventListener('chat-name-updated', handleChatNameUpdated as EventListener);
-    return () => { 
+    return () => {
       isMounted.current = false;
-      window.removeEventListener('chat-name-updated', handleChatNameUpdated as EventListener);
     };
-  }, [toast]);
+  }, []);
 
   // Removed initializeDriveFolder
 
@@ -1529,7 +1567,7 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
   }
 };
 
-  const saveSession = useCallback(async (
+  const saveSession: (session: ChatSession, attemptNameGeneration?: boolean, modelIdForNameGeneration?: string) => Promise<ChatSession> = useCallback(async (
     session: ChatSession,
     attemptNameGeneration: boolean = false,
     modelIdForNameGeneration?: string,
@@ -1558,12 +1596,20 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
       modelId: attemptNameGeneration && modelIdForNameGeneration ? modelIdForNameGeneration : session.modelId,
     };
     
-    const hasTimeBasedName = sessionToSave.name && /Chat \\d{1,2}:\\d{1,2}/.test(sessionToSave.name);
-    const hasDefaultName = sessionToSave.name === "New Chat" || !sessionToSave.name || hasTimeBasedName;
-    const validUserMessages = sessionToSave.messages.filter(m => m.role === 'user' && (typeof m.content === 'string' ? m.content.length > 0 : (Array.isArray(m.content) && m.content.length > 0)));
-    const validAssistantMessages = sessionToSave.messages.filter(m => m.role === 'assistant' && (typeof m.content === 'string' ? m.content.length > 0 : (Array.isArray(m.content) && m.content.length > 0)));
-    const shouldAutoGenerateName = hasDefaultName && validUserMessages.length > 0 && validAssistantMessages.length > 0 && !attemptNameGeneration;
-    const finalAttemptNameGeneration = attemptNameGeneration || shouldAutoGenerateName;
+    const hasDefaultName = !sessionToSave.name || sessionToSave.name === "New Chat" || /^Chat \d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?$/i.test(sessionToSave.name);
+    
+    // Only attempt to rename if the name is a default placeholder
+    if (attemptNameGeneration && hasDefaultName) {
+      try {
+        const newTitle = await triggerRename(sessionToSave);
+        if (newTitle) {
+          sessionToSave.name = newTitle;
+          historyLogger.info(`Successfully renamed session ${sessionToSave.id} to "${newTitle}"`);
+        }
+      } catch (renameError) {
+        historyLogger.error(`Failed to rename session ${sessionToSave.id}`, renameError);
+      }
+    }
     
     // Prepare two variants: full for IndexedDB (keeps dataUri) and lean for localStorage (trims dataUri)
     const sessionForIndexedDB = limitSessionSize(sessionToSave);
@@ -1707,16 +1753,6 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
       historyLogger.error(`saveSession: Error updating metadata for ${sessionToSave.id}`);
     }
 
-    // 4. Attempt to generate a name for the session if needed
-    if (finalAttemptNameGeneration && savedSuccessfully) {
-      // Try to set a better name based on content
-      try {
-        setSessionName(sessionToSave.id);
-      } catch (nameError) {
-        historyLogger.warn(`saveSession: Error during name generation for ${sessionToSave.id}`);
-      }
-    }
-
     // 5. Save the session ID as the last active session
     try {
       localStorage.setItem(`${LAST_ACTIVE_SESSION_ID_KEY_PREFIX}${effectiveUserId}`, sessionToSave.id);
@@ -1746,28 +1782,28 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
       }
     }
     
+     // INSERT: Queue Firebase sync
+     if (effectiveUserId !== DEFAULT_USER_ID) {
+      try {
+        // Queue for background sync
+        queueSessionForSync(effectiveUserId, sessionToSave);
+        // If online, also attempt immediate sync so user sees it on other devices right away
+        if (typeof navigator === 'undefined' || navigator.onLine) {
+          forceSyncSession(effectiveUserId, sessionToSave).catch((err) => {
+            historyLogger.warn(`saveSession: Immediate Firebase sync failed for ${sessionToSave.id}, will retry in background`, err);
+          });
+        }
+      } catch (syncErr) {
+        historyLogger.warn(`saveSession: Could not queue session ${sessionToSave.id} for Firebase sync`, syncErr);
+      }
+    }
+
     if (!savedSuccessfully) {
       historyLogger.error(`saveSession: Failed to save session ${sessionToSave.id} anywhere!`);
     } else {
       historyLogger.debug(`saveSession: Successfully saved session ${sessionToSave.id} (localStorage: ${savedInLocalStorage}, IndexedDB: ${savedInIndexedDB})`);
     }
-
-    // INSERT: Queue Firebase sync
-    if (effectiveUserId !== DEFAULT_USER_ID) {
-       try {
-         // Queue for background sync
-         queueSessionForSync(effectiveUserId, sessionToSave);
-         // If online, also attempt immediate sync so user sees it on other devices right away
-         if (typeof navigator === 'undefined' || navigator.onLine) {
-           forceSyncSession(effectiveUserId, sessionToSave).catch((err) => {
-             historyLogger.warn(`saveSession: Immediate Firebase sync failed for ${sessionToSave.id}, will retry in background`, err);
-           });
-         }
-       } catch (syncErr) {
-         historyLogger.warn(`saveSession: Could not queue session ${sessionToSave.id} for Firebase sync`, syncErr);
-       }
-     }
-
+    
     return sessionToSave;
   }, [effectiveUserId, chatSessionPrefixLS, chatHistoryIndexKeyLS, isMounted, setHistoryMetadata]);
 
@@ -2228,6 +2264,65 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
       cancelled = true;
     };
   }, [effectiveUserId, historyMetadata]);
+
+  useEffect(() => {
+    if (!historyMetadata || historyMetadata.length === 0) return;
+
+    const sessionToConsider = historyMetadata[0]; // most recent session
+
+    const hasDefaultName = !sessionToConsider.name || sessionToConsider.name === 'New Chat' || /^Chat \d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?$/i.test(sessionToConsider.name);
+    const hasMessages = sessionToConsider.messageCount > 1; // More than just a system message
+
+    const shouldAttemptAiRename = hasDefaultName && hasMessages && !aiRenameAttempts.has(sessionToConsider.id);
+
+    if (shouldAttemptAiRename) {
+      aiRenameAttempts.add(sessionToConsider.id);
+
+      (async () => {
+        try {
+          const session = await getSession(sessionToConsider.id);
+          if (!session || !session.messages) return;
+
+          const recentMsgs = session.messages.filter(m => m.role === 'user')
+            .slice(-3)
+            .map(msg => {
+              let text = '';
+              if (typeof msg.content === 'string') {
+                text = msg.content;
+              } else if (Array.isArray(msg.content)) {
+                text = msg.content.map(part => {
+                  if (part.type === 'text' && part.text) return part.text;
+                  return '';
+                }).join(' ');
+              }
+              return { role: 'user', text: text.slice(0, 200) };
+            });
+
+            if (recentMsgs.length === 0) return;
+
+            console.log('Requesting AI title with messages:', recentMsgs);
+            const res = await fetch(AI_CHAT_TITLE_ENDPOINT, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ messages: recentMsgs, modelId: TITLE_MODEL_ID })
+            });
+
+            if (!res.ok) {
+              const text = await res.text();
+              console.error('AI title fetch failed', res.status, text);
+              return;
+            }
+
+            const data = await res.json();
+            if (data?.title) {
+              await renameSession(sessionToConsider.id, data.title.trim());
+            }
+        } catch (err) {
+          console.warn('AI chat title request failed:', err);
+        }
+      })();
+    }
+  }, [historyMetadata, getSession, renameSession]);
 
   return {
     historyMetadata,

@@ -7,9 +7,9 @@ import { LogLevel, setLogLevel, setCategoryLogLevel } from './logger';
 // Default state of log levels per category
 const DEFAULT_LOG_LEVELS: Record<string, LogLevel> = {
   session: LogLevel.INFO,
-  storage: LogLevel.INFO,
-  history: LogLevel.INFO,
-  ui: LogLevel.INFO,
+  storage: LogLevel.WARN,
+  history: LogLevel.WARN,
+  ui: LogLevel.WARN,
   api: LogLevel.INFO,
   auth: LogLevel.INFO,
   system: LogLevel.INFO,
