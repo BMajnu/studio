@@ -4,13 +4,18 @@
 ---
 deployment:
   tasks:
-    # Forcefully clean the npm cache to resolve potential corruption.
-    - /bin/npm cache clean --force
+    # The Node.js environment in cPanel uses a global directory for modules, which can get corrupted.
+    # The following command forcefully removes this specific directory to ensure a clean slate.
+    # The path is derived from the npm error log.
+    - /bin/rm -rf /home/desainrs/nodevenv/repositories/studio/22/lib/node_modules
 
-    # Remove the existing node_modules and package-lock.json to ensure a completely clean install.
+    # We also remove the local node_modules and package-lock.json for good measure.
     - /bin/rm -rf node_modules package-lock.json
 
-    # Install npm dependencies and log the output for debugging.
+    # Clean the npm cache.
+    - /bin/npm cache clean --force
+
+    # Re-run the installation, logging the output.
     - /bin/npm install --production=false > npm_install.log 2>&1
 
     # Build the Next.js application for production.
