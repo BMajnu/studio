@@ -1,17 +1,7 @@
-# cPanel deployment configuration for a Next.js application.
-# This file assumes that the Node.js application is run directly
-# from the repository's root directory in the cPanel environment.
 ---
 deployment:
   tasks:
-    # Remove potentially corrupted global and local node_modules and lock files
-    - /bin/rm -rf /home/desainrs/nodevenv/repositories/studio/22/lib/node_modules node_modules package-lock.json
-    # Clean npm cache
-    - /bin/npm cache clean --force
-    # Clean install only production dependencies to avoid installing dev deps like babel-jest
-    - /bin/npm ci --omit=dev --no-audit --no-fund > npm_install.log 2>&1
-    # Build the Next.js app
-    - /bin/npm run build
-    # Restart server
-    - /bin/mkdir -p tmp
-    - /bin/touch tmp/restart.txt 
+    # On every deployment, we will forcefully remove the node_modules directories
+    # and the old log file. This ensures our new app.js launcher script always
+    # starts from a clean state and performs a fresh installation if needed.
+    - /bin/rm -rf /home/desainrs/nodevenv/repositories/studio/20/lib/node_modules node_modules npm_install.log 
