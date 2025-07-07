@@ -403,3 +403,8 @@ html, body {
   position: relative;
   z-index: 10;
 }
+
+/* Search highlight gradient matching DesAInR logo */
+.search-highlight {
+  @apply bg-gradient-to-r from-sky-400 via-pink-500 to-fuchsia-500 bg-clip-text text-transparent font-semibold;
+}

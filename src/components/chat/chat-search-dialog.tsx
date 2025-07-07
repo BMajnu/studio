@@ -48,7 +48,8 @@ const highlightSearchTerms = (text: string, searchQuery: string): React.ReactNod
         return isMatch ? (
           <mark 
             key={key} 
-            className="bg-primary/20 text-primary-foreground dark:bg-primary/40 dark:text-primary-foreground px-0.5 py-0.5 rounded font-medium"
+            className="search-highlight" 
+            data-search-highlight
           >
             {subPart}
           </mark>

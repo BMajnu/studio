@@ -49,6 +49,7 @@ interface ChatMessageProps {
   isLoading: boolean;
   currentUserMessage: string;
   currentAttachedFilesDataLength: number;
+  searchHighlightTerm?: string;
 }
 
 function AttachedFileDisplay({ file }: { file: AttachedFile }) {
@@ -105,13 +106,40 @@ const getMessageText = (content: string | ChatMessageContentPart[] | undefined):
   return ''; // Fallback for complex or empty content
 };
 
+const highlightText = (text: string | null | undefined, term: string | null | undefined): React.ReactNode => {
+  if (!term || !text) return text;
+
+  // Escape special characters in the search term for regex
+  const safeTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(${safeTerm})`, 'gi');
+  const parts = text.split(regex);
+
+  return (
+    <>
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <mark 
+            key={i} 
+            className="search-highlight" 
+            data-search-highlight
+          >
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
+};
+
 // Add this helper function for Markdown processing
 const processMarkdown = (text: string) => {
   // Process bold text (surrounded by **)
   return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 };
 
-function RenderContentPart({ part, index }: { part: ChatMessageContentPart; index: number }) {
+function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMessageContentPart; index: number, searchHighlightTerm?: string }) {
   const animationDelay = `${index * 80}ms`;
   const commonClasses = "animate-slideUpAndFade rounded-lg w-full mb-3";
   const { toast } = useToast();
@@ -192,27 +220,30 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
               <span className="mr-2 text-lg">{titleEmoji}</span>
               <h4 
                 className={cn("font-semibold text-base", gradientClass ? "text-white" : "text-foreground")}
-                dangerouslySetInnerHTML={{ __html: processMarkdown(part.title) }}
-              />
+              >
+                {highlightText(part.title, searchHighlightTerm)}
+              </h4>
             </div>
             {part.text && (
               <div className="px-4 py-3">
                 <p 
-                  className="whitespace-pre-wrap leading-relaxed" 
-                  dangerouslySetInnerHTML={{ __html: processMarkdown(part.text) }}
-                />
+                  className="whitespace-pre-wrap leading-relaxed"
+                >
+                  {highlightText(part.text, searchHighlightTerm)}
+                </p>
               </div>
             )}
           </div>
         );
       }
       return (
-        <p 
-          key={index} 
-          className="whitespace-pre-wrap leading-relaxed w-full animate-slideUpSlightly" 
+        <div 
+          key={index}
+          className="whitespace-pre-wrap leading-relaxed w-full animate-slideUpSlightly"
           style={{ animationDelay }}
-          dangerouslySetInnerHTML={{ __html: part.text ? processMarkdown(part.text) : '' }}
-        />
+        >
+          {highlightText(part.text, searchHighlightTerm)}
+        </div>
       );
     
     case 'code':
@@ -987,7 +1018,7 @@ function RenderContentPart({ part, index }: { part: ChatMessageContentPart; inde
   }
 }
 
-export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndResend, onOpenCustomSenseEditor, onStopRegeneration, onPerformAction, onRegenerateCustomSense, isMobile, profile, activeActionButton, lastSelectedActionButton, isLoading, currentUserMessage, currentAttachedFilesDataLength }: ChatMessageProps) {
+export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndResend, onOpenCustomSenseEditor, onStopRegeneration, onPerformAction, onRegenerateCustomSense, isMobile, profile, activeActionButton, lastSelectedActionButton, isLoading, currentUserMessage, currentAttachedFilesDataLength, searchHighlightTerm }: ChatMessageProps) {
   const [isEditingThisMessage, setIsEditingThisMessage] = useState(false);
   const [editedText, setEditedText] = useState<string>('');
   const [editedAttachments, setEditedAttachments] = useState<AttachedFile[]>([]);
@@ -1495,7 +1526,7 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
           ) : (
             <div className="stagger-animation relative z-10 w-full overflow-x-auto">
               {contentToRender.map((part, index) =>
-                <RenderContentPart part={part} index={index} key={`${message.id}-part-${index}`}/>
+                <RenderContentPart part={part} index={index} key={`${message.id}-part-${index}`} searchHighlightTerm={searchHighlightTerm} />
               )}
             </div>
               )}
@@ -1592,7 +1623,7 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
         ) : (
           <div className="stagger-animation relative z-10 w-full overflow-x-auto">
             {contentToRender.map((part, index) =>
-              <RenderContentPart part={part} index={index} key={`${message.id}-part-${index}`}/>
+              <RenderContentPart part={part} index={index} key={`${message.id}-part-${index}`} searchHighlightTerm={searchHighlightTerm} />
             )}
           </div>
         )}

@@ -278,7 +278,16 @@ export default function ChatPage() {
   // State for search mode
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  
+  // State to track the active search term to highlight inside the chat view
+  const [searchHighlightTerm, setSearchHighlightTerm] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    try {
+      return localStorage.getItem('desainr_search_query') || '';
+    } catch {
+      return '';
+    }
+  });
+
   // Add this state variable with other state declarations
   const [selectedDesignItem, setSelectedDesignItem] = useState<DesignListItem | null>(null);
   // Custom Instruction Modal state
@@ -2489,6 +2498,113 @@ export default function ChatPage() {
     });
   }, []);
 
+  /* ------------------------------------------------------------------
+   * Search-highlight handling
+   * ------------------------------------------------------------------*/
+  // Listen for custom events dispatched from the HistoryPanel / SearchDialog
+  useEffect(() => {
+    const handleHighlightEvent = (event: Event) => {
+      const custom = event as CustomEvent;
+      const term: string | undefined = custom.detail?.searchQuery;
+      if (typeof term === 'string' && term.trim().length > 0) {
+        setSearchHighlightTerm(term.trim());
+        try {
+          localStorage.setItem('desainr_search_query', term.trim());
+        } catch { /* ignore */ }
+      }
+    };
+
+    const handleClearHighlights = () => {
+      setSearchHighlightTerm('');
+      try { localStorage.removeItem('desainr_search_query'); } catch { /* ignore */ }
+    };
+
+    window.addEventListener('highlight-search-terms', handleHighlightEvent as EventListener);
+    window.addEventListener('clear-search-highlights', handleClearHighlights);
+    return () => {
+      window.removeEventListener('highlight-search-terms', handleHighlightEvent as EventListener);
+      window.removeEventListener('clear-search-highlights', handleClearHighlights);
+    };
+  }, []);
+
+  // Utility to remove all existing search highlights
+  const removeAllSearchHighlights = useCallback(() => {
+    const container = chatAreaRef.current;
+    if (!container) return;
+    container.querySelectorAll('mark[data-search-highlight], mark.search-highlight')
+      .forEach((markEl) => {
+        const parent = markEl.parentNode;
+        if (!parent) return;
+        // Replace the <mark> with its text content
+        parent.replaceChild(document.createTextNode(markEl.textContent || ''), markEl);
+        // Merge adjacent text nodes – optional for cleaner DOM
+        parent.normalize();
+      });
+  }, []);
+
+  // Apply highlight to matching portions when term changes
+  useEffect(() => {
+    // First, clear existing highlights
+    removeAllSearchHighlights();
+
+    if (!searchHighlightTerm) return;
+
+    const container = chatAreaRef.current;
+    if (!container) return;
+
+    const term = searchHighlightTerm;
+    const regex = new RegExp(`(${term.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')})`, 'gi');
+
+    // Walk through each text node under the scroll area and replace matches with <mark>
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => {
+        if (!node.parentElement) return NodeFilter.FILTER_REJECT;
+        // Avoid highlighting inside certain elements (code blocks etc.) if needed
+        if (node.parentElement.closest('mark[data-search-highlight]')) return NodeFilter.FILTER_REJECT;
+        return regex.test(node.nodeValue || '') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      }
+    });
+
+    let firstMatchEl: HTMLElement | null = null;
+
+    const textNodes: Text[] = [];
+    while (walker.nextNode()) {
+      textNodes.push(walker.currentNode as Text);
+    }
+
+    textNodes.forEach((textNode) => {
+      const html = (textNode.nodeValue || '').replace(regex, '<mark data-search-highlight class="bg-yellow-300 dark:bg-yellow-600 text-black rounded px-0.5">$1</mark>');
+      const span = document.createElement('span');
+      span.innerHTML = html;
+      const frag = document.createDocumentFragment();
+      Array.from(span.childNodes).forEach(n => frag.appendChild(n));
+      const parent = textNode.parentNode;
+      if (!parent) return;
+      parent.replaceChild(frag, textNode);
+
+      if (!firstMatchEl) {
+        const candidate = parent.querySelector('mark[data-search-highlight]');
+        if (candidate) firstMatchEl = candidate as HTMLElement;
+      }
+    });
+
+    if (firstMatchEl) {
+      firstMatchEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Brief pulse animation for visibility
+      firstMatchEl.classList.add('animate-pulse');
+      setTimeout(() => firstMatchEl.classList.remove('animate-pulse'), 2000);
+    }
+
+  }, [searchHighlightTerm, messages, removeAllSearchHighlights]);
+
+  // When highlights are cleared via button/event, also remove markup immediately
+  useEffect(() => {
+    if (!searchHighlightTerm) {
+      // If term cleared, clean any lingering highlight markup
+      removeAllSearchHighlights();
+    }
+  }, [searchHighlightTerm, removeAllSearchHighlights]);
+
   if (authLoading || (!currentSession && !profileLoading && !historyHookLoading)) {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-var(--header-height,0px))] bg-gradient-to-b from-background-start-hsl to-background-end-hsl">
@@ -2646,6 +2762,7 @@ export default function ChatPage() {
                 currentAttachedFilesDataLength={currentAttachedFilesData.length}
                 onOpenCustomSenseEditor={openPromptWithCustomSenseEditor}
                 onRegenerateCustomSense={handleRegenerateCustomSense}
+                searchHighlightTerm={searchHighlightTerm}
               />
             ))}
              {messages.length === 0 && !isLoading && (
