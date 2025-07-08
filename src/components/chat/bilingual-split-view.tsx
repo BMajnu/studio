@@ -228,12 +228,12 @@ export function BilingualSplitView({
       
       <Tabs defaultValue="keyPoints" value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid grid-cols-6 mb-4">
-          <TabsTrigger value="keyPoints">Key Points</TabsTrigger>
-          <TabsTrigger value="detailedRequirements">Details</TabsTrigger>
-          <TabsTrigger value="designMessage">Message</TabsTrigger>
-          <TabsTrigger value="nicheAndAudience">Audience</TabsTrigger>
-          <TabsTrigger value="imageAnalysis">Image</TabsTrigger>
-          <TabsTrigger value="designItems">Designs</TabsTrigger>
+          <TabsTrigger value="keyPoints" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">Key Points</TabsTrigger>
+          <TabsTrigger value="detailedRequirements" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">Details</TabsTrigger>
+          <TabsTrigger value="designMessage" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">Message</TabsTrigger>
+          <TabsTrigger value="nicheAndAudience" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">Audience</TabsTrigger>
+          <TabsTrigger value="imageAnalysis" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">Image</TabsTrigger>
+          <TabsTrigger value="designItems" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">Designs</TabsTrigger>
         </TabsList>
         
         <div className="min-h-[300px] h-full">

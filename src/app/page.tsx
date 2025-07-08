@@ -2327,7 +2327,7 @@ export default function ChatPage() {
       ? `\n\nMust follow:\n${designItem.mustFollow.map(p => `- ${p}`).join('\n')}`
       : '';
 
-    const designPrompt = `Generate design ideas for: "${designItem.title}".\n\nDESIGN DESCRIPTION: ${designItem.description}\n\n${designItem.textContent ? `TEXT TO INCLUDE: "${designItem.textContent}"\n\n` : ''}${mustFollowSection}`;
+    const designPrompt = `Generate design ideas and provide the complete prompts for the designs: "${designItem.title}".\n\nBasic concept: ${designItem.description}\n\n${designItem.textContent ? `TEXT TO INCLUDE: "${designItem.textContent}"\n\n` : ''}${mustFollowSection}`;
     
     // Show toast notification about the selection
     toast({

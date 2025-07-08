@@ -1699,3 +1699,400 @@ decrese it more make it fit to the bottom line.
 Prompt:
 decrese it more make it fit to the bottom line.
 
+Prompt:
+Apply the same thing to the sub tab for showing Prompt and Prompt 2, and Prompt 3, etc.
+
+Apply this design to everywhere in the app where it is showing that app function. I mean, here we are just working on AI image generation prompt section and its from generated prompt, generate prompt, AI flow but I want to work on every AI flow where it has the tab feature.
+
+Prompt:
+Apply the same thing to the sub tab for showing Prompt and Prompt 2, and Prompt 3, etc.
+
+Apply this design to everywhere in the app where it is showing that app function. I mean, here we are just working on AI image generation prompt section and its from generated prompt, generate prompt, AI flow but I want to work on every AI flow where it has the tab feature.
+
+Prompt:
+Add a tag when prompt starts and ends for the api call. 
+
+Prompt:
+Add a tag when prompt starts and ends for the api call. 
+
+Prompt:
+Okay now explain me the log. Also mention what errors and problems you can see here. I also I can see there are not well organized let me know your think about it as well. Also suggest what I can do for inprovement as well:
+
+✓ Compiled / in 74ms
+ GET / 200 in 609ms
+
+--- [generateDesignPromptsUnified] FLOW_STARTED ---
+Flow Input: {
+  "userName": "B. Majnu",
+  "communicationStyleNotes": "friendly, reliable, professional, enthusiastic",
+  "modelId": "googleai/gemini-2.5-flash-preview-05-20",
+  "userApiKey": "AIzaSyAVcCLm36rWfVdpMm0MoadLXHRsmeiImPI",
+  "designInputText": "I have a new project for you for a design for mug, water bottle, and tumbler . Do you design  those as well? see attached\n\nI’d like it to have the same visual feel as the T-shirt design—something clean and visually appealing, with an outline of the rainforest. The text can include:\n“RAINFOREST ADVENTURES, St. Lucia”,\nbut I’m also open to versions without any text, if you think it works better visually.\n\na Typography/ graphic design. I am just looking for something the looks good. I need most of your help in creative and design. This is for a business. \n\nI'm looking for something that looks visually appealing and well-designed. I’d love for you to take the creative lead on this, as I’ll be relying heavily on your eye for design and layout. You can place the text wherever you think it fits best. The only direction is to keep in mind that St. Lucia is a lush, tropical travel destination, so the design should reflect that natural, adventurous vibe.\n\nIf possible, it would be great to include an outline or silhouette of a rainforest, but please do not base the design on the logo I’ve attached — it’s just for reference. We’re looking for something fresh and unique.\n\n\nMug, water bottle, and tumbler design.\n“RAINFOREST ADVENTURES, St. Lucia”,"
+}
+
+--- [generateDesignPromptsUnified] STEP 1: GENERATING IDEAS ---
+--- PROMPT START ---
+ You are an expert Design Idea Generator for a graphic designer named {{{userName}}}.
+Their communication style is: {{{communicationStyleNotes}}}.
+
+**Objective:** Generate creative design ideas and Give the complete prompts for the designs in 3 distinct categories based on the provided "Design Input Text".
+
+Design Input Text: {{{designInputText}}}
+
+**Instructions:**
+1. First, identify or extract any specific text, saying, quote or theme that should be the focal point of designs.
+2. Generate 5-10 search keywords highly specific to this design request. These keywords should help the user find relevant design inspiration when searched on Google.
+3. Generate 3 categories of design ideas:
+   a. **Graphics-Focused Creative Ideas (4)**: Generate EXACTLY FOUR detailed graphics-focused design ideas.
+   b. **Typography-Focused Ideas (3)**: Generate EXACTLY THREE ideas where typography is the primary focus.
+   c. **Typography with Graphics Ideas (3)**: Generate EXACTLY THREE detailed ideas that blend interesting typography with complementary graphic elements.
+
+**For each idea, include:**
+- Visual style and concept. Consider using one of the popular styles listed below.
+- Key visual elements and composition.
+- Color palette recommendations.
+- How the text is incorporated.
+- Typography suggestions where relevant.
+
+**Popular T-Shirt and POD Design Styles:**
+- **Minimalist, Vintage/Retro, Typography-Based, Illustrative, Geometric, Nature, Pop Culture, Hand-Drawn, Graffiti/Street Art, Sports, Funny/Sarcastic, Floral, Abstract, Cartoon, Grunge, Bohemian, Animal Prints.**
+
+**Example Idea Formats (Follow this structure):**
+
+*   **Graphics-Focused ("The Champion Bean"):**
+    Design Concept: "The Champion Bean"
+    Visual Elements: Heroic cartoon coffee bean flexing on a podium.
+    Style: Bold, graphic novel illustration.
+    Color palette: Warm browns, tans, vibrant reds/yellows.
+    Typography: "Coffee Beats Everything" in a comic book font.
+    Layout: Asymmetrical and dynamic.
+
+*   **Typography-Focused ("Vintage Type Declaration"):**
+    Design Concept: "Vintage Type Declaration"
+    Visual Elements: Almost entirely text-based with typographic ornaments.
+    Style: Vintage packaging/posters.
+    Color palette: Cream text on a dark brown background.
+    Typography: Mix of bold sans-serif, script, and slab serif fonts in a stack.
+    Layout: Symmetrical and balanced.
+
+*   **Typography with Graphics ("Organic Sketch"):**
+    Design Concept: "Organic Sketch"
+    Visual Elements: Hand-drawn coffee plant branch wrapping around text.
+    Style: Loose, organic, hand-sketched.
+    Color palette: Monochromatic sepia on a cream background.
+    Typography: Casual, hand-written font integrated with the illustration.
+    Layout: Asymmetrical and flowing.
+
+--- PROMPT END ---
+Executing ideaGeneration prompt with input: {
+  "userName": "B. Majnu",
+  "communicationStyleNotes": "friendly, reliable, professional, enthusiastic",
+  "modelId": "googleai/gemini-2.5-flash-preview-05-20",
+  "userApiKey": "AIzaSyAVcCLm36rWfVdpMm0MoadLXHRsmeiImPI",
+  "designInputText": "I have a new project for you for a design for mug, water bottle, and tumbler . Do you design  those as well? see attached\n\nI’d like it to have the same visual feel as the T-shirt design—something clean and visually appealing, with an outline of the rainforest. The text can include:\n“RAINFOREST ADVENTURES, St. Lucia”,\nbut I’m also open to versions without any text, if you think it works better visually.\n\na Typography/ graphic design. I am just looking for something the looks good. I need most of your help in creative and design. This is for a business. \n\nI'm looking for something that looks visually appealing and well-designed. I’d love for you to take the creative lead on this, as I’ll be relying heavily on your eye for design and layout. You can place the text wherever you think it fits best. The only direction is to keep in mind that St. Lucia is a lush, tropical travel destination, so the design should reflect that natural, adventurous vibe.\n\nIf possible, it would be great to include an outline or silhouette of a rainforest, but please do not base the design on the logo I’ve attached — it’s just for reference. We’re looking for something fresh and unique.\n\n\nMug, water bottle, and tumbler design.\n“RAINFOREST ADVENTURES, St. Lucia”,"
+}
+
+
+Prompt:
+Okay apply your Thoughts on Organization & Improvements fix Missing & Potential Problems. Also I can see somewhere like: 
+
+- Graphics-Focused:
+{{#each graphicsCreativeIdeas}}
+  - {{{this}}}
+{{/each}}
+- Typography-Focused:
+{{#each typographyDesignIdeas}}
+  - {{{this}}}
+{{/each}}
+- Typography with Graphics:
+{{#each typographyWithGraphicsIdeas}}
+  - {{{this}}}
+{{/each}}
+
+Here why it dosn't shows the contents, fix it as well.
+
+Prompt:
+Okay apply your Thoughts on Organization & Improvements fix Missing & Potential Problems. Also I can see somewhere like: 
+
+- Graphics-Focused:
+{{#each graphicsCreativeIdeas}}
+  - {{{this}}}
+{{/each}}
+- Typography-Focused:
+{{#each typographyDesignIdeas}}
+  - {{{this}}}
+{{/each}}
+- Typography with Graphics:
+{{#each typographyWithGraphicsIdeas}}
+  - {{{this}}}
+{{/each}}
+
+Here why it dosn't shows the contents, fix it as well.
+
+Prompt:
+Analyze it now:
+
+{
+  "level": "INFO",
+  "timestamp": "2025-07-08T16:44:21.582Z",
+  "message": "[generateDesignPromptsUnified] Flow started.",
+  "input": {
+    "userName": "B. Majnu",
+    "communicationStyleNotes": "friendly, reliable, professional, enthusiastic",
+    "modelId": "googleai/gemini-2.5-flash-preview-05-20",
+    "userApiKey": "AIzaSyAVcCLm36rWfVdpMm0MoadLXHRsmeiImPI",
+    "designInputText": "Okay, I'll send you a quote and a quote with reference design for this. If you have any doubt, please ask\n\nDownload All\n\n8.jpg\n(150.7 kB)\n\n\n6.jpg\n(141.16 kB)\n\nM\nProfile Image\nMe\n\nJul 05, 7:45 PM\nOkay. I got the design images. So please let me know if you have any instruction about them. And maybe you are looking for two designs for now. Am I right?\n\nY\nyashnagar27\n\nJul 05, 7:48 PM\nYes, I'm looking for designs, and the designs should have an indian touch. By which indian customers can relate."
+  }
+}
+{
+  "level": "INFO",
+  "timestamp": "2025-07-08T16:44:21.582Z",
+  "message": "[generateDesignPromptsUnified] Step 1: Generating ideas..."
+}
+
+--- PROMPT START: ideaGenPromptText ---
+
+You are an expert Design Idea Generator for a graphic designer named {{{userName}}}.
+Their communication style is: {{{communicationStyleNotes}}}.
+
+**Objective:** Generate creative design ideas and Give the complete prompts for the designs in 3 distinct categories based on the provided "Design Input Text".    
+
+Design Input Text: {{{designInputText}}}
+
+**Instructions:**
+1. First, identify or extract any specific text, saying, quote or theme that should be the focal point of designs.
+2. Generate 5-10 search keywords highly specific to this design request. These keywords should help the user find relevant design inspiration when searched on Google.
+3. Generate 3 categories of design ideas:
+   a. **Graphics-Focused Creative Ideas (4)**: Generate EXACTLY FOUR detailed graphics-focused design ideas.
+   b. **Typography-Focused Ideas (3)**: Generate EXACTLY THREE ideas where typography is the primary focus.
+   c. **Typography with Graphics Ideas (3)**: Generate EXACTLY THREE detailed ideas that blend interesting typography with complementary graphic elements.
+
+**For each idea, include:**
+- Visual style and concept. Consider using one of the popular styles listed below.
+- Key visual elements and composition.
+- Color palette recommendations.
+- How the text is incorporated.
+- Typography suggestions where relevant.
+
+**Popular T-Shirt and POD Design Styles:**
+- **Minimalist, Vintage/Retro, Typography-Based, Illustrative, Geometric, Nature, Pop Culture, Hand-Drawn, Graffiti/Street Art, Sports, Funny/Sarcastic, Floral, Abstract, Cartoon, Grunge, Bohemian, Animal Prints.**
+
+**Example Idea Formats (Follow this structure):**
+
+*   **Graphics-Focused ("The Champion Bean"):**
+    Design Concept: "The Champion Bean"
+    Visual Elements: Heroic cartoon coffee bean flexing on a podium.
+    Style: Bold, graphic novel illustration.
+    Color palette: Warm browns, tans, vibrant reds/yellows.
+    Typography: "Coffee Beats Everything" in a comic book font.
+    Layout: Asymmetrical and dynamic.
+
+*   **Typography-Focused ("Vintage Type Declaration"):**
+    Design Concept: "Vintage Type Declaration"
+    Visual Elements: Almost entirely text-based with typographic ornaments.
+    Style: Vintage packaging/posters.
+    Color palette: Cream text on a dark brown background.
+    Typography: Mix of bold sans-serif, script, and slab serif fonts in a stack.
+    Layout: Symmetrical and balanced.
+
+*   **Typography with Graphics ("Organic Sketch"):**
+    Design Concept: "Organic Sketch"
+    Visual Elements: Hand-drawn coffee plant branch wrapping around text.
+    Style: Loose, organic, hand-sketched.
+    Color palette: Monochromatic sepia on a cream background.
+    Typography: Casual, hand-written font integrated with the illustration.
+    Layout: Asymmetrical and flowing.
+
+
+--- PROMPT END: ideaGenPromptText ---
+
+{
+  "level": "INFO",
+  "timestamp": "2025-07-08T16:44:38.876Z",
+  "message": "[generateDesignPromptsUnified] Step 1 completed in 17293ms.",
+  "result": {
+    "extractedTextOrSaying": "Designs with an Indian Touch for Indian Customers",
+    "graphicsCreativeIdeas": [
+      "Design Concept: \"Mystic Mandala Connection\"Visual Elements: A vibrant, intricate mandala or rangoli pattern as the central focus. Could incorporate elements like lotus petals, paisleys, or traditional geometric shapes.Style: Illustrative, Geometric, Bohemian.Color palette: Rich jewel tones – deep blues, emerald greens, ruby reds, saffron yellows, with gold accents.Typography: Any text (if added) would be minimal and placed outside or very subtly within the mandala, perhaps in a clean sans-serif or a Devanagari-inspired font.Layout: Symmetrical and circular, radiating outwards, suitable for a central placement.",
+      "Design Concept: \"Regal Elephant & Peacock Duo\"Visual Elements: Stylized illustrations of an Indian elephant or a peacock, adorned with traditional motifs. The elephant could have intricate patterns on its body, or the peacock's feathers could be highly detailed and decorative.Style: Hand-Drawn, Illustrative, Ethnic.Color palette: Earthy tones combined with vibrant blues, greens, and a touch of metallic gold or silver for embellishments.Typography: No text needed, or a single, elegant word like \"India\" or \"Bharat\" in a decorative, slightly ornate serif font.Layout: A majestic, balanced composition, possibly with the animal centrally placed or as a dynamic silhouette.",
+      "Design Concept: \"Warli Folk Life\"Visual Elements: Simple, stick-figure like depictions of daily life, festivals, or nature, inspired by Warli folk art from Maharashtra. Can show people dancing, farming, or tribal scenes.Style: Hand-Drawn, Illustrative, Abstract (in its simplicity).Color palette: Monochromatic or duotone – typically white figures on a deep ochre, rust red, or black background.Typography: Clean, rustic sans-serif font if text is added, maintaining the simplicity of the art.Layout: Repetitive patterns or a narrative scene that fills the design space, creating a sense of movement and community.",
+      "Design Concept: \"Iconic Indian Landmark Silhouette\"Visual Elements: A minimalist silhouette of a recognizable Indian landmark like the Taj Mahal, India Gate, or Gateway of India, possibly with a subtle traditional pattern within the silhouette or as a background texture.Style: Minimalist, Geometric, Architectural.Color palette: Deep blues, charcoal greys, or muted sepia tones for the silhouette against a softer, perhaps gradient, background of sunrise/sunset colors.Typography: A bold, modern sans-serif font for any location name or phrase, placed cleanly below or alongside the silhouette.Layout: Clean and focused, allowing the iconic shape to be the primary visual anchor."
+    ],
+    "searchKeywords": [
+      "Indian traditional art design",
+      "Indian folk art motifs",
+      "Desi graphic design",
+      "Relatable Indian patterns",
+      "Cultural Indian apparel",
+      "Ethnic Indian symbols",
+      "Vibrant India art",
+      "Bharat themes illustration",
+      "Mandala rangoli art",
+      "Indian textile patterns"
+    ],
+    "typographyDesignIdeas": [
+      "Design Concept: \"Devanagari Script Art\"Visual Elements: Focus entirely on a single word or short phrase, rendered in a stylized manner inspired by Devanagari script's flowing lines and distinct top bar. Could be a word like \"Namaste\" or \"Jai Hind\" written in English letters but with Indian calligraphic influence.Style: Typography-Based, Calligraphic.Color palette: Deep maroon, saffron, or royal blue, with subtle gradients or textures.Typography: Custom-designed, ornate, or highly decorative display font that mimics the curves and flourishes of Indian scripts.Layout: Centralized and dominant, filling the space with the beauty of the letterforms themselves.",
+      "Design Concept: \"Vintage Indian Advertising Type\"Visual Elements: Text-heavy design, emulating old Indian product packaging, movie posters, or hand-painted shop signs. Use multiple fonts, stacking lines of text with decorative borders or small traditional Indian ornaments.Style: Vintage/Retro, Typography-Based.Color palette: Faded, earthy tones like sepia, muted greens, and faded reds, perhaps with a distressed texture.Typography: A mix of bold sans-serifs, decorative serifs, and perhaps a casual script font, all with a slightly aged appearance.Layout: Busy but organized, with text blocks framed by subtle decorative lines or flourishes.",
+      "Design Concept: \"Patterned Text Block\"Visual Elements: A bold, blocky sans-serif or slab serif font where the letters themselves are filled with intricate Indian patterns, such as paisley, block print designs, or small geometric motifs. The background is simple.Style: Typography-Based, Geometric, Abstract.Color palette: Contrasting colors between the pattern fill and the simple background; for example, a multi-colored pattern (red, yellow, blue) on a plain cream or black background.Typography: Very thick, legible display font to allow the pattern to be clearly visible within the letterforms.Layout: Clean and impactful, with the patterned text as the centerpiece."
+    ],
+    "typographyWithGraphicsIdeas": [
+      "Design Concept: \"Paisley Scroll Text\"Visual Elements: Elegant text that curves and intertwines with flowing paisley (buta) motifs. The paisley could subtly emerge from or wrap around key words or phrases, creating a harmonious blend.Style: Illustrative, Floral, Typography-Based.Color palette: Soft, rich colors like deep teal, warm gold, and maroon, with the paisley pattern providing a subtle contrast.Typography: A sophisticated script or a flowing serif font that complements the organic curves of the paisley.Layout: Dynamic and flowing, with the text integrated into the organic shapes, possibly asymmetrical.",
+      "Design Concept: \"Diya & Text Embrace\"Visual Elements: A simple, elegant illustration of a traditional Indian diya (oil lamp) or a small, intricate rangoli border that gently frames or sits beside the text. The text could be an Indian blessing or a cultural phrase.Style: Hand-Drawn, Minimalist, Illustrative.Color palette: Warm, inviting tones like oranges, yellows, and reds, possibly with a touch of deep blue for contrast, against a cream or off-white background.Typography: A friendly, legible serif or a clean sans-serif font, perhaps with a slight handcrafted feel.Layout: Balanced and warm, with the graphic element subtly enhancing the meaning of the text without overwhelming it.",
+      "Design Concept: \"Spice Trail Type\"Visual Elements: Text integrated with illustrations of common Indian spices (e.g., turmeric, cardamom, chili peppers) or their abstract representations, forming a border or an organic cluster around the words.Style: Illustrative, Nature, Hand-Drawn.Color palette: Earthy and vibrant – a mix of deep reds, oranges, yellows, and browns, reflecting the colors of spices.Typography: A rustic, perhaps slightly textured sans-serif or a friendly script font that feels authentic and inviting.Layout: Organic and textured, with the spice elements naturally framing or intertwining with the text, creating a rich sensory experience."
+    ]
+  }
+}
+{
+  "level": "INFO",
+  "timestamp": "2025-07-08T16:44:38.877Z",
+  "message": "[generateDesignPromptsUnified] Step 2: Creating prompts from ideas..."
+}
+
+--- PROMPT START: finalPromptText (compiled) ---
+
+You are an expert AI Image Prompt Generator. Your task is to convert the provided design ideas into detailed, high-quality image generation prompts.
+
+**Design Ideas Provided:**
+- Graphics-Focused:
+  - Design Concept: "Mystic Mandala Connection"Visual Elements: A vibrant, intricate mandala or rangoli pattern as the central focus. Could incorporate elements like lotus petals, paisleys, or traditional geometric shapes.Style: Illustrative, Geometric, Bohemian.Color palette: Rich jewel tones – deep blues, emerald greens, ruby reds, saffron yellows, with gold accents.Typography: Any text (if added) would be minimal and placed outside or very subtly within the mandala, perhaps in a clean sans-serif or a Devanagari-inspired font.Layout: Symmetrical and circular, radiating outwards, suitable for a central placement.
+  - Design Concept: "Regal Elephant & Peacock Duo"Visual Elements: Stylized illustrations of an Indian elephant or a peacock, adorned with traditional motifs. The elephant could have intricate patterns on its body, or the peacock's feathers could be highly detailed and decorative.Style: Hand-Drawn, Illustrative, Ethnic.Color palette: Earthy tones combined with vibrant blues, greens, and a touch of metallic gold or silver for embellishments.Typography: No text needed, or a single, elegant word like "India" or "Bharat" in a decorative, slightly ornate serif font.Layout: A majestic, balanced composition, possibly with the animal centrally placed or as a dynamic silhouette.
+  - Design Concept: "Warli Folk Life"Visual Elements: Simple, stick-figure like depictions of daily life, festivals, or nature, inspired by Warli folk art from Maharashtra. Can show people dancing, farming, or tribal scenes.Style: Hand-Drawn, Illustrative, Abstract (in its simplicity).Color palette: Monochromatic or duotone – typically white figures on a deep ochre, rust red, or black background.Typography: Clean, rustic sans-serif font if text is added, maintaining the simplicity of the art.Layout: Repetitive patterns or a narrative scene that fills the design space, creating a sense of movement and community.
+  - Design Concept: "Iconic Indian Landmark Silhouette"Visual Elements: A minimalist silhouette of a recognizable Indian landmark like the Taj Mahal, India Gate, or Gateway of India, possibly with a subtle traditional pattern within the silhouette or as a background texture.Style: Minimalist, Geometric, Architectural.Color palette: Deep blues, charcoal greys, or muted sepia tones for the silhouette against a softer, perhaps gradient, background of sunrise/sunset colors.Typography: A bold, modern sans-serif font for any location name or phrase, placed cleanly below or alongside the silhouette.Layout: Clean and focused, allowing the iconic shape to be the primary visual anchor.
+- Typography-Focused:
+  - Design Concept: "Devanagari Script Art"Visual Elements: Focus entirely on a single word or short phrase, rendered in a stylized manner inspired by Devanagari script's flowing lines and distinct top bar. Could be a word like "Namaste" or "Jai Hind" written in English letters but with Indian calligraphic influence.Style: Typography-Based, Calligraphic.Color palette: Deep maroon, saffron, or royal blue, with subtle gradients or textures.Typography: Custom-designed, ornate, or highly decorative display font that mimics the curves and flourishes of Indian scripts.Layout: Centralized and dominant, filling the space with the beauty of the letterforms themselves.
+  - Design Concept: "Vintage Indian Advertising Type"Visual Elements: Text-heavy design, emulating old Indian product packaging, movie posters, or hand-painted shop signs. Use multiple fonts, stacking lines of text with decorative borders or small traditional Indian ornaments.Style: Vintage/Retro, Typography-Based.Color palette: Faded, earthy tones like sepia, muted greens, and faded reds, perhaps with a distressed texture.Typography: A mix of bold sans-serifs, decorative serifs, and perhaps a casual script font, all with a slightly aged appearance.Layout: Busy but organized, with text blocks framed by subtle decorative lines or flourishes.    
+  - Design Concept: "Patterned Text Block"Visual Elements: A bold, blocky sans-serif or slab serif font where the letters themselves are filled with intricate Indian patterns, such as paisley, block print designs, or small geometric motifs. The background is simple.Style: Typography-Based, Geometric, Abstract.Color palette: Contrasting colors between the pattern fill and the simple background; for example, a multi-colored pattern (red, yellow, blue) on a plain cream or black background.Typography: Very thick, legible display font to allow the pattern to be clearly visible within the letterforms.Layout: Clean and impactful, with the patterned text as the centerpiece.
+- Typography with Graphics:
+  - Design Concept: "Paisley Scroll Text"Visual Elements: Elegant text that curves and intertwines with flowing paisley (buta) motifs. The paisley could subtly emerge from or wrap around key words or phrases, creating a harmonious blend.Style: Illustrative, Floral, Typography-Based.Color palette: Soft, rich colors like deep teal, warm gold, and maroon, with the paisley pattern providing a subtle contrast.Typography: A sophisticated script or a flowing serif font that complements the organic curves of the paisley.Layout: Dynamic and flowing, with the text integrated into the organic shapes, possibly asymmetrical.
+  - Design Concept: "Diya & Text Embrace"Visual Elements: A simple, elegant illustration of a traditional Indian diya (oil lamp) or a small, intricate rangoli border that gently frames or sits beside the text. The text could be an Indian blessing or a cultural phrase.Style: Hand-Drawn, Minimalist, Illustrative.Color palette: Warm, inviting tones like oranges, yellows, and reds, possibly with a touch of deep blue for contrast, against a cream or off-white background.Typography: A friendly, legible serif or a clean sans-serif font, perhaps with a slight handcrafted feel.Layout: Balanced and warm, with the graphic element subtly enhancing the meaning of the text without overwhelming it.
+  - Design Concept: "Spice Trail Type"Visual Elements: Text integrated with illustrations of common Indian spices (e.g., turmeric, cardamom, chili peppers) or their abstract representations, forming a border or an organic cluster around the words.Style: Illustrative, Nature, Hand-Drawn.Color palette: Earthy and vibrant – a mix of deep reds, oranges, yellows, and browns, reflecting the colors of spices.Typography: A rustic, perhaps slightly textured sans-serif or a friendly script font that feels authentic and inviting.Layout: Organic and textured, with the spice elements naturally framing or intertwining with the text, creating a rich sensory experience.
+
+**Important Rules for All Prompts:**
+1.  **Start with an Action:** Every prompt must begin with "Make a," "Design a," or "Create a."
+2.  **Avoid Product-Specific Terms:** Use general terms like "graphic for printing," "vector illustration," "typographic design." Do NOT use "T-shirt," "mug," etc.
+3.  **Use Solid Backgrounds:** All designs must be on a solid black or white background. The color palette should be chosen to work on that background.
+
+**Instructions:**
+- For each design idea, create a detailed paragraph-long prompt.
+- Incorporate all details from the idea: style, subject, colors, composition, and typography.
+- Ensure the final prompt is a rich, descriptive paragraph ready for an AI image generator.
+
+**Example Prompt Output Structure:**
+
+*   **For Graphics-Focused:** "Create a graphic novel illustration of a heroic cartoon coffee bean flexing on a winner's podium, with dynamic action lines and a confident expression, on a solid black background. The text 'Coffee Beats Everything' is integrated in a bold comic book font. Use a color palette of warm browns and tans with vibrant red and yellow action effects. The composition is asymmetrical, with high contrast, sharp focus, professional vector art, trending on ArtStation."
+*   **For Typography-Focused:** "Design a vintage typographic artwork for printing, with the text 'Coffee Beats Everything' as the centerpiece, on a solid white background. Use a mix of bold condensed sans-serif, flowing script, and strong slab-serif fonts arranged in a balanced stack, framed with typographic ornaments like lines and stars, and a minimalist engraved coffee bean icon. The color palette is a simple cream and dark brown. The composition is symmetrical, with high detail and a textured effect, award-winning typography, classic craftsmanship."
+*   **For Typography with Graphics:** "Make a hand-sketched graphic illustration of a coffee plant branch with leaves and cherries organically wrapping around the text 'Coffee Beats Everything,' on a solid light cream background. The text should be in a casual, handwritten script font. The style is loose and organic with imperfect lines in a monochromatic sepia tone. The composition is asymmetrical and flowing, creating an authentic and artisanal feel. High resolution, detailed sketch, rustic aesthetic, trending on Behance for illustrations."
+
+
+--- PROMPT END: finalPromptText (compiled) ---
+
+{
+  "level": "INFO",
+  "timestamp": "2025-07-08T16:45:05.515Z",
+  "message": "[generateDesignPromptsUnified] Step 2 completed in 26635ms.",
+  "result": {
+    "extractedTextOrSaying": "Indian Cultural Themes and Expressions",
+    "graphicsPrompts": [
+      "Make a vibrant, intricate vector illustration for printing, featuring a central mandala or rangoli pattern composed of lotus petals, paisleys, and traditional geometric shapes, on a solid white background. The style is illustrative, geometric, and bohemian, utilizing a rich jewel tone color palette of deep blues, emerald greens, ruby reds, and saffron yellows, accented with gold. The composition is symmetrical and circular, radiating outwards, suitable for a central placement.",
+      "Design a hand-drawn vector illustration for printing, depicting a stylized Indian elephant and a peacock adorned with intricate traditional motifs, on a solid black background. The style is illustrative and ethnic, using earthy tones combined with vibrant blues, greens, and metallic gold or silver embellishments. The composition is majestic and balanced, with the animals centrally placed or as dynamic silhouettes.",
+      "Create a hand-drawn illustration for printing, showcasing simple, stick-figure like depictions of daily life, festivals, or nature, inspired by Warli folk art, on a deep ochre solid background. The style is illustrative and abstract in its simplicity, utilizing a monochromatic white color palette for the figures. The layout features repetitive patterns and a narrative scene that fills the design space, creating a sense of movement and community.",
+      "Design a minimalist architectural graphic for printing, featuring a clean silhouette of the Taj Mahal with a subtle traditional pattern within the silhouette, on a solid white background. The style is minimalist and geometric, using a deep charcoal grey for the silhouette. The composition is clean and focused, allowing the iconic shape to be the primary visual anchor."
+    ],
+    "searchKeywords": [
+      "Indian art inspiration",
+      "Mandala design",
+      "Rangoli patterns",
+      "Indian elephant illustration",
+      "Peacock art India",
+      "Warli folk art",
+      "Indian tribal art",
+      "Taj Mahal silhouette",
+      "Indian landmark art",
+      "Devanagari calligraphy",
+      "Indian script art",
+      "Vintage Indian typography",
+      "Paisley patterns",
+      "Diya illustration",
+      "Indian spices art",
+      "Traditional Indian motifs"
+    ],
+    "typographyPrompts": [
+      "Create a calligraphic typographic design for printing, focusing entirely on the word \"Namaste\" rendered in a stylized manner inspired by Devanagari script's flowing lines and distinct top bar, on a solid white background. The style is typography-based and calligraphic, using a deep maroon color palette with subtle gradients and textures. The composition is centralized and dominant, filling the space with the beauty of the letterforms themselves, mimicking ornate Indian scripts.",
+      "Design a vintage typography-based artwork for printing, emulating old Indian product packaging and hand-painted shop signs, with text stacked in multiple fonts, on a solid black background. The style is vintage/retro, utilizing a mix of bold sans-serifs, decorative serifs, and a casual script font, all with a slightly aged appearance. The color palette includes faded sepia, muted greens, and faded reds, with distressed textures. The layout is busy but organized, with text blocks framed by subtle decorative borders and small traditional Indian ornaments.",
+      "Make a typography-based graphic for printing, featuring a bold, blocky sans-serif font where the letters are filled with intricate Indian patterns like paisley and geometric motifs, on a plain white solid background. The style is typography-based, geometric, and abstract. The color palette uses multi-colored patterns (red, yellow, blue, gold) contrasting against the background. The typography is very thick and legible, allowing the pattern to be clearly visible within the letterforms. The composition is clean and impactful, with the patterned text as the centerpiece."
+    ],
+    "typographyWithGraphicsPrompts": [
+      "Create an illustrative graphic for printing, with elegant text that curves and intertwines with flowing paisley (buta) motifs, where the paisley subtly emerges from or wraps around key words, on a solid white background. The style is illustrative, floral, and typography-based, using a sophisticated script or a flowing serif font. The color palette consists of soft, rich colors like deep teal, warm gold, and maroon, with the paisley pattern providing subtle contrast. The composition is dynamic and flowing, with the text integrated into organic shapes, possibly asymmetrical.",
+      "Design a hand-drawn illustration for printing, featuring an elegant illustration of a traditional Indian diya (oil lamp) or a small, intricate rangoli border that gently frames or sits beside the text of an Indian blessing, on a solid black background. The style is minimalist and illustrative, using a friendly, legible serif font with a slight handcrafted feel for the text. The color palette uses warm, inviting tones like oranges, yellows, and reds for the diya/rangoli, possibly with a touch of deep blue for contrast. The composition is balanced and warm, with the graphic element subtly enhancing the meaning of the text.",
+      "Make an illustrative graphic for printing, integrating text with hand-drawn illustrations of common Indian spices like turmeric, cardamom, and chili peppers, forming an organic cluster around the words, on a solid white background. The style is illustrative, nature-themed, and hand-drawn, utilizing a rustic, slightly textured sans-serif or a friendly script font for the text. The color palette is earthy and vibrant, a mix of deep reds, oranges, yellows, and browns, reflecting the colors of spices. The layout is organic and textured, with the spice elements naturally framing or intertwining with the text, creating a rich sensory experience."
+    ]
+  }
+}
+{
+  "level": "INFO",
+  "timestamp": "2025-07-08T16:45:05.516Z",
+  "message": "[generateDesignPromptsUnified] Flow completed successfully.",
+  "finalOutput": {
+    "extractedTextOrSaying": "Designs with an Indian Touch for Indian Customers",
+    "searchKeywords": [
+      "Indian traditional art design",
+      "Indian folk art motifs",
+      "Desi graphic design",
+      "Relatable Indian patterns",
+      "Cultural Indian apparel",
+      "Ethnic Indian symbols",
+      "Vibrant India art",
+      "Bharat themes illustration",
+      "Mandala rangoli art",
+      "Indian textile patterns"
+    ],
+    "graphicsPrompts": [
+      "Make a vibrant, intricate vector illustration for printing, featuring a central mandala or rangoli pattern composed of lotus petals, paisleys, and traditional geometric shapes, on a solid white background. The style is illustrative, geometric, and bohemian, utilizing a rich jewel tone color palette of deep blues, emerald greens, ruby reds, and saffron yellows, accented with gold. The composition is symmetrical and circular, radiating outwards, suitable for a central placement.",
+      "Design a hand-drawn vector illustration for printing, depicting a stylized Indian elephant and a peacock adorned with intricate traditional motifs, on a solid black background. The style is illustrative and ethnic, using earthy tones combined with vibrant blues, greens, and metallic gold or silver embellishments. The composition is majestic and balanced, with the animals centrally placed or as dynamic silhouettes.",
+      "Create a hand-drawn illustration for printing, showcasing simple, stick-figure like depictions of daily life, festivals, or nature, inspired by Warli folk art, on a deep ochre solid background. The style is illustrative and abstract in its simplicity, utilizing a monochromatic white color palette for the figures. The layout features repetitive patterns and a narrative scene that fills the design space, creating a sense of movement and community.",
+      "Design a minimalist architectural graphic for printing, featuring a clean silhouette of the Taj Mahal with a subtle traditional pattern within the silhouette, on a solid white background. The style is minimalist and geometric, using a deep charcoal grey for the silhouette. The composition is clean and focused, allowing the iconic shape to be the primary visual anchor."
+    ],
+    "typographyPrompts": [
+      "Create a calligraphic typographic design for printing, focusing entirely on the word \"Namaste\" rendered in a stylized manner inspired by Devanagari script's flowing lines and distinct top bar, on a solid white background. The style is typography-based and calligraphic, using a deep maroon color palette with subtle gradients and textures. The composition is centralized and dominant, filling the space with the beauty of the letterforms themselves, mimicking ornate Indian scripts.",
+      "Design a vintage typography-based artwork for printing, emulating old Indian product packaging and hand-painted shop signs, with text stacked in multiple fonts, on a solid black background. The style is vintage/retro, utilizing a mix of bold sans-serifs, decorative serifs, and a casual script font, all with a slightly aged appearance. The color palette includes faded sepia, muted greens, and faded reds, with distressed textures. The layout is busy but organized, with text blocks framed by subtle decorative borders and small traditional Indian ornaments.",
+      "Make a typography-based graphic for printing, featuring a bold, blocky sans-serif font where the letters are filled with intricate Indian patterns like paisley and geometric motifs, on a plain white solid background. The style is typography-based, geometric, and abstract. The color palette uses multi-colored patterns (red, yellow, blue, gold) contrasting against the background. The typography is very thick and legible, allowing the pattern to be clearly visible within the letterforms. The composition is clean and impactful, with the patterned text as the centerpiece."
+    ],
+    "typographyWithGraphicsPrompts": [
+      "Create an illustrative graphic for printing, with elegant text that curves and intertwines with flowing paisley (buta) motifs, where the paisley subtly emerges from or wraps around key words, on a solid white background. The style is illustrative, floral, and typography-based, using a sophisticated script or a flowing serif font. The color palette consists of soft, rich colors like deep teal, warm gold, and maroon, with the paisley pattern providing subtle contrast. The composition is dynamic and flowing, with the text integrated into organic shapes, possibly asymmetrical.",
+      "Design a hand-drawn illustration for printing, featuring an elegant illustration of a traditional Indian diya (oil lamp) or a small, intricate rangoli border that gently frames or sits beside the text of an Indian blessing, on a solid black background. The style is minimalist and illustrative, using a friendly, legible serif font with a slight handcrafted feel for the text. The color palette uses warm, inviting tones like oranges, yellows, and reds for the diya/rangoli, possibly with a touch of deep blue for contrast. The composition is balanced and warm, with the graphic element subtly enhancing the meaning of the text.",
+      "Make an illustrative graphic for printing, integrating text with hand-drawn illustrations of common Indian spices like turmeric, cardamom, and chili peppers, forming an organic cluster around the words, on a solid white background. The style is illustrative, nature-themed, and hand-drawn, utilizing a rustic, slightly textured sans-serif or a friendly script font for the text. The color palette is earthy and vibrant, a mix of deep reds, oranges, yellows, and browns, reflecting the colors of spices. The layout is organic and textured, with the spice elements naturally framing or intertwining with the text, creating a rich sensory experience."
+    ]
+  }
+}
+ POST / 200 in 44002ms
+
+
+Prompt:
+Okay now I want to marge this two api call into one. But make sure it will not compromise with detail. It will do all the same thing what it does in two API calls. First it generates the design idea and then it generates the prompt. But now it will directly generate the ideas and the ideas will be directly in prompt format. So implement it.
+
+Prompt:
+Okay now I want to marge this two api call into one. But make sure it will not compromise with detail. It will do all the same thing what it does in two API calls. First it generates the design idea and then it generates the prompt. But now it will directly generate the ideas and the ideas will be directly in prompt format. So implement it.
+
+Prompt:
+I rejected your both edit because you delete here many more things. I just wanted you to merge them not delete any part. So it will make less detail. You should not delete any part here like examples and instruction or so many parts you deleted. So don't it. Try to merge them again and don't remove any part of the two step. Just merge them to one step.
+
+I backed them to orginal.
+
+Prompt:
+okay good but I want now there will not be two steps marge them to one step.
+
+Prompt:
+okay good but I want now there will not be two steps marge them to one step.
+
+Prompt:
+You should give an example for a group of prompt, like graphics, typography, typography and graphics mix. So, you will find the proper example from on this file @generate-design-ideas-flow copy.ts . Convert the example to the prompt and add the prompt example to here. Also, you will get more idea about it on this file. So the prompt will be more accurate, creative and detailed.
+
+Prompt:
+Now update the step two based on the updated step one. Please read the example based on the step one example. Update the all the other things based on the step one.
+
+Prompt:
+Your update ideas are not spacific. Skip optional things, giving examples. Make everything specific, and skip unnecessary things. So rewrite them.
+
+Prompt:
+Your update ideas are not spacific. Skip optional things, giving examples. Make everything specific, and skip unnecessary things. So rewrite them.
+

@@ -65,54 +65,49 @@ Design Input Text: {{{designInputText}}}
 1. First, identify or extract any specific text, saying, quote or theme that should be the focal point of designs.
 2. Generate 5-10 search keywords highly specific to this design request. These keywords should help the user find relevant design inspiration when searched on Google.
 3. Generate 3 categories of design ideas:
-   a. **Graphics-Focused Creative Ideas (4)**: Generate EXACTLY FOUR detailed graphics-focused design ideas. 
-     - Main focus is on the graphics and the text/saying is the secondary or optional focus. But always follow the user input, If he is clearly mention any text then add it, similarly if he is not mention any text then don't add it. Also If user clearly mention that he don't need any graphics want typography/text based design then follow it.
+   a. **Graphics-Focused Creative Ideas (4)**: Generate EXACTLY FOUR detailed graphics-focused design ideas.
    b. **Typography-Focused Ideas (3)**: Generate EXACTLY THREE ideas where typography is the primary focus.
-     - Main focus is on the typography and the but you can add the decorative elements like typographic ornaments, small shapes, small graphic elements, spikes, dots, lines, etc to make the design standout and beautiful. But always follow the user input, If user clearly mention that he don't need any typography want graphics based design then follow it.
    c. **Typography with Graphics Ideas (3)**: Generate EXACTLY THREE detailed ideas that blend interesting typography with complementary graphic elements.
-     - Here try to put same emphases on the graphics and typography. But make sure that design is standout and looks beautiful. And always follow the user input.
 
 **For each idea, include:**
-- Concept: Clearly describe the core concept and narrative.
-- Style: Specify the artistic style (e.g., Creative Design, Playful design, Maximalism / Dopamine Dressing, Vintage and Retro, Illustrative, Hand‑Drawn, Bold Typography, Line Art, Typography-Based, AI-inspired Designs, Doodle Art, Nature-inspired Designs, Pop Culture, Modern Illustration, Coordinated, Quiet Luxury, Graffiti/Street Art, Sports, Funny/Sarcastic, Floral, Abstract and Geometric Patterns, Minimalism, Cartoon, Grunge, Animal Prints.).
-- Visual Elements: Describe in detail the main visual elements, composition and all key visual elements, objects, characters, or symbols. Describe their appearance and interaction.
-- Color palette recommendations: Describe the color palette recommendations.
-- Typography: Describe the typography suggestions where relevant. If not then skip it.
-- Text Incorporation: Explain how the text/saying is integrated into the design (e.g., "arched above the central graphic," "interwoven with illustrative elements," "boldly centered").
-- Overall Mood/Feeling: Describe the intended emotional impact (e.g., "playful and energetic," "sophisticated and modern," "nostalgic and warm", "funny and sarcastic", "serious and professional", "romantic and intimate", "bold and striking", "subtle and elegant", "dark and mysterious", "light and airy")
+- Visual style and concept. Consider using one of the popular styles listed below.
+- Key visual elements and composition.
+- Color palette recommendations.
+- How the text is incorporated.
+- Typography suggestions where relevant.
+
+**Popular T-Shirt and POD Design Styles:**
+- **Minimalist, Vintage/Retro, Typography-Based, Illustrative, Geometric, Nature, Pop Culture, Hand-Drawn, Graffiti/Street Art, Sports, Funny/Sarcastic, Floral, Abstract, Cartoon, Grunge, Bohemian, Animal Prints.**
 
 **Example Idea Formats (Follow this structure):**
 
 *   **Graphics-Focused ("The Champion Bean"):**
-    Design Concept: a coffee bean cartoon character holding a golden trophy
-    Visual Elements: A coffee bean, a golden trophy 
-    Style: retro revival, with clean, intricate line work and a classic, nostalgic feel
-    Color palette: brown tones for the coffee bean, contrasted with polished gold accents for the trophy
-    Typography: bold, vintage serif, with the word "Coffee" larger than "Victory,"
-    Text Incorporation: coffee bean and trophy central, and the typography placed above or below the image.
-    Overall Mood/Feeling: a warm, celebratory atmosphere with a touch of refinement, evoking the energy of both victory and coffee culture.
+    Design Concept: "The Champion Bean"
+    Visual Elements: Heroic cartoon coffee bean flexing on a podium.
+    Style: Bold, graphic novel illustration.
+    Color palette: Warm browns, tans, vibrant reds/yellows.
+    Typography: "Coffee Beats Everything" in a comic book font.
+    Layout: Asymmetrical and dynamic.
 
-*   **Typography-Focused ("Bold Retro Stack"):**
-    Design Concept: a bold retro stacked arrangement of the phrase "Coffee Beats Everything"
-    Visual Elements: purely typographic treatment enhanced with small starburst accents and underline flourishes
-    Style: vintage 1970s poster typography, tight letter-stacking, high contrast letterforms
-    Color palette: warm cream lettering on a deep espresso backdrop, subtle gold accent lines
-    Typography: condensed sans-serif for "Coffee," flowing script for "Beats Everything," tight tracking for impact
-    Text Incorporation: phrase centred and stacked, decorative flourishes framing the stack
-    Overall Mood/Feeling: nostalgic and energetic, evoking classic coffee-shop signage
+*   **Typography-Focused ("Vintage Type Declaration"):**
+    Design Concept: "Vintage Type Declaration"
+    Visual Elements: Almost entirely text-based with typographic ornaments.
+    Style: Vintage packaging/posters.
+    Color palette: Cream text on a dark brown background.
+    Typography: Mix of bold sans-serif, script, and slab serif fonts in a stack.
+    Layout: Symmetrical and balanced.
 
-*   **Typography with Graphics ("Hand-Drawn Bean Burst"):**
-    Design Concept: hand-lettered phrase surrounded by an illustrated coffee bean splash
-    Visual Elements: dynamic ink splash of coffee beans radiating outward, integrating with the hand-drawn text
-    Style: loose hand-drawn illustration blended with expressive lettering
-    Color palette: rich browns and warm creams, single accent orange for highlights
-    Typography: expressive brush-script lettering, slightly slanted for motion
-    Text Incorporation: lettering sits at the splash centre, bean elements overlap stroke ends
-    Overall Mood/Feeling: lively and artisanal, suggesting freshly brewed excitement
+*   **Typography with Graphics ("Organic Sketch"):**
+    Design Concept: "Organic Sketch"
+    Visual Elements: Hand-drawn coffee plant branch wrapping around text.
+    Style: Loose, organic, hand-sketched.
+    Color palette: Monochromatic sepia on a cream background.
+    Typography: Casual, hand-written font integrated with the illustration.
+    Layout: Asymmetrical and flowing.
 `;
 
   // STEP 2: Define the prompt for converting ideas into final image prompts (from the old prompts-flow)
-  const promptCreationPromptText = `You are an expert AI Image Prompt Generator. Your task is to convert the provided design ideas into detailed, high-quality, Complete Image generation prompts.
+  const promptCreationPromptText = `You are an expert AI Image Prompt Generator. Your task is to convert the provided design ideas into detailed, high-quality image generation prompts.
 
 **Design Ideas Provided:**
 - Graphics-Focused:
@@ -129,20 +124,20 @@ Design Input Text: {{{designInputText}}}
 {{/each}}
 
 **Important Rules for All Prompts:**
-1.  **Start with an Action:** Every prompt must begin with "Make a," "Design a," or "Create a." 
-2.  **Act as a professional graphic designer:** Use professional design terminology.
-3.  **Avoid Product-Specific Terms:** Avoid using terms like "T-shirt," "Mug," "POD," etc.; instead use alternatives such as "typography design," "vector design," "vintage illustration," or "printing design." 
-4.  **Use Solid Backgrounds:** All designs must be on a solid plain black, white, or gray background. Pick a palette that works on that background. For mug, tumbler, or bottle designs always use a white background.
+1.  **Start with an Action:** Every prompt must begin with "Make a," "Design a," or "Create a."
+2.  **Avoid Product-Specific Terms:** Use general terms like "graphic for printing," "vector illustration," "typographic design." Do NOT use "T-shirt," "mug," etc.
+3.  **Use Solid Backgrounds:** All designs must be on a solid black or white background. The color palette should be chosen to work on that background.
 
 **Instructions:**
 - For each design idea, create a detailed paragraph-long prompt.
-- Incorporate all details from the idea: Concept, Style, Visual Elements, Colour palette, Typography, Text Incorporation, and Overall Mood/Feeling.
+- Incorporate all details from the idea: style, subject, colors, composition, and typography.
 - Ensure the final prompt is a rich, descriptive paragraph ready for an AI image generator.
 
-**Example Prompt Format:**
-   Creative Design Ideas (Graphics-Focused): Create a vintage illustration design featuring a coffee bean cartoon character holding a golden trophy. The style should evoke a retro revival with clean, intricate line work and a classic, nostalgic feel. Use rich brown tones for the coffee bean contrasted with polished gold accents for the trophy. The background is solid white for maximum contrast. Typography is bold vintage serif, the word "Coffee" larger than "Victory," using a font like Rockwell or Bodoni. Layout is symmetrical with the bean and trophy centred and text placed below. The overall mood is celebratory and refined.
-   Typography-Focused Prompt: Design a bold retro typographic artwork showcasing the stacked phrase "Coffee Beats Everything". Use condensed sans-serif for "Coffee" and flowing script for "Beats Everything", tightly kerned. Add starburst and underline flourishes for emphasis. Palette: warm cream lettering on deep espresso; background solid black. Composition centred and balanced, exuding confident vintage-café energy.
-   Typography with Graphics Prompt: Make a loose hand-drawn graphic of coffee beans splashing outward around the hand-lettered phrase "Coffee Beats Everything". Combine expressive brush-script lettering with dynamic ink-style bean graphics. Palette: rich browns with warm cream highlights on a solid light-gray background. Composition asymmetrical and flowing—beans overlap the lettering, conveying artisanal, freshly-brewed excitement.
+**Example Prompt Output Structure:**
+
+*   **For Graphics-Focused:** "Create a graphic novel illustration of a heroic cartoon coffee bean flexing on a winner's podium, with dynamic action lines and a confident expression, on a solid black background. The text 'Coffee Beats Everything' is integrated in a bold comic book font. Use a color palette of warm browns and tans with vibrant red and yellow action effects. The composition is asymmetrical, with high contrast, sharp focus, professional vector art, trending on ArtStation."
+*   **For Typography-Focused:** "Design a vintage typographic artwork for printing, with the text 'Coffee Beats Everything' as the centerpiece, on a solid white background. Use a mix of bold condensed sans-serif, flowing script, and strong slab-serif fonts arranged in a balanced stack, framed with typographic ornaments like lines and stars, and a minimalist engraved coffee bean icon. The color palette is a simple cream and dark brown. The composition is symmetrical, with high detail and a textured effect, award-winning typography, classic craftsmanship."
+*   **For Typography with Graphics:** "Make a hand-sketched graphic illustration of a coffee plant branch with leaves and cherries organically wrapping around the text 'Coffee Beats Everything,' on a solid light cream background. The text should be in a casual, handwritten script font. The style is loose and organic with imperfect lines in a monochromatic sepia tone. The composition is asymmetrical and flowing, creating an authentic and artisanal feel. High resolution, detailed sketch, rustic aesthetic, trending on Behance for illustrations."
 `;
   
   try {

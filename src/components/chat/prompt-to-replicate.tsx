@@ -220,10 +220,10 @@ export function PromptToReplicate({ userName, userApiKey, modelId, onClose, init
                 </CardHeader>
                 <CardContent>
                   <Tabs defaultValue="exact" className="w-full">
-                    <TabsList className="grid grid-cols-3 mb-4">
-                      <TabsTrigger value="exact">Exact Replication</TabsTrigger>
-                      <TabsTrigger value="similar">Similar with Tweaks</TabsTrigger>
-                      <TabsTrigger value="niche">Same Niche/Concept</TabsTrigger>
+                    <TabsList className="grid grid-cols-3 mb-4 bg-gradient-to-r from-background/80 to-muted/80 p-1 rounded-lg">
+                      <TabsTrigger value="exact" className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">Exact Replication</TabsTrigger>
+                      <TabsTrigger value="similar" className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-violet-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">Similar with Tweaks</TabsTrigger>
+                      <TabsTrigger value="niche" className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-emerald-500 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">Same Niche/Concept</TabsTrigger>
                     </TabsList>
                     
                     <TabsContent value="exact">

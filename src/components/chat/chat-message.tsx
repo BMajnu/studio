@@ -145,6 +145,9 @@ const processMarkdown = (text: string) => {
   return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 };
 
+// NEW: Helper to collapse multiple blank lines into a single line
+const removeExtraBlankLines = (text: string) => text.replace(/\n{2,}/g, '\n');
+
 function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMessageContentPart; index: number, searchHighlightTerm?: string }) {
   const animationDelay = `${index * 80}ms`;
   const commonClasses = "animate-slideUpAndFade rounded-lg w-full mb-3";
@@ -234,7 +237,7 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
                 <p 
                   className="whitespace-pre-wrap leading-relaxed" 
                 >
-                  {highlightText(part.text, searchHighlightTerm)}
+                  {highlightText(removeExtraBlankLines(part.text), searchHighlightTerm)}
                 </p>
               </div>
             )}
@@ -247,7 +250,7 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
           className="whitespace-pre-wrap leading-relaxed w-full animate-slideUpSlightly" 
           style={{ animationDelay }}
         >
-          {highlightText(part.text, searchHighlightTerm)}
+          {highlightText(removeExtraBlankLines(part.text), searchHighlightTerm)}
         </div>
       );
     
@@ -558,13 +561,13 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
             
             <Tabs defaultValue="exact" className="w-full">
               <TabsList className="grid grid-cols-3 mb-4 bg-gradient-to-r from-background/80 to-muted/80 p-1 rounded-lg">
-                <TabsTrigger value="exact" className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white">
+                <TabsTrigger value="exact" className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">
                   <span className="mr-1.5">🎯</span> Exact Replication
                 </TabsTrigger>
-                <TabsTrigger value="similar" className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-violet-500 data-[state=active]:to-purple-600 data-[state=active]:text-white">
+                <TabsTrigger value="similar" className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-violet-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">
                   <span className="mr-1.5">✏️</span> Similar with Tweaks
                 </TabsTrigger>
-                <TabsTrigger value="niche" className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-emerald-500 data-[state=active]:to-teal-600 data-[state=active]:text-white">
+                <TabsTrigger value="niche" className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-emerald-500 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">
                   <span className="mr-1.5">🔄</span> Same Niche/Concept
                 </TabsTrigger>
               </TabsList>
@@ -679,7 +682,7 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
                     <TabsTrigger 
                       key={promptIndex}
                       value={promptItem.title || `prompt-${promptIndex}`}
-                      className="data-[state=active]:bg-gradient-to-br data-[state=active]:text-white data-[state=active]:from-purple-500 data-[state=active]:to-pink-600"
+                      className="data-[state=active]:bg-gradient-to-br data-[state=active]:text-white data-[state=active]:from-purple-500 data-[state=active]:to-pink-600 data-[state=active]:shadow-md rounded-md"
                     >
                       {promptItem.title}
                     </TabsTrigger>
@@ -759,7 +762,7 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
                       <TabsTrigger 
                         key={`outer-tab-${resultIndex}`}
                         value={`prompt-${resultIndex}`}
-                        className="py-1 px-0 md:py-1.5 data-[state=active]:bg-gradient-to-br data-[state=active]:text-white data-[state=active]:from-cyan-500 data-[state=active]:to-teal-600 data-[state=active]:shadow-md transition-all duration-300 relative"
+                        className="py-1 px-0 md:py-1.5 data-[state=active]:bg-gradient-to-br data-[state=active]:text-white data-[state=active]:from-cyan-500 data-[state=active]:to-teal-600 data-[state=active]:shadow-md transition-all duration-300 relative rounded-md"
                       >
                         <span className="block md:hidden text-xs">P{resultIndex + 1}</span>
                         <span className="hidden md:block text-sm">Prompt {resultIndex + 1}</span>
@@ -779,7 +782,7 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
                           <TabsTrigger 
                             key={`outer-tab-${actualIndex}`}
                             value={`prompt-${actualIndex}`}
-                            className="py-1 px-0 md:py-1.5 data-[state=active]:bg-gradient-to-br data-[state=active]:text-white data-[state=active]:from-cyan-500 data-[state=active]:to-teal-600 data-[state=active]:shadow-md transition-all duration-300 relative"
+                            className="py-1 px-0 md:py-1.5 data-[state=active]:bg-gradient-to-br data-[state=active]:text-white data-[state=active]:from-cyan-500 data-[state=active]:to-teal-600 data-[state=active]:shadow-md transition-all duration-300 relative rounded-md"
                           >
                             <span className="block md:hidden text-xs">P{actualIndex + 1}</span>
                             <span className="hidden md:block text-sm">Prompt {actualIndex + 1}</span>
@@ -804,13 +807,13 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
                         <TabsList className="w-full flex mb-3 bg-transparent p-0 rounded-md overflow-hidden border divide-x">
                           <TabsTrigger 
                             value="prompt-text" 
-                            className="flex-1 py-1.5 md:py-2 rounded-none data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-500 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=inactive]:bg-muted/30 transition-all duration-300"
+                            className="flex-1 py-1.5 md:py-2 rounded-none data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-500 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=inactive]:bg-muted/30 transition-all duration-300 rounded-md"
                           >
                             Prompt
                           </TabsTrigger>
                           <TabsTrigger 
                             value="metadata" 
-                            className="flex-1 py-1.5 md:py-2 rounded-none data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=inactive]:bg-muted/30 transition-all duration-300"
+                            className="flex-1 py-1.5 md:py-2 rounded-none data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=inactive]:bg-muted/30 transition-all duration-300 rounded-md"
                           >
                             Metadata
                           </TabsTrigger>
@@ -960,16 +963,18 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
 
       return (
         <div key={index} className={cn(commonClasses, "bg-card/80 backdrop-blur-sm border border-border rounded-lg shadow-md overflow-hidden")} style={{ animationDelay }}>
-          <div className="px-4 py-3 border-b flex items-center bg-gradient-to-r from-sky-500 to-blue-600">
-            <span className="mr-2 text-lg">🔍</span>
+          <div className="px-4 py-3 border-b flex items-baseline justify-between bg-gradient-to-r from-sky-500 to-blue-600">
+            <div className="flex items-baseline gap-3">
+              <span className="text-lg">🔍</span>
             <h4 className="font-semibold text-base text-white">
               {part.title || 'Search Keywords'}
             </h4>
+              <p className="text-xs text-white/80 font-light">
+                (Click on any keyword to find design inspiration on Google)
+              </p>
+            </div>
           </div>
           <div className="p-4">
-            <p className="text-sm text-muted-foreground mb-3">
-              Click on any keyword to find design inspiration on Google:
-            </p>
             <div className="flex flex-wrap gap-2">
               {normalizedKeywords.map((keyword, i) => (
                 <Button

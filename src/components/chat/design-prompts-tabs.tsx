@@ -51,7 +51,11 @@ export function DesignPromptsTabs({
         <Tabs defaultValue={defaultCategory} className="w-full">
             <TabsList className="grid w-full grid-cols-3">
                 {promptsData.map(categoryData => (
-                    <TabsTrigger key={categoryData.category} value={categoryData.category}>
+                    <TabsTrigger 
+                        key={categoryData.category} 
+                        value={categoryData.category}
+                        className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md"
+                    >
                         {categoryData.category}
                     </TabsTrigger>
                 ))}
@@ -61,7 +65,11 @@ export function DesignPromptsTabs({
                     <Tabs defaultValue="0" className="w-full">
                         <TabsList className={cn("grid w-full", categoryData.prompts.length === 4 ? "grid-cols-4" : "grid-cols-3")}>
                             {categoryData.prompts.map((_, index) => (
-                                <TabsTrigger key={index} value={index.toString()}>
+                                <TabsTrigger 
+                                    key={index} 
+                                    value={index.toString()}
+                                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-sky-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md"
+                                >
                                     Prompt {index + 1}
                                 </TabsTrigger>
                             ))}
