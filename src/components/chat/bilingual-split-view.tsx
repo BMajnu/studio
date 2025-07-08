@@ -224,7 +224,7 @@ export function BilingualSplitView({
 
   return (
     <div className="w-full glass-panel border border-border p-4 rounded-xl shadow-md mb-4">
-      <h3 className="text-xl font-semibold text-center mb-4 text-gradient">Bilingual Requirements Analysis</h3>
+      <h3 className="text-xl font-semibold text-center mb-4 text-gradient">Requirements Analysis</h3>
       
       <Tabs defaultValue="keyPoints" value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid grid-cols-6 mb-4">

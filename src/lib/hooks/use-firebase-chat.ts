@@ -383,7 +383,22 @@ export function useFirebaseChat() {
     }
     
     try {
-      // Delete from local cache first
+      // If online, delete from Firebase first to ensure it's properly removed
+      if (isOnline) {
+        try {
+          // Wait for Firebase deletion to complete
+          const firebaseSuccess = await FirebaseChatStorage.deleteSession(userId, sessionId);
+          if (!firebaseSuccess) {
+            console.error("Failed to delete session from Firebase");
+            return false;
+          }
+        } catch (error) {
+          console.error("Error deleting from Firebase:", error);
+          return false;
+        }
+      }
+      
+      // After successful Firebase deletion (or if offline), delete from local cache
       localStorage.removeItem(`firebase_chat_session_${userId}_${sessionId}`);
       
       // Update metadata
@@ -404,23 +419,12 @@ export function useFirebaseChat() {
         setCurrentSession(null);
       }
       
-      // If online, delete from Firebase as well
-      let firebaseSuccess = true;
-      if (isOnline) {
-        firebaseSuccess = await FirebaseChatStorage.deleteSession(userId, sessionId);
-      }
-      
       return true;
     } catch (error) {
       console.error("Error deleting session:", error);
-      toast({
-        title: "Error",
-        description: `Failed to delete chat session ${sessionId}`,
-        variant: "destructive"
-      });
       return false;
     }
-  }, [userId, currentSession, toast, isOnline]);
+  }, [userId, currentSession, isOnline]);
   
   // Migrate sessions from local/Drive storage to Firebase
   const migrateSessionsFromLocal = useCallback(async (localSessions: ChatSession[]) => {

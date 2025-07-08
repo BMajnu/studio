@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { PlusCircle, Trash2, MessageSquare, Loader2, XIcon, PencilIcon, CheckIcon, RefreshCw, GalleryHorizontal, PanelLeftClose, Search, Edit, PanelLeftOpen, Image, X } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import MediaGallery from './media-gallery';
 import { formatDistanceToNow } from 'date-fns';
 import {
   AlertDialog,
@@ -91,7 +91,7 @@ function SessionItem({
     <div
       key={session.id}
       className={cn(
-        "group relative flex flex-col rounded-md px-2 py-1.5 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 animate-fade-in mx-2 w-[calc(100%-40px)]",
+        "group relative flex flex-col rounded-md px-2 py-1.5 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 animate-fade-in mx-2 w-[calc(100%-37px)]",
         isActive
           ? "text-primary"
           : "",
@@ -184,8 +184,7 @@ export function HistoryPanel({
   const editInputRef = useRef<HTMLInputElement>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editNameValue, setEditNameValue] = useState("");
-  const router = useRouter();
-  const [isMediaOpen, setIsMediaOpen] = useState(false); // retained for compatibility but unused
+  const [isMediaOpen, setIsMediaOpen] = useState(false);
   const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [sessionBeingSelected, setSessionBeingSelected] = useState<string | null>(null);
@@ -669,7 +668,7 @@ export function HistoryPanel({
             variant="outline"
             size="icon"
             className="w-full h-10 flex items-center justify-center border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors"
-            onClick={() => router.push('/gallery')}
+            onClick={() => setIsMediaOpen(true)}
             title="Media Gallery"
           >
             <Image className="h-5 w-5 text-primary/80" />
@@ -703,6 +702,12 @@ export function HistoryPanel({
             </Button>
           </div>
         )}
+        
+        {/* Media Gallery Dialog */}
+        <MediaGallery
+          open={isMediaOpen}
+          onOpenChange={setIsMediaOpen}
+        />
         
         {/* Search Dialog */}
         <ChatSearchDialog
@@ -760,7 +765,7 @@ export function HistoryPanel({
             color: 'hsl(var(--sidebar-foreground) / 0.8)',
             borderColor: 'hsl(var(--sidebar-border))'
           }}
-          onClick={() => router.push('/gallery')}
+          onClick={() => setIsMediaOpen(true)}
         >
           <Image className="h-4 w-4" />
           <span>Gallery</span>
@@ -840,7 +845,7 @@ export function HistoryPanel({
         </div>
       </ScrollArea>
       
-      {/* Search Dialog */}
+      <MediaGallery open={isMediaOpen} onOpenChange={setIsMediaOpen} />
       <ChatSearchDialog 
         isOpen={isSearchDialogOpen}
         onClose={() => setIsSearchDialogOpen(false)}

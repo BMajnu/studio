@@ -112,8 +112,8 @@ function ChatHistoryItemBase({ session, isActive, onClick, onDelete, onRename }:
   return (
     <div
       className={cn(
-        'flex items-center justify-between p-2 rounded-md cursor-pointer transition-all duration-200 active:scale-98 w-full',
-        'hover:bg-primary/10 hover:shadow-md group border border-transparent',
+        'relative flex flex-col p-2 rounded-md cursor-pointer transition-all duration-200 active:scale-98 w-full',
+        'hover:bg-primary/10 hover:shadow-md border border-transparent group',
         isActive ? 'bg-gradient-to-r from-primary/15 to-secondary/10 border-primary/20 shadow-sm' : 'bg-muted/30',
         isClicking && 'scale-98 bg-primary/20'
       )}
@@ -129,36 +129,36 @@ function ChatHistoryItemBase({ session, isActive, onClick, onDelete, onRename }:
         }
       }}
     >
-      <div className="flex-1 min-w-0 max-w-[180px] overflow-hidden mr-1">
-        {isEditing ? (
-          <div className="flex items-center space-x-1" onClick={e => e.stopPropagation()}>
-            <input
-              type="text"
-              value={editName}
-              onChange={handleNameChange}
-              onKeyDown={handleKeyDown}
-              className="w-full p-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-primary"
-              autoFocus
-            />
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-6 w-6 flex-shrink-0" 
-              onClick={handleSaveEdit}
-            >
-              <CheckIcon className="h-3.5 w-3.5" />
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-6 w-6 flex-shrink-0" 
-              onClick={handleCancelEdit}
-            >
-              <XIcon className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        ) : (
-          <>
+      {isEditing ? (
+        <div className="flex items-center space-x-1" onClick={e => e.stopPropagation()}>
+          <input
+            type="text"
+            value={editName}
+            onChange={handleNameChange}
+            onKeyDown={handleKeyDown}
+            className="w-full p-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+            autoFocus
+          />
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-6 w-6 flex-shrink-0" 
+            onClick={handleSaveEdit}
+          >
+            <CheckIcon className="h-3.5 w-3.5" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-6 w-6 flex-shrink-0" 
+            onClick={handleCancelEdit}
+          >
+            <XIcon className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ) : (
+        <>
+          <div className="w-full pr-6"> {/* Add right padding to make room for delete button */}
             <div className={cn(
               "text-sm font-medium truncate",
               isActive && "text-gradient"
@@ -171,31 +171,26 @@ function ChatHistoryItemBase({ session, isActive, onClick, onDelete, onRename }:
             <div className="text-xs text-muted-foreground/70">
               {relativeTime}
             </div>
-          </>
-        )}
-      </div>
-      
-      {!isEditing && (
-        <div className="flex opacity-100 transition-opacity flex-shrink-0 ml-auto">
-          {onRename && (
+          </div>
+          
+          {/* Delete button - positioned absolutely */}
+          <div 
+            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+          >
             <Button
               variant="ghost"
-              size="icon"
-              className="h-6 w-6 flex-shrink-0 hover:bg-primary/20 hover:text-primary transition-colors duration-200"
-              onClick={handleEditClick}
+              size="sm"
+              className="h-4 w-4 p-0 rounded-full hover:bg-destructive/10 hover:text-destructive"
+              onClick={handleDeleteClick}
             >
-              <PencilIcon className="h-3.5 w-3.5" />
+              <Trash2 className="h-2.5 w-2.5" />
             </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 flex-shrink-0 hover:bg-destructive/10 hover:text-destructive transition-colors duration-200"
-            onClick={handleDeleteClick}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-        </div>
+          </div>
+        </>
       )}
     </div>
   );

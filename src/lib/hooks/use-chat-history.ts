@@ -1811,6 +1811,21 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
     if (!effectiveUserId || !sessionId.startsWith(effectiveUserId + '_')) {
         return false; // Return boolean
     }
+    // NEW: Try to delete from Firebase first (for authenticated users)
+    if (effectiveUserId !== DEFAULT_USER_ID && (typeof navigator === 'undefined' || navigator.onLine)) {
+      try {
+        const firebaseSuccess = await FirebaseChatStorage.deleteSession(effectiveUserId, sessionId);
+        if (!firebaseSuccess) {
+          console.error(`deleteSession: Failed to delete session ${sessionId} from Firebase`);
+          if (isMounted.current) toast({ title: "Remote Deletion Error", description: `Could not delete session from cloud storage.`, variant: "destructive"});
+          return false;
+        }
+      } catch (fbError) {
+        console.error(`deleteSession: Error deleting session ${sessionId} from Firebase:`, fbError);
+        if (isMounted.current) toast({ title: "Remote Deletion Error", description: `Could not delete session from cloud storage.`, variant: "destructive"});
+        return false;
+      }
+    }
     // Removed Drive deletion logic
     try {
       const deletedSessions = JSON.parse(localStorage.getItem(deletedSessionsLSKey) || '[]');
@@ -1833,7 +1848,7 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
             } catch (error) { console.error("deleteSession: Failed to update LS index.", error); }
             return finalHistory;
           });
-          toast({ title: "Session Deleted Locally", description: `Session removed from local storage.`});
+          toast({ title: "Session Deleted", description: `Session removed successfully.`,});
           }
       return true; // Indicate success
     } catch (error) {

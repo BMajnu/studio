@@ -58,8 +58,8 @@ export class GeminiClient {
         lastError = err;
         const msg = err?.message?.toLowerCase() || '';
 
-        // Detect quota error 429 or RESOURCE_EXHAUSTED
-        if (msg.includes('429') || msg.includes('resource_exhausted')) {
+        // Detect quota / availability errors (429, 503, RESOURCE_EXHAUSTED, UNAVAILABLE, overloaded)
+        if (msg.includes('429') || msg.includes('503') || msg.includes('500') || msg.includes('resource_exhausted') || msg.includes('unavailable') || msg.includes('overloaded') || msg.includes('internal')) {
           this.manager.reportQuotaError(key);
           if (!this.autoRotate) throw err;
           continue; // retry with next key

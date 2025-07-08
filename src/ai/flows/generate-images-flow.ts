@@ -75,23 +75,35 @@ export async function generateImages(flowInput: GenerateImagesInput): Promise<Ge
       throw new Error('Gemini image part had no data');
     }
 
-    async function callGeminiOnce(): Promise<string>{
-      const { data } = await client.request<string>(callGeminiWithKey);
-      return data;
+    async function callGeminiOnce(maxRetries:number=3): Promise<string>{
+      let attempts=0;
+      while(attempts<maxRetries){
+        try{
+          const { data } = await client.request<string>(callGeminiWithKey);
+          return data;
+        }catch(err){
+          attempts++;
+          if(attempts>=maxRetries) throw err;
+        }
+      }
+      throw new Error('All retries exhausted');
     }
 
     // Gemini preview currently supports only one image per call. Call it N times.
-    const imagePromises: Promise<string>[] = [];
+    const images: { dataUri: string; alt: string }[] = [];
     for (let i = 0; i < numImages; i++) {
-      imagePromises.push(callGeminiOnce());
+      try {
+        const dataUri = await callGeminiOnce();
+        images.push({ dataUri, alt: `Generated image ${images.length + 1}` });
+      } catch (err) {
+        console.warn(`generateImages: failed to generate image ${i + 1}/${numImages}`, err);
+        // continue to next image attempt
+      }
     }
 
-    const dataUris = await Promise.all(imagePromises);
-
-    const images = dataUris.map((dataUri, idx) => ({
-      dataUri,
-      alt: `Generated image ${idx + 1}`
-    }));
+    if (images.length === 0) {
+      throw new Error('All image generation attempts failed');
+    }
 
     return { images, prompt };
   } catch (error) {

@@ -8,6 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Copy, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { ImageGenerationPanel } from './image-generation-panel';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 export function DesignPromptsTabs({ 
     promptsData 
@@ -68,24 +74,40 @@ export function DesignPromptsTabs({
                                             <code>{prompt}</code>
                                         </pre>
                                         <div className="absolute top-2 right-2 flex space-x-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                                onClick={() => navigator.clipboard.writeText(prompt)}
-                                                aria-label="Copy to clipboard"
-                                            >
-                                                <Copy className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7 text-muted-foreground hover:text-primary"
-                                                onClick={() => handleGenerate(categoryData.category, index, prompt)}
-                                                aria-label="Generate images"
-                                            >
-                                                <Sparkles className="h-4 w-4" />
-                                            </Button>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                                            onClick={() => navigator.clipboard.writeText(prompt)}
+                                                            aria-label="Copy to clipboard"
+                                                        >
+                                                            <Copy className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Copy Prompt</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-7 w-7 text-muted-foreground hover:text-primary"
+                                                            onClick={() => handleGenerate(categoryData.category, index, prompt)}
+                                                            aria-label="Generate images"
+                                                        >
+                                                            <Sparkles className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Generate Image</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
                                         </div>
                                     </div>
                                 </div>

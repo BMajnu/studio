@@ -1,5 +1,14 @@
 const path = require('path');
 
+// Normalize NODE_ENV to avoid Next.js non-standard warning during dev.
+if (!['development', 'production', 'test'].includes(process.env.NODE_ENV || '')) {
+  console.warn(
+    `⚠ Detected non-standard NODE_ENV ("${process.env.NODE_ENV}"). ` +
+    'Forcing it to "development" to keep Next.js happy.'
+  );
+  process.env.NODE_ENV = 'development';
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   /* config options here */
@@ -42,7 +51,14 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  webpack(config) {
+};
+
+// Conditionally apply custom webpack settings only when Turbopack is NOT being used (e.g. production build).
+if (!process.env.TURBOPACK) {
+  /**
+   * @param {import('webpack').Configuration} config
+   */
+  nextConfig.webpack = (config) => {
     // Suppress warnings triggered by dynamic requires in 3rd-party libs we cannot control.
     config.ignoreWarnings = [
       // @opentelemetry/instrumentation: dynamic dependency expression
@@ -55,10 +71,14 @@ const nextConfig = {
         module: /handlebars[\\/]lib[\\/]index\.js/,
         message: /require\.extensions is not supported by webpack/,
       },
+      // Ignore font loading issues
+      {
+        message: /Can't resolve '@vercel\/turbopack-next\/internal\/font\/google\/font'/,
+      },
     ];
 
     return config;
-  },
-};
+  };
+}
 
 module.exports = nextConfig;

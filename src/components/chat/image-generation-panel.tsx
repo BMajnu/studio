@@ -5,15 +5,19 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X, Download, Loader2, Sparkles, Maximize2, ArrowLeft } from 'lucide-react';
+import { X, Download, Loader2, Sparkles, Maximize2, Code, Copy } from 'lucide-react';
 import { GeneratedImage } from '@/lib/types';
 import { saveGeneratedImagesLocal } from '@/lib/storage/generated-images-local';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useUserProfile } from '@/lib/hooks/use-user-profile';
-import { Dialog, DialogContent as BaseDialogContent, DialogTitle, DialogPortal, DialogOverlay } from '@/components/ui/dialog';
-import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { ImagePreviewDialog } from '@/components/ui/image-preview-dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface ImageGenerationPanelProps {
   prompt: string;
@@ -26,27 +30,21 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
   
   // Settings state
   const [numImages, setNumImages] = useState(4);
-  const [aspectRatio, setAspectRatio] = useState<'1:1' | '4:3' | '3:4' | '16:9' | '9:16'>('1:1');
+  const aspectRatio = '1:1';
   const [temperature, setTemperature] = useState<number>(1);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   
   // Preview modal state
-  const [previewImage, setPreviewImage] = useState<GeneratedImage | null>(null);
-  const [previewIndex, setPreviewIndex] = useState<number>(0);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   
   // Build the download file name in the format:
   //   DesAInR - [prompt text] - <n>.png
   // Special characters are stripped and spaces turned into hyphens so the
   // resulting file name is safe on all operating systems.
   const getImageFilename = (index: number) => {
-    const cleanPrompt = prompt
-      .replace(/[^\w\s-]/g, '')   // Remove special characters
-      .trim()
-      .replace(/\s+/g, '-')        // Convert whitespace to hyphens
-      .substring(0, 80);            // Keep it reasonably short
-
-    return `DesAInR - [${cleanPrompt}] - ${index + 1}.png`;
+    const safePrompt = prompt.replace(/[^a-z0-9]/gi, '_').slice(0, 30);
+    return `DesAInR_${safePrompt}_${index + 1}.png`;
   };
   
   // Handle generate button click
@@ -91,19 +89,18 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
 
       // Attach unique IDs to each generated image (needed for proper deduping)
       const now = Date.now();
-      const ONE_HOUR_MS = 60 * 60 * 1000;
       const imagesWithIds: GeneratedImage[] = data.images.map((img: GeneratedImage) => ({
         ...img,
         id: globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2),
         createdAt: now,
-        expiresAt: now + ONE_HOUR_MS,
+        prompt: data.prompt, // <-- Add the prompt here
       }));
 
       setGeneratedImages(imagesWithIds);
 
       // Persist locally for Media gallery
       if (profile.userId) {
-        saveGeneratedImagesLocal(profile.userId, imagesWithIds);
+        await saveGeneratedImagesLocal(profile.userId, imagesWithIds);
 
         // Images are now saved only to localStorage; hooks will react via the
         // `generated-images-updated` event already dispatched inside
@@ -136,27 +133,62 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
     document.body.removeChild(link);
   };
 
+  const handleCopyPrompt = (prompt: string | undefined) => {
+    if (!prompt) {
+        toast({
+            title: 'No prompt available',
+            description: "The prompt used for this image wasn't saved.",
+            variant: 'destructive',
+        });
+        return;
+    }
+    navigator.clipboard.writeText(prompt);
+    toast({
+        title: 'Prompt Copied!',
+        description: 'The image prompt has been copied to your clipboard.',
+    });
+  };
+
+  const handleCopyImage = async (dataUri: string) => {
+    try {
+      const blob = await (await fetch(dataUri)).blob();
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          [blob.type]: blob,
+        }),
+      ]);
+      toast({
+        title: 'Image Copied!',
+        description: 'The image has been copied to your clipboard.',
+      });
+    } catch (error) {
+      console.error('Failed to copy image:', error);
+      toast({
+        title: 'Copy Failed',
+        description: 'Could not copy the image to the clipboard.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   // Handle preview image
   const handlePreview = (image: GeneratedImage, index: number) => {
-    setPreviewImage(image);
     setPreviewIndex(index);
   };
 
   // Navigate between images in preview
   const navigatePreview = (direction: 'next' | 'prev') => {
     if (direction === 'next') {
-      const nextIndex = (previewIndex + 1) % generatedImages.length;
+      const nextIndex = (previewIndex! + 1) % generatedImages.length;
       setPreviewIndex(nextIndex);
-      setPreviewImage(generatedImages[nextIndex]);
     } else {
-      const prevIndex = (previewIndex - 1 + generatedImages.length) % generatedImages.length;
+      const prevIndex = (previewIndex! - 1 + generatedImages.length) % generatedImages.length;
       setPreviewIndex(prevIndex);
-      setPreviewImage(generatedImages[prevIndex]);
     }
   };
   
   return (
-    <div className="w-full space-y-6 bg-background/95 backdrop-blur-sm rounded-lg p-4">
+    <div className="w-full space-y-4 bg-background/95 backdrop-blur-sm rounded-lg p-4 border shadow-xl">
       <div className="flex items-center justify-between border-b pb-3">
         <h3 className="text-lg font-semibold flex items-center">
           <Sparkles className="h-5 w-5 mr-2 text-primary" />
@@ -189,22 +221,7 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
               />
             </div>
             
-            {/* Aspect ratio */}
-            <div className="flex items-center gap-2">
-              <Label htmlFor="aspect-ratio" className="text-sm font-medium whitespace-nowrap">Aspect Ratio</Label>
-              <Select value={aspectRatio} onValueChange={(value: '1:1' | '4:3' | '3:4' | '16:9' | '9:16') => setAspectRatio(value)}>
-                <SelectTrigger id="aspect-ratio" className="w-full">
-                  <SelectValue placeholder="Select ratio" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1:1">1:1 Square</SelectItem>
-                  <SelectItem value="16:9">16:9 Widescreen</SelectItem>
-                  <SelectItem value="9:16">9:16 Social story</SelectItem>
-                  <SelectItem value="3:4">3:4 Traditional</SelectItem>
-                  <SelectItem value="4:3">4:3 Classic</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Aspect ratio removed for simplicity (default 1:1) */}
 
             {/* Temperature */}
             <div>
@@ -273,121 +290,93 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
             <Sparkles className="h-4 w-4 mr-2 text-primary" />
             Generated Images
           </h4>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {generatedImages.map((image, index) => (
-              <div key={index} className="relative group overflow-hidden rounded-md">
-                <img
-                  src={image.dataUri}
-                  alt={image.alt}
-                  className="w-full h-auto rounded-md border border-border transition-transform duration-300 group-hover:scale-105 cursor-pointer"
-                  onClick={() => handlePreview(image, index)}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center p-3">
-                  <div className="flex w-full space-x-2">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handlePreview(image, index);
-                      }}
-                      className="flex-1 bg-white/90 hover:bg-white text-black shadow-lg"
-                    >
-                      <Maximize2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDownload(image.dataUri, index);
-                      }}
-                      className="flex-1 bg-white/90 hover:bg-white text-black shadow-lg"
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
+          <TooltipProvider>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {generatedImages.map((image, index) => (
+                <div key={index} className="relative group overflow-hidden rounded-lg border shadow-sm aspect-square">
+                  <img
+                    src={image.dataUri}
+                    alt={image.alt || 'Generated image'}
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 cursor-pointer"
+                    onClick={() => setPreviewIndex(index)}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center p-2">
+                    <div className="flex items-center justify-center gap-2 transform-gpu translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant="secondary"
+                            className="bg-white/90 hover:bg-white text-black rounded-full h-9 w-9 shadow-lg"
+                            onClick={(e) => { e.stopPropagation(); setPreviewIndex(index); }}
+                          >
+                            <Maximize2 className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Preview</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                           <Button
+                            size="icon"
+                            variant="secondary"
+                            className="bg-white/90 hover:bg-white text-black rounded-full h-9 w-9 shadow-lg"
+                            onClick={(e) => { e.stopPropagation(); handleCopyPrompt(image.prompt); }}
+                          >
+                            <Code className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-xs truncate">{image.prompt || 'Copy Prompt'}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant="secondary"
+                            className="bg-white/90 hover:bg-white text-black rounded-full h-9 w-9 shadow-lg"
+                            onClick={(e) => { e.stopPropagation(); handleCopyImage(image.dataUri); }}
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Copy Image</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                           <Button
+                            size="icon"
+                            variant="secondary"
+                            className="bg-white/90 hover:bg-white text-black rounded-full h-9 w-9 shadow-lg"
+                            onClick={(e) => { e.stopPropagation(); handleDownload(image.dataUri, index); }}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Download</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </TooltipProvider>
         </div>
       )}
-      
-      {/* Image Preview Modal */}
-      <Dialog 
-        open={previewImage !== null} 
-        onOpenChange={(open) => !open && setPreviewImage(null)}
-      >
-        <DialogPortal>
-          <DialogOverlay />
-          <DialogPrimitive.Content
-            className={cn(
-              "fixed left-[50%] top-[50%] z-50 grid w-full max-w-4xl translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-0 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg max-h-[90vh] bg-background/95 backdrop-blur-md overflow-hidden"
-            )}
-          >
-          {previewImage && (
-            <div className="relative flex flex-col h-full">
-              {/* Preview header */}
-              <div className="flex items-center justify-between p-4 border-b">
-                <DialogTitle className="text-lg font-medium">
-                  Image {previewIndex + 1} of {generatedImages.length}
-                </DialogTitle>
-                <div className="flex space-x-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleDownload(previewImage.dataUri, previewIndex)}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => setPreviewImage(null)}
-                    aria-label="Close preview"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              
-              {/* Image container */}
-              <div className="flex-1 overflow-auto p-4 flex items-center justify-center">
-                <img
-                  src={previewImage.dataUri}
-                  alt={previewImage.alt}
-                  className="max-w-full max-h-[calc(90vh-120px)] object-contain"
-                />
-              </div>
-              
-              {/* Navigation controls */}
-              {generatedImages.length > 1 && (
-                <div className="absolute inset-y-0 left-0 right-0 flex items-center justify-between px-4 pointer-events-none">
-                  <Button
-                    variant="secondary"
-                    size="icon"
-                    className="rounded-full bg-black/30 hover:bg-black/50 pointer-events-auto"
-                    onClick={() => navigatePreview('prev')}
-                  >
-                    <ArrowLeft className="h-5 w-5" />
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="icon"
-                    className="rounded-full bg-black/30 hover:bg-black/50 pointer-events-auto"
-                    onClick={() => navigatePreview('next')}
-                  >
-                    <ArrowLeft className="h-5 w-5 rotate-180" />
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-          </DialogPrimitive.Content>
-        </DialogPortal>
-      </Dialog>
+
+      <ImagePreviewDialog
+        images={generatedImages}
+        startIndex={previewIndex}
+        onClose={() => setPreviewIndex(null)}
+        showNavButtons={true}
+      />
     </div>
   );
 } 

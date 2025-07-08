@@ -1173,3 +1173,529 @@ Prompt:
 still not fix I want it as before exactly so find the code some where it's desabled or not connect to the Ui persing. And fix it. 
 
 
+Prompt:
+fix it.
+
+
+Prompt:
+ ○ Compiling / ...
+ ✓ Compiled / in 24.3s
+ ⨯ [next]/internal/font/google/geist_e531dabc.module.css:8:9
+Module not found: Can't resolve '@vercel/turbopack-next/internal/font/google/font'
+   6 |   font-display: swap;
+   7 |   src: url(@vercel/turbopack-next/internal/font/google/font?{%22url%22:%22https://fonts.gstatic.com/s/geist/v3/gyByhwUxId8gMEwYGFWNOITddY4.woff2%22,%22preload%22:false,%22has_size_adjust%22:true}) format('woff2');
+>  8 |   unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+     |         ^
+   9 | }
+  10 | /* latin-ext */
+  11 | @font-face {
+
+Import map: Resolved by import map
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+ ⚠ [next]/internal/font/google/gyByhwUxId8gMEwYGFWNOITddY4-s.woff2
+Error while requesting resource
+There was an issue establishing a connection while requesting https://fonts.gstatic.com/s/geist/v3/gyByhwUxId8gMEwYGFWNOITddY4.woff2.
+
+
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 690ms
+ GET / 500 in 25203ms
+ ⚠ [next]/internal/font/google/gyByhwUxId8gMEwYGFWNOITddY4-s.woff2
+Error while requesting resource
+There was an issue establishing a connection while requesting https://fonts.gstatic.com/s/geist/v3/gyByhwUxId8gMEwYGFWNOITddY4.woff2.
+
+
+ ✓ Compiled /favicon.ico in 286ms
+ ⚠ [next]/internal/font/google/gyByhwUxId8gMEwYGFWNOITddY4-s.woff2
+Error while requesting resource
+There was an issue establishing a connection while requesting https://fonts.gstatic.com/s/geist/v3/gyByhwUxId8gMEwYGFWNOITddY4.woff2.
+
+
+ GET /favicon.ico 500 in 304ms
+
+
+Prompt:
+Fix the errors:
+
+ ○ Compiling / ...
+ ✓ Compiled / in 24.3s
+ ⨯ [next]/internal/font/google/geist_e531dabc.module.css:8:9
+Module not found: Can't resolve '@vercel/turbopack-next/internal/font/google/font'
+   6 |   font-display: swap;
+   7 |   src: url(@vercel/turbopack-next/internal/font/google/font?{%22url%22:%22https://fonts.gstatic.com/s/geist/v3/gyByhwUxId8gMEwYGFWNOITddY4.woff2%22,%22preload%22:false,%22has_size_adjust%22:true}) format('woff2');
+>  8 |   unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+     |         ^
+   9 | }
+  10 | /* latin-ext */
+  11 | @font-face {
+
+Import map: Resolved by import map
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+ ⚠ [next]/internal/font/google/gyByhwUxId8gMEwYGFWNOITddY4-s.woff2
+Error while requesting resource
+There was an issue establishing a connection while requesting https://fonts.gstatic.com/s/geist/v3/gyByhwUxId8gMEwYGFWNOITddY4.woff2.
+
+
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 690ms
+ GET / 500 in 25203ms
+ ⚠ [next]/internal/font/google/gyByhwUxId8gMEwYGFWNOITddY4-s.woff2
+Error while requesting resource
+There was an issue establishing a connection while requesting https://fonts.gstatic.com/s/geist/v3/gyByhwUxId8gMEwYGFWNOITddY4.woff2.
+
+
+ ✓ Compiled /favicon.ico in 286ms
+ ⚠ [next]/internal/font/google/gyByhwUxId8gMEwYGFWNOITddY4-s.woff2
+Error while requesting resource
+There was an issue establishing a connection while requesting https://fonts.gstatic.com/s/geist/v3/gyByhwUxId8gMEwYGFWNOITddY4.woff2.
+
+
+ GET /favicon.ico 500 in 304ms
+
+
+Prompt:
+still same. pleease decrese th sidebar's context's wide so it will be fit. Or increase the wide of sidebar section.
+
+
+Prompt:
+Not inpacting any changes on the ui.
+
+Prompt:
+Not inpacting any changes on the ui.
+
+Prompt:
+Okay, I can see it now. Changes on the UI have successfully added the delete icon button to the right side of every chat history name. But still, the delete icon is cropped, just showing a bit of the icon. So fix it properly.
+
+Prompt:
+Okay, I can see it now. Changes on the UI have successfully added the delete icon button to the right side of every chat history name. But still, the delete icon is cropped, just showing a bit of the icon. So fix it properly.
+
+Prompt:
+still not changed anything
+
+
+Prompt:
+Still same, still the trush button cropped.
+
+Prompt:
+Still same, still the trush button cropped.
+
+Prompt:
+same
+
+Prompt:
+same
+
+Prompt:
+Now It wided more so the trush button is gone completely outside of the showing sidebar section area
+
+Prompt:
+Now It wided more so the trush button is gone completely outside of the showing sidebar section area
+
+Prompt:
+still same
+
+
+Prompt:
+still same.
+
+
+Prompt:
+still same.
+
+
+Prompt:
+still same nothing changed.
+
+Prompt:
+still same nothing changed.
+
+Prompt:
+stop
+
+Prompt:
+stop
+
+Prompt:
+I can see you just decreased the task icon size. So, please increase it as fast. I want to decrease the chat name card size in the history section.
+
+Prompt:
+I can see you just decreased the task icon size. So, please increase it as fast. I want to decrease the chat name card size in the history section.
+
+Prompt:
+Decrease the card width, not the height. More. Decrease the width more, not the height.
+
+Prompt:
+Decrease the card width, not the height. More. Decrease the width more, not the height.
+
+Prompt:
+Don't decrease the sidebar width. Just decrease the chat name cards width in the sidebar section.
+
+Prompt:
+Don't decrease the sidebar width. Just decrease the chat name cards width in the sidebar section.
+
+Prompt:
+okay now keep everything as it is, just make them back when the trash icons will be visible in muse cursor hover. Also Make the icon in the center (top-bottom) in the chat name card. 
+
+Prompt:
+okay now keep everything as it is, just make them back when the trash icons will be visible in muse cursor hover. Also Make the icon in the center (top-bottom) in the chat name card. 
+
+Prompt:
+Make the icon size bigger. 
+
+Prompt:
+Make the icon size bigger. 
+
+Prompt:
+Make it always [calc(100%-37px)]
+
+Prompt:
+Make it always [calc(100%-37px)]
+
+Prompt:
+Add the functionality when user clicks on the delete icon. Before proceeding with delete, it will show the warning.
+
+Prompt:
+Add the functionality when user clicks on the delete icon. Before proceeding with delete, it will show the warning.
+
+Prompt:
+Now it's not showing the warning. As well I'm not working the delete option.
+
+Prompt:
+Now it's not showing the warning. As well I'm not working the delete option.
+
+Prompt:
+Fix the errors:
+
+Error: Rendered more hooks than during the previous render.
+    at updateWorkInProgressHook (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:5585:23)
+    at updateReducer (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:5679:20)
+    at Object.useState (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:15225:24)
+    at exports.useState (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:1684:36)
+    at eval (http://localhost:9003/_next/static/chunks/src_components_chat_d32a410a._.js?id=%255Bproject%255D%252Fsrc%252Fcomponents%252Fchat%252Fhistory-panel.tsx+%255Bapp-client%255D+%2528ecmascript%2529:1011:249)
+    at Array.map (<anonymous>)
+    at HistoryPanel (http://localhost:9003/_next/static/chunks/src_components_chat_d32a410a._.js?id=%255Bproject%255D%252Fsrc%252Fcomponents%252Fchat%252Fhistory-panel.tsx+%255Bapp-client%255D+%2528ecmascript%2529:1009:55)
+    at ChatPage (http://localhost:9003/_next/static/chunks/src_app_page_tsx_b025fed5._.js:3175:233)
+    at ClientPageRoot (http://localhost:9003/_next/static/chunks/node_modules_next_dist_1a6ee436._.js:2053:50)
+
+Error: React has detected a change in the order of Hooks called by HistoryPanel. This will lead to bugs and errors if not fixed. For more information, read the Rules of Hooks: https://react.dev/link/rules-of-hooks
+
+   Previous render            Next render
+   ------------------------------------------------------
+1. useState                   useState
+2. useState                   useState
+3. useRef                     useRef
+4. useRef                     useRef
+5. useState                   useState
+6. useState                   useState
+7. useState                   useState
+8. useState                   useState
+9. useState                   useState
+10. useEffect                 useEffect
+11. useState                  useState
+12. useRef                    useRef
+13. useRef                    useRef
+14. useState                  useState
+15. useState                  useState
+16. useRef                    useRef
+17. useRef                    useRef
+18. useRef                    useRef
+19. useRef                    useRef
+20. useRef                    useRef
+21. useEffect                 useEffect
+22. useEffect                 useEffect
+23. useEffect                 useEffect
+24. useEffect                 useEffect
+25. useEffect                 useEffect
+26. useEffect                 useEffect
+27. useEffect                 useEffect
+28. useMemo                   useMemo
+29. useCallback               useCallback
+30. useCallback               useCallback
+31. useCallback               useCallback
+32. useCallback               useCallback
+33. useCallback               useCallback
+34. useCallback               useCallback
+35. useCallback               useCallback
+36. useCallback               useCallback
+37. useCallback               useCallback
+38. useCallback               useCallback
+39. useEffect                 useEffect
+40. useEffect                 useEffect
+41. undefined                 useState
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+    at createUnhandledError (http://localhost:9003/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js:879:71)
+    at handleClientError (http://localhost:9003/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js:1052:56)
+    at console.error (http://localhost:9003/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js:1191:56)
+    at updateHookTypesDev (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:5438:25)
+    at Object.useState (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:15221:13)
+    at exports.useState (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:1684:36)
+    at eval (http://localhost:9003/_next/static/chunks/src_components_chat_d32a410a._.js?id=%255Bproject%255D%252Fsrc%252Fcomponents%252Fchat%252Fhistory-panel.tsx+%255Bapp-client%255D+%2528ecmascript%2529:1011:249)
+    at Array.map (<anonymous>)
+    at HistoryPanel (http://localhost:9003/_next/static/chunks/src_components_chat_d32a410a._.js?id=%255Bproject%255D%252Fsrc%252Fcomponents%252Fchat%252Fhistory-panel.tsx+%255Bapp-client%255D+%2528ecmascript%2529:1009:55)
+    at ChatPage (http://localhost:9003/_next/static/chunks/src_app_page_tsx_b025fed5._.js:3175:233)
+    at ClientPageRoot (http://localhost:9003/_next/static/chunks/node_modules_next_dist_1a6ee436._.js:2053:50)
+
+Prompt:
+Fix the errors:
+
+Error: Rendered more hooks than during the previous render.
+    at updateWorkInProgressHook (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:5585:23)
+    at updateReducer (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:5679:20)
+    at Object.useState (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:15225:24)
+    at exports.useState (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:1684:36)
+    at eval (http://localhost:9003/_next/static/chunks/src_components_chat_d32a410a._.js?id=%255Bproject%255D%252Fsrc%252Fcomponents%252Fchat%252Fhistory-panel.tsx+%255Bapp-client%255D+%2528ecmascript%2529:1011:249)
+    at Array.map (<anonymous>)
+    at HistoryPanel (http://localhost:9003/_next/static/chunks/src_components_chat_d32a410a._.js?id=%255Bproject%255D%252Fsrc%252Fcomponents%252Fchat%252Fhistory-panel.tsx+%255Bapp-client%255D+%2528ecmascript%2529:1009:55)
+    at ChatPage (http://localhost:9003/_next/static/chunks/src_app_page_tsx_b025fed5._.js:3175:233)
+    at ClientPageRoot (http://localhost:9003/_next/static/chunks/node_modules_next_dist_1a6ee436._.js:2053:50)
+
+Error: React has detected a change in the order of Hooks called by HistoryPanel. This will lead to bugs and errors if not fixed. For more information, read the Rules of Hooks: https://react.dev/link/rules-of-hooks
+
+   Previous render            Next render
+   ------------------------------------------------------
+1. useState                   useState
+2. useState                   useState
+3. useRef                     useRef
+4. useRef                     useRef
+5. useState                   useState
+6. useState                   useState
+7. useState                   useState
+8. useState                   useState
+9. useState                   useState
+10. useEffect                 useEffect
+11. useState                  useState
+12. useRef                    useRef
+13. useRef                    useRef
+14. useState                  useState
+15. useState                  useState
+16. useRef                    useRef
+17. useRef                    useRef
+18. useRef                    useRef
+19. useRef                    useRef
+20. useRef                    useRef
+21. useEffect                 useEffect
+22. useEffect                 useEffect
+23. useEffect                 useEffect
+24. useEffect                 useEffect
+25. useEffect                 useEffect
+26. useEffect                 useEffect
+27. useEffect                 useEffect
+28. useMemo                   useMemo
+29. useCallback               useCallback
+30. useCallback               useCallback
+31. useCallback               useCallback
+32. useCallback               useCallback
+33. useCallback               useCallback
+34. useCallback               useCallback
+35. useCallback               useCallback
+36. useCallback               useCallback
+37. useCallback               useCallback
+38. useCallback               useCallback
+39. useEffect                 useEffect
+40. useEffect                 useEffect
+41. undefined                 useState
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+    at createUnhandledError (http://localhost:9003/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js:879:71)
+    at handleClientError (http://localhost:9003/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js:1052:56)
+    at console.error (http://localhost:9003/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js:1191:56)
+    at updateHookTypesDev (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:5438:25)
+    at Object.useState (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:15221:13)
+    at exports.useState (http://localhost:9003/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:1684:36)
+    at eval (http://localhost:9003/_next/static/chunks/src_components_chat_d32a410a._.js?id=%255Bproject%255D%252Fsrc%252Fcomponents%252Fchat%252Fhistory-panel.tsx+%255Bapp-client%255D+%2528ecmascript%2529:1011:249)
+    at Array.map (<anonymous>)
+    at HistoryPanel (http://localhost:9003/_next/static/chunks/src_components_chat_d32a410a._.js?id=%255Bproject%255D%252Fsrc%252Fcomponents%252Fchat%252Fhistory-panel.tsx+%255Bapp-client%255D+%2528ecmascript%2529:1009:55)
+    at ChatPage (http://localhost:9003/_next/static/chunks/src_app_page_tsx_b025fed5._.js:3175:233)
+    at ClientPageRoot (http://localhost:9003/_next/static/chunks/node_modules_next_dist_1a6ee436._.js:2053:50)
+
+Prompt:
+The delete option just working in local storage and showing this notification. So, implement the function so it will delete from local storage and from the Firebase as well. And completely remove the notification of deletion.
+
+Prompt:
+The delete option just working in local storage and showing this notification. So, implement the function so it will delete from local storage and from the Firebase as well. And completely remove the notification of deletion.
+
+Prompt:
+still it not deleting from the firebase just deleting from the local storage and back it up when refresh the page.
+
+
+Prompt:
+still same.
+
+Prompt:
+still same.
+
+Prompt:
+still same when I refresh the page it backs. 
+
+Prompt:
+still same when I refresh the page it backs. 
+
+Prompt:
+same. Do we need update the firebase rule, can you check it?
+
+Prompt:
+same. Do we need update the firebase rule, can you check it?
+
+Prompt:
+You made rule wrong, fix it:
+
+FirebaseError: Missing or insufficient permissions.
+
+Prompt:
+You made rule wrong, fix it:
+
+FirebaseError: Missing or insufficient permissions.
+
+Prompt:
+it's working now. Thanks. Stop
+
+Prompt:
+it's working now. Thanks. Stop
+
+Prompt:
+As the generic image is stored locally, there is no need for any expiration, like one hour or one day. Please remove all expiration limits. It will remain forever in local storage.
+
+Prompt:
+As the generic image is stored locally, there is no need for any expiration, like one hour or one day. Please remove all expiration limits. It will remain forever in local storage.
+
+Prompt:
+So, I can see there is a problem in the gallery. So, when I generated four images, it's remembering all, but if I generate more than four, then it forgets the previous few images and remembers just three images.
+
+Prompt:
+So, I can see there is a problem in the gallery. So, when I generated four images, it's remembering all, but if I generate more than four, then it forgets the previous few images and remembers just three images.
+
+Prompt:
+Again, I generated new four images. And it removed all the previous images. And just remember new three from the four.
+
+Prompt:
+Again, I generated new four images. And it removed all the previous images. And just remember new three from the four.
+
+Prompt:
+still it just rembering the new four genarated images. 
+
+Prompt:
+still it just rembering the new four genarated images. 
+
+Prompt:
+Okay. It's now working great. So next, I want to replace this pop-up and gallery option to make a new screen or new page. It will not work as a pop-up screen. It will work as a new page.
+
+Prompt:
+Okay. It's now working great. So next, I want to replace this pop-up and gallery option to make a new screen or new page. It will not work as a pop-up screen. It will work as a new page.
+
+Prompt:
+stop
+
+
+Prompt:
+stop
+
+Prompt:
+stop
+
+Prompt:
+After fixing on the image generation panel, it was added the navigation button at the bottom. But when you make the edit of zooming functionality in the image preview dialog, then it's added the zoom button, but this time it's removed again the navigate button from the bottom. But it's successfully added all the buttons in the gallery page.
+
+Prompt:
+After fixing on the image generation panel, it was added the navigation button at the bottom. But when you make the edit of zooming functionality in the image preview dialog, then it's added the zoom button, but this time it's removed again the navigate button from the bottom. But it's successfully added all the buttons in the gallery page.
+
+Prompt:
+Still, do not back the previous next button in the bottom of the generate images section's Full preview image pop up.
+
+Prompt:
+Still, do not back the previous next button in the bottom of the generate images section's Full preview image pop up.
+
+Prompt:
+It's still the same. It's not fixed at all, just showing the zoom in, zoom out buttons. I mean, zoom buttons. And on the right and right side, not showing the previous and next buttons to navigate next and previous images.
+
+Prompt:
+It's still the same. It's not fixed at all, just showing the zoom in, zoom out buttons. I mean, zoom buttons. And on the right and right side, not showing the previous and next buttons to navigate next and previous images.
+
+Prompt:
+still same.
+
+Prompt:
+still same.
+
+Prompt:
+It seems there was a slight misunderstanding with the copy function. The system copied the image file name instead of the prompt itself. To address this, we need to add functionality so that when an image is generated, it saves the prompt alongside the image. This way, when the user clicks "copy prompt," it will correctly retrieve and copy the prompt text.
+
+Additionally, I'd like to request another button. This button would be for copying the image directly to the clipboard, eliminating the need for a separate download step. If the user wishes to copy the image, they can simply click this button, and it will be available on their clipboard without needing to download it first.
+
+Prompt:
+It seems there was a slight misunderstanding with the copy function. The system copied the image file name instead of the prompt itself. To address this, we need to add functionality so that when an image is generated, it saves the prompt alongside the image. This way, when the user clicks "copy prompt," it will correctly retrieve and copy the prompt text.
+
+Additionally, I'd like to request another button. This button would be for copying the image directly to the clipboard, eliminating the need for a separate download step. If the user wishes to copy the image, they can simply click this button, and it will be available on their clipboard without needing to download it first.
+
+Prompt:
+Let's adjust the icons. For the "copy image" function, we should use a copy icon. Currently, it appears to be a gallery icon. So, let's replace it with a standard copy icon. For the "copy prompt" function, we should use something like a code icon.
+
+Prompt:
+Let's adjust the icons. For the "copy image" function, we should use a copy icon. Currently, it appears to be a gallery icon. So, let's replace it with a standard copy icon. For the "copy prompt" function, we should use something like a code icon.
+
+Prompt:
+We should add a tooltip in hover over every button. It will show the name of the button and what work this button does.
+
+Prompt:
+We should add a tooltip in hover over every button. It will show the name of the button and what work this button does.
+
+Prompt:
+I want to modify the tooltip of the copy prompt button. When the user hovers over the copy prompt button, it will show the prompt of the generated image.
+
+Prompt:
+I want to modify the tooltip of the copy prompt button. When the user hovers over the copy prompt button, it will show the prompt of the generated image.
+
+Prompt:
+Still showing the tooltip as "copy prompt" but not showing the prompt.
+
+Prompt:
+Still showing the tooltip as "copy prompt" but not showing the prompt.
+
+Prompt:
+Above the buttons Key Points, Details, Message, Audience, Image, Designs, it should have a title that detail analyze of the requirement or something like that.
+
+
+
+Prompt:
+Above the buttons Key Points, Details, Message, Audience, Image, Designs, it should have a title that detail analyze of the requirement or something like that.
+
+
+
+Prompt:
+stop
+
+Prompt:
+stop
+
+Prompt:
+stop
+
+Prompt:
+stop
+
+Prompt:
+Move the action buttons to left on keep them in center.
+
+Prompt:
+Move the action buttons to left on keep them in center.
+
+Prompt:
+decrease the gap between the section and the control buttons.
+
+Prompt:
+decrease the gap between the section and the control buttons.
+
+Prompt:
+decrese it more make it fit to the bottom line.
+
+Prompt:
+decrese it more make it fit to the bottom line.
+

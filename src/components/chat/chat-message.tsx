@@ -1,7 +1,7 @@
 'use client';
 
 import type { ChatMessage, MessageRole, ChatMessageContentPart, AttachedFile, ActionType } from '@/lib/types';
-import { Bot, User, AlertTriangle, Paperclip, FileText, Image as ImageIcon, RotateCcw, Loader2, Edit3, Send, X, ChevronLeft, ChevronRight, CircleCheck, Copy, FolderOpen, Plus, PlusCircle, Zap, Check, SearchCheck, ClipboardSignature, ClipboardList, Palette, Lightbulb, Terminal, Search, Plane, Settings, Sparkles, FileImage, FileSpreadsheet, Trophy } from 'lucide-react';
+import { Bot, User, AlertTriangle, Paperclip, FileText, Image as ImageIcon, RotateCcw, Loader2, Edit3, Send, X, ChevronLeft, ChevronRight, CircleCheck, Copy, FolderOpen, Plus, PlusCircle, Zap, Check, SearchCheck, ClipboardSignature, ClipboardList, Palette, Lightbulb, Terminal, Search, Plane, Settings, Sparkles, FileImage, FileSpreadsheet, Trophy, ChevronDown } from 'lucide-react';
 import { TopDesignsResults } from './top-designs-results';
 import { CopyToClipboard, CopyableText, CopyableList } from '@/components/copy-to-clipboard';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -33,6 +33,12 @@ import { ActionButtonsPanel } from '@/components/chat/action-buttons';
 import type { UserProfile } from '@/lib/types';
 import { DesignPromptsTabs } from './design-prompts-tabs';
 import { PromptToReplicate } from './prompt-to-replicate';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface ChatMessageProps {
   message: ChatMessage;
@@ -168,8 +174,7 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
         
         // Customize emoji and styling based on section type
         if (part.title.includes('Main Requirements Analysis') || part.title.includes('Requirements Analysis')) {
-          titleEmoji = '🔍';
-          gradientClass = 'bg-gradient-to-r from-blue-500 to-indigo-600';
+          return null;
         } else if (part.title.includes('Detailed Requirements (English)')) {
           titleEmoji = '📋';
           gradientClass = 'bg-gradient-to-r from-green-500 to-teal-600';
@@ -227,7 +232,7 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
             {part.text && (
               <div className="px-4 py-3">
                 <p 
-                  className="whitespace-pre-wrap leading-relaxed"
+                  className="whitespace-pre-wrap leading-relaxed" 
                 >
                   {highlightText(part.text, searchHighlightTerm)}
                 </p>
@@ -238,8 +243,8 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
       }
       return (
         <div 
-          key={index}
-          className="whitespace-pre-wrap leading-relaxed w-full animate-slideUpSlightly"
+          key={index} 
+          className="whitespace-pre-wrap leading-relaxed w-full animate-slideUpSlightly" 
           style={{ animationDelay }}
         >
           {highlightText(part.text, searchHighlightTerm)}
@@ -1024,6 +1029,8 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
   const [editedAttachments, setEditedAttachments] = useState<AttachedFile[]>([]);
   const [editedActionType, setEditedActionType] = useState<ActionType | undefined>(message.actionType);
   const [currentHistoryViewIndex, setCurrentHistoryViewIndex] = useState<number | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isUser = message.role === 'user';
@@ -1364,6 +1371,9 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
     ? [{ type: 'text' as const, text: message.content }]
     : (Array.isArray(displayContent) ? displayContent : [{ type: 'text' as const, text: String(displayContent) }]); // AI content parts or fallback
 
+  const messageText = getMessageText(displayContent);
+  const isLongMessage = messageText.split('\n').length > 2 || messageText.length > 200;
+
   return (
     <div className={cn(
         "flex items-start w-full animate-slideUpSlightly hover:shadow-sm transition-all duration-300",
@@ -1384,29 +1394,46 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
               <div className="flex justify-between items-start w-full"> {/* Added w-full here */}
                 <div className="flex items-center mb-2 gap-2">
                   <span className="font-medium text-sm text-muted-foreground">You</span>
-                  <div className="flex items-center gap-1.5 border border-primary/20 rounded-full p-1 bg-primary/5">
-                    <ActionButton 
-                      actionType={message.actionType || 'processMessage'} 
-                      isEditing={isEditingThisMessage} 
-                      onActionChange={handleActionTypeChange}
-                    />
-                    {isUser && !isEditingThisMessage && (
-                      <>
-                        {onConfirmEditAndResend && (
-                           <Button
-                           variant="ghost"
-                           size="sm"
-                           onClick={handleStartEdit}
-                           className="group text-primary hover:text-primary hover:bg-primary/10 transition-all duration-300 rounded-full"
-                           title="Edit & Resend this message"
-                         >
-                           <Edit3 className="h-4 w-4 mr-2 transition-all duration-300" />
-                           <span>Edit & Resend</span>
-                         </Button>
-                        )}
-                      </>
-                    )}
-                  </div>
+                  <TooltipProvider>
+                    <div className="flex items-center gap-1.5 border border-primary/20 rounded-full p-1 bg-primary/5">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                           <div onClick={(e) => e.preventDefault()}>
+                            <ActionButton 
+                              actionType={message.actionType || 'processMessage'} 
+                              isEditing={isEditingThisMessage} 
+                              onActionChange={handleActionTypeChange}
+                            />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Select Action Type</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      {isUser && !isEditingThisMessage && (
+                        <>
+                          {onConfirmEditAndResend && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={handleStartEdit}
+                                  className="group text-primary hover:text-primary hover:bg-primary/10 transition-all duration-300 rounded-full"
+                                >
+                                  <Edit3 className="h-4 w-4 mr-2 transition-all duration-300" />
+                                  <span>Edit & Resend</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Edit and resend this message</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </TooltipProvider>
                 </div>
               </div>
               
@@ -1525,8 +1552,28 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
             </div>
           ) : (
             <div className="stagger-animation relative z-10 w-full overflow-x-auto">
-              {contentToRender.map((part, index) =>
-                <RenderContentPart part={part} index={index} key={`${message.id}-part-${index}`} searchHighlightTerm={searchHighlightTerm} />
+               <div
+                className="relative overflow-hidden transition-all duration-500 ease-in-out"
+                style={{ maxHeight: isLongMessage && !isExpanded ? '80px' : `${contentRef.current?.scrollHeight}px` }}
+              >
+                <div ref={contentRef}>
+                  {contentToRender.map((part, index) =>
+                    <RenderContentPart part={part} index={index} key={`${message.id}-part-${index}`} searchHighlightTerm={searchHighlightTerm} />
+                  )}
+                </div>
+                {isLongMessage && !isExpanded && (
+                  <div className="absolute bottom-0 left-0 w-full h-12 bg-gradient-to-t from-card to-transparent pointer-events-none"></div>
+                )}
+              </div>
+
+              {isLongMessage && (
+                <button
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="text-primary hover:underline text-sm mt-2 flex items-center gap-1 font-medium"
+                >
+                  <span>{isExpanded ? 'Show Less' : 'Show More'}</span>
+                  <ChevronDown className={cn("h-4 w-4 transition-transform duration-300", isExpanded && "rotate-180")} />
+                </button>
               )}
             </div>
               )}
@@ -1599,12 +1646,6 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
         )}></div>
         
         <div className="flex justify-between items-center mb-2 relative z-10">
-          <span className={cn(
-            "text-xs font-medium px-2 py-0.5 rounded-full",
-            "bg-emerald-100/80 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 backdrop-blur-sm"
-          )}>
-            {messageTime}
-          </span>
           {message.isError && !isEditingThisMessage && (
             <div className="flex items-center gap-2 text-destructive bg-destructive/10 px-2 py-1 rounded-full animate-pulse-slow">
               <AlertTriangle className="h-4 w-4" />
@@ -1655,8 +1696,8 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
         {/* Action Buttons and Regenerate Area */}
         {!isEditingThisMessage && (
           <div className={cn(
-            "mt-3 pt-2 border-t flex justify-between items-center gap-3 animate-fade-in relative z-10",
-            "border-emerald-200/30 dark:border-emerald-800/30"
+            "mt-0 pt-0 border-0 flex justify-between items-center gap-3 animate-fade-in relative z-10",
+            "bg-transparent"
           )} style={{ animationDelay: '0.5s' }}>
             {isAssistant && message.originalRequest && onPerformAction && (
               <ActionButtonsPanel
@@ -1671,19 +1712,29 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
                 flat
               />
             )}
+            <div></div>
             <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground">{messageTime}</span>
               {isAssistant && message.canRegenerate && message.originalRequest && onRegenerate && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleRegenerateClick}
-                  className="text-xs backdrop-blur-sm border border-emerald-300/20 shadow-sm hover:shadow-md hover:scale-105 text-emerald-700 dark:text-emerald-300 hover:text-emerald-800 dark:hover:text-emerald-200 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 transition-all duration-300"
-                  title="Regenerate response"
-                  disabled={message.isLoading}
-                >
-                  <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-                  Regenerate
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRegenerateClick}
+                        className="transition-all duration-200 hover:bg-primary/10 hover:border-primary/50"
+                        aria-label="Regenerate this response"
+                      >
+                        <RotateCcw className="h-4 w-4 mr-2" />
+                        Regenerate
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Regenerate Response</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
               {isAssistant && message.isLoading && onStopRegeneration && (
                 <Button

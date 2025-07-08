@@ -59,7 +59,7 @@ export default function MediaGallery({ open, onOpenChange }: MediaGalleryProps) 
         <div className="flex items-center justify-between p-4 border-b">
           <DialogTitle asChild>
             <h3 className="text-lg font-semibold flex items-center">
-              <Sparkles className="h-5 w-5 mr-2 text-primary" />Generated Images (last hour)
+              <Sparkles className="h-5 w-5 mr-2 text-primary" />Generated Images
             </h3>
           </DialogTitle>
         </div>

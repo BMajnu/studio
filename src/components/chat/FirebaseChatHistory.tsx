@@ -26,18 +26,12 @@ export function FirebaseChatHistory({ activeSessionId, onSelectSession, onNewCha
   const lastRefreshTime = useRef<number>(0);
 
   const handleDeleteSession = async (sessionId: string) => {
-    const success = await deleteSession(sessionId);
-    if (success) {
-      toast({
-        title: "Chat Deleted",
-        description: "Chat has been deleted successfully.",
-      });
-    } else {
-      toast({
-        title: "Deletion Failed",
-        description: "Could not delete the chat. Please try again.",
-        variant: "destructive",
-      });
+    // Delete the session without showing any toast notification
+    await deleteSession(sessionId);
+    
+    // If the deleted session was active, trigger a new chat
+    if (activeSessionId === sessionId) {
+      onNewChat();
     }
   };
   

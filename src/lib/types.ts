@@ -133,6 +133,7 @@ export interface GeneratedImage {
   id?: string; // Unique identifier for the image (uuid)
   dataUri: string;
   alt: string;
+  prompt?: string; // The prompt used to generate this image
   createdAt?: number; // Unix ms timestamp when generated
   expiresAt?: number; // Unix ms timestamp when image should expire (createdAt + 1h)
 }

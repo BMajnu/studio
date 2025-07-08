@@ -1278,13 +1278,6 @@ export default function ChatPage() {
             const requirementsInput: AnalyzeClientRequirementsInput = { ...baseInput, clientMessage: userMessageContent, attachedFiles: filesForFlow, chatHistory: chatHistoryForAI };
             const requirementsOutput: AnalyzeClientRequirementsOutput = await analyzeClientRequirements(requirementsInput);
             
-            // Add a title for the requirements analysis section
-            finalAiResponseContent.push({ 
-              type: 'text', 
-              title: 'Requirements Analysis', 
-              text: "I've analyzed the requirements from both English and Bengali perspectives. Here's a comprehensive breakdown:" 
-            });
-
             // Add the BilingualSplitView component for displaying the analysis
             finalAiResponseContent.push({
               type: 'bilingual_analysis',
@@ -2527,26 +2520,8 @@ export default function ChatPage() {
     };
   }, []);
 
-  // Utility to remove all existing search highlights
-  const removeAllSearchHighlights = useCallback(() => {
-    const container = chatAreaRef.current;
-    if (!container) return;
-    container.querySelectorAll('mark[data-search-highlight], mark.search-highlight')
-      .forEach((markEl) => {
-        const parent = markEl.parentNode;
-        if (!parent) return;
-        // Replace the <mark> with its text content
-        parent.replaceChild(document.createTextNode(markEl.textContent || ''), markEl);
-        // Merge adjacent text nodes – optional for cleaner DOM
-        parent.normalize();
-      });
-  }, []);
-
   // Apply highlight to matching portions when term changes
   useEffect(() => {
-    // First, clear existing highlights
-    removeAllSearchHighlights();
-
     if (!searchHighlightTerm) return;
 
     const container = chatAreaRef.current;
@@ -2595,15 +2570,25 @@ export default function ChatPage() {
       setTimeout(() => firstMatchEl.classList.remove('animate-pulse'), 2000);
     }
 
-  }, [searchHighlightTerm, messages, removeAllSearchHighlights]);
+  }, [searchHighlightTerm, messages]);
 
   // When highlights are cleared via button/event, also remove markup immediately
   useEffect(() => {
     if (!searchHighlightTerm) {
       // If term cleared, clean any lingering highlight markup
-      removeAllSearchHighlights();
+      const container = chatAreaRef.current;
+      if (!container) return;
+      container.querySelectorAll('mark[data-search-highlight], mark.search-highlight')
+        .forEach((markEl) => {
+          const parent = markEl.parentNode;
+          if (!parent) return;
+          // Replace the <mark> with its text content
+          parent.replaceChild(document.createTextNode(markEl.textContent || ''), markEl);
+          // Merge adjacent text nodes – optional for cleaner DOM
+          parent.normalize();
+        });
     }
-  }, [searchHighlightTerm, removeAllSearchHighlights]);
+  }, [searchHighlightTerm]);
 
   if (authLoading || (!currentSession && !profileLoading && !historyHookLoading)) {
     return (

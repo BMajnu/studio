@@ -218,6 +218,13 @@ export class FirebaseChatStorage {
    */
   static async deleteSession(userId: string, sessionId: string): Promise<boolean> {
     try {
+      if (!userId || !sessionId) {
+        console.error("Invalid userId or sessionId for deletion");
+        return false;
+      }
+      
+      console.log(`Deleting session ${sessionId} for user ${userId} from Firebase...`);
+      
       // Delete the main session document
       const sessionRef = doc(db, `users/${userId}/chatSessions/${sessionId}`);
       await deleteDoc(sessionRef);
@@ -226,6 +233,16 @@ export class FirebaseChatStorage {
       const metadataRef = doc(db, `users/${userId}/chatSessionsMetadata/${sessionId}`);
       await deleteDoc(metadataRef);
       
+      // Verify deletion
+      const checkSession = await getDoc(sessionRef);
+      const checkMetadata = await getDoc(metadataRef);
+      
+      if (checkSession.exists() || checkMetadata.exists()) {
+        console.error("Deletion verification failed - documents still exist");
+        return false;
+      }
+      
+      console.log(`Successfully deleted session ${sessionId} from Firebase`);
       return true;
     } catch (error) {
       console.error("Error deleting session from Firebase:", error);

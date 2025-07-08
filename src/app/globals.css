@@ -405,6 +405,12 @@ html, body {
 }
 
 /* Search highlight gradient matching DesAInR logo */
-.search-highlight {
-  @apply bg-gradient-to-r from-sky-400 via-pink-500 to-fuchsia-500 bg-clip-text text-transparent font-semibold;
+mark.search-highlight,
+mark[data-search-highlight] {
+  font-weight: 600; /* font-semibold */
+  color: #ffffff;   /* text-white */
+  border-radius: 0.125rem; /* rounded (2px) */
+  padding-left: 0.125rem;  /* px-0.5 */
+  padding-right: 0.125rem;
+  background: linear-gradient(90deg, #0ea5e9 0%, #7c3aed 100%);
 }
