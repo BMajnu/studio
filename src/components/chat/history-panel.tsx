@@ -7,6 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { PlusCircle, Trash2, MessageSquare, Loader2, XIcon, PencilIcon, CheckIcon, RefreshCw, GalleryHorizontal, PanelLeftClose, Search, Edit, PanelLeftOpen, Image, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import {
   AlertDialog,
@@ -32,6 +33,8 @@ import logger from '@/lib/utils/logger';
 import eventDebouncer from '@/lib/utils/event-debouncer';
 import { DesAInRLogo } from '../icons/logo';
 import { ChatSearchDialog } from './chat-search-dialog';
+import { FoldedHistoryPanel } from './folded-history-panel';
+import { Separator } from '@/components/ui/separator';
 const { history: historyLogger, ui: uiLogger } = logger;
 
 // Custom hook for debounce
@@ -651,11 +654,11 @@ export function HistoryPanel({
         </div>
         
         {/* New Chat Button */}
-        <div className="px-3 pt-4 pb-2">
+        <div className="px-3 pt-4 pb-2 flex justify-center">
           <Button
             variant="outline"
             size="icon"
-            className="w-full h-10 flex items-center justify-center border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors"
+            className="w-10 h-10 flex items-center justify-center border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors"
             onClick={onNewChat}
             title="New Chat"
           >
@@ -664,11 +667,11 @@ export function HistoryPanel({
         </div>
         
         {/* Gallery Button */}
-        <div className="px-3 pb-2">
+        <div className="px-3 pb-2 flex justify-center">
           <Button
             variant="outline"
             size="icon"
-            className="w-full h-10 flex items-center justify-center border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors"
+            className="w-10 h-10 flex items-center justify-center border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors"
             onClick={() => router.push('/gallery')}
             title="Media Gallery"
           >
@@ -677,11 +680,11 @@ export function HistoryPanel({
         </div>
         
         {/* Search Button */}
-        <div className="px-3 pb-2">
+        <div className="px-3 pb-2 flex justify-center">
           <Button
             variant="outline"
             size="icon"
-            className="w-full h-10 flex items-center justify-center border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors"
+            className="w-10 h-10 flex items-center justify-center border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors"
             onClick={handleOpenSearchDialog}
             title="Search Chats"
           >
@@ -689,20 +692,19 @@ export function HistoryPanel({
           </Button>
         </div>
         
-        {/* Clear Highlights Button - Only shown when search has been performed */}
-        {hasActiveHighlights && (
+        {/* Separator */}
           <div className="px-3 pb-2">
-            <Button
-              variant="outline"
-              size="icon"
-              className="w-full h-10 flex items-center justify-center border-destructive/20 bg-destructive/5 hover:bg-destructive/10 transition-colors"
-              onClick={handleClearSearchHighlights}
-              title="Clear Search Highlights"
-            >
-              <X className="h-5 w-5 text-destructive/80" />
-            </Button>
+          <div className="h-[1px] w-full bg-border/30"></div>
           </div>
-        )}
+         
+        {/* History Items */}
+        <div className="flex-1 overflow-hidden">
+          <FoldedHistoryPanel
+            sessions={sessions}
+            activeSessionId={activeSessionId}
+            onSelectSession={onSelectSession}
+          />
+        </div>
         
         {/* Search Dialog */}
         <ChatSearchDialog
@@ -717,6 +719,7 @@ export function HistoryPanel({
   }
 
   return (
+    <TooltipProvider delayDuration={100}>
     <div className={cn("flex h-full flex-col border-r", className)}
       style={{ 
         background: 'linear-gradient(to bottom, hsl(var(--sidebar-background)), hsl(var(--sidebar-background) / 0.95))',
@@ -849,5 +852,6 @@ export function HistoryPanel({
         loadFullSession={effectiveLoadFullSession}
       />
     </div>
+    </TooltipProvider>
   );
 }

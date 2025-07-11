@@ -12,6 +12,11 @@ import { DEFAULT_MODEL_ID } from '@/lib/constants';
 import { GeminiClient } from '@/lib/ai/gemini-client';
 import { createGeminiAiInstance } from '@/lib/ai/genkit-utils';
 
+// DEBUG logging helper
+const logDebug = (label: string, ...args: any[]) => {
+  try { console.log(`[analyzeClientRequirements] ${label}`, ...args); } catch(_){}
+};
+
 const AttachedFileSchema = z.object({
   name: z.string().describe("Name of the file"),
   type: z.string().describe("MIME type of the file"),
@@ -71,6 +76,8 @@ const AnalyzeClientRequirementsOutputSchema = z.object({
 export type AnalyzeClientRequirementsOutput = z.infer<typeof AnalyzeClientRequirementsOutputSchema>;
 
 export async function analyzeClientRequirements(flowInput: AnalyzeClientRequirementsInput): Promise<AnalyzeClientRequirementsOutput> {
+  logDebug('input attachments', flowInput.attachedFiles?.length || 0);
+  try { logDebug('input size', JSON.stringify(flowInput).length, 'bytes'); } catch(_){}
   const { userApiKey, modelId, clientMessage, userName, communicationStyleNotes, attachedFiles, chatHistory } = flowInput;
   const actualPromptInputData = { clientMessage, userName, communicationStyleNotes, attachedFiles, chatHistory };
   const modelToUse = modelId || DEFAULT_MODEL_ID;
@@ -184,9 +191,11 @@ Output Format (ensure your entire response is a single JSON object):
       return output;
     });
     console.log(`INFO (${flowName}): AI call succeeded using key ending with ...${apiKeyUsed.slice(-4)}`);
-    return output;
+    // Debug output size
+    try { logDebug('output size', JSON.stringify(output).length, 'bytes'); } catch(_){}
+    return output as AnalyzeClientRequirementsOutput;
   } catch (error) {
-    console.error(`ERROR (${flowName}): Failed after rotating through available keys. Error:`, error);
-    throw new Error(`AI call failed in ${flowName}. Please check server logs for details. Original error: ${(error as Error).message}`);
+    console.error(`ERROR (${flowName}): Failed after rotating keys:`, error);
+    throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);
   }
 }

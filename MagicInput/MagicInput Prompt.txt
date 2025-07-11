@@ -2096,3 +2096,45 @@ Your update ideas are not spacific. Skip optional things, giving examples. Make 
 Prompt:
 Your update ideas are not spacific. Skip optional things, giving examples. Make everything specific, and skip unnecessary things. So rewrite them.
 
+Prompt:
+procced.
+
+Prompt:
+procced.
+
+Prompt:
+Continue.
+
+Prompt:
+Continue.
+
+Prompt:
+the search button don't working on click. fix it. 
+
+Prompt:
+the search button don't working on click. fix it. 
+
+Prompt:
+Now I want to make the bottoms and the history pills showing as separate groups. So I'd divide them with lines or anything else, so they will show as separate groups.
+
+Prompt:
+Now I want to make the bottoms and the history pills showing as separate groups. So I'd divide them with lines or anything else, so they will show as separate groups.
+
+Prompt:
+This doesn't look professional or creative. So, do something modern, creative, or professional. Reduce the weight of the sidebar a little.
+
+Prompt:
+This doesn't look professional or creative. So, do something modern, creative, or professional. Reduce the weight of the sidebar a little.
+
+Prompt:
+I reversed the code changes to as before because your change was not good and it was push the history pil to outside of the area, so it was looked cropped and it was changed the button styles as well. So please make sense on them in a better way.
+
+Prompt:
+I reversed the code changes to as before because your change was not good and it was push the history pil to outside of the area, so it was looked cropped and it was changed the button styles as well. So please make sense on them in a better way.
+
+Prompt:
+Now I can see you made a mistake and once again I can see the buttons are not in the center. The three buttons: New Chat, Media Gallery, and History Chat. These three buttons are not in the center of the sidebar. So make them center by left and right side and there was an expand collapse button. It was showing when user hover to the logo icon, app logo, when user hover to app logo then it shows the expand collapse button but it's now not showing. Please fix it and back it again.
+
+Prompt:
+Now I can see you made a mistake and once again I can see the buttons are not in the center. The three buttons: New Chat, Media Gallery, and History Chat. These three buttons are not in the center of the sidebar. So make them center by left and right side and there was an expand collapse button. It was showing when user hover to the logo icon, app logo, when user hover to app logo then it shows the expand collapse button but it's now not showing. Please fix it and back it again.
+

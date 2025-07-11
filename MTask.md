@@ -1,20 +1,20 @@
-DesAInR – AI Chat Rename Feature
+DesAInR Pro - Folded Sidebar History View
 
 Task Overview:
+Update the folded sidebar panel to display a creative view of the chat history. Instead of the full list, it will show colored indicators for each chat. Hovering over an indicator will reveal the chat title and a preview.
 
-## Phase 1 – 2025-07-06
-- [x] Add new AI flow (`generate-chat-title-flow.ts`) using gemini-2.5-flash-lite-preview-06-17 model.
-- [x] Ensure existing `/api/generate-chat-title` route compiles with the new flow.
+## Phase 1 – YYYY-MM-DD: Create `FoldedHistoryItem` Component
+- [ ] Create `src/components/chat/folded-history-item.tsx`.
+- [ ] The component will be a small, clickable, colored element.
+- [ ] Use a `Tooltip` to show chat name and preview on hover.
+- [ ] Dynamically generate a color for each item based on its session ID.
 
-## Phase 2 – 2025-07-06
-- [x] Extend `use-chat-history.ts` to request the new API and rename sessions automatically after the first user message.
-- [x] Keep simple fallback naming logic for offline/error cases.
+## Phase 2 – YYYY-MM-DD: Create `FoldedHistoryPanel` Component
+- [ ] Create `src/components/chat/folded-history-panel.tsx`.
+- [ ] This component will render a list of `FoldedHistoryItem` components.
+- [ ] It will manage the layout to fit items in the collapsed sidebar without a scrollbar.
 
-## Phase 3 – 2025-07-06
-- [x] Update UI components (if required) to reflect instant rename without refresh. (Existing hooks/events already handle this.)
-- [x] Add event handling or state updates so titles refresh in history panel and active chat header.
-
-## Phase 4 – 2025-07-06
-- [ ] Write unit tests for the new flow and hook changes.
-- [ ] Perform manual end-to-end test in the browser.
-- [ ] Update documentation/readme if necessary. 
+## Phase 3 – YYYY-MM-DD: Integrate `FoldedHistoryPanel` into `HistoryPanel`
+- [ ] Modify `src/components/chat/history-panel.tsx`.
+- [ ] Add conditional logic: if the panel is collapsed, render `FoldedHistoryPanel`; otherwise, render the current history view.
+- [ ] Pass required props to `FoldedHistoryPanel`. 

@@ -66,6 +66,14 @@ export async function processClientMessage(flowInput: ProcessClientMessageInput)
   const modelToUse = modelId || DEFAULT_MODEL_ID;
   const flowName = 'processClientMessage';
 
+  // Debugging: log prompt size and attachment info
+  try {
+    const promptInputJson = JSON.stringify(actualPromptInputData);
+    console.log(`[${flowName}] promptInput size`, promptInputJson.length, 'bytes', 'attachments', attachedFiles?.length || 0);
+  } catch(err) {
+    console.warn('Failed to stringify prompt input for debugging', err);
+  }
+
   const profileStub = userApiKey ? ({ userId: 'tmp', name: 'tmp', services: [], geminiApiKeys: [userApiKey] } as any) : null;
   const client = new GeminiClient({ profile: profileStub });
 
@@ -155,6 +163,10 @@ Output Format (ensure your entire response is a single JSON object matching this
       const { output } = await promptDef(actualPromptInputData, { model: modelToUse });
       return output as ProcessClientMessageOutput;
     });
+    try {
+      const outSize = JSON.stringify(output).length;
+      console.log(`[${flowName}] output size`, outSize, 'bytes');
+    } catch(err) { console.warn('Failed to stringify output', err);}    
     return output;
   } catch (error) {
     console.error(`ERROR (${flowName}): Failed after rotating keys:`, error);

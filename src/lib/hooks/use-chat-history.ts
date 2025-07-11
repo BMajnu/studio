@@ -510,14 +510,21 @@ const limitSessionSize = (session: ChatSession): ChatSession => {
   // Only perform very aggressive trimming if compression still cannot keep size under quota
   if (session.messages) {
     const processedMsgs = session.messages.map(msg => {
+      let newMsg = msg;
       if (typeof msg.content === 'string' && msg.content.length > 250000) {
-        // Extremely large plain-text messages — keep first 200k chars then note remainder
-        return {
-          ...msg,
+        newMsg = {
+          ...newMsg,
           content: msg.content.substring(0, 200000) + '\n... (content truncated – original preserved in backup)',
-        };
+        } as typeof msg;
       }
-      return msg;
+      // Strip dataUri from attachments to keep storage small
+      if (newMsg.attachedFiles && newMsg.attachedFiles.some(f => f.dataUri)) {
+        newMsg = {
+          ...newMsg,
+          attachedFiles: newMsg.attachedFiles.map(({ dataUri, ...rest }) => rest),
+        } as typeof msg;
+      }
+      return newMsg;
     });
     return { ...session, messages: processedMsgs };
   }
@@ -1618,8 +1625,8 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
     const idbString = JSON.stringify(sessionForIndexedDB);
     const idbValue = idbString.length > 1000 ? compressData(idbString) : idbString;
 
-    const localString = JSON.stringify(sessionForLocalStorage);
-    const localValue = localString.length > 1000 ? compressData(localString) : localString;
+    // Disable localStorage session storage to avoid quota errors – rely on IndexedDB only.
+    const localValue: string | null = null;
     
     // Track if we were able to save the session anywhere
     let savedSuccessfully = false;
@@ -1657,7 +1664,7 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
     }
     
     // 2. Try localStorage (as backup or primary if IndexedDB failed)
-    if (!savedInIndexedDB || chatSessionPrefixLS) {
+    if ((!savedInIndexedDB || chatSessionPrefixLS) && localValue !== null) {
       try {
         localStorage.setItem(`${chatSessionPrefixLS}${sessionToSave.id}`, localValue);
         storageLogger.debug(`saveSession: Successfully saved session ${sessionToSave.id} to localStorage`);
@@ -1665,27 +1672,7 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
         savedSuccessfully = true;
       } catch (storageError) {
         storageLogger.warn(`saveSession: Error saving to localStorage for ${sessionToSave.id}`);
-        
-        if (isQuotaExceededError(storageError)) {
-          storageLogger.info(`saveSession: Quota exceeded, trying more aggressive compression for ${sessionToSave.id}`);
-          try {
-            // Create an extremely minimal session with just the essential data
-            const minimalSession = { 
-              ...sessionForLocalStorage, 
-              messages: sessionForLocalStorage.messages.slice(-5), // Keep only the last 5 messages
-              files: [] 
-            };
-            const minimalJson = JSON.stringify(minimalSession);
-            const compressedData = compressData(minimalJson);
-            
-            localStorage.setItem(`${chatSessionPrefixLS}${sessionToSave.id}`, compressedData);
-            storageLogger.debug(`saveSession: Saved minimal version of session ${sessionToSave.id} to localStorage`);
-            savedInLocalStorage = true;
-            savedSuccessfully = true;
-          } catch (compressError) {
-            storageLogger.error(`saveSession: Failed to save even minimal session ${sessionToSave.id}`);
-          }
-        }
+        // We ignore further quota handling since we no longer depend on localStorage
       }
     }
     
@@ -1798,10 +1785,8 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
       }
     }
 
-    if (!savedSuccessfully) {
-      historyLogger.error(`saveSession: Failed to save session ${sessionToSave.id} anywhere!`);
-    } else {
-      historyLogger.debug(`saveSession: Successfully saved session ${sessionToSave.id} (localStorage: ${savedInLocalStorage}, IndexedDB: ${savedInIndexedDB})`);
+    if (!savedSuccessfully && !savedInLocalStorage && !savedInIndexedDB) {
+      storageLogger.error(`[STORAGE:ERROR] saveSession: Failed to save session ${sessionToSave.id}. Skipped due to size/quota.`);
     }
     
     return sessionToSave;

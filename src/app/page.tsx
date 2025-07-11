@@ -59,6 +59,17 @@ import Image from 'next/image';
 import { promptWithCustomSense } from '@/ai/flows/prompt-with-custom-sense-flow';
 import type { PromptWithCustomSenseOutput } from '@/ai/flows/prompt-with-custom-sense-types';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+
+// Insert after state declarations, before readFileAsDataURL
+const debugLogAiRequest = (action: ActionType, message: string, attachments: AttachedFile[]) => {
+  try {
+    const inlineBytes = attachments.reduce((acc, f) => acc + (f.dataUri ? f.dataUri.length : 0), 0);
+    console.log(`[AI_REQUEST] action=${action} msgLen=${message.length} attachments=${attachments.length} inlineBytes=${inlineBytes}`);
+  } catch (err) {
+    console.warn('debugLogAiRequest failed', err);
+  }
+};
 
 const getMessageText = (content: string | ChatMessageContentPart[] | undefined): string => {
   if (!content) return '';
@@ -953,16 +964,38 @@ export default function ChatPage() {
 
   const processFilesForAI = async (files: File[]): Promise<AttachedFile[]> => {
     // Process files in parallel for faster reads
+    const MAX_IMAGE_SIZE_BYTES = 3_000_000; // 3 MB limit to avoid huge payloads
+    const MAX_TOTAL_INLINE_BYTES = 10_000_000; // 10 MB total across all images
+    const MAX_INLINE_IMAGES = 1; // inline only first image to keep prompt small
+    let totalInlineBytes = 0;
+    let inlineImageCount = 0;
+
     const filePromises = files.map(async (file) => {
       const basicInfo: AttachedFile = { name: file.name, type: file.type, size: file.size };
       if (file.type.startsWith('image/')) {
-        try { basicInfo.dataUri = await readFileAsDataURL(file); } catch (e) { console.error("Error reading image file:", e); }
+        if (
+          file.size <= MAX_IMAGE_SIZE_BYTES &&
+          inlineImageCount < MAX_INLINE_IMAGES &&
+          (totalInlineBytes + file.size) <= MAX_TOTAL_INLINE_BYTES
+        ) {
+          try {
+            basicInfo.dataUri = await readFileAsDataURL(file);
+            totalInlineBytes += file.size;
+            inlineImageCount += 1;
+          } catch (e) {
+            console.error("Error reading image file:", e);
+          }
+        } else {
+          console.warn(`Skipping inline for ${file.name}. Either too large or exceeds limits (count ${inlineImageCount}/${MAX_INLINE_IMAGES}, total ${totalInlineBytes}/${MAX_TOTAL_INLINE_BYTES}).`);
+        }
       } else if (file.type === 'text/plain' || file.type === 'text/markdown' || file.type === 'application/json') {
         try { basicInfo.textContent = await readFileAsText(file); } catch (e) { console.error("Error reading text file:", e); }
       }
       return basicInfo;
     });
-    return Promise.all(filePromises);
+    const processed = await Promise.all(filePromises);
+    console.log("[processFilesForAI] inlineImageCount", inlineImageCount, "totalInlineBytes", totalInlineBytes, "processed files", processed.map(f=>({name:f.name,size:f.size,hasDataUri:!!f.dataUri})));
+    return processed;
   };
 
   const messagesRef = useRef(messages);
@@ -1085,6 +1118,9 @@ export default function ChatPage() {
     }
 
     const modelIdToUse = userProfile.selectedGenkitModelId || DEFAULT_MODEL_ID;
+
+    // Debug log for outgoing AI request
+    debugLogAiRequest(currentActionType, userMessageContent, filesToSendWithThisMessage);
 
     let promptedByMsgIdForNewAssistant: string | undefined = userMessageIdForAiPrompting;
     let userMessageIdForCurrentInteraction: string | undefined = userMessageIdForAiPrompting;
@@ -2731,24 +2767,25 @@ export default function ChatPage() {
             isHistoryPanelOpen ? (isHistoryPanelCollapsed ? "pl-2" : "pl-2") : ""
           )}>
             {messages.map((msg) => (
-              <ChatMessageDisplay
-                key={msg.id}
-                message={msg}
-                onRegenerate={handleRegenerateMessage}
-                onConfirmEditAndResend={handleConfirmEditAndResendUserMessage}
-                onStopRegeneration={handleStopRegeneration}
-                onPerformAction={handlePerformActionOnMessage}
-                isMobile={isMobile}
-                profile={profile}
-                activeActionButton={activeActionButton}
-                lastSelectedActionButton={lastSelectedActionButton}
-                isLoading={isLoading}
-                currentUserMessage={inputMessage}
-                currentAttachedFilesDataLength={currentAttachedFilesData.length}
-                onOpenCustomSenseEditor={openPromptWithCustomSenseEditor}
-                onRegenerateCustomSense={handleRegenerateCustomSense}
-                searchHighlightTerm={searchHighlightTerm}
-              />
+              <ErrorBoundary key={msg.id}>
+                <ChatMessageDisplay
+                  message={msg}
+                  onRegenerate={handleRegenerateMessage}
+                  onConfirmEditAndResend={handleConfirmEditAndResendUserMessage}
+                  onStopRegeneration={handleStopRegeneration}
+                  onPerformAction={handlePerformActionOnMessage}
+                  isMobile={isMobile}
+                  profile={profile}
+                  activeActionButton={activeActionButton}
+                  lastSelectedActionButton={lastSelectedActionButton}
+                  isLoading={isLoading}
+                  currentUserMessage={inputMessage}
+                  currentAttachedFilesDataLength={currentAttachedFilesData.length}
+                  onOpenCustomSenseEditor={openPromptWithCustomSenseEditor}
+                  onRegenerateCustomSense={handleRegenerateCustomSense}
+                  searchHighlightTerm={searchHighlightTerm}
+                />
+              </ErrorBoundary>
             ))}
              {messages.length === 0 && !isLoading && (
                 <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 animate-fade-in w-full">
