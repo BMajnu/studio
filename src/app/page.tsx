@@ -962,40 +962,89 @@ export default function ChatPage() {
     });
   };
 
+  // Compress/convert an image to JPEG (quality 0.75). If রেজুলেশন > 3 MP (≈3,000,000 pixels) স্কেল-ডাউন করে।
+  const readCompressedImageAsDataURL = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX_PIXELS = 3_000_000; // 3 MP threshold
+        let { width, height } = img;
+        const totalPixels = width * height;
+        if (totalPixels > MAX_PIXELS) {
+          const scale = Math.sqrt(MAX_PIXELS / totalPixels);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('Canvas context null')); return; }
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) { reject(new Error('Canvas toBlob failed')); return; }
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          },
+          'image/jpeg',
+          0.75
+        );
+      };
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
   const processFilesForAI = async (files: File[]): Promise<AttachedFile[]> => {
-    // Process files in parallel for faster reads
-    const MAX_IMAGE_SIZE_BYTES = 3_000_000; // 3 MB limit to avoid huge payloads
-    const MAX_TOTAL_INLINE_BYTES = 10_000_000; // 10 MB total across all images
-    const MAX_INLINE_IMAGES = 1; // inline only first image to keep prompt small
+    const MAX_IMAGE_SIZE_BYTES = 3_000_000; // 3 MB each
+    const MAX_TOTAL_INLINE_BYTES = 10_000_000; // 10 MB overall
+    const MAX_INLINE_IMAGES = files.filter(f=>f.type.startsWith('image/')).length; // allow all images
+
     let totalInlineBytes = 0;
     let inlineImageCount = 0;
 
-    const filePromises = files.map(async (file) => {
-      const basicInfo: AttachedFile = { name: file.name, type: file.type, size: file.size };
+    const result: AttachedFile[] = [];
+
+    for (const file of files) {
+      const base: AttachedFile = { name: file.name, type: file.type, size: file.size };
+
       if (file.type.startsWith('image/')) {
         if (
           file.size <= MAX_IMAGE_SIZE_BYTES &&
           inlineImageCount < MAX_INLINE_IMAGES &&
-          (totalInlineBytes + file.size) <= MAX_TOTAL_INLINE_BYTES
+          totalInlineBytes + file.size <= MAX_TOTAL_INLINE_BYTES
         ) {
           try {
-            basicInfo.dataUri = await readFileAsDataURL(file);
-            totalInlineBytes += file.size;
+            // compress to save bandwidth
+            base.dataUri = await readCompressedImageAsDataURL(file);
+            totalInlineBytes += base.dataUri.length;
             inlineImageCount += 1;
-          } catch (e) {
-            console.error("Error reading image file:", e);
+          } catch (err) {
+            console.error('readCompressedImageAsDataURL error', err);
           }
         } else {
-          console.warn(`Skipping inline for ${file.name}. Either too large or exceeds limits (count ${inlineImageCount}/${MAX_INLINE_IMAGES}, total ${totalInlineBytes}/${MAX_TOTAL_INLINE_BYTES}).`);
+          console.warn(`processFilesForAI: not inlining ${file.name}`);
         }
-      } else if (file.type === 'text/plain' || file.type === 'text/markdown' || file.type === 'application/json') {
-        try { basicInfo.textContent = await readFileAsText(file); } catch (e) { console.error("Error reading text file:", e); }
+      } else if (
+        file.type === 'text/plain' ||
+        file.type === 'text/markdown' ||
+        file.type === 'application/json'
+      ) {
+        try {
+          base.textContent = await readFileAsText(file);
+        } catch (err) {
+          console.error('readFileAsText error', err);
+        }
       }
-      return basicInfo;
-    });
-    const processed = await Promise.all(filePromises);
-    console.log("[processFilesForAI] inlineImageCount", inlineImageCount, "totalInlineBytes", totalInlineBytes, "processed files", processed.map(f=>({name:f.name,size:f.size,hasDataUri:!!f.dataUri})));
-    return processed;
+
+      result.push(base);
+    }
+
+    console.log('[processFilesForAI] inlineImageCount', inlineImageCount, 'totalInlineBytes', totalInlineBytes);
+    return result;
   };
 
   const messagesRef = useRef(messages);
