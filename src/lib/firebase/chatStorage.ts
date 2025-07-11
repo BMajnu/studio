@@ -83,6 +83,30 @@ const trimSessionForFirestore = (session: ChatSession): ChatSession => {
   return clone;
 };
 
+// Helper: Recursively remove binary/image payloads from an object while
+//          preserving every other piece of information. This is used to
+//          create a lean version of the chat session that can be safely
+//          synced to Firestore without hitting 1 MiB limits. The original
+//          session object *must* remain untouched so that the full data
+//          continues to live in IndexedDB / localStorage for offline use.
+const stripBinaryFieldsDeep = (val: any): any => {
+  if (Array.isArray(val)) {
+    return val.map(stripBinaryFieldsDeep);
+  }
+  if (val && typeof val === 'object') {
+    const cleaned: any = {};
+    for (const key of Object.keys(val)) {
+      if (key === 'dataUri' || key === 'imageDataUri') {
+        // Skip heavy base64 payloads
+        continue;
+      }
+      cleaned[key] = stripBinaryFieldsDeep((val as any)[key]);
+    }
+    return cleaned;
+  }
+  return val;
+};
+
 // Initialize Firestore
 const db = getFirestore(firebaseAppInstance);
 
@@ -121,8 +145,16 @@ export class FirebaseChatStorage {
         return val;
       };
 
-      // Use JSON stringify/parse as final pass to guarantee no undefined remains
-      let cleanedSession: ChatSession = JSON.parse(JSON.stringify(sanitize(session)));
+      // First strip *all* binary/image payloads so we never upload large base64
+      // strings to Firestore. This fulfils the requirement of keeping images
+      // only in local storage / IndexedDB while syncing a lean version to the
+      // cloud.
+      const sessionWithoutImages = stripBinaryFieldsDeep(session);
+
+      // Sanitize the lean copy by removing undefined fields recursively
+      let cleanedSession: ChatSession = JSON.parse(
+        JSON.stringify(sanitize(sessionWithoutImages))
+      );
 
       // Ensure size within Firestore limit
       if (JSON.stringify(cleanedSession).length > FIRESTORE_DOC_LIMIT) {

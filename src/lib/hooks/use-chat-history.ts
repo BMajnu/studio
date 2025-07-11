@@ -494,43 +494,8 @@ const compressData = (data: string): string => {
   }
 };
 
-// Limit session size to prevent quota issues
-const limitSessionSize = (session: ChatSession): ChatSession => {
-  if (!session) return session;
-  
-  // If the session is extremely large, limit message count to prevent storage errors
-  if (session.messages && session.messages.length > 100) {
-    return {
-      ...session,
-      messages: session.messages.slice(-50), // Only keep the last 50 messages
-    };
-  }
-  
-  // For individual messages, avoid mutating content; rely on compression.
-  // Only perform very aggressive trimming if compression still cannot keep size under quota
-  if (session.messages) {
-    const processedMsgs = session.messages.map(msg => {
-      let newMsg = msg;
-      if (typeof msg.content === 'string' && msg.content.length > 250000) {
-        newMsg = {
-          ...newMsg,
-          content: msg.content.substring(0, 200000) + '\n... (content truncated – original preserved in backup)',
-        } as typeof msg;
-      }
-      // Strip dataUri from attachments to keep storage small
-      if (newMsg.attachedFiles && newMsg.attachedFiles.some(f => f.dataUri)) {
-        newMsg = {
-          ...newMsg,
-          attachedFiles: newMsg.attachedFiles.map(({ dataUri, ...rest }) => rest),
-        } as typeof msg;
-      }
-      return newMsg;
-    });
-    return { ...session, messages: processedMsgs };
-  }
-  
-  return session;
-};
+// Disable trimming: return session as-is
+const limitSessionSize = (session: ChatSession): ChatSession => session;
 
 function deduplicateMetadata(metadataList: ChatSessionMetadata[]): ChatSessionMetadata[] {
   if (!Array.isArray(metadataList) || metadataList.length === 0) return [];
@@ -1625,7 +1590,7 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
     const idbString = JSON.stringify(sessionForIndexedDB);
     const idbValue = idbString.length > 1000 ? compressData(idbString) : idbString;
 
-    // Disable localStorage session storage to avoid quota errors – rely on IndexedDB only.
+    // Skip saving session JSON to localStorage entirely (avoid quota issues)
     const localValue: string | null = null;
     
     // Track if we were able to save the session anywhere

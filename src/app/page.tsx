@@ -2817,23 +2817,23 @@ export default function ChatPage() {
           )}>
             {messages.map((msg) => (
               <ErrorBoundary key={msg.id}>
-                <ChatMessageDisplay
-                  message={msg}
-                  onRegenerate={handleRegenerateMessage}
-                  onConfirmEditAndResend={handleConfirmEditAndResendUserMessage}
-                  onStopRegeneration={handleStopRegeneration}
-                  onPerformAction={handlePerformActionOnMessage}
-                  isMobile={isMobile}
-                  profile={profile}
-                  activeActionButton={activeActionButton}
-                  lastSelectedActionButton={lastSelectedActionButton}
-                  isLoading={isLoading}
-                  currentUserMessage={inputMessage}
-                  currentAttachedFilesDataLength={currentAttachedFilesData.length}
-                  onOpenCustomSenseEditor={openPromptWithCustomSenseEditor}
-                  onRegenerateCustomSense={handleRegenerateCustomSense}
-                  searchHighlightTerm={searchHighlightTerm}
-                />
+              <ChatMessageDisplay
+                message={msg}
+                onRegenerate={handleRegenerateMessage}
+                onConfirmEditAndResend={handleConfirmEditAndResendUserMessage}
+                onStopRegeneration={handleStopRegeneration}
+                onPerformAction={handlePerformActionOnMessage}
+                isMobile={isMobile}
+                profile={profile}
+                activeActionButton={activeActionButton}
+                lastSelectedActionButton={lastSelectedActionButton}
+                isLoading={isLoading}
+                currentUserMessage={inputMessage}
+                currentAttachedFilesDataLength={currentAttachedFilesData.length}
+                onOpenCustomSenseEditor={openPromptWithCustomSenseEditor}
+                onRegenerateCustomSense={handleRegenerateCustomSense}
+                searchHighlightTerm={searchHighlightTerm}
+              />
               </ErrorBoundary>
             ))}
              {messages.length === 0 && !isLoading && (
