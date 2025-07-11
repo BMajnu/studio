@@ -2138,3 +2138,121 @@ Now I can see you made a mistake and once again I can see the buttons are not in
 Prompt:
 Now I can see you made a mistake and once again I can see the buttons are not in the center. The three buttons: New Chat, Media Gallery, and History Chat. These three buttons are not in the center of the sidebar. So make them center by left and right side and there was an expand collapse button. It was showing when user hover to the logo icon, app logo, when user hover to app logo then it shows the expand collapse button but it's now not showing. Please fix it and back it again.
 
+Prompt:
+No need to set the thinking budget manually by the user. Set it to default. It will work with the default thinking budget. And I want to implement the thinking and non-thinking option for all the AI models of Gemini whose models support thinking.
+
+Prompt:
+No need to set the thinking budget manually by the user. Set it to default. It will work with the default thinking budget. And I want to implement the thinking and non-thinking option for all the AI models of Gemini whose models support thinking.
+
+Prompt:
+Add this model as well:
+
+// To run this code you need to install the following dependencies:
+// npm install @google/genai mime
+// npm install -D @types/node
+
+import {
+  GoogleGenAI,
+} from '@google/genai';
+
+async function main() {
+  const ai = new GoogleGenAI({
+    apiKey: process.env.GEMINI_API_KEY,
+  });
+  const config = {
+    thinkingConfig: {
+      thinkingBudget: 0,
+    },
+    responseMimeType: 'text/plain',
+  };
+  const model = 'gemini-2.5-flash-lite-preview-06-17';
+  const contents = [
+    {
+      role: 'user',
+      parts: [
+        {
+          text: `INSERT_INPUT_HERE`,
+        },
+      ],
+    },
+  ];
+
+  const response = await ai.models.generateContentStream({
+    model,
+    config,
+    contents,
+  });
+  let fileIndex = 0;
+  for await (const chunk of response) {
+    console.log(chunk.text);
+  }
+}
+
+main();
+
+
+Prompt:
+Add this model as well:
+
+// To run this code you need to install the following dependencies:
+// npm install @google/genai mime
+// npm install -D @types/node
+
+import {
+  GoogleGenAI,
+} from '@google/genai';
+
+async function main() {
+  const ai = new GoogleGenAI({
+    apiKey: process.env.GEMINI_API_KEY,
+  });
+  const config = {
+    thinkingConfig: {
+      thinkingBudget: 0,
+    },
+    responseMimeType: 'text/plain',
+  };
+  const model = 'gemini-2.5-flash-lite-preview-06-17';
+  const contents = [
+    {
+      role: 'user',
+      parts: [
+        {
+          text: `INSERT_INPUT_HERE`,
+        },
+      ],
+    },
+  ];
+
+  const response = await ai.models.generateContentStream({
+    model,
+    config,
+    contents,
+  });
+  let fileIndex = 0;
+  for await (const chunk of response) {
+    console.log(chunk.text);
+  }
+}
+
+main();
+
+
+Prompt:
+proceed
+
+Prompt:
+proceed
+
+Prompt:
+Okay, so you ordered the list. Can you see the list is not properly ordered? And categorize the models. Uh, show the fastest models in a category, and the slowest models in a category. I mean, the fastest models. All the Pro models will be the Lete but Most accouracy models from Germany. All the Flash models, only Flash, like 2.0 Plus, Plus Preview, 2.5 Plus Preview, and 2.5 Plus... will be fast and less accouracy, And make the wall flashlight models and the gema models are in the fastest and low accuracy category.
+
+Prompt:
+Okay, so you ordered the list. Can you see the list is not properly ordered? And categorize the models. Uh, show the fastest models in a category, and the slowest models in a category. I mean, the fastest models. All the Pro models will be the Lete but Most accouracy models from Germany. All the Flash models, only Flash, like 2.0 Plus, Plus Preview, 2.5 Plus Preview, and 2.5 Plus... will be fast and less accouracy, And make the wall flashlight models and the gema models are in the fastest and low accuracy category.
+
+Prompt:
+And make the wall flashlight models and the Jima models in the fastest and low accuracy category. Fastest model will be all the flashlight models and all the gema models.
+
+Prompt:
+And make the wall flashlight models and the Jima models in the fastest and low accuracy category. Fastest model will be all the flashlight models and all the gema models.
+

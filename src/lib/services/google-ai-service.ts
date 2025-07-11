@@ -4,6 +4,8 @@ import { FirebaseApp } from 'firebase/app';
 // Trying a more direct Firebase AI import, assuming firebase v10+
 import { getGenerativeModel as getFirebaseAISdkModel, getAI as getFirebaseAIInstance } from "firebase/ai"; // Simpler import path if available
 import type { VertexAI } from "firebase/ai"; // Type import
+import { GeminiClient } from '../ai/gemini-client'; // New import
+import { UserProfile, ThinkingMode } from '@/lib/types'; // New import
 
 // Configuration type for AI service
 export type AIServiceConfig = {
@@ -15,6 +17,8 @@ export type AIServiceConfig = {
   useFirebaseAI?: boolean;
   useAlternativeImpl?: boolean; // For @google/genai as a fallback
   firebaseApp?: FirebaseApp; // Optional: Needed if useFirebaseAI is true
+  profile?: UserProfile | null; // Add profile to config
+  thinkingMode?: ThinkingMode; // Add thinkingMode
 };
 
 // Common response format regardless of implementation used
@@ -31,6 +35,7 @@ export type AIResponse = {
 export class GoogleAIService {
   private readonly config: AIServiceConfig;
   private firebaseAI?: any; // Using any for now due to import issues, will cast later
+  private readonly client: GeminiClient; // Add GeminiClient instance
 
   constructor(config: AIServiceConfig) {
     this.config = {
@@ -39,6 +44,9 @@ export class GoogleAIService {
       responseMimeType: 'text/plain',
       ...config,
     };
+    
+    // Instantiate the new GeminiClient
+    this.client = new GeminiClient({ profile: this.config.profile ?? null });
 
     if (this.config.useFirebaseAI && this.config.firebaseApp) {
       try {
@@ -165,63 +173,32 @@ export class GoogleAIService {
     prompt: string,
     onChunk: (chunk: string) => void
   ): Promise<void> {
-    // Firebase AI streaming has a different pattern (model.generateContentStream)
-    // For simplicity in this refactor, if Firebase is primary, we'll use its non-streaming version
-    // or fallback to Google GenAI if that's preferred for streaming.
-    
-    if (this.config.useFirebaseAI && this.firebaseAI) {
-       try {
-        console.log(`Attempting stream (via non-streaming Firebase AI then chunking) (model: ${this.config.modelId})`);
-        const response = await this.generateWithFirebaseAI(prompt, this.firebaseAI as VertexAI);
-        onChunk(response.text); // Simulate single chunk for non-streaming
-        return;
-      } catch (error) {
-        console.warn(`Firebase AI (simulated stream) failed (model: ${this.config.modelId}). Error: ${error}. Falling back...`);
-      }
-    }
-    
-    // Prioritize @google/genai for streaming if enabled
-    if (this.config.useAlternativeImpl && this.config.apiKey) {
-      try {
-        console.log(`Attempting stream with @google/genai (model: ${this.config.modelId})`);
-        const ai = new GoogleGenAI({ apiKey: this.config.apiKey });
-        
-        // Define the config object for @google/genai stream
-        const genAIConfigStream = {
-            temperature: this.config.temperature,
-            maxOutputTokens: this.config.maxOutputTokens,
-            responseMimeType: this.config.responseMimeType,
-            // safetySettings: [] // Add if needed
-        };
-
-        const streamResult = await ai.models.generateContentStream({
-          model: this.config.modelId, 
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          config: genAIConfigStream, // Pass the config object here
-        });
-        for await (const chunk of streamResult) { 
-          onChunk(chunk.text || ''); // Access text as a property
-        }
-        return;
-      } catch (error) {
-        console.warn(`@google/genai streaming failed (model: ${this.config.modelId}). Error: ${error}. Falling back...`);
-      }
+    // We will now primarily use our new GeminiClient for streaming
+    if (!this.config.profile) {
+      console.error("GeminiClient requires a user profile for API key management.");
+      // Fallback or throw error
+      const response = await this.generateContent(prompt);
+      onChunk(response.text);
+      return;
     }
 
-    // Fallback to original Google SDK (non-streaming, single chunk)
-    if (this.config.apiKey) {
-        try {
-            console.log(`Attempting stream (via non-streaming @google/generative-ai then chunking) (model: ${this.config.modelId})`);
-            const response = await this.generateWithOriginalGoogle(prompt);
-            onChunk(response.text); // Simulate single chunk
-            return;
-        } catch (error) {
-            console.error(`All AI streaming methods failed (model: ${this.config.modelId}). Last error with @google/generative-ai: ${error}`);
-            throw error;
+    try {
+      const stream = this.client.generateContentStream(
+        this.config.modelId,
+        { contents: [{ role: 'user', parts: [{ text: prompt }] }] },
+        this.config.thinkingMode
+      );
+
+      for await (const chunk of stream) {
+        const text = (chunk as any).text();
+        if (text) {
+          onChunk(text);
         }
+      }
+    } catch (error) {
+      console.error(`Error during streaming with GeminiClient (model: ${this.config.modelId}):`, error);
+      // Optional: implement a fallback to the older methods if needed
+      throw error;
     }
-    
-    console.error(`AI Service (Stream): No valid API key or Firebase setup for model ${this.config.modelId}.`);
-    throw new Error("AI Service not configured for streaming. No API key or Firebase app.");
   }
 } 

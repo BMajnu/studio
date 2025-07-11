@@ -43,6 +43,7 @@ const profileFormSchema = z.object({
   customClientFeedbackResponseTemplate: z.string().max(1000).optional().nullable(),
   rawPersonalStatement: z.string().max(2000).optional().nullable(),
   autoRotateGeminiKeys: z.boolean().optional().default(true),
+  thinkingMode: z.enum(['default', 'none']).optional().default('default'),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -74,6 +75,7 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
       customClientFeedbackResponseTemplate: initialProfile?.customClientFeedbackResponseTemplate || DEFAULT_USER_PROFILE.customClientFeedbackResponseTemplate || "",
       rawPersonalStatement: initialProfile?.rawPersonalStatement || DEFAULT_USER_PROFILE.rawPersonalStatement || "",
       autoRotateGeminiKeys: initialProfile?.autoRotateGeminiKeys !== undefined ? initialProfile.autoRotateGeminiKeys : true,
+      thinkingMode: initialProfile?.thinkingMode || 'default',
     },
     mode: "onChange",
   });
@@ -107,6 +109,7 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
       customClientFeedbackResponseTemplate: data.customClientFeedbackResponseTemplate === null ? undefined : data.customClientFeedbackResponseTemplate,
       rawPersonalStatement: data.rawPersonalStatement === null ? undefined : data.rawPersonalStatement,
       autoRotateGeminiKeys: data.autoRotateGeminiKeys,
+      thinkingMode: data.thinkingMode,
     };
     
     onSave(processedData);
@@ -135,9 +138,18 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
         customClientFeedbackResponseTemplate: initialProfile.customClientFeedbackResponseTemplate || DEFAULT_USER_PROFILE.customClientFeedbackResponseTemplate || "",
         rawPersonalStatement: initialProfile.rawPersonalStatement || DEFAULT_USER_PROFILE.rawPersonalStatement || "",
         autoRotateGeminiKeys: initialProfile.autoRotateGeminiKeys !== undefined ? initialProfile.autoRotateGeminiKeys : true,
+        thinkingMode: initialProfile.thinkingMode || 'default',
       });
     }
   }, [initialProfile, form.reset]);
+
+  const selectedModelId = form.watch("selectedGenkitModelId");
+  const currentThinkingMode = form.watch("thinkingMode");
+  const selectedModel = AVAILABLE_MODELS.find(m => m.id === selectedModelId);
+
+  const modelsToShow = currentThinkingMode === 'default'
+    ? AVAILABLE_MODELS.filter(m => m.supportsThinking)
+    : AVAILABLE_MODELS;
 
   // When component mounts or user changes, get the active key.
   useEffect(() => {
@@ -381,7 +393,7 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {AVAILABLE_MODELS.map(model => (
+                        {modelsToShow.map(model => (
                           <SelectItem key={model.id} value={model.id}>
                             {model.name}
                           </SelectItem>
@@ -393,6 +405,29 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
                   </FormItem>
                 )}
               />
+
+              {selectedModel?.supportsThinking && (
+                <FormField
+                  control={form.control}
+                  name="thinkingMode"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-gray-50 dark:bg-gray-900/50">
+                      <div className="space-y-0.5">
+                        <FormLabel>Thinking Mode</FormLabel>
+                        <FormDescription>
+                          Enable to allow the model to "think" for better responses.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value === 'default'}
+                          onCheckedChange={(checked) => field.onChange(checked ? 'default' : 'none')}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              )}
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField

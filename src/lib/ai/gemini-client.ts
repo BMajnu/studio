@@ -1,5 +1,11 @@
 import { GeminiKeyManager } from './gemini-key-manager';
-import { UserProfile } from '@/lib/types';
+import { UserProfile, ThinkingMode } from '@/lib/types';
+import {
+  GoogleGenerativeAI,
+  GenerateContentRequest,
+  Content,
+  GenerateContentResponse,
+} from '@google/generative-ai';
 
 export type GeminiRequestFn<T> = (apiKey: string) => Promise<T>;
 
@@ -26,6 +32,49 @@ export class GeminiClient {
         ...profile,
         geminiApiKeys: [...(profile?.geminiApiKeys || []), this.envKey]
       } as UserProfile);
+    }
+  }
+
+  /**
+   * Generates content stream using @google/genai, with key rotation.
+   */
+  async *generateContentStream(
+    modelId: string,
+    request: Omit<GenerateContentRequest, 'model'>,
+    thinkingMode: ThinkingMode = 'default'
+  ): AsyncGenerator<GenerateContentResponse> {
+    const key = this.manager.getActiveKey();
+    if (!key) {
+      throw new Error('No active Gemini API key available.');
+    }
+
+    const ai = new GoogleGenerativeAI(key);
+    
+    const config: any = {};
+    if (thinkingMode === 'none') {
+      config.thinkingConfig = { thinkingBudget: 0 };
+    }
+    // For 'default', we send no thinkingConfig to use the model's default.
+
+    const model = ai.getGenerativeModel({ model: modelId });
+
+    try {
+      const result = await model.generateContentStream({ ...request, ...config });
+      for await (const chunk of result.stream) {
+        yield chunk;
+      }
+      this.manager.reportSuccess(key);
+    } catch (err: any) {
+      const msg = err?.message?.toLowerCase() || '';
+       if (msg.includes('429') || msg.includes('503') || msg.includes('resource_exhausted')) {
+        this.manager.reportQuotaError(key);
+        if (this.autoRotate) {
+          // Simple retry logic: try next key once.
+          yield* this.generateContentStream(modelId, request, thinkingMode);
+          return;
+        }
+      }
+      throw err;
     }
   }
 

@@ -17,7 +17,10 @@ export interface UserProfile {
   createdAt?: string; 
   updatedAt?: string; 
   autoRotateGeminiKeys?: boolean;
+  thinkingMode?: ThinkingMode;
 }
+
+export type ThinkingMode = 'default' | 'none';
 
 export type MessageRole = 'user' | 'assistant' | 'system';
 

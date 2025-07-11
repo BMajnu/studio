@@ -12,6 +12,7 @@
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
 import { GoogleAIService } from '@/lib/services/google-ai-service';
 import type { FirebaseApp } from 'firebase/app'; // Import FirebaseApp type
+import { UserProfile } from '@/lib/types';
 
 // Alternative import path for newer @google/genai package
 // Used for reference to ensure compatibility
@@ -43,6 +44,7 @@ export type ProcessCustomInstructionInput = {
   useAlternativeImpl?: boolean;
   useFirebaseAI?: boolean; // Add useFirebaseAI
   firebaseApp?: FirebaseApp; // Add firebaseApp
+  profile?: UserProfile; // Add full profile
 };
 
 export type ProcessCustomInstructionOutput = {
@@ -120,7 +122,8 @@ export async function processCustomInstruction(input: ProcessCustomInstructionIn
     modelId,
     useAlternativeImpl = false,
     useFirebaseAI = false, // Destructure useFirebaseAI
-    firebaseApp // Destructure firebaseApp
+    firebaseApp, // Destructure firebaseApp
+    profile, // Destructure profile
   } = input;
   
   // Format attached files information for the prompt
@@ -215,7 +218,9 @@ Please follow the custom instruction precisely in relation to the client message
       responseMimeType: 'text/plain',
       useAlternativeImpl,
       useFirebaseAI, // Pass useFirebaseAI
-      firebaseApp // Pass firebaseApp
+      firebaseApp, // Pass firebaseApp
+      profile, // Pass the full profile
+      thinkingMode: profile?.thinkingMode, // Pass the thinking mode
     });
     
     // Generate content using the service
