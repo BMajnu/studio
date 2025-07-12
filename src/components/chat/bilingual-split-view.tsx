@@ -308,7 +308,7 @@ function DesignItemCard({
 
   // Option checkboxes
   const [includeOriginalPrompt, setIncludeOriginalPrompt] = useState(true);
-  const [includeOriginalImages, setIncludeOriginalImages] = useState(false);
+  const [includeOriginalImages, setIncludeOriginalImages] = useState(true);
   const [includeFullAnalysis, setIncludeFullAnalysis] = useState(false);
 
   // State for inline editing
