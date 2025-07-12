@@ -61,6 +61,8 @@ export function BilingualSplitView({
   const [syncingEnglish, setSyncingEnglish] = useState(false);
   const [syncingBengali, setSyncingBengali] = useState(false);
 
+  const hasImages = !!imageAnalysis; // if image analysis exists, images were attached
+
   // Function to handle scroll synchronization between the two panels
   const handleScroll = (sourceRef: React.RefObject<HTMLDivElement>, targetRef: React.RefObject<HTMLDivElement>, isSyncing: boolean, setSyncing: (value: boolean) => void) => {
     if (isSyncing || !sourceRef.current || !targetRef.current) return;
@@ -227,7 +229,7 @@ export function BilingualSplitView({
         );
         
       case 'designItems':
-        return <DesignItemsList designItems={designItems} onSelectDesign={onSelectDesign} />;
+        return <DesignItemsList designItems={designItems} onSelectDesign={onSelectDesign} hasImages={hasImages} />;
         
       default:
         return null;
@@ -259,10 +261,12 @@ export function BilingualSplitView({
 // Separate component for the design items list with action buttons
 function DesignItemsList({ 
   designItems,
-  onSelectDesign 
+  onSelectDesign,
+  hasImages
 }: { 
   designItems: { english: DesignListItem[]; bengali: DesignListItem[] },
-  onSelectDesign?: (designItem: DesignListItem, options: GenerationOptions) => void
+  onSelectDesign?: (designItem: DesignListItem, options: GenerationOptions) => void,
+  hasImages: boolean
 }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -274,6 +278,7 @@ function DesignItemsList({
             item={item}
             onSelect={onSelectDesign}
             language="english"
+            hasImages={hasImages}
           />
         ))}
       </div>
@@ -286,6 +291,7 @@ function DesignItemsList({
             item={item}
             onSelect={onSelectDesign}
             language="bengali"
+            hasImages={hasImages}
           />
         ))}
       </div>
@@ -297,18 +303,20 @@ function DesignItemsList({
 function DesignItemCard({ 
   item, 
   onSelect,
-  language
+  language,
+  hasImages
 }: { 
   item: DesignListItem; 
   onSelect?: (designItem: DesignListItem, options: GenerationOptions) => void;
   language: 'english' | 'bengali';
+  hasImages: boolean;
 }) {
   // Only show action button on English items to prevent duplicate actions
   const showActionButton = language === 'english' && onSelect;
 
   // Option checkboxes
   const [includeOriginalPrompt, setIncludeOriginalPrompt] = useState(false);
-  const [includeOriginalImages, setIncludeOriginalImages] = useState(true);
+  const [includeOriginalImages, setIncludeOriginalImages] = useState(hasImages);
   const [includeFullAnalysis, setIncludeFullAnalysis] = useState(false);
 
   // State for inline editing
@@ -409,7 +417,7 @@ function DesignItemCard({
       {showActionButton && (
         <div className="mt-3 space-y-1 text-sm">
           <label className="flex items-center gap-2"><Checkbox checked={includeOriginalPrompt} onCheckedChange={(val: boolean | "indeterminate")=>setIncludeOriginalPrompt(!!val)} />Include original prompt</label>
-          <label className="flex items-center gap-2"><Checkbox checked={includeOriginalImages} onCheckedChange={(val: boolean | "indeterminate")=>setIncludeOriginalImages(!!val)} />Include attached images</label>
+          <label className="flex items-center gap-2 opacity-100"><Checkbox checked={includeOriginalImages} disabled={!hasImages} onCheckedChange={(val: boolean | "indeterminate")=>setIncludeOriginalImages(!!val)} />Include attached images</label>
           <label className="flex items-center gap-2"><Checkbox checked={includeFullAnalysis} onCheckedChange={(val: boolean | "indeterminate")=>setIncludeFullAnalysis(!!val)} />Include full analysis</label>
         </div>
       )}
