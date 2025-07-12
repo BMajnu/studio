@@ -179,7 +179,7 @@ export class GoogleAIService {
       // Fallback or throw error
       const response = await this.generateContent(prompt);
       onChunk(response.text);
-      return;
+        return;
     }
 
     try {
@@ -195,10 +195,10 @@ export class GoogleAIService {
           onChunk(text);
         }
       }
-    } catch (error) {
+        } catch (error) {
       console.error(`Error during streaming with GeminiClient (model: ${this.config.modelId}):`, error);
       // Optional: implement a fallback to the older methods if needed
-      throw error;
+            throw error;
     }
   }
 } 

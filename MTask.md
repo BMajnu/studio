@@ -24,3 +24,11 @@ Integrate new Gemini and Gemma models, including a "thinking" vs. "non-thinking"
 - [ ] Modify `google-ai-service.ts` to accept the `thinkingMode` and pass it to the `gemini-client`.
 - [ ] Verify that the `thinkingConfig` is correctly applied (or omitted for default) in the `generateContentStream` API call based on the user's selection.
 - [ ] Conduct a final test to ensure the feature works as expected for all supported models. 
+
+## Phase 4 – 2025-07-12  (Requirements-Analysis & UI Enhancements)
+- [ ] Update analyze-client-requirements prompt to add “image summary” and increase creativity
+- [ ] Extend output schema to include shortImageSummary & merge into mustFollow
+- [ ] Adjust TypeScript types that consume the flow
+- [ ] Adapt BilingualSplitView / DesignItemCard to render the extra mustFollow bullet
+- [ ] Add “Edit and Generate Prompts” modal & hook it to existing generation logic
+- [ ] Regression-test: attachments, design listing, both buttons 

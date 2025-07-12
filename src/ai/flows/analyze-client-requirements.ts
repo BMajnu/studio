@@ -71,7 +71,9 @@ const AnalyzeClientRequirementsOutputSchema = z.object({
   designItemsEnglish: z.array(DesignListItemSchema).describe('List of design items with descriptions in English'),
   designItemsBengali: z.array(DesignListItemSchema).describe('List of design items with descriptions in Bengali'),
   imageAnalysisEnglish: z.string().describe('Detailed description of any attached image(s) and how they relate to the requirements in English'),
-  imageAnalysisBengali: z.string().describe('Detailed description of any attached image(s) and how they relate to the requirements in Bengali')
+  imageAnalysisBengali: z.string().describe('Detailed description of any attached image(s) and how they relate to the requirements in Bengali'),
+  shortImageSummaryEnglish: z.string().optional().describe('A directive summarizing the visual style from reference images to be applied to the new design. Example: "The new design must follow the reference images \'.........[describe what got from the iamge to design the new design, like style, design, color, typogrpahy style, design theme, etc]......\'"'),
+  shortImageSummaryBengali: z.string().optional().describe('A directive summarizing the visual style from reference images, translated to Bengali.')
 });
 export type AnalyzeClientRequirementsOutput = z.infer<typeof AnalyzeClientRequirementsOutputSchema>;
 
@@ -135,24 +137,28 @@ Based on all the above information (latest message, attachments, and full histor
    - English: Identify the design's niche or theme and the intended audience or consumers
    - Bengali: Translate this information to Bengali
 
-5. **List of Required Designs**
+5. **List of Required Designs**  – Be creative! Suggest fresh colour palettes, experimental typography, novel illustration approaches, or unique print techniques where appropriate.
    - English: Create a structured list of all designs the client is looking for. Each design should have:
      * A unique ID (e.g., "design_1", "design_2")
      * A clear title describing the design
      * A brief description of what it should include
      * Any quotes/sayings that should be incorporated (if applicable)
-     * **A "Must follow:" section that lists the specific key requirement bullet points relevant to THIS design.** Present these bullet points as a bulleted list directly under the description so that the UI can render them together.
+     * **A "Must follow:" section** that lists the specific key requirement bullet points relevant to THIS design **PLUS the *short image summary (English)* as the FIRST bullet** so the designer immediately sees how the reference images influence the design.
    - Bengali: Create the same structured list in Bengali, including the "Must follow:" bullet list translated into Bengali
 
 6. **Image Description & Connection (Only if images are attached)**
    - English: Describe the main visual content of the attached image(s) in detail and explain how it connects to the client's request and possible design ideas.
    - Bengali: Provide the same description and explanation in Bengali.
 
+7. **Image Style Summary (Only if images are attached)**
+   - English: Provide a concise, one-sentence directive summarizing the key visual style from the reference images that MUST be applied. Start with "The reference images indicate a clear preference for..." and describe the style (e.g., "bold, dynamic, and often layered typographic designs with strong outlines and subtle textures."). This will be added to the 'Must follow' list.
+   - Bengali: Translate this directive to Bengali.
+
 Important Notes:
 - Give each design item a unique ID so it can be referenced later
 - Be specific about any text that should appear in the designs
 - If analyzing images, extract any text visible in them and note their style/theme
-- For each design, provide a basic concept idea in a single sentence
+- For each design, provide a basic concept idea in a single sentence and based on all the analyze (from 1-7)
 
 Output Format (ensure your entire response is a single JSON object):
 {
@@ -173,7 +179,9 @@ Output Format (ensure your entire response is a single JSON object):
     ...
   ],
   "imageAnalysisEnglish": "Description of image and its relation...",
-  "imageAnalysisBengali": "ছবির বর্ণনা এবং এর সম্পর্ক..."
+  "imageAnalysisBengali": "ছবির বর্ণনা এবং এর সম্পর্ক...",
+  "shortImageSummaryEnglish": "The reference images indicate a clear preference for bold, dynamic, and often layered typographic designs.",
+  "shortImageSummaryBengali": "রেফারেন্স চিত্রগুলি গাঢ়, গতিশীল এবং প্রায়শই স্তরযুক্ত টাইপোগ্রাফিক ডিজাইনের জন্য একটি স্পষ্ট পছন্দ নির্দেশ করে।"
 }
 `;
 

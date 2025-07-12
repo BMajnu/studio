@@ -54,7 +54,7 @@ import { setLocalStorageItem, getLocalStorageItem } from '@/lib/storage-helpers'
 // Add import for BilingualSplitView component
 import { BilingualSplitView } from '@/components/chat/bilingual-split-view';
 import type { DesignListItem } from '@/lib/types';
-import Image from 'next/image';
+import NextImage from 'next/image';
 
 import { promptWithCustomSense } from '@/ai/flows/prompt-with-custom-sense-flow';
 import type { PromptWithCustomSenseOutput } from '@/ai/flows/prompt-with-custom-sense-types';
@@ -1154,8 +1154,8 @@ export default function ChatPage() {
     const currentNotes = notesParam;
     const isCustom = isCustomMessageParam ?? isCustomMessage;
 
-    const filesToSendWithThisMessage = (isRegenerationCall && attachedFilesDataParam) ? attachedFilesDataParam
-                                      : (isUserMessageEdit && attachedFilesDataParam) ? attachedFilesDataParam
+    const filesToSendWithThisMessage = attachedFilesDataParam && attachedFilesDataParam.length > 0
+                                      ? attachedFilesDataParam
                                       : [...currentAttachedFilesData];
 
     if (currentActionType === 'checkMadeDesigns') {
@@ -1449,6 +1449,7 @@ export default function ChatPage() {
             const promptsInput: GenerateDesignPromptsInput = {
               ...baseInput,
               designInputText: designIdeasText,
+              attachedFiles: filesForFlow, // pass images/text files
             };
             const promptsOutput = await generateDesignPrompts(promptsInput);
 
@@ -2401,7 +2402,7 @@ export default function ChatPage() {
   }, [updateMessageById, messages, toast]);
 
   // Add handleDesignItemSelect function before handleAction
-  const handleDesignItemSelect = useCallback((designItem: DesignListItem) => {
+  const handleDesignItemSelect = useCallback((designItem: DesignListItem, genOptions?: any) => {
     if (!designItem || !designItem.id) return;
     
     setSelectedDesignItem(designItem);
@@ -2412,7 +2413,40 @@ export default function ChatPage() {
       ? `\n\nMust follow:\n${designItem.mustFollow.map(p => `- ${p}`).join('\n')}`
       : '';
 
-    const designPrompt = `Generate design ideas and provide the complete prompts for the designs: "${designItem.title}".\n\nBasic concept: ${designItem.description}\n\n${designItem.textContent ? `TEXT TO INCLUDE: "${designItem.textContent}"\n\n` : ''}${mustFollowSection}`;
+    let designPrompt = `Generate design ideas and provide the complete prompts for the designs: "${designItem.title}".`;
+
+    designPrompt += `\n\nBasic concept: ${designItem.description}`;
+
+    if (designItem.textContent) {
+      designPrompt += `\n\nTEXT TO INCLUDE: "${designItem.textContent}"`;
+    }
+
+    designPrompt += `\n\n${mustFollowSection}`;
+
+    // Include original user prompt if requested
+    if (genOptions?.includeOriginalPrompt) {
+      const originalReqMsg = messagesRef.current.find(m => m.role === 'user' && m.actionType === 'analyzeRequirements');
+      if (originalReqMsg && typeof originalReqMsg.content === 'string') {
+        designPrompt += `\n\n---\nOriginal Requirements:\n${originalReqMsg.content}`;
+      }
+    }
+
+    // Include original attached images references if requested
+    let attachedFilesForPrompt: AttachedFile[] | undefined = undefined;
+    if (genOptions?.includeOriginalImages) {
+      const originalReqMsg = messagesRef.current.find(m => m.role === 'user' && m.actionType === 'analyzeRequirements');
+      if (originalReqMsg?.attachedFiles && originalReqMsg.attachedFiles.length > 0) {
+        attachedFilesForPrompt = originalReqMsg.attachedFiles as AttachedFile[];
+      }
+    }
+
+    // Include full analysis if requested
+    if (genOptions?.includeFullAnalysis) {
+      const analysisMsg = messagesRef.current.find(m => m.role === 'assistant' && Array.isArray(m.content) && m.content.some((p: any)=>p.type === 'bilingual_analysis'));
+      if (analysisMsg) {
+        designPrompt += `\n\n---\nRequirement Analysis:\n${getMessageText(analysisMsg.content)}`;
+      }
+    }
     
     // Show toast notification about the selection
     toast({
@@ -2426,7 +2460,7 @@ export default function ChatPage() {
       designPrompt, 
       'generateDesignPrompts',
       undefined,
-      undefined, 
+      attachedFilesForPrompt,
       false, 
       false,
       undefined,
@@ -2442,8 +2476,9 @@ export default function ChatPage() {
     const handleDesignItemSelectedEvent = (event: Event) => {
       const customEvent = event as CustomEvent;
       const designItem = customEvent.detail?.designItem;
+      const options = customEvent.detail?.options || {};
       if (designItem && designItem.id) {
-        handleDesignItemSelect(designItem);
+        handleDesignItemSelect(designItem, options);
       }
     };
     

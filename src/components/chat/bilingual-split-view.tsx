@@ -5,6 +5,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Sparkles } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Edit3 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 
 // Define the data structure for each bilingual section
 interface BilingualContent {
@@ -20,6 +26,12 @@ interface DesignListItem {
   mustFollow?: string[];
 }
 
+interface GenerationOptions {
+  includeOriginalPrompt: boolean;
+  includeOriginalImages: boolean;
+  includeFullAnalysis: boolean;
+}
+
 // Define the props interface for the BilingualSplitView component
 interface BilingualSplitViewProps {
   keyPoints: BilingualContent; 
@@ -31,7 +43,7 @@ interface BilingualSplitViewProps {
     bengali: DesignListItem[];
   };
   imageAnalysis?: BilingualContent;
-  onSelectDesign?: (designItem: DesignListItem) => void;
+  onSelectDesign?: (designItem: DesignListItem, options: GenerationOptions) => void;
 }
 
 export function BilingualSplitView({
@@ -250,7 +262,7 @@ function DesignItemsList({
   onSelectDesign 
 }: { 
   designItems: { english: DesignListItem[]; bengali: DesignListItem[] },
-  onSelectDesign?: (designItem: DesignListItem) => void
+  onSelectDesign?: (designItem: DesignListItem, options: GenerationOptions) => void
 }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -288,46 +300,151 @@ function DesignItemCard({
   language
 }: { 
   item: DesignListItem; 
-  onSelect?: (item: DesignListItem) => void;
+  onSelect?: (designItem: DesignListItem, options: GenerationOptions) => void;
   language: 'english' | 'bengali';
 }) {
   // Only show action button on English items to prevent duplicate actions
   const showActionButton = language === 'english' && onSelect;
+
+  // Option checkboxes
+  const [includeOriginalPrompt, setIncludeOriginalPrompt] = useState(true);
+  const [includeOriginalImages, setIncludeOriginalImages] = useState(false);
+  const [includeFullAnalysis, setIncludeFullAnalysis] = useState(false);
+
+  // State for inline editing
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(item.title);
+  const [editedDescription, setEditedDescription] = useState(item.description);
+  const [editedTextContent, setEditedTextContent] = useState(item.textContent || '');
+  const [editedMustFollow, setEditedMustFollow] = useState((item.mustFollow || []).join('\n'));
+
+  const handleStartEdit = () => {
+    // Reset state to current item props when starting edit
+    setEditedTitle(item.title);
+    setEditedDescription(item.description);
+    setEditedTextContent(item.textContent || '');
+    setEditedMustFollow((item.mustFollow || []).join('\n'));
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+  };
+
+  const buildOptions = (): GenerationOptions => ({
+    includeOriginalPrompt,
+    includeOriginalImages,
+    includeFullAnalysis,
+  });
+
+  const handleSaveAndGenerate = () => {
+    const updatedItem: DesignListItem = {
+      ...item,
+      title: editedTitle,
+      description: editedDescription,
+      textContent: editedTextContent.trim() || undefined,
+      mustFollow: editedMustFollow.split('\n').map(s => s.trim()).filter(Boolean),
+    };
+    onSelect?.(updatedItem, buildOptions());
+    setIsEditing(false);
+  };
   
   return (
     <div className={cn(
       "bg-card/50 backdrop-blur-sm border border-border p-4 rounded-lg shadow-sm", 
-      "hover:shadow-md transition-shadow duration-300",
-      showActionButton ? "cursor-pointer" : ""
+      "hover:shadow-md transition-shadow duration-300"
     )}>
-      <h4 className="font-medium text-lg mb-2">{item.title}</h4>
-      <p className="text-muted-foreground mb-2">{item.description}</p>
-      {item.textContent && (
-        <div className="mt-2 border-l-2 border-primary/30 pl-3 italic text-sm">
-          &ldquo;{item.textContent}&rdquo;
+      {isEditing ? (
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor={`title-${item.id}`} className="text-sm font-medium">Title</Label>
+            <Input id={`title-${item.id}`} value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} className="mt-1" />
+          </div>
+          <div>
+            <Label htmlFor={`desc-${item.id}`} className="text-sm font-medium">Description</Label>
+            <Textarea id={`desc-${item.id}`} value={editedDescription} onChange={(e) => setEditedDescription(e.target.value)} className="mt-1" />
+          </div>
+          {item.textContent && (
+            <div>
+              <Label htmlFor={`text-${item.id}`} className="text-sm font-medium">Quote / Text</Label>
+              <Textarea id={`text-${item.id}`} value={editedTextContent} onChange={(e) => setEditedTextContent(e.target.value)} className="mt-1" />
+            </div>
+          )}
+          {item.mustFollow && item.mustFollow.length > 0 && (
+            <div>
+              <Label htmlFor={`must-follow-${item.id}`} className="text-sm font-medium">Must follow</Label>
+              <Textarea 
+                id={`must-follow-${item.id}`} 
+                value={editedMustFollow} 
+                onChange={(e) => setEditedMustFollow(e.target.value)} 
+                className="mt-1 font-mono text-sm"
+                rows={item.mustFollow.length + 1}
+              />
+            </div>
+          )}
         </div>
-      )}
-      
-      {item.mustFollow && item.mustFollow.length > 0 && (
-        <div className="mt-4">
-          <h5 className="font-semibold text-sm mb-1">Must follow:</h5>
-          <ul className="list-disc pl-5 space-y-1 text-foreground text-sm">
-            {item.mustFollow.map((point, idx) => (
-              <li key={idx}>{point}</li>
-            ))}
-          </ul>
-        </div>
+      ) : (
+        <>
+          <h4 className="font-medium text-lg mb-2">{item.title}</h4>
+          <p className="text-muted-foreground mb-2">{item.description}</p>
+          {item.textContent && (
+            <div className="mt-2 border-l-2 border-primary/30 pl-3 italic text-sm">
+              &ldquo;{item.textContent}&rdquo;
+            </div>
+          )}
+          
+          {item.mustFollow && item.mustFollow.length > 0 && (
+            <div className="mt-4">
+              <h5 className="font-semibold text-sm mb-1">Must follow:</h5>
+              <ul className="list-disc pl-5 space-y-1 text-foreground text-sm">
+                {item.mustFollow.map((point, idx) => (
+                  <li key={idx}>{point}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
       )}
       
       {showActionButton && (
-        <div className="mt-2">
-        <button 
-          onClick={() => onSelect?.(item)}
-            className="w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center"
-        >
-            <Sparkles className="h-4 w-4 mr-2" />
-            Generate Prompts
-        </button>
+        <div className="mt-3 space-y-1 text-sm">
+          <label className="flex items-center gap-2"><Checkbox checked={includeOriginalPrompt} onCheckedChange={(val: boolean | "indeterminate")=>setIncludeOriginalPrompt(!!val)} />Include original prompt</label>
+          <label className="flex items-center gap-2"><Checkbox checked={includeOriginalImages} onCheckedChange={(val: boolean | "indeterminate")=>setIncludeOriginalImages(!!val)} />Include attached images</label>
+          <label className="flex items-center gap-2"><Checkbox checked={includeFullAnalysis} onCheckedChange={(val: boolean | "indeterminate")=>setIncludeFullAnalysis(!!val)} />Include full analysis</label>
+        </div>
+      )}
+
+      {showActionButton && (
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          {isEditing ? (
+            <>
+              <Button variant="outline" onClick={handleCancelEdit}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveAndGenerate}>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Generate Prompts
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                onClick={() => onSelect?.(item, buildOptions())}
+                className="w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center"
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                Generate Prompts
+              </Button>
+
+              <Button
+                onClick={handleStartEdit}
+                className="w-full px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 flex items-center justify-center"
+              >
+                <Edit3 className="h-4 w-4 mr-2" />
+                Edit & Generate Prompts
+              </Button>
+            </>
+          )}
         </div>
       )}
     </div>

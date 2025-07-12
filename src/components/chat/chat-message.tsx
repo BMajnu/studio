@@ -927,10 +927,10 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
             nicheAndAudience={{ english: part.nicheAndAudience.english, bengali: part.nicheAndAudience.bengali }}
             imageAnalysis={part.imageAnalysis ? { english: part.imageAnalysis.english, bengali: part.imageAnalysis.bengali } : undefined}
             designItems={{ english: part.designItems.english, bengali: part.designItems.bengali }}
-            onSelectDesign={(designItem) => {
-              // Create a custom event that page.tsx can listen for
+            onSelectDesign={(designItem: any, options: any) => {
+              // Create a custom event that page.tsx can listen for, including user-selected options
               const event = new CustomEvent('design-item-selected', {
-                detail: { designItem }
+                detail: { designItem, options }
               });
               window.dispatchEvent(event);
             }}

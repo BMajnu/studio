@@ -22,13 +22,22 @@ const GeneratedIdeasSchema = z.object({
   typographyWithGraphicsIdeas: z.array(z.string()).length(3),
 });
 
-// Schema for the flow's input - now takes the initial design theme.
+// Re-usable attached file schema (images & text)
+const AttachedFileSchema = z.object({
+  name: z.string(),
+  type: z.string(),
+  dataUri: z.string().optional(),
+  textContent: z.string().optional(),
+});
+
+// Schema for the flow's input – now includes attachments.
 const GenerateDesignPromptsFlowInputSchema = z.object({
   designInputText: z.string().describe("The primary text, saying, or theme for the design (e.g., 'Coffee Beats Everything', 'DesAInR company launch')."),
   userName: z.string().describe('The name of the user (designer).'),
   communicationStyleNotes: z.string().describe('The communication style notes of the user.'),
   modelId: z.string().optional().describe('The Genkit model ID to use for this request.'),
   userApiKey: z.string().optional().describe('User-provided Gemini API key.'),
+  attachedFiles: z.array(AttachedFileSchema).optional().describe('Images or text files that should inform the design prompts'),
 });
 export type GenerateDesignPromptsInput = z.infer<typeof GenerateDesignPromptsFlowInputSchema>;
 
@@ -43,7 +52,7 @@ const GenerateDesignPromptsOutputSchema = z.object({
 export type GenerateDesignPromptsOutput = z.infer<typeof GenerateDesignPromptsOutputSchema>;
 
 export async function generateDesignPrompts(flowInput: GenerateDesignPromptsInput): Promise<GenerateDesignPromptsOutput> {
-  const { userApiKey, modelId, designInputText, userName, communicationStyleNotes } = flowInput;
+  const { userApiKey, modelId, designInputText, userName, communicationStyleNotes, attachedFiles } = flowInput;
   const modelToUse = modelId || DEFAULT_MODEL_ID;
   const flowName = 'generateDesignPromptsUnified';
 
@@ -60,6 +69,17 @@ Their communication style is: {{{communicationStyleNotes}}}.
 **Objective:** Generate creative design ideas and Give the complete prompts for the designs in 3 distinct categories based on the provided "Design Input Text".
 
 Design Input Text: {{{designInputText}}}
+
+{{#if attachedFiles.length}}
+The user has provided the following reference files. Analyse them carefully and let them influence your ideas:
+{{#each attachedFiles}}
+  {{#if this.dataUri}}
+    - [[Image]] {{media url=this.dataUri}}
+  {{else if this.textContent}}
+    - [[TEXT FILE]] {{{this.textContent}}}
+  {{/if}}
+{{/each}}
+{{/if}}
 
 **Instructions:**
 1. First, identify or extract any specific text, saying, quote or theme that should be the focal point of designs.
