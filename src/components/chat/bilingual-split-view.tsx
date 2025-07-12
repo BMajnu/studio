@@ -307,7 +307,7 @@ function DesignItemCard({
   const showActionButton = language === 'english' && onSelect;
 
   // Option checkboxes
-  const [includeOriginalPrompt, setIncludeOriginalPrompt] = useState(true);
+  const [includeOriginalPrompt, setIncludeOriginalPrompt] = useState(false);
   const [includeOriginalImages, setIncludeOriginalImages] = useState(true);
   const [includeFullAnalysis, setIncludeFullAnalysis] = useState(false);
 
