@@ -2609,3 +2609,25 @@ Make it 8 as before and make sure the text will be center of the circle.
 Prompt:
 Make it 8 as before and make sure the text will be center of the circle.
 
+Prompt:
+Continue to implementing the feature.
+
+Prompt:
+Continue to implementing the feature.
+
+Prompt:
+Continue to implementing the feature.
+
+Prompt:
+Continue to implementing the feature.
+
+Prompt:
+The model switching button is still not showing in the UI, beside the "Edit and Send" button.
+
+Prompt:
+The model switching button is still not showing in the UI, beside the "Edit and Send" button.
+
+Prompt:
+continue
+
+

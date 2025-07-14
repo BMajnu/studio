@@ -53,3 +53,28 @@ Enhance chat history items in the unfolded sidebar by adding creation timestamp,
 ## Phase 4 – 2024-07-13: Testing and Refinement
 - [x] Test the changes with existing and new chats to verify creation time is shown correctly.
 - [x] Adjust styling if necessary for proper display. 
+
+DesAInR Pro - AI Model Switcher in Chat UI
+
+Task Overview:
+Add a button next to the Requirement and Edit and Send buttons in the user input section to allow changing the AI model, using models from settings profile.
+
+## Phase 1 – 2024-07-20: Analysis and Planning
+- [x] Identify the exact location in src/app/page.tsx or chat components where the buttons are rendered.
+- [x] Review how modelId is passed to AI flows from profile.
+- [x] Plan state management for current model in chat page.
+
+## Phase 2 – 2024-07-20: UI Implementation
+- [x] Add state for currentModelId in src/app/page.tsx, initialized from profile.selectedGenkitModelId.
+- [x] Import AVAILABLE_MODELS and add a Select component near the action buttons for model selection.
+- [x] Style the selector to match the UI.
+
+## Phase 3 – 2024-07-20: Integration with AI Calls
+- [x] Modify handleSendMessage to pass the currentModelId to all flow calls instead of profile's model.
+- [x] Update regeneration and other AI calls to use the current model.
+- [ ] Optionally, persist the selection per session if needed.
+
+## Phase 4 – 2024-07-20: Testing and Refinement
+- [ ] Test switching models and verify responses use the selected model.
+- [ ] Ensure UI is responsive and works on mobile.
+- [ ] Handle cases where profile has no model selected. 

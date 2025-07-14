@@ -35,7 +35,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { DEFAULT_USER_ID, DEFAULT_MODEL_ID } from '@/lib/constants';
+import { DEFAULT_USER_ID, DEFAULT_MODEL_ID, AVAILABLE_MODELS } from '@/lib/constants';
 import { useAuth } from '@/contexts/auth-context';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { LoginForm } from '@/components/auth/login-form';
@@ -60,6 +60,7 @@ import { promptWithCustomSense } from '@/ai/flows/prompt-with-custom-sense-flow'
 import type { PromptWithCustomSenseOutput } from '@/ai/flows/prompt-with-custom-sense-types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 // Insert after state declarations, before readFileAsDataURL
 const debugLogAiRequest = (action: ActionType, message: string, attachments: AttachedFile[]) => {
@@ -312,6 +313,13 @@ export default function ChatPage() {
 
   // New state for collapsed history panel
   const [isHistoryPanelCollapsed, setIsHistoryPanelCollapsed] = useState(false);
+
+  const [currentModelId, setCurrentModelId] = useState(DEFAULT_MODEL_ID);
+  useEffect(() => {
+    if (profile?.selectedGenkitModelId) {
+      setCurrentModelId(profile.selectedGenkitModelId);
+    }
+  }, [profile]);
 
   /**
    * Button Selection Logic
@@ -1181,7 +1189,7 @@ export default function ChatPage() {
         }
     }
 
-    const modelIdToUse = userProfile.selectedGenkitModelId || DEFAULT_MODEL_ID;
+    const modelIdToUse = currentModelId;
 
     // Debug log for outgoing AI request
     debugLogAiRequest(currentActionType, userMessageContent, filesToSendWithThisMessage);
@@ -1907,7 +1915,7 @@ export default function ChatPage() {
             description,
             userName: profile?.name,
             userApiKey: profile?.geminiApiKeys ? profile.geminiApiKeys[0] : undefined,
-            modelId: profile?.selectedGenkitModelId,
+            modelId: currentModelId,
           });
 
           const assistantParts: ChatMessageContentPart[] = [
@@ -2883,6 +2891,8 @@ export default function ChatPage() {
                 onOpenCustomSenseEditor={openPromptWithCustomSenseEditor}
                 onRegenerateCustomSense={handleRegenerateCustomSense}
                 searchHighlightTerm={searchHighlightTerm}
+                currentModelId={currentModelId}
+                setCurrentModelId={setCurrentModelId}
               />
               </ErrorBoundary>
             ))}
@@ -3049,7 +3059,7 @@ export default function ChatPage() {
                   "flex items-center justify-between mt-4 gap-x-3 gap-y-2 w-full",
                    isMobile ? "flex-col items-stretch gap-y-3" : "flex-nowrap overflow-x-auto"
                 )}>
-                  <div className={cn("flex-1 flex justify-end animate-stagger", isMobile ? "w-full justify-center mt-0" : "")} style={{ animationDelay: '200ms' }}>
+                  <div className={cn("flex-1 flex justify-end animate-stagger items-center gap-2", isMobile ? "w-full justify-center mt-0" : "")} style={{ animationDelay: '200ms' }}>
                     <ActionButtonsPanel
                       onAction={handleAction}
                       isLoading={isLoading}
@@ -3060,6 +3070,16 @@ export default function ChatPage() {
                       activeButton={activeActionButton}
                       lastSelectedButton={lastSelectedActionButton}
                     />
+                    <Select value={currentModelId} onValueChange={setCurrentModelId}>
+                      <SelectTrigger className="w-[200px]">
+                        <SelectValue placeholder="Select AI Model" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {AVAILABLE_MODELS.map(model => (
+                          <SelectItem key={model.id} value={model.id}>{model.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </>
@@ -3149,7 +3169,7 @@ export default function ChatPage() {
           <PromptWithCustomSense
             userName={profile?.name}
             userApiKey={profile?.geminiApiKeys?.[0]}
-            modelId={profile?.selectedGenkitModelId || DEFAULT_MODEL_ID}
+            modelId={currentModelId}
             onClose={() => { setShowPromptWithCustomSense(false); setCustomSensePrefill(null);} }
             onPromptsGenerated={handleCustomSensePromptsGenerated}
             initialDesignType={customSensePrefill?.designType}
@@ -3167,7 +3187,7 @@ export default function ChatPage() {
           <PromptForMicrostock
             userName={profile?.name}
             userApiKey={profile?.geminiApiKeys?.[0]}
-            modelId={profile?.selectedGenkitModelId || DEFAULT_MODEL_ID}
+            modelId={currentModelId}
             onClose={() => setShowPromptForMicrostock(false)}
             onResultsGenerated={handleMicrostockResultsGenerated} 
           />

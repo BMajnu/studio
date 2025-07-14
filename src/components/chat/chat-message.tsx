@@ -39,6 +39,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { AVAILABLE_MODELS } from '@/lib/constants';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface ChatMessageProps {
   message: ChatMessage;
@@ -56,6 +58,8 @@ interface ChatMessageProps {
   currentUserMessage: string;
   currentAttachedFilesDataLength: number;
   searchHighlightTerm?: string;
+  currentModelId: string;
+  setCurrentModelId: (modelId: string) => void;
 }
 
 function AttachedFileDisplay({ file }: { file: AttachedFile }) {
@@ -1028,7 +1032,7 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
   }
 }
 
-export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndResend, onOpenCustomSenseEditor, onStopRegeneration, onPerformAction, onRegenerateCustomSense, isMobile, profile, activeActionButton, lastSelectedActionButton, isLoading, currentUserMessage, currentAttachedFilesDataLength, searchHighlightTerm }: ChatMessageProps) {
+export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndResend, onOpenCustomSenseEditor, onStopRegeneration, onPerformAction, onRegenerateCustomSense, isMobile, profile, activeActionButton, lastSelectedActionButton, isLoading, currentUserMessage, currentAttachedFilesDataLength, searchHighlightTerm, currentModelId, setCurrentModelId }: ChatMessageProps) {
   const [isEditingThisMessage, setIsEditingThisMessage] = useState(false);
   const [editedText, setEditedText] = useState<string>('');
   const [editedAttachments, setEditedAttachments] = useState<AttachedFile[]>([]);
@@ -1237,7 +1241,7 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button 
-            className="inline-flex items-center justify-center gap-2 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 py-1.5 px-3 font-medium hover:shadow-lg text-xs rounded-full transition-all bg-gradient-to-r text-white shadow-md from-blue-500 to-indigo-600 border border-blue-400"
+            className="inline-flex items-center justify-center gap-2 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 py-1.5 px-3 font-medium hover:shadow-lg text-xs rounded-full transition-all bg-gradient-to-r text-white shadow-md from-purple-500 to-pink-500 data-[state=open]:shadow-md"
             data-state="closed"
           >
             {getActionButtonIcon(actionType)}
@@ -1403,7 +1407,7 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
                     <div className="flex items-center gap-1.5 border border-primary/20 rounded-full p-1 bg-primary/5">
                       <Tooltip>
                         <TooltipTrigger asChild>
-                           <div onClick={(e) => e.preventDefault()}>
+                          <div onClick={(e) => e.preventDefault()}>
                             <ActionButton 
                               actionType={message.actionType || 'processMessage'} 
                               isEditing={isEditingThisMessage} 
@@ -1415,6 +1419,17 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
                           <p>Select Action Type</p>
                         </TooltipContent>
                       </Tooltip>
+                      <Select value={currentModelId} onValueChange={setCurrentModelId} disabled={isEditingThisMessage}>
+                        <SelectTrigger className="inline-flex items-center justify-center gap-2 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 py-1 px-3 font-medium hover:shadow-lg text-xs rounded-full transition-all bg-gradient-to-r text-white shadow-md from-purple-500 to-pink-500 data-[state=open]:shadow-md">
+                          <Bot className="h-3 w-3 mr-1.5" />
+                          <SelectValue placeholder="Select Model" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {AVAILABLE_MODELS.map(model => (
+                            <SelectItem key={model.id} value={model.id}>{model.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       {isUser && !isEditingThisMessage && (
                         <>
                           {onConfirmEditAndResend && (
@@ -1536,23 +1551,25 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
                     />
                     
                     <div className="flex justify-end gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={handleCancelEdit}
-                        className="bg-transparent border border-gray-300 text-primary hover:bg-gray-100 hover:text-primary"
-                      >
-                <X className="h-4 w-4 mr-1" /> Cancel
-              </Button>
-                      <Button 
-                        variant="default" 
-                        size="sm" 
-                        onClick={handleSaveAndSendEdited}
-                        className="bg-blue-500 hover:bg-blue-600 text-white"
-                      >
-                <Send className="h-4 w-4 mr-1" /> Save & Send
-              </Button>
-            </div>
+                      <Select value={currentModelId} onValueChange={setCurrentModelId}>
+                        <SelectTrigger className="w-[200px]">
+                          <SelectValue placeholder="Select AI Model" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {AVAILABLE_MODELS.map(model => (
+                            <SelectItem key={model.id} value={model.id}>{model.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={handleCancelEdit} className="bg-transparent border border-gray-300 text-primary hover:bg-gray-100 hover:text-primary">
+                          <X className="h-4 w-4 mr-1" /> Cancel
+                        </Button>
+                        <Button variant="default" size="sm" onClick={handleSaveAndSendEdited} className="bg-blue-500 hover:bg-blue-600 text-white">
+                          <Send className="h-4 w-4 mr-1" /> Save & Send
+                        </Button>
+                      </div>
+                    </div>
               </div>
             </div>
           ) : (
