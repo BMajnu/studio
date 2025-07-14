@@ -531,7 +531,8 @@ export class IndexedDBProvider implements ChatSessionStorage {
           name: metadata.name || 'Untitled Chat',
           lastMessageTimestamp: metadata.lastMessageTimestamp || Date.now(),
           preview: metadata.preview || '',
-          messageCount: metadata.messageCount || 0
+          messageCount: metadata.messageCount || 0,
+          createdAt: metadata.createdAt || Date.now()
         };
         
         existingMetadata.push(newMetadataItem);
