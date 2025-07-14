@@ -494,15 +494,13 @@ const compressData = (data: string): string => {
   }
 };
 
-// Limit the size of a session object so we don\'t blow past the 5 MB localStorage quota.
+// Limit the size of a session object so we don\'t blow past the storage quota.
 // Strategy:
 // 1. Start with a lean copy that removes large attachments / long text.
-// 2. If it is still too big (JSON > MAX_SESSION_JSON_LENGTH) progressively drop
+// 2. If it is still too big (JSON > maxJsonLength) progressively drop
 //    the oldest messages until under the limit (we always retain at least one message).
 // 3. Make sure we never return a session with zero messages – add a placeholder if needed.
-const limitSessionSize = (session: ChatSession): ChatSession => {
-  const MAX_SESSION_JSON_LENGTH = 140_000; // ~140 KB gives us safety margin before 5 MB quota
-
+const limitSessionSize = (session: ChatSession, maxJsonLength = 140_000): ChatSession => {
   try {
     // Deep-ish copy so we don\'t mutate the original
     let working: ChatSession = {
@@ -511,7 +509,7 @@ const limitSessionSize = (session: ChatSession): ChatSession => {
     };
 
     // Early exit – already small enough
-    if (JSON.stringify(working).length <= MAX_SESSION_JSON_LENGTH) {
+    if (JSON.stringify(working).length <= maxJsonLength) {
       return working;
     }
 
@@ -520,7 +518,7 @@ const limitSessionSize = (session: ChatSession): ChatSession => {
 
     // Step 2 – iteratively drop the oldest messages until we fit or have only one left
     while (
-      JSON.stringify(working).length > MAX_SESSION_JSON_LENGTH &&
+      JSON.stringify(working).length > maxJsonLength &&
       working.messages.length > 1
     ) {
       working.messages.shift();
@@ -1727,11 +1725,10 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
     }
     
     // Prepare two variants: full for IndexedDB (keeps dataUri) and lean for localStorage (trims dataUri)
-    const sessionForIndexedDB = limitSessionSize(sessionToSave);
-    const sessionForLocalStorage = limitSessionSize(createLeanSession(sessionToSave));
+    const sessionForIndexedDB = limitSessionSize(sessionToSave, 5_000_000); // Higher limit for IndexedDB
+    const sessionForLocalStorage = limitSessionSize(createLeanSession(sessionToSave), 140_000); // Strict limit for localStorage
 
-    const trimmed = limitSessionSize(sessionToSave);
-    const idbValue = JSON.stringify(trimmed);
+    const idbValue = JSON.stringify(sessionForIndexedDB);
     const localValueJson = JSON.stringify(sessionForLocalStorage);
 
     // By default we still attempt to write lean JSON to localStorage unless oversized
