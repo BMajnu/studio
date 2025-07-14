@@ -195,6 +195,7 @@ export interface ChatSessionMetadata {
   lastMessageTimestamp: number;
   preview: string; 
   messageCount: number;
+  createdAt: number;
 }
 
 export interface ChatSession {

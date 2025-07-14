@@ -171,12 +171,14 @@ export class FirebaseChatStorage {
         lastMessageTimestamp: cleanedSession.messages.length > 0 
           ? cleanedSession.messages[cleanedSession.messages.length - 1].timestamp 
           : now,
-        preview: cleanedSession.messages.length > 0 
+        preview:
+          cleanedSession.messages.length > 0
           ? typeof cleanedSession.messages[0].content === 'string'
             ? (cleanedSession.messages[0].content as string).substring(0, 100)
             : 'Chat session' 
           : 'Empty chat',
-        messageCount: cleanedSession.messages?.length || 0
+        messageCount: cleanedSession.messages?.length || 0,
+        createdAt: cleanedSession.createdAt || now,
       };
 
       // Reference to the session document

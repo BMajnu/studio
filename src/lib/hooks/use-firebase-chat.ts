@@ -278,12 +278,13 @@ export function useFirebaseChat() {
         id: session.id,
         name: session.name,
         lastMessageTimestamp: session.updatedAt || Date.now(),
-        preview: session.messages.length > 0 
+        preview: session.messages.length > 0
           ? typeof session.messages[0].content === 'string'
             ? session.messages[0].content.substring(0, 100)
-            : "Chat session" 
+            : "Chat session"
           : "Empty chat",
-        messageCount: session.messages?.length || 0
+        messageCount: session.messages?.length || 0,
+        createdAt: session.createdAt || Date.now(),
       };
       
       // Update local metadata cache

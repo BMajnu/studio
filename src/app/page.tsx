@@ -413,6 +413,21 @@ export default function ChatPage() {
       const keyPrefix = 'desainr_chat_history_index_ls_';
       const sessionKeyPrefix = 'desainr_chat_session_ls_';
       
+      // Helper to detect LZ-string (or similar) compressed content so we don't
+      // accidentally wipe out perfectly valid data that just isn't valid JSON.
+      const isLikelyCompressed = (data: string): boolean => {
+        if (!data || typeof data !== 'string') return false;
+        const trimmed = data.trim();
+        // If it already looks like JSON (or a JSON string), it's not compressed.
+        if (trimmed.startsWith('{') || trimmed.startsWith('[') || trimmed.startsWith('"')) {
+          return false;
+        }
+        // Heuristics: high-Unicode or non-printable chars near the start → probably compressed.
+        const hasHighUnicode = /[\u0080-\uFFFF]/.test(trimmed.substring(0, 10));
+        const hasNonPrintable = /^[\x00-\x1F\x7F-\x9F]/.test(trimmed.substring(0, 5));
+        return hasHighUnicode || hasNonPrintable;
+      };
+      
       // Find all history and session keys
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
@@ -427,8 +442,8 @@ export default function ChatPage() {
             try {
               JSON.parse(value);
             } catch (parseError) {
-              // If parsing fails, try to check if it's corrupted compressed data
-              if (value.includes('') || /[\x00-\x1F\x80-\xFF]/.test(value.substring(0, 4))) {
+              // If it fails to parse *and* doesn't look like compressed data, treat as corrupted.
+              if (!isLikelyCompressed(value)) {
                 console.warn(`Found corrupted data in ${key}, removing it`);
                 localStorage.removeItem(key);
               }

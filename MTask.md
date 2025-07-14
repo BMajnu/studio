@@ -32,3 +32,24 @@ Integrate new Gemini and Gemma models, including a "thinking" vs. "non-thinking"
 - [ ] Adapt BilingualSplitView / DesignItemCard to render the extra mustFollow bullet
 - [ ] Add “Edit and Generate Prompts” modal & hook it to existing generation logic
 - [ ] Regression-test: attachments, design listing, both buttons 
+
+DesAInR Pro - Chat History Enhancements
+
+Task Overview:
+Enhance chat history items in the unfolded sidebar by adding creation timestamp, making items larger, and displaying short relative time for creation.
+
+## Phase 1 – 2024-07-13: Update Types and Metadata Creation
+- [ ] Add `createdAt: number` to `ChatSessionMetadata` interface in `src/lib/types.ts`.
+- [ ] Update all places where `ChatSessionMetadata` is created (e.g., in `use-chat-history.ts`, `use-firebase-chat.ts`, `firebase/chatStorage.ts`, `storage providers`) to include `createdAt` from the session's `createdAt`.
+
+## Phase 2 – 2024-07-13: Update Date Utilities
+- [ ] Add a new function `formatShortRelativeTime(date: Date): string` in `src/lib/date-utils.ts` that returns short formats like '1m', '1h', '1d', etc.
+
+## Phase 3 – 2024-07-13: Update UI Components
+- [ ] In `src/components/chat/ChatHistoryItem.tsx`, use the new short relative time based on `session.createdAt` instead of `lastMessageTimestamp`.
+- [ ] Adjust styling in `ChatHistoryItem.tsx` to make the item larger (increase padding, font sizes).
+- [ ] Ensure message count is displayed properly.
+
+## Phase 4 – 2024-07-13: Testing and Refinement
+- [ ] Test the changes with existing and new chats to verify creation time is shown correctly.
+- [ ] Adjust styling if necessary for proper display. 

@@ -494,8 +494,55 @@ const compressData = (data: string): string => {
   }
 };
 
-// Disable trimming: return session as-is
-const limitSessionSize = (session: ChatSession): ChatSession => session;
+// Limit the size of a session object so we don\'t blow past the 5 MB localStorage quota.
+// Strategy:
+// 1. Start with a lean copy that removes large attachments / long text.
+// 2. If it is still too big (JSON > MAX_SESSION_JSON_LENGTH) progressively drop
+//    the oldest messages until under the limit (we always retain at least one message).
+// 3. Make sure we never return a session with zero messages – add a placeholder if needed.
+const limitSessionSize = (session: ChatSession): ChatSession => {
+  const MAX_SESSION_JSON_LENGTH = 140_000; // ~140 KB gives us safety margin before 5 MB quota
+
+  try {
+    // Deep-ish copy so we don\'t mutate the original
+    let working: ChatSession = {
+      ...session,
+      messages: [...session.messages],
+    };
+
+    // Early exit – already small enough
+    if (JSON.stringify(working).length <= MAX_SESSION_JSON_LENGTH) {
+      return working;
+    }
+
+    // Step 1 – apply lean transformation (strips dataUri, long text, etc.)
+    working = createLeanSession(working);
+
+    // Step 2 – iteratively drop the oldest messages until we fit or have only one left
+    while (
+      JSON.stringify(working).length > MAX_SESSION_JSON_LENGTH &&
+      working.messages.length > 1
+    ) {
+      working.messages.shift();
+    }
+
+    // Step 3 – ensure we always have at least one message for the UI
+    if (working.messages.length === 0) {
+      working.messages.push({
+        id: `placeholder_${Date.now()}`,
+        role: 'system',
+        content:
+          'Older messages were trimmed to keep this chat within browser storage limits.',
+        timestamp: Date.now(),
+      } as ChatMessage);
+    }
+
+    return working;
+  } catch (err) {
+    console.warn('limitSessionSize: Failed to trim session – returning original', err);
+    return session;
+  }
+};
 
 function deduplicateMetadata(metadataList: ChatSessionMetadata[]): ChatSessionMetadata[] {
   if (!Array.isArray(metadataList) || metadataList.length === 0) return [];
@@ -906,6 +953,7 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
                     lastMessageTimestamp: session.updatedAt || Date.now(),
                     preview: getMessageTextPreview(lastMessage),
                     messageCount: session.messages.length,
+                    createdAt: session.createdAt || Date.now()
                   };
                   reconstructedMetadata.push(meta);
                 }
@@ -971,7 +1019,8 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
                 preview: sessionData.messages && sessionData.messages.length > 0 
                   ? getMessageTextPreview(sessionData.messages[sessionData.messages.length - 1])
                   : updatedMetadata[metaIndex].preview,
-                messageCount: sessionData.messages ? sessionData.messages.length : updatedMetadata[metaIndex].messageCount
+                messageCount: sessionData.messages ? sessionData.messages.length : updatedMetadata[metaIndex].messageCount,
+                createdAt: sessionData.createdAt || updatedMetadata[metaIndex].createdAt
               };
               metadataUpdated = true;
               historyLogger.debug(`loadHistoryIndex: Updated metadata for active session ${activeSessionId} with name "${sessionData.name}"`);
@@ -985,7 +1034,8 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
                   sessionData.messages && sessionData.messages.length > 0 
                   ? sessionData.messages[sessionData.messages.length - 1] : undefined
                 ),
-                messageCount: sessionData.messages ? sessionData.messages.length : 0
+                messageCount: sessionData.messages ? sessionData.messages.length : 0,
+                createdAt: sessionData.createdAt || Date.now()
               });
               metadataUpdated = true;
               historyLogger.debug(`loadHistoryIndex: Added active session ${activeSessionId} to metadata with name "${sessionData.name}"`);
@@ -1032,6 +1082,7 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
                         lastMessageTimestamp: sessionData.updatedAt || Date.now(),
                         preview: sessionData.messages && Array.isArray(sessionData.messages) && sessionData.messages.length > 0 ? getMessageTextPreview(sessionData.messages[sessionData.messages.length - 1]) : 'Chat',
                         messageCount: sessionData.messages && Array.isArray(sessionData.messages) ? sessionData.messages.length : 0,
+                        createdAt: sessionData.createdAt || Date.now()
                       };
                       if (!seenIds.has(sessionId)) {
                         localParsedIndex.push(newMetaEntry);
@@ -1077,8 +1128,12 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
       const currentSessionId = urlParams.get('id');
       if (currentSessionId && currentSessionId.startsWith(effectiveUserId + '_')) {
         const placeholderMeta: ChatSessionMetadata = {
-          id: currentSessionId, name: 'Current Chat', lastMessageTimestamp: Date.now(),
-          preview: 'Active chat session', messageCount: 0,
+          id: currentSessionId,
+          name: 'Current Chat',
+          lastMessageTimestamp: Date.now(),
+          preview: 'Active chat session',
+          messageCount: 0,
+          createdAt: Date.now(),
         };
         combinedMetadata.push(placeholderMeta);
         try {
@@ -1231,6 +1286,22 @@ const getSessionDirectly = async (sessionId: string, userId: string, prefix: str
     if (cachedSession && Date.now() - cachedSession.updatedAt < 2000) {
       sessionLogger.debug(`getSession: Using cached session ${sessionId} (age: ${Date.now() - cachedSession.updatedAt}ms)`);
       return cachedSession;
+    }
+    
+    // NEW: Fast path – attempt to fetch from IndexedDB before touching localStorage
+    try {
+      const directSession = await getSessionDirectly(sessionId, effectiveUserId, chatSessionPrefixLS);
+      if (directSession) {
+        sessionLogger.debug(`getSession: Loaded session ${sessionId} via getSessionDirectly (IndexedDB-first)`);
+        (window as any)[sessionCacheKey] = directSession;
+        // Optionally update metadata if this load happened on a reload
+        if (sessionWasReloaded) {
+          updateSessionMetadataOnReload(sessionId, directSession);
+        }
+        return directSession;
+      }
+    } catch (quickErr) {
+      storageLogger.warn(`getSession: getSessionDirectly failed for ${sessionId}`, quickErr as any);
     }
     
     let session: ChatSession | null = null;
@@ -1459,6 +1530,57 @@ const getSessionDirectly = async (sessionId: string, userId: string, prefix: str
       }
     }
 
+    // At this point we might have found a session.
+    // ------------------- FALLBACK TO FIREBASE IF EMPTY -------------------
+    if (session && (!session.messages || session.messages.length === 0)) {
+      historyLogger.warn(`getSession: Local copy for ${sessionId} contains no messages – attempting Firebase fallback`);
+
+      if (typeof navigator !== 'undefined' && navigator.onLine && effectiveUserId !== DEFAULT_USER_ID) {
+        try {
+          const remoteSession = await FirebaseChatStorage.getSession(effectiveUserId, sessionId);
+          if (remoteSession && remoteSession.messages && remoteSession.messages.length > 0) {
+            historyLogger.info(`getSession: Successfully fetched non-empty session ${sessionId} from Firebase`);
+
+            // Cache the fresh copy locally for next time (prefer IndexedDB if available)
+            const remoteStr = JSON.stringify(remoteSession);
+            if (sessionDB && (await sessionDB.isAvailable())) {
+              await sessionDB.saveSession(sessionId, remoteStr);
+              localStorage.setItem(`${chatSessionPrefixLS}${sessionId}_idb`, 'true');
+            } else {
+              try {
+                const valueToStore = remoteStr.length > 1000 ? compressData(remoteStr) : remoteStr;
+                localStorage.setItem(`${chatSessionPrefixLS}${sessionId}`, valueToStore);
+              } catch (_) {/* ignore quota issues */}
+            }
+
+            // Also update metadata to be safe
+            updateSessionMetadataOnReload(sessionId, remoteSession);
+
+            session = remoteSession;
+          }
+        } catch (fbErr) {
+          historyLogger.error(`getSession: Firebase fallback failed for ${sessionId}`, fbErr);
+        }
+      }
+    }
+    // ------------------- ABSOLUTE LAST RESORT: Fetch from Firebase -------------------
+    if (!session && typeof navigator !== 'undefined' && navigator.onLine && effectiveUserId !== DEFAULT_USER_ID) {
+      try {
+        const remoteSession = await FirebaseChatStorage.getSession(effectiveUserId, sessionId);
+        if (remoteSession) {
+          try {
+            localStorage.setItem(`${chatSessionPrefixLS}${sessionId}`, JSON.stringify(remoteSession));
+          } catch (err) {
+            storageLogger.warn('getSession: Failed to cache Firebase session locally', err);
+          }
+          updateSessionMetadataOnReload(sessionId, remoteSession);
+          return remoteSession;
+        }
+      } catch (firebaseErr) {
+        historyLogger.error(`getSession: Error fetching session ${sessionId} from Firebase`, firebaseErr);
+      }
+    }
+
     return null;
   }, [effectiveUserId, chatSessionPrefixLS, chatHistoryIndexKeyLS]);
 
@@ -1506,7 +1628,8 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
         preview: session.messages && session.messages.length > 0 
           ? getMessageTextPreview(session.messages[session.messages.length - 1]) 
           : 'Chat session',
-        messageCount: session.messages ? session.messages.length : 0
+        messageCount: session.messages ? session.messages.length : 0,
+        createdAt: session.createdAt
       });
     } else {
       // Update existing metadata
@@ -1519,7 +1642,8 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
         preview: session.messages && session.messages.length > 0 
           ? getMessageTextPreview(session.messages[session.messages.length - 1]) 
           : metadata[metadataIndex].preview,
-        messageCount: session.messages ? session.messages.length : metadata[metadataIndex].messageCount
+        messageCount: session.messages ? session.messages.length : metadata[metadataIndex].messageCount,
+        createdAt: session.createdAt || metadata[metadataIndex].createdAt
       };
     }
     
@@ -1609,7 +1733,7 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
     const trimmed = limitSessionSize(sessionToSave);
     const idbValue = JSON.stringify(trimmed);
     const localValueJson = JSON.stringify(sessionForLocalStorage);
-    
+
     // By default we still attempt to write lean JSON to localStorage unless oversized
     let localValue: string | null = localValueJson;
     if (localValue && localValue.length > 150000) {
@@ -1677,6 +1801,7 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
             sessionToSave.messages[sessionToSave.messages.length - 1] : undefined
         ),
         messageCount: sessionToSave.messages.length,
+        createdAt: sessionToSave.createdAt,
       };
       
       // Get existing metadata list
@@ -2066,7 +2191,8 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
                 lastMessageTimestamp: session.updatedAt || Date.now(),
                 preview: session.messages && session.messages.length > 0 ? 
                          getMessageTextPreview(session.messages[session.messages.length - 1]) : 'Chat',
-                messageCount: session.messages?.length || 0
+                messageCount: session.messages?.length || 0,
+                createdAt: session.createdAt
               };
               
               metadataEntries.push(metadata);
