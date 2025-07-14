@@ -393,23 +393,23 @@ function DesignItemCard({
         </div>
       ) : (
         <>
-          <h4 className="font-medium text-lg mb-2">{item.title}</h4>
-          <p className="text-muted-foreground mb-2">{item.description}</p>
-          {item.textContent && (
-            <div className="mt-2 border-l-2 border-primary/30 pl-3 italic text-sm">
-              &ldquo;{item.textContent}&rdquo;
-            </div>
-          )}
-          
-          {item.mustFollow && item.mustFollow.length > 0 && (
-            <div className="mt-4">
-              <h5 className="font-semibold text-sm mb-1">Must follow:</h5>
-              <ul className="list-disc pl-5 space-y-1 text-foreground text-sm">
-                {item.mustFollow.map((point, idx) => (
-                  <li key={idx}>{point}</li>
-                ))}
-              </ul>
-            </div>
+      <h4 className="font-medium text-lg mb-2">{item.title}</h4>
+      <p className="text-muted-foreground mb-2">{item.description}</p>
+      {item.textContent && (
+        <div className="mt-2 border-l-2 border-primary/30 pl-3 italic text-sm">
+          &ldquo;{item.textContent}&rdquo;
+        </div>
+      )}
+      
+      {item.mustFollow && item.mustFollow.length > 0 && (
+        <div className="mt-4">
+          <h5 className="font-semibold text-sm mb-1">Must follow:</h5>
+          <ul className="list-disc pl-5 space-y-1 text-foreground text-sm">
+            {item.mustFollow.map((point, idx) => (
+              <li key={idx}>{point}</li>
+            ))}
+          </ul>
+        </div>
           )}
         </>
       )}
@@ -438,10 +438,10 @@ function DesignItemCard({
             <>
               <Button
                 onClick={() => onSelect?.(item, buildOptions())}
-                className="w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center"
-              >
-                <Sparkles className="h-4 w-4 mr-2" />
-                Generate Prompts
+            className="w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center"
+        >
+            <Sparkles className="h-4 w-4 mr-2" />
+            Generate Prompts
               </Button>
 
               <Button

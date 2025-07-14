@@ -1136,6 +1136,25 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
 
 // NEW: Add helper function to get a session directly without caching
 const getSessionDirectly = async (sessionId: string, userId: string, prefix: string): Promise<ChatSession | null> => {
+  // 1. Try IndexedDB directly first (no size limits)
+  if (sessionDB) {
+    const raw = await sessionDB.getSession(sessionId);
+    if (raw) {
+      try {
+        const parsed: ChatSession = JSON.parse(raw);
+        // back-fill lean copy to LS if small
+        try {
+          const leanStr = JSON.stringify(limitSessionSize(createLeanSession(parsed)));
+          if (leanStr.length < 140000) {
+            localStorage.setItem(`${prefix}${sessionId}`, leanStr);
+          }
+        } catch { /* ignore */ }
+        return parsed;
+      } catch { /* fall through */ }
+    }
+  }
+  
+  // INSERT: Try Firebase if not found locally
   if (!userId || !sessionId.startsWith(userId + '_')) {
     return null;
   }
@@ -1587,11 +1606,16 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
     const sessionForIndexedDB = limitSessionSize(sessionToSave);
     const sessionForLocalStorage = limitSessionSize(createLeanSession(sessionToSave));
 
-    const idbString = JSON.stringify(sessionForIndexedDB);
-    const idbValue = idbString.length > 1000 ? compressData(idbString) : idbString;
-
-    // Skip saving session JSON to localStorage entirely (avoid quota issues)
-    const localValue: string | null = null;
+    const trimmed = limitSessionSize(sessionToSave);
+    const idbValue = JSON.stringify(trimmed);
+    const localValueJson = JSON.stringify(sessionForLocalStorage);
+    
+    // By default we still attempt to write lean JSON to localStorage unless oversized
+    let localValue: string | null = localValueJson;
+    if (localValue && localValue.length > 150000) {
+      // if too big, skip localStorage write to avoid quota errors
+      localValue = null;
+    }
     
     // Track if we were able to save the session anywhere
     let savedSuccessfully = false;
