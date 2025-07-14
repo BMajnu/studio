@@ -161,7 +161,6 @@ export class FirebaseChatStorage {
         cleanedSession = trimSessionForFirestore(cleanedSession);
       }
 
-      // Get current timestamp for consistency
       const now = Date.now();
       
       // Create a lean copy of the session with metadata for efficient queries

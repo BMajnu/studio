@@ -39,17 +39,17 @@ Task Overview:
 Enhance chat history items in the unfolded sidebar by adding creation timestamp, making items larger, and displaying short relative time for creation.
 
 ## Phase 1 – 2024-07-13: Update Types and Metadata Creation
-- [ ] Add `createdAt: number` to `ChatSessionMetadata` interface in `src/lib/types.ts`.
-- [ ] Update all places where `ChatSessionMetadata` is created (e.g., in `use-chat-history.ts`, `use-firebase-chat.ts`, `firebase/chatStorage.ts`, `storage providers`) to include `createdAt` from the session's `createdAt`.
+- [x] Add `createdAt: number` to `ChatSessionMetadata` interface in `src/lib/types.ts`.
+- [x] Update all places where `ChatSessionMetadata` is created (e.g., in `use-chat-history.ts`, `use-firebase-chat.ts`, `firebase/chatStorage.ts`, `storage providers`) to include `createdAt` from the session's `createdAt`.
 
 ## Phase 2 – 2024-07-13: Update Date Utilities
-- [ ] Add a new function `formatShortRelativeTime(date: Date): string` in `src/lib/date-utils.ts` that returns short formats like '1m', '1h', '1d', etc.
+- [x] Add a new function `formatShortRelativeTime(date: Date): string` in `src/lib/date-utils.ts` that returns short formats like '1m', '1h', '1d', etc.
 
 ## Phase 3 – 2024-07-13: Update UI Components
-- [ ] In `src/components/chat/ChatHistoryItem.tsx`, use the new short relative time based on `session.createdAt` instead of `lastMessageTimestamp`.
-- [ ] Adjust styling in `ChatHistoryItem.tsx` to make the item larger (increase padding, font sizes).
-- [ ] Ensure message count is displayed properly.
+- [x] In `src/components/chat/ChatHistoryItem.tsx`, use the new short relative time based on `session.createdAt` instead of `lastMessageTimestamp`.
+- [x] Adjust styling in `ChatHistoryItem.tsx` to make the item larger (increase padding, font sizes).
+- [x] Ensure message count is displayed properly.
 
 ## Phase 4 – 2024-07-13: Testing and Refinement
-- [ ] Test the changes with existing and new chats to verify creation time is shown correctly.
-- [ ] Adjust styling if necessary for proper display. 
+- [x] Test the changes with existing and new chats to verify creation time is shown correctly.
+- [x] Adjust styling if necessary for proper display. 

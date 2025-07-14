@@ -41,4 +41,41 @@ export function formatRelativeTime(date: Date): string {
     month: 'short', 
     day: 'numeric' 
   });
+}
+
+export function formatShortRelativeTime(date: Date): string {
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (diffInSeconds < 60) {
+    return 'now';
+  }
+
+  if (diffInSeconds < 3600) {
+    const minutes = Math.floor(diffInSeconds / 60);
+    return `${minutes}m`;
+  }
+
+  if (diffInSeconds < 86400) {
+    const hours = Math.floor(diffInSeconds / 3600);
+    return `${hours}h`;
+  }
+
+  if (diffInSeconds < 604800) {
+    const days = Math.floor(diffInSeconds / 86400);
+    return `${days}d`;
+  }
+
+  if (diffInSeconds < 2592000) {
+    const weeks = Math.floor(diffInSeconds / 604800);
+    return `${weeks}w`;
+  }
+
+  const months = Math.floor(diffInSeconds / 2592000);
+  if (months < 12) {
+    return `${months}mo`;
+  }
+
+  const years = Math.floor(months / 12);
+  return `${years}y`;
 } 

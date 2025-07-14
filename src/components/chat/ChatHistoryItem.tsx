@@ -1,7 +1,7 @@
 import React, { useState, useCallback, memo } from 'react';
 import { ChatSessionMetadata } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { formatRelativeTime } from '../../lib/date-utils';
+import { formatRelativeTime, formatShortRelativeTime } from '../../lib/date-utils';
 import { Button } from '@/components/ui/button';
 import { PencilIcon, CheckIcon, XIcon, Trash2 } from 'lucide-react';
 import logger from '@/lib/utils/logger';
@@ -107,12 +107,12 @@ function ChatHistoryItemBase({ session, isActive, onClick, onDelete, onRename }:
     }
   }, [editName, onRename, session.id]);
 
-  const relativeTime = formatRelativeTime(new Date(session.lastMessageTimestamp));
+  const relativeTime = formatShortRelativeTime(new Date(session.createdAt));
 
   return (
     <div
       className={cn(
-        'relative flex flex-col p-2 rounded-md cursor-pointer transition-all duration-200 active:scale-98 w-full',
+        'relative flex flex-col p-3 rounded-md cursor-pointer transition-all duration-200 active:scale-98 w-full',
         'hover:bg-primary/10 hover:shadow-md border border-transparent group',
         isActive ? 'bg-gradient-to-r from-primary/15 to-secondary/10 border-primary/20 shadow-sm' : 'bg-muted/30',
         isClicking && 'scale-98 bg-primary/20'
@@ -160,15 +160,15 @@ function ChatHistoryItemBase({ session, isActive, onClick, onDelete, onRename }:
         <>
           <div className="w-full pr-6"> {/* Add right padding to make room for delete button */}
             <div className={cn(
-              "text-sm font-medium truncate",
+              "text-base font-medium truncate",
               isActive && "text-gradient"
             )}>
               {session.name}
             </div>
-            <div className="text-xs text-muted-foreground truncate">
+            <div className="text-sm text-muted-foreground truncate">
               {session.messageCount} msg - {session.preview}
             </div>
-            <div className="text-xs text-muted-foreground/70">
+            <div className="text-sm text-muted-foreground/70">
               {relativeTime}
             </div>
           </div>

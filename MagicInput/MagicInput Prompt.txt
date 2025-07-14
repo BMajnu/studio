@@ -2562,3 +2562,50 @@ continue
 
 
 
+Prompt:
+Is it completed?
+
+
+Prompt:
+The circles seem too big. So make them smaller, as before, and decrease the gap space between the circles.
+
+Prompt:
+The circles seem too big. So make them smaller, as before, and decrease the gap space between the circles.
+
+Prompt:
+Okay, good. But I can see the problem is when the circle color is yellow or bright color, then the time stamp color like 22 minutes, the writings are also in white color. So the text are not properly visible then.
+
+Create a function to change the text color to darker when the circle color is yellow or bright.
+
+Prompt:
+Okay, good. But I can see the problem is when the circle color is yellow or bright color, then the time stamp color like 22 minutes, the writings are also in white color. So the text are not properly visible then.
+
+Create a function to change the text color to darker when the circle color is yellow or bright.
+
+Prompt:
+Not fixed still.
+
+Prompt:
+Not fixed still.
+
+Prompt:
+It doesn't look good, so please back, make everything white as before.
+
+Prompt:
+Now can you make the circle a bit little smaller again and make it something creative and professional so its looks perfect to there.
+
+Prompt:
+Now can you make the circle a bit little smaller again and make it something creative and professional so its looks perfect to there.
+
+Prompt:
+It looks too small. Can you increase it one pixel? I can see you last time you decreased two steps. Now please increase it one, so it will be different from the first one.
+
+Prompt:
+It looks too small. Can you increase it one pixel? I can see you last time you decreased two steps. Now please increase it one, so it will be different from the first one.
+
+Prompt:
+Make it 8 as before and make sure the text will be center of the circle.
+
+Prompt:
+Make it 8 as before and make sure the text will be center of the circle.
+
