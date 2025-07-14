@@ -129,6 +129,7 @@ export function useStorage(userIdFromProfile?: string) {
             lastMessageTimestamp: now,
             preview: initialMessages.length > 0 ? 'Custom starting prompt' : 'New conversation',
             messageCount: initialMessages.length,
+            createdAt: now
           };
           return [metadata, ...prev];
         });
