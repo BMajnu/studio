@@ -93,6 +93,8 @@ Their communication style is: {{{communicationStyleNotes}}}.
 
 Your task is to thoroughly analyze the client's request based on their latest message, any attached files, and the conversation history. Provide a structured bilingual analysis in English and Bengali.
 
+When writing the English and Bengali outputs, you MAY (optionally) use basic **Markdown** formatting (e.g. \`#\`/\`##\` headings, **bold**, *italic*, inline \`code\`) to improve clarity and emphasis. Do NOT embed HTML or images—only plain Markdown inside the strings so the JSON stays valid.
+
 {{#if chatHistory.length}}
 Previous conversation context (analyze the current message in light of this history):
 {{#each chatHistory}}

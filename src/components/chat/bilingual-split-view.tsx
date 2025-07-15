@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Sparkles } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -116,30 +117,49 @@ export function BilingualSplitView({
       case 'keyPoints':
         return (
           <div className="flex flex-row gap-1 h-full">
-            <ScrollArea ref={englishScrollRef} className="flex-1 h-full p-4 rounded-md">
+            <ScrollArea ref={englishScrollRef} className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
               <ul className="list-disc pl-5 space-y-2">
                 {Array.isArray(keyPoints.english) ? (
                   keyPoints.english.map((point, index) => (
-                    <li key={index} className="text-foreground">{point}</li>
+                    <li key={index} className="text-foreground font-medium">
+                      <ReactMarkdown
+                        components={{ p: ({node, ...props}) => <span {...props} /> }}
+                        className="inline"
+                      >
+                        {point as string}
+                      </ReactMarkdown>
+                    </li>
                   ))
                 ) : (
-                  <li className="text-foreground">{keyPoints.english}</li>
+                  <li className="text-foreground font-medium">
+                    <ReactMarkdown components={{ p: ({node, ...props}) => <span {...props} /> }} className="inline">
+                      {keyPoints.english as string}
+                    </ReactMarkdown>
+                  </li>
                 )}
               </ul>
             </ScrollArea>
             
             <div className="w-px bg-border mx-2 h-full"></div>
             
-            <ScrollArea ref={bengaliScrollRef} className="flex-1 h-full p-4 rounded-md">
+            <ScrollArea ref={bengaliScrollRef} className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
               <ul className="list-disc pl-5 space-y-2">
                 {Array.isArray(keyPoints.bengali) ? (
                   keyPoints.bengali.map((point, index) => (
-                    <li key={index} className="text-foreground">{point}</li>
+                    <li key={index} className="text-foreground font-medium">
+                      <ReactMarkdown components={{ p: ({node, ...props}) => <span {...props} /> }} className="inline">
+                        {point as string}
+                      </ReactMarkdown>
+                    </li>
                   ))
                 ) : (
-                  <li className="text-foreground">{keyPoints.bengali}</li>
+                  <li className="text-foreground font-medium">
+                    <ReactMarkdown components={{ p: ({node, ...props}) => <span {...props} /> }} className="inline">
+                      {keyPoints.bengali as string}
+                    </ReactMarkdown>
+                  </li>
                 )}
               </ul>
             </ScrollArea>
@@ -149,20 +169,20 @@ export function BilingualSplitView({
       case 'detailedRequirements':
         return (
           <div className="flex flex-row gap-1 h-full">
-            <ScrollArea ref={englishScrollRef} className="flex-1 h-full p-4 rounded-md">
+            <ScrollArea ref={englishScrollRef} className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
-              <div className="text-foreground whitespace-pre-wrap">
-                {typeof detailedRequirements.english === 'string' ? detailedRequirements.english : detailedRequirements.english.join('\n\n')}
-              </div>
+              <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                {typeof detailedRequirements.english === 'string' ? detailedRequirements.english : (detailedRequirements.english as string[]).join('\n\n')}
+              </ReactMarkdown>
             </ScrollArea>
             
             <div className="w-px bg-border mx-2 h-full"></div>
             
-            <ScrollArea ref={bengaliScrollRef} className="flex-1 h-full p-4 rounded-md">
+            <ScrollArea ref={bengaliScrollRef} className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
-              <div className="text-foreground whitespace-pre-wrap">
-                {typeof detailedRequirements.bengali === 'string' ? detailedRequirements.bengali : detailedRequirements.bengali.join('\n\n')}
-              </div>
+              <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                {typeof detailedRequirements.bengali === 'string' ? detailedRequirements.bengali : (detailedRequirements.bengali as string[]).join('\n\n')}
+              </ReactMarkdown>
             </ScrollArea>
           </div>
         );
@@ -170,20 +190,20 @@ export function BilingualSplitView({
       case 'designMessage':
         return (
           <div className="flex flex-row gap-1 h-full">
-            <ScrollArea ref={englishScrollRef} className="flex-1 h-full p-4 rounded-md">
+            <ScrollArea ref={englishScrollRef} className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
-              <div className="text-foreground whitespace-pre-wrap">
-                {typeof designMessage.english === 'string' ? designMessage.english : designMessage.english.join('\n\n')}
-              </div>
+              <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                {typeof designMessage.english === 'string' ? designMessage.english : (designMessage.english as string[]).join('\n\n')}
+              </ReactMarkdown>
             </ScrollArea>
             
             <div className="w-px bg-border mx-2 h-full"></div>
             
-            <ScrollArea ref={bengaliScrollRef} className="flex-1 h-full p-4 rounded-md">
+            <ScrollArea ref={bengaliScrollRef} className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
-              <div className="text-foreground whitespace-pre-wrap">
-                {typeof designMessage.bengali === 'string' ? designMessage.bengali : designMessage.bengali.join('\n\n')}
-              </div>
+              <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                {typeof designMessage.bengali === 'string' ? designMessage.bengali : (designMessage.bengali as string[]).join('\n\n')}
+              </ReactMarkdown>
             </ScrollArea>
           </div>
         );
@@ -191,20 +211,20 @@ export function BilingualSplitView({
       case 'nicheAndAudience':
         return (
           <div className="flex flex-row gap-1 h-full">
-            <ScrollArea ref={englishScrollRef} className="flex-1 h-full p-4 rounded-md">
+            <ScrollArea ref={englishScrollRef} className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
-              <div className="text-foreground whitespace-pre-wrap">
-                {typeof nicheAndAudience.english === 'string' ? nicheAndAudience.english : nicheAndAudience.english.join('\n\n')}
-              </div>
+              <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                {typeof nicheAndAudience.english === 'string' ? nicheAndAudience.english : (nicheAndAudience.english as string[]).join('\n\n')}
+              </ReactMarkdown>
             </ScrollArea>
             
             <div className="w-px bg-border mx-2 h-full"></div>
             
-            <ScrollArea ref={bengaliScrollRef} className="flex-1 h-full p-4 rounded-md">
+            <ScrollArea ref={bengaliScrollRef} className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
-              <div className="text-foreground whitespace-pre-wrap">
-                {typeof nicheAndAudience.bengali === 'string' ? nicheAndAudience.bengali : nicheAndAudience.bengali.join('\n\n')}
-              </div>
+              <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                {typeof nicheAndAudience.bengali === 'string' ? nicheAndAudience.bengali : (nicheAndAudience.bengali as string[]).join('\n\n')}
+              </ReactMarkdown>
             </ScrollArea>
           </div>
         );
@@ -212,18 +232,18 @@ export function BilingualSplitView({
       case 'imageAnalysis':
         return (
           <div className="flex flex-row gap-1 h-full">
-            <ScrollArea ref={englishScrollRef} className="flex-1 h-full p-4 rounded-md">
+            <ScrollArea ref={englishScrollRef} className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
-              <div className="text-foreground whitespace-pre-wrap">
-                {typeof imageAnalysis?.english === 'string' ? imageAnalysis?.english : (imageAnalysis?.english || []).join('\n\n')}
-              </div>
+              <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                {typeof imageAnalysis?.english === 'string' ? imageAnalysis?.english : ((imageAnalysis?.english || []) as string[]).join('\n\n')}
+              </ReactMarkdown>
             </ScrollArea>
             <div className="w-px bg-border mx-2 h-full"></div>
-            <ScrollArea ref={bengaliScrollRef} className="flex-1 h-full p-4 rounded-md">
+            <ScrollArea ref={bengaliScrollRef} className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
-              <div className="text-foreground whitespace-pre-wrap">
-                {typeof imageAnalysis?.bengali === 'string' ? imageAnalysis?.bengali : (imageAnalysis?.bengali || []).join('\n\n')}
-              </div>
+              <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                {typeof imageAnalysis?.bengali === 'string' ? imageAnalysis?.bengali : ((imageAnalysis?.bengali || []) as string[]).join('\n\n')}
+              </ReactMarkdown>
             </ScrollArea>
           </div>
         );
