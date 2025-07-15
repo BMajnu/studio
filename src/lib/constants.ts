@@ -9,6 +9,7 @@ export const AVAILABLE_MODELS = [
   { id: 'googleai/gemini-2.0-pro-exp', name: 'Gemini 2.0 Pro Experimental', supportsThinking: false },
   { id: 'googleai/gemini-2.5-pro-exp-03-25', name: 'Gemini 2.5 Pro Experimental (03-25)', supportsThinking: true },
   { id: 'googleai/gemini-pro', name: 'Gemini 1.0 Pro', supportsThinking: false },
+  { id: 'googleai/gemini-2.5-pro', name: 'Gemini 2.5 Pro', supportsThinking: true },
 
   // Fast (Lower Accuracy) – Flash models
   { id: 'googleai/gemini-1.5-flash-latest', name: 'Gemini 1.5 Flash (Latest)', supportsThinking: false },
