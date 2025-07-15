@@ -22,8 +22,8 @@ const { publicRuntimeConfig } = getConfig() || { publicRuntimeConfig: {} };
 const { sessionStorageConfig = { maxSessionSize: 1024 * 1024, compressSession: true } } = publicRuntimeConfig;
 
 // Storage keys
-const CHAT_HISTORY_INDEX_KEY_LS_PREFIX = 'desainr_chat_history_index_ls_';
-const CHAT_SESSION_PREFIX_LS_PREFIX = 'desainr_chat_session_ls_';
+const CHAT_HISTORY_INDEX_KEY_LS_PREFIX = 'desainr_chat_history_index_ls_v4_';
+const CHAT_SESSION_PREFIX_LS_PREFIX = 'desainr_chat_session_ls_v4_';
 const LAST_ACTIVE_SESSION_ID_KEY_PREFIX = 'desainr_last_active_session_id_';
 const DELETED_SESSIONS_LS_PREFIX = 'desainr_deleted_sessions_';
 const HISTORY_LAST_LOADED_KEY = 'desainr_history_last_loaded';
@@ -863,6 +863,8 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
   }
 
   const effectiveUserId = authUser?.uid || userIdFromProfile || DEFAULT_USER_ID;
+  // Firebase is available for all user IDs (including "default-user") since rules allow it
+  const canUseFirebase = !!effectiveUserId;
   const chatHistoryIndexKeyLS = `${CHAT_HISTORY_INDEX_KEY_LS_PREFIX}${effectiveUserId}`;
   const chatSessionPrefixLS = `${CHAT_SESSION_PREFIX_LS_PREFIX}${effectiveUserId}_`;
   const deletedSessionsLSKey = `${DELETED_SESSIONS_LS_PREFIX}${effectiveUserId}`;
@@ -967,7 +969,7 @@ export function useChatHistory(userIdFromProfile: string | undefined) {
       }
       
       // INSERT: Merge Firebase metadata
-      if (typeof navigator !== 'undefined' && navigator.onLine && effectiveUserId !== DEFAULT_USER_ID) {
+      if (canUseFirebase && typeof navigator !== 'undefined' && navigator.onLine) {
         try {
           const remoteMetadata = await FirebaseChatStorage.listSessionsMetadata(effectiveUserId);
           if (Array.isArray(remoteMetadata) && remoteMetadata.length > 0) {
@@ -1511,7 +1513,7 @@ const getSessionDirectly = async (sessionId: string, userId: string, prefix: str
     }
 
     // INSERT: Try Firebase if not found locally
-    if (!session && typeof navigator !== 'undefined' && navigator.onLine && effectiveUserId !== DEFAULT_USER_ID) {
+    if (!session && typeof navigator !== 'undefined' && navigator.onLine && canUseFirebase) {
       try {
         const remoteSession = await FirebaseChatStorage.getSession(effectiveUserId, sessionId);
         if (remoteSession) {
@@ -1533,7 +1535,7 @@ const getSessionDirectly = async (sessionId: string, userId: string, prefix: str
     if (session && (!session.messages || session.messages.length === 0)) {
       historyLogger.warn(`getSession: Local copy for ${sessionId} contains no messages – attempting Firebase fallback`);
 
-      if (typeof navigator !== 'undefined' && navigator.onLine && effectiveUserId !== DEFAULT_USER_ID) {
+      if (typeof navigator !== 'undefined' && navigator.onLine && canUseFirebase) {
         try {
           const remoteSession = await FirebaseChatStorage.getSession(effectiveUserId, sessionId);
           if (remoteSession && remoteSession.messages && remoteSession.messages.length > 0) {
@@ -1562,7 +1564,7 @@ const getSessionDirectly = async (sessionId: string, userId: string, prefix: str
       }
     }
     // ------------------- ABSOLUTE LAST RESORT: Fetch from Firebase -------------------
-    if (!session && typeof navigator !== 'undefined' && navigator.onLine && effectiveUserId !== DEFAULT_USER_ID) {
+    if (!session && typeof navigator !== 'undefined' && navigator.onLine && canUseFirebase) {
       try {
         const remoteSession = await FirebaseChatStorage.getSession(effectiveUserId, sessionId);
         if (remoteSession) {
@@ -1881,12 +1883,12 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
     }
     
      // INSERT: Queue Firebase sync
-     if (effectiveUserId !== DEFAULT_USER_ID) {
+     if (canUseFirebase) {
       try {
         // Queue for background sync
         queueSessionForSync(effectiveUserId, sessionToSave);
         // If online, also attempt immediate sync so user sees it on other devices right away
-        if (typeof navigator === 'undefined' || navigator.onLine) {
+        if (canUseFirebase && (typeof navigator === 'undefined' || navigator.onLine)) {
           forceSyncSession(effectiveUserId, sessionToSave).catch((err) => {
             historyLogger.warn(`saveSession: Immediate Firebase sync failed for ${sessionToSave.id}, will retry in background`, err);
           });
@@ -1908,7 +1910,7 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
         return false; // Return boolean
     }
     // NEW: Try to delete from Firebase first (for authenticated users)
-    if (effectiveUserId !== DEFAULT_USER_ID && (typeof navigator === 'undefined' || navigator.onLine)) {
+    if (typeof navigator === 'undefined' || navigator.onLine) {
       try {
         const firebaseSuccess = await FirebaseChatStorage.deleteSession(effectiveUserId, sessionId);
         if (!firebaseSuccess) {
@@ -2134,12 +2136,9 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
 
   // Simplified version of repairChatHistoryMetadata
   const repairChatHistoryMetadata = async (effectiveUserId: string): Promise<boolean> => {
+    historyLogger.info(`repairChatHistoryMetadata: Starting for user ${effectiveUserId}`);
     if (!effectiveUserId) return false;
-    const chatHistoryIndexKeyLS = `${CHAT_HISTORY_INDEX_KEY_LS_PREFIX}${effectiveUserId}`;
-    const chatSessionPrefixLS = `${CHAT_SESSION_PREFIX_LS_PREFIX}${effectiveUserId}_`;
-    
-    console.log(`repairChatHistoryMetadata: Starting for user ${effectiveUserId}`);
-    
+
     // Scan localStorage for session data without metadata entries
     const sessionKeys = [];
     const metadataEntries: ChatSessionMetadata[] = [];
@@ -2208,6 +2207,12 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
         try {
           localStorage.setItem(chatHistoryIndexKeyLS, compressData(JSON.stringify(reconstructedMetadata)));
           console.log(`repairChatHistoryMetadata: Successfully reconstructed metadata for ${metadataEntries.length} sessions`);
+          if (isMounted.current) {
+            setHistoryMetadata(reconstructedMetadata);
+          }
+          console.log('[repair] About to trigger uploadLegacySessions');
+          uploadLegacySessions(reconstructedMetadata);
+          console.log('[repair] Called uploadLegacySessions');
           metadataRepaired = true;
         } catch (error) {
           if (isQuotaExceededError(error) && sessionDB) {
@@ -2313,6 +2318,50 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
       historyLogger.error('Error updating auto-refresh setting', error);
     }
   }, []);
+
+  const uploadLegacySessions = useCallback(async (legacyMetadata: ChatSessionMetadata[]) => {
+    console.log(`[legacy-sync] Found ${legacyMetadata.length} legacy sessions. Starting upload to Firebase...`);
+    if (!canUseFirebase || !effectiveUserId || legacyMetadata.length === 0) {
+      console.log(`[legacy-sync] Aborting: Pre-conditions not met (canUseFirebase: ${canUseFirebase}, user: !!${effectiveUserId}, sessions: ${legacyMetadata.length})`);
+      return;
+    }
+
+    let cancelled = false;
+    const CONCURRENCY_LIMIT = 3;
+    const queue = [...legacyMetadata];
+
+    const worker = async (workerId: number) => {
+      while (!cancelled && queue.length > 0) {
+        const meta = queue.shift();
+        if (!meta) break;
+        const sessionId = meta.id;
+
+        try {
+          console.log(`[legacy-sync-worker-${workerId}] Checking ${sessionId}`);
+          const remoteSession = await FirebaseChatStorage.getSession(effectiveUserId, sessionId);
+          if (remoteSession) {
+            console.log(`[legacy-sync-worker-${workerId}] SKIPPING ${sessionId} - already exists in Firebase.`);
+            continue;
+          }
+
+          const localSession = await getSessionDirectly(sessionId, effectiveUserId, chatSessionPrefixLS);
+          if (!localSession) {
+            console.warn(`[legacy-sync-worker-${workerId}] SKIPPING ${sessionId} - local copy not found.`);
+            continue;
+          }
+
+          console.log(`[legacy-sync-worker-${workerId}] UPLOADING ${sessionId}...`);
+          const ok = await forceSyncSession(effectiveUserId, localSession);
+          console.log(`[legacy-sync-worker-${workerId}] UPLOADED ${sessionId} - Success: ${ok}`);
+        } catch (err) {
+          console.error(`[legacy-sync-worker-${workerId}] FAILED processing ${sessionId}:`, err);
+        }
+      }
+    };
+
+    await Promise.all(Array.from({ length: CONCURRENCY_LIMIT }, (_, i) => worker(i + 1)));
+    console.log('[legacy-sync] Finished upload process.');
+  }, [canUseFirebase, effectiveUserId, chatSessionPrefixLS]);
 
   // NEW: Prefetch & cache full session data shortly after metadata is available
   // ------------------------------------------------------------------------
@@ -2435,6 +2484,42 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
       })();
     }
   }, [historyMetadata, getSession, renameSession]);
+
+  const legacyChatSessionPrefixLS = `desainr_chat_session_ls_${effectiveUserId}_`;
+  const legacyHistoryIndexKeyLS = `desainr_chat_history_index_ls_${effectiveUserId}`;
+
+  // One-time migration: copy legacy keys (without v4) to new v4 keys if needed
+  useEffect(() => {
+    try {
+      // Migrate session entries
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key) continue;
+        if (key.startsWith(legacyChatSessionPrefixLS)) {
+          const newKey = key.replace(legacyChatSessionPrefixLS, chatSessionPrefixLS);
+          if (!localStorage.getItem(newKey)) {
+            const value = localStorage.getItem(key);
+            if (value) {
+              localStorage.setItem(newKey, value);
+              // Remove old key to free space
+              try { localStorage.removeItem(key); localStorage.removeItem(`${key}_compressed`); } catch (_) {}
+            }
+          }
+        }
+      }
+      // Migrate history index
+      if (!localStorage.getItem(chatHistoryIndexKeyLS)) {
+        const legacyIndex = localStorage.getItem(legacyHistoryIndexKeyLS);
+        if (legacyIndex) {
+          localStorage.setItem(chatHistoryIndexKeyLS, legacyIndex);
+          try { localStorage.removeItem(legacyHistoryIndexKeyLS); } catch (_) {}
+        }
+      }
+    } catch (migrateErr) {
+      console.warn('Legacy data migration failed:', migrateErr);
+    }
+  // run once
+  }, []);
 
   return {
     historyMetadata,
