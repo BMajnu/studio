@@ -14,10 +14,11 @@ interface FoldedHistoryPanelProps {
 export function FoldedHistoryPanel({ sessions, activeSessionId, onSelectSession }: FoldedHistoryPanelProps) {
   // Instead of trying to calculate the number of visible items,
   // we'll use ScrollArea to handle overflow properly
+  const nonEmptySessions = sessions.filter(s => s.messageCount && s.messageCount > 0);
   return (
     <ScrollArea className="h-full px-2">
       <div className="flex flex-col items-center py-2">
-        {sessions.slice(0, 20).map((session) => (
+        {nonEmptySessions.slice(0, 20).map((session) => (
           <FoldedHistoryItem
             key={session.id}
             session={session}

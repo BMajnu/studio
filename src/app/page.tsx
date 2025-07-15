@@ -2937,24 +2937,30 @@ export default function ChatPage() {
               !isFooterCollapsed && "border-t glass-panel bg-background/70 backdrop-blur-xl shadow-2xl rounded-t-xl p-4 md:p-5"
             )}
           >
-            {/* Modern collapse/expand button for footer */}
+            {/* Integrated collapse/expand button for footer */}
             <div className={cn(
-              "absolute right-4 transition-all duration-300 z-[60]",
-              isFooterCollapsed ? "-top-3" : "-top-6"
+              "absolute left-1/2 transform -translate-x-1/2 transition-all duration-300 z-[60]",
+              isFooterCollapsed ? "-top-3" : "-top-3"
             )}>
               <Button
-                variant="outline"
-                size="icon"
+                variant="ghost"
                 onClick={toggleFooter}
-                className="h-6 w-10 rounded-full bg-background backdrop-blur-sm border border-border/50 shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out flex items-center justify-center group"
+                className={cn(
+                  "h-8 px-6 rounded-t-lg bg-background/95 backdrop-blur-md border-x border-t border-primary/20",
+                  "shadow-md hover:shadow-lg transition-all duration-300 ease-in-out",
+                  "flex items-center justify-center gap-1.5 group",
+                  isFooterCollapsed ? "rounded-b-lg" : "",
+                  !isFooterCollapsed && "border-b-0"
+                )}
                 aria-label={isFooterCollapsed ? "Expand input area" : "Collapse input area"}
               >
-                <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  <div className={`transition-all duration-300 ${isFooterCollapsed ? "" : "transform rotate-180"}`}>
-                    <ChevronDown size={15} className="text-foreground/80 group-hover:text-primary transition-colors" />
-                  </div>
+                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-t-lg"></div>
+                <div className={`transition-all duration-300 ${isFooterCollapsed ? "transform rotate-180" : ""}`}>
+                  <ChevronDown size={16} className="text-foreground/70 group-hover:text-primary transition-colors" />
                 </div>
+                <span className="text-xs font-medium text-foreground/70 group-hover:text-primary/90 transition-colors">
+                  {isFooterCollapsed ? "Show input" : "Hide input"}
+                </span>
               </Button>
             </div>
 
@@ -3070,16 +3076,6 @@ export default function ChatPage() {
                       activeButton={activeActionButton}
                       lastSelectedButton={lastSelectedActionButton}
                     />
-                    <Select value={currentModelId} onValueChange={setCurrentModelId}>
-                      <SelectTrigger className="w-[200px]">
-                        <SelectValue placeholder="Select AI Model" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {AVAILABLE_MODELS.map(model => (
-                          <SelectItem key={model.id} value={model.id}>{model.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </div>
                 </div>
               </>

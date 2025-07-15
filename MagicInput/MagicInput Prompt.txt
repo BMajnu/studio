@@ -2673,3 +2673,43 @@ continue
 Prompt:
 continue
 
+Prompt:
+It looks good but not professionally proportioned. Make it professional, a little bit more, and make sure it matches the color and UI style of the input box, so it will look more connected with this.
+
+Prompt:
+It looks good but not professionally proportioned. Make it professional, a little bit more, and make sure it matches the color and UI style of the input box, so it will look more connected with this.
+
+Prompt:
+I can see you just made it smaller. Otherwise, it has everything as before, but I don't like it smaller than now. I want to back the size as before.
+
+Prompt:
+I can see you just made it smaller. Otherwise, it has everything as before, but I don't like it smaller than now. I want to back the size as before.
+
+Prompt:
+I can see the arrow is pointing in the wrong direction. When it needs to hide, it shows an upward arrow, and when it needs to show, it displays a downward arrow. So, flip them and make them correct.
+
+Prompt:
+I can see the arrow is pointing in the wrong direction. When it needs to hide, it shows an upward arrow, and when it needs to show, it displays a downward arrow. So, flip them and make them correct.
+
+Prompt:
+Make the buttons fill colors black, and font color white and the above buttons will be same as it.
+
+Prompt:
+Make the buttons fill colors black, and font color white and the above buttons will be same as it.
+
+Prompt:
+Make them compitable with light theme. Now it keeping always black.
+
+
+Prompt:
+back to previous one in the dark mode the fill color will be black and font will be white and in the light mode fild white and font black. 
+
+Prompt:
+back to previous one in the dark mode the fill color will be black and font will be white and in the light mode fild white and font black. 
+
+Prompt:
+In the white mode, there will be a slightly border, black or darkish border around the chat history buttons.
+
+Prompt:
+In the white mode, there will be a slightly border, black or darkish border around the chat history buttons.
+

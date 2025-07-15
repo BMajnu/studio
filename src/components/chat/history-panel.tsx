@@ -658,11 +658,13 @@ export function HistoryPanel({
           <Button
             variant="outline"
             size="icon"
-            className="w-10 h-10 flex items-center justify-center border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors"
+            className="w-10 h-10 flex items-center justify-center transition-colors shadow-sm hover:shadow-md
+            dark:bg-black dark:text-white dark:hover:bg-black/80 dark:border-primary/20
+            light:bg-white light:text-black light:hover:bg-white/90 light:border-gray-800/30 border"
             onClick={onNewChat}
             title="New Chat"
           >
-            <PlusCircle className="h-5 w-5 text-primary/80" />
+            <PlusCircle className="h-5 w-5" />
           </Button>
         </div>
         
@@ -671,11 +673,13 @@ export function HistoryPanel({
           <Button
             variant="outline"
             size="icon"
-            className="w-10 h-10 flex items-center justify-center border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors"
+            className="w-10 h-10 flex items-center justify-center transition-colors shadow-sm hover:shadow-md
+            dark:bg-black dark:text-white dark:hover:bg-black/80 dark:border-primary/20
+            light:bg-white light:text-black light:hover:bg-white/90 light:border-gray-800/30 border"
             onClick={() => router.push('/gallery')}
             title="Media Gallery"
           >
-            <Image className="h-5 w-5 text-primary/80" />
+            <Image className="h-5 w-5" />
           </Button>
         </div>
         
@@ -684,11 +688,13 @@ export function HistoryPanel({
           <Button
             variant="outline"
             size="icon"
-            className="w-10 h-10 flex items-center justify-center border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors"
+            className="w-10 h-10 flex items-center justify-center transition-colors shadow-sm hover:shadow-md
+            dark:bg-black dark:text-white dark:hover:bg-black/80 dark:border-primary/20
+            light:bg-white light:text-black light:hover:bg-white/90 light:border-gray-800/30 border"
             onClick={handleOpenSearchDialog}
             title="Search Chats"
           >
-            <Search className="h-5 w-5 text-primary/80" />
+            <Search className="h-5 w-5" />
           </Button>
         </div>
         

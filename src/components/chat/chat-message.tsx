@@ -1248,46 +1248,46 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
             <span className="text-xs font-medium">{getActionTypeLabel(actionType)}</span>
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48 bg-zinc-900/95 backdrop-blur-lg border border-zinc-700 shadow-lg rounded-lg z-50">
-          <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold text-zinc-400">
+        <DropdownMenuContent align="end" className="w-48 bg-background/95 dark:bg-zinc-900/95 backdrop-blur-lg border border-border shadow-lg rounded-lg z-50">
+          <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold text-muted-foreground">
             {shouldRegenerateOnActionChange ? 'Change & Regenerate' : 'Change Action Type'}
           </DropdownMenuLabel>
-          <DropdownMenuSeparator className="bg-zinc-700 h-px" />
+          <DropdownMenuSeparator className="bg-border h-px" />
           
           {/* Main menu items */}
-          <DropdownMenuItem onClick={() => onActionChange('processMessage')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-zinc-800/70 text-zinc-100">
+          <DropdownMenuItem onClick={() => onActionChange('processMessage')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/60 text-foreground">
             {getActionButtonIcon('processMessage')}
             <span className="text-sm">Chat</span>
           </DropdownMenuItem>
           
-          <DropdownMenuItem onClick={() => onActionChange('analyzeRequirements')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-zinc-800/70 text-zinc-100">
+          <DropdownMenuItem onClick={() => onActionChange('analyzeRequirements')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/60 text-foreground">
             {getActionButtonIcon('analyzeRequirements')}
             <span className="text-sm">Requirements</span>
           </DropdownMenuItem>
           
-          <DropdownMenuItem onClick={() => onActionChange('generateEngagementPack')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-zinc-800/70 text-zinc-100">
+          <DropdownMenuItem onClick={() => onActionChange('generateEngagementPack')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/60 text-foreground">
             {getActionButtonIcon('generateEngagementPack')}
             <span className="text-sm">Fiverr Brief</span>
           </DropdownMenuItem>
           
-          <DropdownMenuItem onClick={() => onActionChange('generateRevision')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-zinc-800/70 text-zinc-100">
+          <DropdownMenuItem onClick={() => onActionChange('generateRevision')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/60 text-foreground">
             {getActionButtonIcon('generateRevision')}
             <span className="text-sm">Generate Revision Message</span>
           </DropdownMenuItem>
 
           {/* Design Tools submenu */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-zinc-800/70 text-zinc-100">
+            <DropdownMenuSubTrigger className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/60 text-foreground">
               <Palette className="h-4 w-4" />
               <span className="text-sm">Design Tools</span>
             </DropdownMenuSubTrigger>
             <DropdownMenuPortal>
-              <DropdownMenuSubContent className="min-w-[180px] bg-zinc-900/95 backdrop-blur-lg border border-zinc-700 shadow-lg rounded-lg">
-                <DropdownMenuItem onClick={() => onActionChange('generateDesignPrompts')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-zinc-800/70 text-zinc-100">
+              <DropdownMenuSubContent className="min-w-[180px] bg-background/95 dark:bg-zinc-900/95 backdrop-blur-lg border border-border shadow-lg rounded-lg">
+                <DropdownMenuItem onClick={() => onActionChange('generateDesignPrompts')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/60 text-foreground">
                   <Terminal className="h-4 w-4 text-teal-500" />
                   <span className="text-sm">Generate AI Prompts</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onActionChange('checkBestDesign')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-zinc-800/70 text-zinc-100">
+                <DropdownMenuItem onClick={() => onActionChange('checkBestDesign')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/60 text-foreground">
                   <SearchCheck className="h-4 w-4 text-blue-500" />
                   <span className="text-sm">Check the best design</span>
                 </DropdownMenuItem>
@@ -1297,22 +1297,22 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
 
           {/* Delivery Tools submenu */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-zinc-800/70 text-zinc-100">
+            <DropdownMenuSubTrigger className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/60 text-foreground">
               <Plane className="h-4 w-4" />
               <span className="text-sm">Delivery Tools</span>
             </DropdownMenuSubTrigger>
             <DropdownMenuPortal>
-              <DropdownMenuSubContent className="min-w-[180px] bg-zinc-900/95 backdrop-blur-lg border border-zinc-700 shadow-lg rounded-lg">
-                <DropdownMenuItem onClick={() => onActionChange('checkMadeDesigns')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-zinc-800/70 text-zinc-100">
+              <DropdownMenuSubContent className="min-w-[180px] bg-background/95 dark:bg-zinc-900/95 backdrop-blur-lg border border-border shadow-lg rounded-lg">
+                <DropdownMenuItem onClick={() => onActionChange('checkMadeDesigns')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/60 text-foreground">
                   <SearchCheck className="h-4 w-4 text-amber-500" />
                   <span className="text-sm">Check Designs</span>
                   <span className="ml-auto text-xs text-red-400">Needs Image</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onActionChange('generateEditingPrompts')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-zinc-800/70 text-zinc-100">
+                <DropdownMenuItem onClick={() => onActionChange('generateEditingPrompts')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/60 text-foreground">
                   <ClipboardSignature className="h-4 w-4 text-amber-500" />
                   <span className="text-sm">Editing Prompts</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onActionChange('generateDeliveryTemplates')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-zinc-800/70 text-zinc-100">
+                <DropdownMenuItem onClick={() => onActionChange('generateDeliveryTemplates')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/60 text-foreground">
                   <ClipboardList className="h-4 w-4 text-amber-500" />
                   <span className="text-sm">Delivery Templates</span>
                 </DropdownMenuItem>
@@ -1322,21 +1322,21 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
 
           {/* General Tools submenu */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-zinc-800/70 text-zinc-100">
+            <DropdownMenuSubTrigger className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/60 text-foreground">
               <Settings className="h-4 w-4" />
               <span className="text-sm">Tools</span>
             </DropdownMenuSubTrigger>
             <DropdownMenuPortal>
-              <DropdownMenuSubContent className="min-w-[220px] bg-zinc-900/95 backdrop-blur-lg border border-zinc-700 shadow-lg rounded-lg">
-                <DropdownMenuItem onClick={() => onActionChange('promptToReplicate')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-zinc-800/70 text-zinc-100">
+              <DropdownMenuSubContent className="min-w-[220px] bg-background/95 dark:bg-zinc-900/95 backdrop-blur-lg border border-border shadow-lg rounded-lg">
+                <DropdownMenuItem onClick={() => onActionChange('promptToReplicate')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/60 text-foreground">
                   <Sparkles className="h-4 w-4 text-blue-500" />
                   <span className="text-sm">Prompt to Replicate</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onActionChange('promptWithCustomSense')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-zinc-800/70 text-zinc-100">
+                <DropdownMenuItem onClick={() => onActionChange('promptWithCustomSense')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/60 text-foreground">
                   <FileImage className="h-4 w-4 text-blue-500" />
                   <span className="text-sm">Prompt with Custom Change</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onActionChange('promptForMicroStockMarkets')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-zinc-800/70 text-zinc-100">
+                <DropdownMenuItem onClick={() => onActionChange('promptForMicroStockMarkets')} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/60 text-foreground">
                   <FileSpreadsheet className="h-4 w-4 text-blue-500" />
                   <span className="text-sm">Prompt for Micro Stock Markets (PMSM)</span>
                 </DropdownMenuItem>
