@@ -1407,7 +1407,7 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
                     <div className="flex items-center gap-1.5 border border-primary/20 rounded-full p-1 bg-primary/5">
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <div onClick={(e) => e.preventDefault()}>
+                           <div onClick={(e) => e.preventDefault()}>
                             <ActionButton 
                               actionType={message.actionType || 'processMessage'} 
                               isEditing={isEditingThisMessage} 
@@ -1420,9 +1420,9 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
                         </TooltipContent>
                       </Tooltip>
                       <Select value={currentModelId} onValueChange={setCurrentModelId} disabled={isEditingThisMessage}>
-                        <SelectTrigger className="inline-flex items-center justify-center gap-2 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 py-1 px-3 font-medium hover:shadow-lg text-xs rounded-full transition-all bg-gradient-to-r text-white shadow-md from-purple-500 to-pink-500 data-[state=open]:shadow-md">
+                        <SelectTrigger className="inline-flex items-center justify-center gap-2 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-7 px-4 leading-none text-xs font-medium rounded-full hover:shadow-lg transition-all bg-gradient-to-r text-white shadow-md from-purple-500 to-pink-500 data-[state=open]:shadow-md">
                           <Bot className="h-3 w-3 mr-1.5" />
-                          <SelectValue placeholder="Select Model" />
+                          <SelectValue placeholder="Model" />
                         </SelectTrigger>
                         <SelectContent>
                           {AVAILABLE_MODELS.map(model => (
@@ -1552,8 +1552,9 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
                     
                     <div className="flex justify-end gap-2">
                       <Select value={currentModelId} onValueChange={setCurrentModelId}>
-                        <SelectTrigger className="w-[200px]">
-                          <SelectValue placeholder="Select AI Model" />
+                        <SelectTrigger className="inline-flex items-center justify-center gap-2 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-7 px-4 leading-none text-xs font-medium rounded-full hover:shadow-lg transition-all bg-gradient-to-r text-white shadow-md from-purple-500 to-pink-500 data-[state=open]:shadow-md">
+                          <Bot className="h-3 w-3 mr-1.5" />
+                          <SelectValue placeholder="Model" />
                         </SelectTrigger>
                         <SelectContent>
                           {AVAILABLE_MODELS.map(model => (
@@ -1562,14 +1563,14 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
                         </SelectContent>
                       </Select>
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={handleCancelEdit} className="bg-transparent border border-gray-300 text-primary hover:bg-gray-100 hover:text-primary">
+                        <Button variant="default" size="sm" onClick={handleCancelEdit} className="inline-flex items-center justify-center gap-2 h-7 px-4 leading-none text-xs font-medium rounded-full bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-md hover:shadow-lg transition-all">
                           <X className="h-4 w-4 mr-1" /> Cancel
                         </Button>
-                        <Button variant="default" size="sm" onClick={handleSaveAndSendEdited} className="bg-blue-500 hover:bg-blue-600 text-white">
+                        <Button variant="default" size="sm" onClick={handleSaveAndSendEdited} className="inline-flex items-center justify-center gap-2 h-7 px-4 leading-none text-xs font-medium rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md hover:shadow-lg transition-all">
                           <Send className="h-4 w-4 mr-1" /> Save & Send
                         </Button>
                       </div>
-                    </div>
+            </div>
               </div>
             </div>
           ) : (
