@@ -26,7 +26,7 @@ export function FoldedHistoryItem({ session, isActive, onClick }: FoldedHistoryI
             className={cn(
               'h-9 w-9 mx-auto my-1 rounded-lg flex items-center justify-center cursor-pointer transition-all duration-200 text-[10px] font-semibold',
               'transition-colors shadow-sm hover:shadow-md',
-              'dark:bg-black dark:text-white dark:hover:bg-black/80 dark:border-primary/20',
+              'dark:bg-[#111622] dark:text-white dark:hover:bg-[#111622]/80 dark:border-primary/20',
               'light:bg-white light:text-black light:hover:bg-white/90 light:border-gray-800/30 border',
               isActive ? 'ring-2 ring-primary' : '',
               'hover:scale-105'

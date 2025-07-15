@@ -659,7 +659,7 @@ export function HistoryPanel({
             variant="outline"
             size="icon"
             className="w-10 h-10 flex items-center justify-center transition-colors shadow-sm hover:shadow-md
-            dark:bg-black dark:text-white dark:hover:bg-black/80 dark:border-primary/20
+            dark:bg-[#111622] dark:text-white dark:hover:bg-[#111622]/80 dark:border-primary/20
             light:bg-white light:text-black light:hover:bg-white/90 light:border-gray-800/30 border"
             onClick={onNewChat}
             title="New Chat"
@@ -674,7 +674,7 @@ export function HistoryPanel({
             variant="outline"
             size="icon"
             className="w-10 h-10 flex items-center justify-center transition-colors shadow-sm hover:shadow-md
-            dark:bg-black dark:text-white dark:hover:bg-black/80 dark:border-primary/20
+            dark:bg-[#111622] dark:text-white dark:hover:bg-[#111622]/80 dark:border-primary/20
             light:bg-white light:text-black light:hover:bg-white/90 light:border-gray-800/30 border"
             onClick={() => router.push('/gallery')}
             title="Media Gallery"
@@ -689,7 +689,7 @@ export function HistoryPanel({
             variant="outline"
             size="icon"
             className="w-10 h-10 flex items-center justify-center transition-colors shadow-sm hover:shadow-md
-            dark:bg-black dark:text-white dark:hover:bg-black/80 dark:border-primary/20
+            dark:bg-[#111622] dark:text-white dark:hover:bg-[#111622]/80 dark:border-primary/20
             light:bg-white light:text-black light:hover:bg-white/90 light:border-gray-800/30 border"
             onClick={handleOpenSearchDialog}
             title="Search Chats"
