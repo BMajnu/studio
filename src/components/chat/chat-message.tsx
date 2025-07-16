@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/tooltip"
 import { AVAILABLE_MODELS } from '@/lib/constants';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ChatMessageProps {
   message: ChatMessage;
@@ -273,33 +274,152 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
     
     case 'translation_group':
       return (
-        <Card key={index} className={cn(commonClasses, "shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background/95 to-muted/50 backdrop-blur-sm")} style={{ animationDelay }}>
-          <CardHeader className="py-2 px-4">
-            <CardTitle className="text-sm font-semibold text-gradient flex items-center">
-              <span className="mr-2 text-lg">🌐</span> {part.title || 'Translation Group'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="py-2 px-4 space-y-2">
-            {part.bengali?.analysis && (
-              <div className="bg-primary/5 rounded-lg p-3">
-                <h5 className="text-sm font-medium mb-1">বিশ্লেষণ (Analysis in Bengali)</h5>
-                <p className="whitespace-pre-wrap text-sm">{part.bengali.analysis}</p>
+        <div key={index} className={cn(
+          commonClasses, 
+          "bg-card/80 backdrop-blur-sm border border-border rounded-lg shadow-md overflow-hidden"
+        )} style={{ animationDelay }}>
+          <div className="px-4 pt-4 pb-0 bg-transparent">
+            <h3 className="text-xl font-semibold text-center text-purple-400 -mb-1">
+              Client Message Analyze
+            </h3>
               </div>
-            )}
-            {part.bengali?.simplifiedRequest && (
-              <div className="bg-secondary/5 rounded-lg p-3">
-                <h5 className="text-sm font-medium mb-1">সরলীকৃত অনুরোধ (Simplified Request in Bengali)</h5>
-                <p className="whitespace-pre-wrap text-sm">{part.bengali.simplifiedRequest}</p>
+          
+          <div className="p-4">
+            <Tabs defaultValue="keyPoints" className="w-full">
+              <TabsList className="grid grid-cols-5 mb-4">
+                <TabsTrigger value="keyPoints" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">Key Points</TabsTrigger>
+                <TabsTrigger value="analysis" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">Fast analyze</TabsTrigger>
+                <TabsTrigger value="simplified" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">Simplified Request</TabsTrigger>
+                <TabsTrigger value="approach" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">Step-by-Step Approach</TabsTrigger>
+                <TabsTrigger value="replies" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">Suggested Replies</TabsTrigger>
+              </TabsList>
+              
+              <div className="min-h-[200px]">
+                <TabsContent value="keyPoints" className="mt-0">
+                  <div className="flex flex-row gap-1 h-full">
+                    <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
+                      <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                        {part.english?.keyPoints && part.english.keyPoints.length > 0 ? (
+                          <ul className="list-disc pl-5 space-y-1">
+                            {part.english.keyPoints.map((point, i) => <li key={i}>{point}</li>)}
+                          </ul>
+                        ) : "No key points available"}
               </div>
-            )}
-            {part.bengali?.stepByStepApproach && (
-              <div className="bg-accent/5 rounded-lg p-3">
-                <h5 className="text-sm font-medium mb-1">ধাপে ধাপে পদ্ধতি (Step-by-Step Approach in Bengali)</h5>
-                <p className="whitespace-pre-wrap text-sm">{part.bengali.stepByStepApproach}</p>
+                    </ScrollArea>
+                    <div className="w-px bg-border mx-2 h-full"></div>
+                    <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
+                      <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                        {part.bengali?.keyPoints && part.bengali.keyPoints.length > 0 ? (
+                          <ul className="list-disc pl-5 space-y-1">
+                            {part.bengali.keyPoints.map((point, i) => <li key={i}>{point}</li>)}
+                          </ul>
+                        ) : "কোন মূল বিষয় উপলব্ধ নেই"}
               </div>
-            )}
-          </CardContent>
-        </Card>
+                    </ScrollArea>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="analysis" className="mt-0">
+                  <div className="flex flex-row gap-1 h-full">
+                    <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
+                      <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                        {part.english?.analysis || "No analysis available"}
+              </div>
+                    </ScrollArea>
+                    
+                    <div className="w-px bg-border mx-2 h-full"></div>
+                    
+                    <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
+                      <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                        {part.bengali?.analysis || "কোন বিশ্লেষণ উপলব্ধ নেই"}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="simplified" className="mt-0">
+                  <div className="flex flex-row gap-1 h-full">
+                    <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
+                      <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                        {part.english?.simplifiedRequest || "No simplified request available"}
+                      </div>
+                    </ScrollArea>
+                    
+                    <div className="w-px bg-border mx-2 h-full"></div>
+                    
+                    <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
+                      <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                        {part.bengali?.simplifiedRequest || "কোন সরলীকৃত অনুরোধ উপলব্ধ নেই"}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="approach" className="mt-0">
+                  <div className="flex flex-row gap-1 h-full">
+                    <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
+                      <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                        {part.english?.stepByStepApproach || "No step-by-step approach available"}
+                      </div>
+                    </ScrollArea>
+                    
+                    <div className="w-px bg-border mx-2 h-full"></div>
+                    
+                    <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
+                      <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                        {part.bengali?.stepByStepApproach || "কোন ধাপে ধাপে পদ্ধতি উপলব্ধ নেই"}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="replies" className="mt-0">
+                  <div className="flex flex-row gap-1 h-full">
+                    <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
+                      <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                        {part.english?.suggestions ? (
+                          <ul className="list-disc pl-5 space-y-2">
+                            {Array.isArray(part.english.suggestions) && part.english.suggestions.map((suggestion, idx) => (
+                              <li key={idx} className="text-foreground">
+                                {suggestion}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : "No suggested replies available"}
+                      </div>
+                    </ScrollArea>
+                    
+                    <div className="w-px bg-border mx-2 h-full"></div>
+                    
+                    <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
+                      <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                        {part.bengali?.suggestions ? (
+                          <ul className="list-disc pl-5 space-y-2">
+                            {Array.isArray(part.bengali.suggestions) && part.bengali.suggestions.map((suggestion, idx) => (
+                              <li key={idx} className="text-foreground">
+                                {suggestion}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : "কোন প্রস্তাবিত উত্তর উপলব্ধ নেই"}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                </TabsContent>
+              </div>
+            </Tabs>
+          </div>
+        </div>
       );
 
     case 'custom':
@@ -1374,11 +1494,149 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
   const messageTime = new Date(message.timestamp
     ).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  const contentToRender = (typeof displayContent === 'string' && isUser) // Simple text for user message display (non-edit mode)
+  const contentToRenderRaw = (typeof displayContent === 'string' && isUser) // Simple text for user message display (non-edit mode)
     ? [{ type: 'text' as const, text: displayContent }]
     : (message.isLoading && typeof message.content === 'string' && message.content.startsWith('Processing...')) // AI "Processing..." state
     ? [{ type: 'text' as const, text: message.content }]
     : (Array.isArray(displayContent) ? displayContent : [{ type: 'text' as const, text: String(displayContent) }]); // AI content parts or fallback
+
+  // If a translation_group part exists, hydrate it with any standalone sections then filter redundant cards
+  const hasTranslationGroup = contentToRenderRaw.some((p: any) => p && typeof p === 'object' && 'type' in p && p.type === 'translation_group');
+
+  if (hasTranslationGroup) {
+    // Grab reference to the translation_group object to mutate
+    const translationPart: any = contentToRenderRaw.find((p: any) => p && typeof p === 'object' && p.type === 'translation_group');
+    if (translationPart) {
+      if (!translationPart.english) translationPart.english = {};
+      if (!translationPart.bengali) translationPart.bengali = {};
+
+      // Iterate over raw parts to capture English content & suggestions
+      contentToRenderRaw.forEach((p: any) => {
+        if (!p || typeof p !== 'object') return;
+
+        // Capture text sections by title
+        if (p.type === 'text' && 'title' in p && typeof p.title === 'string') {
+          const titleLower = (p.title as string).toLowerCase();
+          const textContent = (p as any).text;
+          if (!textContent) return;
+
+          if (titleLower.includes('analysis') && !translationPart.english.analysis) {
+            translationPart.english.analysis = textContent;
+          } else if (titleLower.includes('simplified request') && !translationPart.english.simplifiedRequest) {
+            translationPart.english.simplifiedRequest = textContent;
+          } else if (titleLower.includes('step-by-step approach') && !translationPart.english.stepByStepApproach) {
+            translationPart.english.stepByStepApproach = textContent;
+          } else if (titleLower.includes('bengali translation')) {
+            // Attempt to split combined bengali translation into subsections
+            const combinedText = textContent;
+            const sectionRegexes: { key: keyof typeof translationPart.bengali; pattern: RegExp }[] = [
+              { key: 'analysis', pattern: /(?:বিষ্লেষণ|বিশ্লেষণ|analysis)[:：]/i },
+              { key: 'simplifiedRequest', pattern: /(?:সরলীকৃত\s+অনুরোধ|simplified\s+request)[:：]/i },
+              { key: 'stepByStepApproach', pattern: /(?:ধাপে\s*-?\s*ধাপে\s*পদ্ধতি|step[- ]?by[- ]?step\s+approach)[:：]/i },
+            ];
+            const positions: { key: keyof typeof translationPart.bengali; index: number }[] = [];
+            sectionRegexes.forEach(({ key, pattern }) => {
+              const match = combinedText.match(pattern);
+              if (match && typeof match.index === 'number') positions.push({ key, index: match.index });
+            });
+            if (positions.length > 0) {
+              positions.sort((a, b) => a.index - b.index);
+              for (let i = 0; i < positions.length; i++) {
+                const { key, index } = positions[i];
+                const endIdx = i + 1 < positions.length ? positions[i + 1].index : combinedText.length;
+                const slice = combinedText.slice(index, endIdx).replace(/^[^:：]+[:：]/, '').trim();
+                if (!translationPart.bengali[key]) {
+                  translationPart.bengali[key] = slice;
+                }
+              }
+            }
+          }
+        }
+
+        // Capture suggested replies (list or dedicated type)
+        if (p.type === 'list' && 'title' in p && typeof p.title === 'string' && (p.title as string).toLowerCase().includes('suggested replies') && Array.isArray((p as any).items)) {
+          if (!translationPart.english.suggestions) {
+            translationPart.english.suggestions = (p as any).items;
+          }
+        }
+
+        if (p.type === 'suggested_replies' && (p as any).suggestions) {
+          if ((p as any).suggestions.english && Array.isArray((p as any).suggestions.english) && !translationPart.english.suggestions) {
+            translationPart.english.suggestions = (p as any).suggestions.english;
+          }
+          if ((p as any).suggestions.bengali && Array.isArray((p as any).suggestions.bengali) && !translationPart.bengali.suggestions) {
+            translationPart.bengali.suggestions = (p as any).suggestions.bengali;
+          }
+        }
+
+        // Capture list sections by title
+        if (p.type === 'list' && 'title' in p && typeof p.title === 'string' && Array.isArray((p as any).items)) {
+          const titleLower = (p.title as string).toLowerCase();
+          const items = (p as any).items;
+          
+          if (titleLower.includes('key points')) {
+            if (!translationPart.english.keyPoints) translationPart.english.keyPoints = items;
+          } else if (titleLower.includes('মূল বিষয়') || titleLower.includes('key points bengali')) {
+            if (!translationPart.bengali.keyPoints) translationPart.bengali.keyPoints = items;
+          } else if (titleLower.includes('suggested replies')) {
+            if (!translationPart.english.suggestions) translationPart.english.suggestions = items;
+          }
+        }
+      });
+
+      // Post-process: if bengali.analysis contains other sections, split them out
+      if (translationPart.bengali && typeof translationPart.bengali.analysis === 'string') {
+        const analysisText: string = translationPart.bengali.analysis;
+        // Only attempt split if other fields are missing
+        const missingSimplified = !translationPart.bengali.simplifiedRequest;
+        const missingApproach = !translationPart.bengali.stepByStepApproach;
+        if (missingSimplified || missingApproach) {
+          const simpRegex = /(?:সরলীকৃত\s+অনুরোধ|simplified\s+request)[:：]/i;
+          const stepRegex = /(?:ধাপে\s*-?\s*ধাপে\s*পদ্ধতি|step[- ]?by[- ]?step\s+approach)[:：]/i;
+
+          const simpMatch = analysisText.match(simpRegex);
+          const stepMatch = analysisText.match(stepRegex);
+
+          // Determine slice boundaries
+          const indices: { key: 'simplifiedRequest' | 'stepByStepApproach'; index: number }[] = [];
+          if (simpMatch && typeof simpMatch.index === 'number') indices.push({ key: 'simplifiedRequest', index: simpMatch.index });
+          if (stepMatch && typeof stepMatch.index === 'number') indices.push({ key: 'stepByStepApproach', index: stepMatch.index });
+
+          if (indices.length > 0) {
+            indices.sort((a, b) => a.index - b.index);
+            let trimmedAnalysis = analysisText;
+            for (let i = 0; i < indices.length; i++) {
+              const { key, index } = indices[i];
+              const endIdx = i + 1 < indices.length ? indices[i + 1].index : analysisText.length;
+              const slice = analysisText.slice(index, endIdx).replace(/^[^:：]+[:：]/, '').trim();
+              translationPart.bengali[key] = slice;
+
+              // Remove from analysis
+              trimmedAnalysis = trimmedAnalysis.replace(analysisText.slice(index, endIdx), '').trim();
+            }
+            translationPart.bengali.analysis = trimmedAnalysis.trim();
+          }
+        }
+      }
+    }
+  }
+
+  // After hydrating, build filtered list removing redundant top-level cards
+  const redundantTitles = ['Analysis', 'Simplified Request', 'Step-by-Step Approach', 'Bengali Translation', 'Suggested Replies', 'Key Points', 'মূল বিষয়'];
+  const contentToRender = hasTranslationGroup
+    ? contentToRenderRaw.filter((p: any) => {
+        if (!p || typeof p !== 'object') return true;
+        // Remove explicit suggested_replies parts entirely
+        if ('type' in p && p.type === 'suggested_replies') return false;
+
+        if ('type' in p && (p.type === 'text' || p.type === 'list' || p.type === 'code')) {
+          if ('title' in p && p.title && redundantTitles.includes(String(p.title))) {
+            return false; // skip redundant card
+          }
+        }
+        return true;
+      })
+    : contentToRenderRaw;
 
   const messageText = getMessageText(displayContent);
   const isLongMessage = messageText.split('\n').length > 2 || messageText.length > 200;

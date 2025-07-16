@@ -57,6 +57,9 @@ const ProcessClientMessageOutputSchema = z.object({
   bengaliTranslation: z.string().describe('Bengali translation of the analysis, simplified request, and step-by-step approach for the current request.'),
   suggestedEnglishReplies: z.array(z.string()).length(2).describe('Two distinct, professional English replies to the client, reflecting the user\'s style, name, and conversation context.'),
   suggestedBengaliReplies: z.array(z.string()).length(2).optional().describe('Bengali translations of the two suggested English replies.'),
+  // NEW: key requirement points in English & Bengali so UI can display them in the "Key Points" tab
+  keyPointsEnglish: z.array(z.string()).optional().describe('Key requirement points in English, presented as bullet points for easy reading'),
+  keyPointsBengali: z.array(z.string()).optional().describe('Key requirement points in Bengali, presented as bullet points for easy reading'),
 });
 export type ProcessClientMessageOutput = z.infer<typeof ProcessClientMessageOutputSchema>;
 
@@ -80,7 +83,7 @@ export async function processClientMessage(flowInput: ProcessClientMessageInput)
   const promptText = `You are a helpful AI assistant for a graphic designer named {{{userName}}}.
 Their communication style is: {{{communicationStyleNotes}}}.
 
-**Your Primary Task:** Analyze the "Client's Current Message" in the context of the "Previous conversation context" (if available) and any "Attached Files". Provide a comprehensive analysis, a simplified request, a step-by-step plan, and a Bengali translation of these parts, all focused on the *current state of the client's needs as understood from the entire interaction so far*. Additionally, generate two distinct, professional English replies to the client's current message and their Bengali translations.
+**Your Primary Task:** Analyze the "Client's Current Message" in the context of the "Previous conversation context" (if available) and any "Attached Files". Provide **key requirement bullet points**, a comprehensive analysis, a simplified request, a step-by-step plan, and a Bengali translation of these parts, all focused on the *current state of the client's needs as understood from the entire interaction so far*. Additionally, generate two distinct, professional English replies to the client's current message and their Bengali translations.
 
 **Contextual Understanding Rules:**
 1.  **Examine History:** If "Previous conversation context" exists, review it carefully to understand the ongoing project, previous discussions, and decisions.
@@ -121,6 +124,10 @@ The client also attached the following files with their current message. Conside
 
 Based on *all available information* (latest message, full history, attachments), provide the following:
 
+0.  **Key Requirement Points (Bullet Points):**
+    * **English:** 3-10 concise bullet points capturing the essential requirements.
+    * **Bengali:** A faithful Bengali translation of the same bullet points.
+
 1.  **Analysis:** Detailed analysis of the client's *current cumulative needs and requirements*. If the latest message shifts focus, explain how it relates to or diverges from previous points.
 2.  **Simplified Request:** A concise summary of what the client is *currently asking for, considering all context*.
 3.  **Step-by-Step Approach:** A conversational, friendly plan for {{{userName}}} to fulfill the *current, fully understood request*. Format each step to be more humanized and engaging:
@@ -143,6 +150,8 @@ Based on *all available information* (latest message, full history, attachments)
 
 Output Format (ensure your entire response is a single JSON object matching this structure):
 {
+  "keyPointsEnglish": ["Point 1", "Point 2", ...],
+  "keyPointsBengali": ["বিন্দু ১", "বিন্দু ২", ...],
   "analysis": "...",
   "simplifiedRequest": "...",
   "stepByStepApproach": "...",

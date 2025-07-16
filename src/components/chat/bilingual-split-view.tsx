@@ -4,14 +4,14 @@ import { useState, useRef, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Edit3, Upload, Check, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Edit3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import type { AttachedFile } from '@/lib/types';
 
 // Define the data structure for each bilingual section
 interface BilingualContent {
@@ -31,6 +31,7 @@ interface GenerationOptions {
   includeOriginalPrompt: boolean;
   includeOriginalImages: boolean;
   includeFullAnalysis: boolean;
+  customAttachedFiles?: AttachedFile[]; // Newly attached custom images (if any)
 }
 
 // Define the props interface for the BilingualSplitView component
@@ -339,6 +340,44 @@ function DesignItemCard({
   const [includeOriginalImages, setIncludeOriginalImages] = useState(hasImages);
   const [includeFullAnalysis, setIncludeFullAnalysis] = useState(false);
 
+  // Custom image attachment handling
+  const [customAttachedFiles, setCustomAttachedFiles] = useState<AttachedFile[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Clear custom image if user chooses to include original images again
+  useEffect(() => {
+    if (includeOriginalImages) {
+      setCustomAttachedFiles([]);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }, [includeOriginalImages]);
+
+  const handleCustomFilesChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = event.target.files;
+    if (!fileList) return;
+
+    Array.from(fileList).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        setCustomAttachedFiles(prev => [...prev, {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          dataUri: dataUrl,
+        }]);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Reset the input so same file can be reselected if removed
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleRemoveCustomImage = (index: number) => {
+    setCustomAttachedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   // State for inline editing
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(item.title);
@@ -363,6 +402,7 @@ function DesignItemCard({
     includeOriginalPrompt,
     includeOriginalImages,
     includeFullAnalysis,
+    customAttachedFiles: customAttachedFiles.length > 0 ? customAttachedFiles : undefined,
   });
 
   const handleSaveAndGenerate = () => {
@@ -437,7 +477,7 @@ function DesignItemCard({
       {showActionButton && (
         <div className="mt-3 space-y-1 text-sm">
           <label className="flex items-center gap-2"><Checkbox checked={includeOriginalPrompt} onCheckedChange={(val: boolean | "indeterminate")=>setIncludeOriginalPrompt(!!val)} />Include original prompt</label>
-          <label className="flex items-center gap-2 opacity-100"><Checkbox checked={includeOriginalImages} disabled={!hasImages} onCheckedChange={(val: boolean | "indeterminate")=>setIncludeOriginalImages(!!val)} />Include attached images</label>
+          <label className="flex items-center gap-2 opacity-100"><Checkbox checked={includeOriginalImages} onCheckedChange={(val: boolean | "indeterminate")=>setIncludeOriginalImages(!!val)} />Include attached images</label>
           <label className="flex items-center gap-2"><Checkbox checked={includeFullAnalysis} onCheckedChange={(val: boolean | "indeterminate")=>setIncludeFullAnalysis(!!val)} />Include full analysis</label>
         </div>
       )}
@@ -473,6 +513,44 @@ function DesignItemCard({
               </Button>
             </>
           )}
+        </div>
+      )}
+
+      {/* Custom image uploader shown when original images are NOT included */}
+      {!includeOriginalImages && (
+        <div className="mt-2 space-y-2">
+          {customAttachedFiles.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {customAttachedFiles.map((file, idx) => (
+                <div key={idx} className="relative w-16 h-16 rounded-md border border-primary/20 bg-card/50 overflow-hidden flex items-center justify-center">
+                  {/* Image preview */}
+                  {file.dataUri && (
+                    <img src={file.dataUri} alt={file.name} className="w-full h-full object-cover" />
+                  )}
+                  {/* Remove button */}
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-0 right-0 bg-destructive/80 hover:bg-destructive text-destructive-foreground rounded-bl-md p-0.5 h-5 w-5"
+                    onClick={() => handleRemoveCustomImage(idx)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2">
+            <Upload className="h-4 w-4" /> {customAttachedFiles.length > 0 ? 'Add more images' : 'Attach custom images'}
+          </Button>
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            ref={fileInputRef}
+            onChange={handleCustomFilesChange}
+          />
         </div>
       )}
     </div>

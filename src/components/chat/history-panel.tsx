@@ -94,7 +94,7 @@ function SessionItem({
     <div
       key={session.id}
       className={cn(
-        "group relative flex flex-col rounded-md px-2 py-1.5 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 animate-fade-in mx-2 w-[calc(100%-40px)]",
+        "group relative flex flex-col rounded-md px-2 py-1.5 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 animate-fade-in mx-1 w-full",
         isActive
           ? "text-primary"
           : "",
@@ -135,22 +135,25 @@ function SessionItem({
         </div>
       ) : (
         <>
-          <div className="flex items-center justify-between w-full">
-            <div className="truncate font-medium max-w-[85%]">
-              {session.name || session.preview}
-            </div>
+          {/* Delete button absolutely positioned relative to card container */}
             <button
-              className="h-6 w-6 flex items-center justify-center rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity my-auto"
+            className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-6 flex items-center justify-center rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity"
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 setShowDeleteConfirm(true);
               }}
+            title="Delete chat"
             >
               <Trash2 className="h-4 w-4" />
             </button>
+
+          {/* Chat name */}
+          <div className="truncate font-medium transition-all duration-200 group-hover:pl-7">
+            {session.name || session.preview}
           </div>
-          <div className="flex items-center text-xs mt-0.5" 
+          {/* Metadata line */}
+          <div className="flex items-center text-xs mt-0.5 transition-all duration-200 group-hover:pl-7" 
             style={{ color: 'hsl(var(--sidebar-foreground) / 0.5)' }}>
             <span>{session.messageCount} msg</span>
             <span className="mx-1">•</span>

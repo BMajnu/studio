@@ -2713,3 +2713,15 @@ In the white mode, there will be a slightly border, black or darkish border arou
 Prompt:
 In the white mode, there will be a slightly border, black or darkish border around the chat history buttons.
 
+Prompt:
+continue
+
+Prompt:
+continue
+
+Prompt:
+Decrese the gap a bit more.
+
+Prompt:
+Decrese the gap a bit more.
+

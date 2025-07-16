@@ -62,12 +62,16 @@ export type ChatMessageContentPart =
       english?: { 
         analysis?: string; 
         simplifiedRequest?: string; 
-        stepByStepApproach?: string 
+        stepByStepApproach?: string;
+        suggestions?: string[];
+        keyPoints?: string[];
       }; 
       bengali?: { 
         analysis?: string; 
         simplifiedRequest?: string; 
-        stepByStepApproach?: string 
+        stepByStepApproach?: string;
+        suggestions?: string[];
+        keyPoints?: string[];
       } 
     }
   | { 
@@ -94,7 +98,17 @@ export type ChatMessageContentPart =
       subcategory: string; 
     }; 
   }[]; }
-  | { type: 'suggested_replies'; title?: string; text?: string; english?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; bengali?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; suggestions?: { english: string[], bengali: string[] } }
+  | { 
+      type: 'suggested_replies'; 
+      title?: string; 
+      text?: string; 
+      suggestions?: {
+        english?: string[];
+        bengali?: string[];
+      },
+      english?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; 
+      bengali?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string } 
+    }
   | { type: 'top_designs'; title?: string; text?: string; code?: string; language?: string; items?: string[]; english?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; bengali?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; data?: any }
   | { type: 'design_idea'; title?: string; text?: string; code?: string; language?: string; english?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; bengali?: { analysis?: string, simplifiedRequest?: string, stepByStepApproach?: string }; imageDataUri?: string }
   | { type: 'design_ideas_group'; title?: string; ideas: { category: string, items: string[] }[] }

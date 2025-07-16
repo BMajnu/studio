@@ -124,7 +124,7 @@ The client also attached the following files with their current message. Analyze
 Based on all the above information (latest message, attachments, and full history), provide a comprehensive bilingual analysis split into 5 distinct sections, each in both English and Bengali:
 
 1. **Key Requirements Points (Bullet Points)**
-   - English: Create 3-7 clear, concise bullet points capturing the essential requirements
+   - English: Create 3-10 clear, concise bullet points capturing the essential requirements
    - Bengali: Translate these same bullet points to Bengali
 
 2. **Detailed Requirements Explanation**

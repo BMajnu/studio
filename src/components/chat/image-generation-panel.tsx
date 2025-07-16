@@ -98,14 +98,11 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
 
       setGeneratedImages(imagesWithIds);
 
-      // Persist locally for Media gallery
-      if (profile.userId) {
-        await saveGeneratedImagesLocal(profile.userId, imagesWithIds);
+      // Persist locally for Media gallery (always save, will fall back to DEFAULT_USER_ID if needed)
+      await saveGeneratedImagesLocal(profile?.userId, imagesWithIds);
 
-        // Images are now saved only to localStorage; hooks will react via the
-        // `generated-images-updated` event already dispatched inside
-        // `saveGeneratedImagesLocal`, so no further action is required here.
-      }
+      // `saveGeneratedImagesLocal` already dispatches the `generated-images-updated`
+      // event, so no further action is required here.
       
       toast({
         title: "Images Generated",

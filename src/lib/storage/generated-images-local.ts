@@ -1,16 +1,26 @@
 // Helper functions to persist generated images indefinitely in localStorage
 import { GeneratedImage } from '@/lib/types';
 import { saveImagesIndexedDB } from './generated-images-indexeddb';
+import { DEFAULT_USER_ID } from '@/lib/constants';
 
 const STORAGE_KEY_PREFIX = 'desainr_generated_images_';
+
+/**
+ * Resolve a safe userId. If none is provided (undefined/null/empty), default to
+ * the app-wide DEFAULT_USER_ID (usually "default-user").
+ */
+function resolveUserId(userId?: string): string {
+  return userId || DEFAULT_USER_ID;
+}
+
 // No expiration window – images are stored indefinitely
 // The exact localStorage quota varies by browser (often ~5-10 MB). We'll
 // optimistically aim for ~9 MB and then rely on the try/catch below to trim
 // older images if the browser still throws a QuotaExceededError.
 const MAX_BYTES = 9 * 1024 * 1024; // 9 MB pragmatic upper-bound
 
-function getKey(userId: string) {
-  return `${STORAGE_KEY_PREFIX}${userId}`;
+function getKey(userId?: string) {
+  return `${STORAGE_KEY_PREFIX}${resolveUserId(userId)}`;
 }
 
 function approxBytes(str:string){return str.length*2;} // UTF-16
@@ -18,7 +28,7 @@ function approxBytes(str:string){return str.length*2;} // UTF-16
 /**
  * Load all generated images stored in localStorage (no expiration).
  */
-export function loadRecentGeneratedImages(userId: string): GeneratedImage[] {
+export function loadRecentGeneratedImages(userId?: string): GeneratedImage[] {
   try {
     const raw = localStorage.getItem(getKey(userId));
     if (!raw) return [];
@@ -33,7 +43,7 @@ export function loadRecentGeneratedImages(userId: string): GeneratedImage[] {
 /**
  * Save newly generated images (array) by merging with any existing recent images and pruning expired ones.
  */
-export async function saveGeneratedImagesLocal(userId: string, images: GeneratedImage[]) {
+export async function saveGeneratedImagesLocal(userId: string | undefined, images: GeneratedImage[]) {
   try {
     // Ensure all images have required fields
     const now = Date.now();
@@ -45,15 +55,17 @@ export async function saveGeneratedImagesLocal(userId: string, images: Generated
       createdAt: img.createdAt || now
     }));
     
+    const safeUserId = resolveUserId(userId);
+
     // Persist to IndexedDB as the primary, larger-capacity store
-    await saveImagesIndexedDB(userId, preparedImages).catch((e) => {
+    await saveImagesIndexedDB(safeUserId, preparedImages).catch((e) => {
       console.error('IndexedDB image save failed', e);
     });
 
     // Load existing images
     let existingImages: GeneratedImage[] = [];
     try {
-      const raw = localStorage.getItem(getKey(userId));
+      const raw = localStorage.getItem(getKey(safeUserId));
       if (raw) {
         existingImages = JSON.parse(raw);
       }
@@ -85,7 +97,7 @@ export async function saveGeneratedImagesLocal(userId: string, images: Generated
     
     // Attempt to save all images first
     try {
-      localStorage.setItem(getKey(userId), JSON.stringify(allImages));
+      localStorage.setItem(getKey(safeUserId), JSON.stringify(allImages));
       
       // Notify listeners
       if (typeof window !== 'undefined') {
@@ -101,7 +113,7 @@ export async function saveGeneratedImagesLocal(userId: string, images: Generated
     let trimmedImages = [...allImages];
     while (trimmedImages.length > 0) {
       try {
-        localStorage.setItem(getKey(userId), JSON.stringify(trimmedImages));
+        localStorage.setItem(getKey(safeUserId), JSON.stringify(trimmedImages));
         
         // Successfully saved, notify listeners
         if (typeof window !== 'undefined') {
@@ -123,7 +135,7 @@ export async function saveGeneratedImagesLocal(userId: string, images: Generated
 /**
  * Remove expired images from localStorage now.
  */
-export function cleanupExpiredGeneratedImages(userId: string) {
+export function cleanupExpiredGeneratedImages(userId?: string) {
   try {
     const recent = loadRecentGeneratedImages(userId);
     localStorage.setItem(getKey(userId), JSON.stringify(recent));

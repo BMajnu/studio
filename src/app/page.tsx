@@ -865,7 +865,12 @@ export default function ChatPage() {
     if (isMobile) setIsHistoryPanelOpen(false);
   }, [createNewSession, userIdForHistory, isMobile, profile, saveSession]);
 
+  // Ref that tracks the latest handleSelectSession invocation
+  const latestSelectRequestIdRef = useRef(0);
+
   const handleSelectSession = useCallback(async (sessionId: string) => {
+    // Use a monotonically increasing request counter so we can ignore stale asynchronous loads
+    const requestId = ++latestSelectRequestIdRef.current;
     // console.log(`ChatPage: handleSelectSession called for session ${sessionId}`);
     initialSessionLoadAttemptedRef.current = true; // Mark that we've attempted to load a session
     
@@ -902,6 +907,11 @@ export default function ChatPage() {
         return;
       }
       
+    // If another more recent selection was triggered, ignore this result
+    if (requestId !== latestSelectRequestIdRef.current) {
+        return; // stale
+    }
+
     if (selected && selected.id === sessionId && selected.userId === userIdForHistory) {
         // console.log(`ChatPage: handleSelectSession - Successfully loaded session: ${sessionId}`);
         
@@ -958,7 +968,7 @@ export default function ChatPage() {
         setIsHistoryPanelOpen(false);
       }
     }
-  }, [getSession, ensureMessagesHaveUniqueIds, userIdForHistory, isMobile, handleNewChat, toast, currentSession]);
+  }, [getSession, ensureMessagesHaveUniqueIds, userIdForHistory, isMobile, handleNewChat, toast, currentSession, latestSelectRequestIdRef]);
 
   const handleDeleteSession = useCallback((sessionId: string) => {
     deleteSession(sessionId);
@@ -1317,10 +1327,30 @@ export default function ChatPage() {
                 attachedFiles: filesForFlow, chatHistory: chatHistoryForAI
               };
               const pmOutput = await processClientMessage(pmInput);
+
+              // Build a richer bilingual block so the UI tabs (Key Points, Analysis, etc.) have data
+              finalAiResponseContent.push({
+                type: 'translation_group',
+                title: 'Client Message Analyze',
+                english: {
+                  keyPoints: pmOutput.keyPointsEnglish || [],
+                  analysis: pmOutput.analysis,
+                  simplifiedRequest: pmOutput.simplifiedRequest,
+                  stepByStepApproach: pmOutput.stepByStepApproach,
+                  suggestions: pmOutput.suggestedEnglishReplies || []
+                },
+                bengali: {
+                  keyPoints: pmOutput.keyPointsBengali || [],
+                  analysis: pmOutput.bengaliTranslation,
+                  // We do not yet have separate Bengali simplified request / approach, leave undefined
+                  suggestions: pmOutput.suggestedBengaliReplies || []
+                }
+              });
+
+              // Keep standalone sections for easy copying if desired
               finalAiResponseContent.push({ type: 'text', title: 'Analysis', text: pmOutput.analysis });
               finalAiResponseContent.push({ type: 'text', title: 'Simplified Request', text: pmOutput.simplifiedRequest });
               finalAiResponseContent.push({ type: 'text', title: 'Step-by-Step Approach', text: pmOutput.stepByStepApproach });
-              finalAiResponseContent.push({ type: 'translation_group', title: 'Bengali Translation', bengali: { analysis: pmOutput.bengaliTranslation } });
 
               const repliesSection: ChatMessageContentPart = {
                 type: 'suggested_replies',
@@ -2460,6 +2490,15 @@ export default function ChatPage() {
       const originalReqMsg = messagesRef.current.find(m => m.role === 'user' && m.actionType === 'analyzeRequirements');
       if (originalReqMsg?.attachedFiles && originalReqMsg.attachedFiles.length > 0) {
         attachedFilesForPrompt = originalReqMsg.attachedFiles as AttachedFile[];
+      }
+    }
+
+    // Merge custom attached images (if any)
+    if (genOptions?.customAttachedFiles && genOptions.customAttachedFiles.length > 0) {
+      if (attachedFilesForPrompt && attachedFilesForPrompt.length > 0) {
+        attachedFilesForPrompt = [...attachedFilesForPrompt, ...genOptions.customAttachedFiles];
+      } else {
+        attachedFilesForPrompt = [...genOptions.customAttachedFiles];
       }
     }
 
