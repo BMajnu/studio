@@ -78,3 +78,24 @@ Add a button next to the Requirement and Edit and Send buttons in the user input
 - [ ] Test switching models and verify responses use the selected model.
 - [ ] Ensure UI is responsive and works on mobile.
 - [ ] Handle cases where profile has no model selected. 
+
+DesAInR Pro - Persist Uploaded Images in Local Storage
+
+Task Overview:
+Fix the issue where uploaded images and files do not persist after page refresh by storing their binary data indefinitely in local storage/IndexedDB, while keeping references in chat history. Ensure data is never deleted automatically and not saved to Firebase.
+
+## Phase 1 – 2024-07-25: Setup and Type Updates
+- [x] Update AttachedFile interface in src/lib/types.ts to include optional attachmentId: string.
+- [x] Create src/lib/storage/uploaded-attachments-local.ts mirroring generated-images-local.ts for saving/loading attachments (support dataUri and textContent) indefinitely in localStorage.
+- [x] Create src/lib/storage/uploaded-attachments-indexeddb.ts mirroring generated-images-indexeddb.ts for larger capacity storage.
+
+## Phase 2 – 2024-07-25: Modify Save Logic
+- [x] In src/lib/hooks/use-chat-history.ts saveSession function, before limitSessionSize calls, add logic to traverse session.messages attachedFiles; for each file with dataUri/textContent and no attachmentId, generate UUID id, await save to attachments store (prefer IndexedDB), set file.attachmentId = id, remove file.dataUri and file.textContent from the object.
+
+## Phase 3 – 2024-07-25: Modify Load Logic
+- [ ] In src/lib/hooks/use-chat-history.ts loadSession function, after parsing the session JSON, add a hydrateAttachments async function that for each attachedFile with attachmentId and no dataUri/textContent, await load from attachments store and populate file.dataUri or file.textContent.
+
+## Phase 4 – 2024-07-25: Testing and Refinements
+- [ ] Update any display components if needed to handle loading state, but since hydrated before setting state, it should work.
+- [ ] Test the full flow: upload image in chat, send message, refresh page, verify image displays from local storage.
+- [ ] Ensure no data is saved to Firebase (already stripped). 

@@ -137,8 +137,9 @@ export interface AttachedFile {
   name: string;
   type: string;
   size: number;
-  dataUri?: string; 
-  textContent?: string; 
+  dataUri?: string;
+  textContent?: string;
+  attachmentId?: string;
 }
 
 export interface DesignPromptsData {

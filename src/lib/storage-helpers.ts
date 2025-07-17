@@ -13,11 +13,11 @@ const STORAGE_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
 const STORAGE_MONITOR_KEY = 'desainr_storage_monitor';
 
 // Storage quota thresholds (in bytes)
-const QUOTA_WARNING_THRESHOLD = 4.5 * 1024 * 1024; // 4.5MB warning (5MB typical limit)
+const QUOTA_WARNING_THRESHOLD = 25 * 1024 * 1024; // Warn at 25MB
 const MIN_REMAINING_QUOTA = 500 * 1024; // Keep at least 500KB free
 
 // Estimated localStorage limit (most browsers have 5MB)
-const ESTIMATED_QUOTA = 5 * 1024 * 1024;
+const ESTIMATED_QUOTA = 30 * 1024 * 1024; // Assume 30MB quota
 
 // Store listeners for storage events
 const storageListeners: Array<(event: StorageEvent) => void> = [];

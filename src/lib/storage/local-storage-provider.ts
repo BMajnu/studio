@@ -15,7 +15,7 @@ const CHAT_SESSION_PREFIX_LS_PREFIX = 'desainr_chat_session_ls_v4_';
 const DELETED_SESSIONS_LS_PREFIX = 'desainr_deleted_sessions_';
 
 // Estimated localStorage limit (most browsers have 5MB)
-const ESTIMATED_QUOTA = 5 * 1024 * 1024;
+const ESTIMATED_QUOTA = 30 * 1024 * 1024;
 
 export class LocalStorageProvider implements ChatSessionStorage {
   getName(): string {

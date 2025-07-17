@@ -56,7 +56,7 @@ export async function saveGeneratedImagesLocal(userId: string | undefined, image
     }));
     
     const safeUserId = resolveUserId(userId);
-
+    
     // Persist to IndexedDB as the primary, larger-capacity store
     await saveImagesIndexedDB(safeUserId, preparedImages).catch((e) => {
       console.error('IndexedDB image save failed', e);

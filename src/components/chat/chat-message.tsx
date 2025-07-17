@@ -42,6 +42,9 @@ import {
 import { AVAILABLE_MODELS } from '@/lib/constants';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { loadUploadedAttachments } from '@/lib/storage/uploaded-attachments-local';
+import { loadAttachmentsIndexedDB } from '@/lib/storage/uploaded-attachments-indexeddb';
+import { DEFAULT_USER_ID } from '@/lib/constants';
 
 interface ChatMessageProps {
   message: ChatMessage;
@@ -63,13 +66,32 @@ interface ChatMessageProps {
   setCurrentModelId: (modelId: string) => void;
 }
 
-function AttachedFileDisplay({ file }: { file: AttachedFile }) {
+function AttachedFileDisplay({ file, userId }: { file: AttachedFile, userId?: string }) {
+  const [src, setSrc] = useState<string | undefined>(file.dataUri);
+  useEffect(() => {
+    if (!src && file.attachmentId) {
+      (async () => {
+        try {
+          const idb = await loadAttachmentsIndexedDB(userId || DEFAULT_USER_ID);
+          let att = idb.find(a => a.id === file.attachmentId);
+          if (!att) {
+            const local = loadUploadedAttachments(userId || DEFAULT_USER_ID);
+            att = local.find(a => a.id === file.attachmentId);
+          }
+          if (att?.dataUri) setSrc(att.dataUri);
+        } catch (e) {
+          console.error('Attachment load error', e);
+        }
+      })();
+    }
+  }, [file, src, userId]);
+  const displaySrc = src;
   return (
     <div className="group relative aspect-square overflow-hidden rounded-md border border-primary/10 hover:border-primary/30 transition-all duration-300 animate-fade-in">
-      {file.type?.startsWith('image/') && file.dataUri ? (
+      {file.type?.startsWith('image/') && displaySrc ? (
         <>
           <Image
-            src={file.dataUri}
+            src={displaySrc}
             alt={file.name}
             fill
             className="object-cover object-center group-hover:scale-105 transition-transform duration-300"
@@ -1873,7 +1895,7 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
                   className="inline-block align-top whitespace-normal w-24 animate-stagger" 
                   style={{ margin: 0, padding: 0, animationDelay: `${index * 50}ms` }}
                 >
-                  <AttachedFileDisplay file={file} />
+                  <AttachedFileDisplay file={file} userId={profile?.userId} />
                 </div>
               ))}
             </div>
@@ -1967,7 +1989,7 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
                   className="inline-block align-top whitespace-normal w-24 animate-stagger" 
                   style={{ margin: 0, padding: 0, animationDelay: `${index * 50}ms` }}
                 >
-                  <AttachedFileDisplay file={file} />
+                  <AttachedFileDisplay file={file} userId={profile?.userId} />
                 </div>
               ))}
             </div>

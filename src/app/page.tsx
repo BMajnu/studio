@@ -1413,37 +1413,58 @@ export default function ChatPage() {
               }
             }
           else if (currentActionType === 'analyzeRequirements') {
-            const requirementsInput: AnalyzeClientRequirementsInput = { ...baseInput, clientMessage: userMessageContent, attachedFiles: filesForFlow, chatHistory: chatHistoryForAI };
-            const requirementsOutput: AnalyzeClientRequirementsOutput = await analyzeClientRequirements(requirementsInput);
-            
-            // Add the BilingualSplitView component for displaying the analysis
-            finalAiResponseContent.push({
-              type: 'bilingual_analysis',
-              keyPoints: {
-                english: requirementsOutput.keyPointsEnglish,
-                bengali: requirementsOutput.keyPointsBengali
-              },
-              detailedRequirements: {
-                english: requirementsOutput.detailedRequirementsEnglish,
-                bengali: requirementsOutput.detailedRequirementsBengali
-              },
-              designMessage: {
-                english: requirementsOutput.designMessageEnglish,
-                bengali: requirementsOutput.designMessageBengali
-              },
-              nicheAndAudience: {
-                english: requirementsOutput.designNicheAndAudienceEnglish,
-                bengali: requirementsOutput.designNicheAndAudienceBengali
-              },
-              imageAnalysis: {
-                english: requirementsOutput.imageAnalysisEnglish,
-                bengali: requirementsOutput.imageAnalysisBengali
-              },
-              designItems: {
-                english: requirementsOutput.designItemsEnglish,
-                bengali: requirementsOutput.designItemsBengali
-              }
-            });
+            try {
+              const requirementsInput: AnalyzeClientRequirementsInput = {
+                ...baseInput,
+                clientMessage: userMessageContent,
+                attachedFiles: filesForFlow,
+                chatHistory: chatHistoryForAI,
+              };
+
+              const requirementsOutput: AnalyzeClientRequirementsOutput = await analyzeClientRequirements(requirementsInput);
+
+              // Add the BilingualSplitView component for displaying the analysis
+              finalAiResponseContent.push({
+                type: 'bilingual_analysis',
+                keyPoints: {
+                  english: requirementsOutput.keyPointsEnglish,
+                  bengali: requirementsOutput.keyPointsBengali,
+                },
+                detailedRequirements: {
+                  english: requirementsOutput.detailedRequirementsEnglish,
+                  bengali: requirementsOutput.detailedRequirementsBengali,
+                },
+                designMessage: {
+                  english: requirementsOutput.designMessageEnglish,
+                  bengali: requirementsOutput.designMessageBengali,
+                },
+                nicheAndAudience: {
+                  english: requirementsOutput.designNicheAndAudienceEnglish,
+                  bengali: requirementsOutput.designNicheAndAudienceBengali,
+                },
+                imageAnalysis: {
+                  english: requirementsOutput.imageAnalysisEnglish,
+                  bengali: requirementsOutput.imageAnalysisBengali,
+                },
+                designItems: {
+                  english: requirementsOutput.designItemsEnglish,
+                  bengali: requirementsOutput.designItemsBengali,
+                },
+              });
+            } catch (error) {
+              console.error("Error in analyzeClientRequirements flow:", error);
+              aiCallError = error;
+
+              finalAiResponseContent = [
+                {
+                  type: 'text',
+                  title: 'Error Analyzing Requirements',
+                  text: `There was an error analyzing the requirements: ${
+                    error instanceof Error ? error.message : String(error)
+                  }. Please try again with a shorter message or fewer/lower-resolution images.`,
+                },
+              ];
+            }
           } else if (currentActionType === 'generateEngagementPack') {
             const engagementInput: GenerateEngagementPackInput = {
               ...baseInput, clientMessage: userMessageContent, designerName: userProfile.name,
@@ -1871,12 +1892,33 @@ export default function ChatPage() {
             // and then use that latest state for saving.
             setMessages(currentMessagesFromState => {
               const messagesForSave = ensureMessagesHaveUniqueIds(currentMessagesFromState);
+              // Create a lighter copy of messages, removing large inline data
+              const slimMessages = messagesForSave.map(msg => {
+                // Strip dataUri & large inline text from attachments
+                const slimAttachments = msg.attachedFiles?.map(att => {
+                  const { dataUri, textContent, ...rest } = att;
+                  return { ...rest }; // keep name/type/size only
+                });
+
+                // Also slim editHistory if present
+                const slimEditHistory = msg.editHistory?.map(eh => {
+                  const ehSlimAttachments = eh.attachedFiles?.map(att => {
+                    const { dataUri, textContent, ...rest } = att;
+                    return { ...rest };
+                  });
+                  return { ...eh, attachedFiles: ehSlimAttachments } as EditHistoryEntry;
+                });
+
+                return { ...msg, attachedFiles: slimAttachments, editHistory: slimEditHistory } as ChatMessage;
+              });
+
               const sessionForSave: ChatSession = {
-                  ...currentSession,
-                  messages: messagesForSave, 
-                  updatedAt: Date.now(),
-                  userId: userIdForHistory,
+                ...currentSession,
+                messages: slimMessages,
+                updatedAt: Date.now(),
+                userId: userIdForHistory,
               };
+
               const apiKeyForNameGen = (profile?.geminiApiKeys && profile.geminiApiKeys.length > 0 && profile.geminiApiKeys[0]) ? profile.geminiApiKeys[0] : undefined;
 
               const hasDefaultName = !currentSession.name || currentSession.name === "New Chat" || /^Chat \d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?$/i.test(currentSession.name);
@@ -1894,7 +1936,7 @@ export default function ChatPage() {
                       });
                   }
               });
-              return messagesForSave; // Return the state for setMessages
+              return slimMessages; // Return the state for setMessages
             });
         }
     }, 0);

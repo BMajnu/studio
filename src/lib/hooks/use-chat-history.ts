@@ -15,6 +15,10 @@ import eventDebouncer from '@/lib/utils/event-debouncer';
 import { queueSessionForSync } from '@/lib/firebase/sync-utils';
 import { FirebaseChatStorage } from '@/lib/firebase/chatStorage';
 import { forceSyncSession } from '@/lib/firebase/sync-utils';
+import { saveUploadedAttachments } from '../storage/uploaded-attachments-local';
+import type { UploadedAttachment } from '../storage/uploaded-attachments-local';
+import { loadUploadedAttachments } from '../storage/uploaded-attachments-local';
+import { loadAttachmentsIndexedDB } from '../storage/uploaded-attachments-indexeddb';
 const { session: sessionLogger, storage: storageLogger, history: historyLogger, ui: uiLogger, system: systemLogger } = logger;
 
 // Load configuration for session storage
@@ -1204,7 +1208,9 @@ const getSessionDirectly = async (sessionId: string, userId: string, prefix: str
             localStorage.setItem(`${prefix}${sessionId}`, leanStr);
           }
         } catch { /* ignore */ }
-        return parsed;
+        // Change return parsed to:
+        const hydrated = parsed ? await (async () => { await hydrateSessionAttachments(parsed, userId); return parsed; })() : parsed;
+        return hydrated;
       } catch { /* fall through */ }
     }
   }
@@ -1330,6 +1336,7 @@ const getSessionDirectly = async (sessionId: string, userId: string, prefix: str
                     updateSessionMetadataOnReload(sessionId, session);
                   }
                   
+                  await hydrateSessionAttachments(session, effectiveUserId);
                   return session;
                 } else {
                   storageLogger.error(`getSession: Failed to parse decompressed JSON for ${sessionId}`);
@@ -1358,6 +1365,7 @@ const getSessionDirectly = async (sessionId: string, userId: string, prefix: str
                   updateSessionMetadataOnReload(sessionId, session);
                 }
                 
+                await hydrateSessionAttachments(session, effectiveUserId);
                 return session;
               } else {
                 storageLogger.error(`getSession: Failed to parse JSON for ${sessionId}`);
@@ -1415,6 +1423,7 @@ const getSessionDirectly = async (sessionId: string, userId: string, prefix: str
                         updateSessionMetadataOnReload(sessionId, session);
                       }
                       
+                      await hydrateSessionAttachments(session, effectiveUserId);
                     return session;
                   } else {
                       storageLogger.error(`getSession: Failed to parse decompressed IndexedDB JSON for ${sessionId}`);
@@ -1443,6 +1452,7 @@ const getSessionDirectly = async (sessionId: string, userId: string, prefix: str
                       updateSessionMetadataOnReload(sessionId, session);
                     }
                     
+                    await hydrateSessionAttachments(session, effectiveUserId);
                   return session;
                 } else {
                     storageLogger.error(`getSession: Failed to parse IndexedDB JSON for ${sessionId}`);
@@ -1523,6 +1533,7 @@ const getSessionDirectly = async (sessionId: string, userId: string, prefix: str
             storageLogger.warn('getSession: Failed to cache Firebase session locally', err);
           }
           updateSessionMetadataOnReload(sessionId, remoteSession);
+          await hydrateSessionAttachments(remoteSession, effectiveUserId);
           return remoteSession;
         }
       } catch (firebaseErr) {
@@ -1574,6 +1585,7 @@ const getSessionDirectly = async (sessionId: string, userId: string, prefix: str
             storageLogger.warn('getSession: Failed to cache Firebase session locally', err);
           }
           updateSessionMetadataOnReload(sessionId, remoteSession);
+          await hydrateSessionAttachments(remoteSession, effectiveUserId);
           return remoteSession;
         }
       } catch (firebaseErr) {
@@ -1902,6 +1914,35 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
       storageLogger.error(`[STORAGE:ERROR] saveSession: Failed to save session ${sessionToSave.id}. Skipped due to size/quota.`);
     }
     
+    // Before persisting attachments, deep copy the session to avoid mutating original state
+    const deepCopySession: ChatSession = JSON.parse(JSON.stringify(sessionToSave));
+    // Then use deepCopySession for attachmentsToSave and stripping
+    const attachmentsToSave: Partial<UploadedAttachment>[] = [];
+    deepCopySession.messages.forEach(msg => {
+      if (msg.attachedFiles) {
+        msg.attachedFiles.forEach(file => {
+          if ((file.dataUri || file.textContent) && !file.attachmentId) {
+            file.attachmentId = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
+            attachmentsToSave.push({ ...file });
+          }
+        });
+      }
+    });
+    if (attachmentsToSave.length) {
+      await saveUploadedAttachments(effectiveUserId, attachmentsToSave);
+      // Strip from deepCopySession
+      deepCopySession.messages.forEach(msg => {
+        if (msg.attachedFiles) {
+          msg.attachedFiles.forEach(file => {
+            if (file.attachmentId) {
+              delete file.dataUri;
+              delete file.textContent;
+            }
+          });
+        }
+      });
+    }
+    
     return sessionToSave;
   }, [effectiveUserId, chatSessionPrefixLS, chatHistoryIndexKeyLS, isMounted, setHistoryMetadata]);
 
@@ -2138,7 +2179,7 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
   const repairChatHistoryMetadata = async (effectiveUserId: string): Promise<boolean> => {
     historyLogger.info(`repairChatHistoryMetadata: Starting for user ${effectiveUserId}`);
     if (!effectiveUserId) return false;
-
+    
     // Scan localStorage for session data without metadata entries
     const sessionKeys = [];
     const metadataEntries: ChatSessionMetadata[] = [];
@@ -2520,6 +2561,32 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
     }
   // run once
   }, []);
+
+  // Add hydrate function before getSession
+  async function hydrateSessionAttachments(session: ChatSession, userId: string) {
+    const attachmentIds = new Set<string>();
+    session.messages.forEach(msg => {
+      msg.attachedFiles?.forEach(file => {
+        if (file.attachmentId && !file.dataUri && !file.textContent) {
+          attachmentIds.add(file.attachmentId);
+        }
+      });
+    });
+    if (attachmentIds.size === 0) return;
+    const indexed = await loadAttachmentsIndexedDB(userId);
+    const local = loadUploadedAttachments(userId);
+    const all = [...indexed, ...local.filter(l => !indexed.some(i => i.id === l.id))];
+    const attMap = new Map(all.map(a => [a.id, a]));
+    session.messages.forEach(msg => {
+      msg.attachedFiles?.forEach(file => {
+        if (file.attachmentId && attMap.has(file.attachmentId)) {
+          const att = attMap.get(file.attachmentId)!;
+          file.dataUri = att.dataUri;
+          file.textContent = att.textContent;
+        }
+      });
+    });
+  }
 
   return {
     historyMetadata,
