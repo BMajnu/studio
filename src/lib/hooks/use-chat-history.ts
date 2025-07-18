@@ -1738,9 +1738,39 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
       }
     }
     
-    // Prepare two variants: full for IndexedDB (keeps dataUri) and lean for localStorage (trims dataUri)
-    const sessionForIndexedDB = limitSessionSize(sessionToSave, 5_000_000); // Higher limit for IndexedDB
-    const sessionForLocalStorage = limitSessionSize(createLeanSession(sessionToSave), 140_000); // Strict limit for localStorage
+    // Before deepCopySession creation, process attachments on sessionToSave
+    // Ensure every attachment has an attachmentId immediately, and collect for persistence
+    const attachmentsToSave: Partial<UploadedAttachment>[] = [];
+    sessionToSave.messages.forEach(msg => {
+      if (msg.attachedFiles) {
+        msg.attachedFiles.forEach(file => {
+          if ((file.dataUri || file.textContent) && !file.attachmentId) {
+            file.attachmentId = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
+          }
+          if (file.attachmentId && (file.dataUri || file.textContent)) {
+            attachmentsToSave.push({ ...file });
+          }
+        });
+      }
+    });
+
+    // Deep copy for storage manipulation (preserves UI copy intact)
+    const deepCopySession: ChatSession = JSON.parse(JSON.stringify(sessionToSave));
+
+    if (attachmentsToSave.length) {
+      await saveUploadedAttachments(effectiveUserId, attachmentsToSave);
+      // Strip heavy fields from deep copy only
+      deepCopySession.messages.forEach(msg => {
+        msg.attachedFiles?.forEach(file => {
+          delete file.dataUri;
+          delete file.textContent;
+        });
+      });
+    }
+
+    // Continue using deepCopySession for storage variants
+    const sessionForIndexedDB = limitSessionSize(deepCopySession, 5_000_000);
+    const sessionForLocalStorage = limitSessionSize(createLeanSession(deepCopySession), 140_000);
 
     const idbValue = JSON.stringify(sessionForIndexedDB);
     const localValueJson = JSON.stringify(sessionForLocalStorage);
@@ -1912,35 +1942,6 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
 
     if (!savedSuccessfully && !savedInLocalStorage && !savedInIndexedDB) {
       storageLogger.error(`[STORAGE:ERROR] saveSession: Failed to save session ${sessionToSave.id}. Skipped due to size/quota.`);
-    }
-    
-    // Before persisting attachments, deep copy the session to avoid mutating original state
-    const deepCopySession: ChatSession = JSON.parse(JSON.stringify(sessionToSave));
-    // Then use deepCopySession for attachmentsToSave and stripping
-    const attachmentsToSave: Partial<UploadedAttachment>[] = [];
-    deepCopySession.messages.forEach(msg => {
-      if (msg.attachedFiles) {
-        msg.attachedFiles.forEach(file => {
-          if ((file.dataUri || file.textContent) && !file.attachmentId) {
-            file.attachmentId = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-            attachmentsToSave.push({ ...file });
-          }
-        });
-      }
-    });
-    if (attachmentsToSave.length) {
-      await saveUploadedAttachments(effectiveUserId, attachmentsToSave);
-      // Strip from deepCopySession
-      deepCopySession.messages.forEach(msg => {
-        if (msg.attachedFiles) {
-          msg.attachedFiles.forEach(file => {
-            if (file.attachmentId) {
-              delete file.dataUri;
-              delete file.textContent;
-            }
-          });
-        }
-      });
     }
     
     return sessionToSave;

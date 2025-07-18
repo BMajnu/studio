@@ -1191,6 +1191,14 @@ export default function ChatPage() {
                                       ? attachedFilesDataParam
                                       : [...currentAttachedFilesData];
 
+    if (filesToSendWithThisMessage.length) {
+      filesToSendWithThisMessage.forEach(f => {
+        if (!f.attachmentId) {
+          f.attachmentId = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
+        }
+      });
+    }
+
     if (currentActionType === 'checkMadeDesigns') {
         const hasImage = filesToSendWithThisMessage.some(f => f.type?.startsWith('image/') && f.dataUri);
         if(!hasImage) {
@@ -2035,7 +2043,7 @@ export default function ChatPage() {
 
       // Default behaviour for other action types
       handleSendMessage(
-        content,
+        content, 
         'processMessage',
         undefined,
         attachments,
