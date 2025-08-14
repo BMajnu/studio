@@ -5,9 +5,11 @@ import { useUserProfile } from '@/lib/hooks/use-user-profile';
 import { cleanupExpiredGeneratedImages } from '@/lib/storage/generated-images-local';
 
 /**
- * GeneratedImagesCleaner – invisible component that removes expired
- * generated-image records (older than 1 h) from localStorage every time
- * the app mounts and whenever the user ID changes.
+ * GeneratedImagesCleaner – invisible component that rewrites session-based
+ * generated-image records in sessionStorage when the app mounts or the user ID
+ * changes. Images in sessionStorage persist only for the current tab/session
+ * (i.e., until the browser/tab is closed); TTL trimming is handled by Firestore
+ * for cloud copies (24h) – not enforced locally.
  */
 export default function GeneratedImagesCleaner() {
   const { profile } = useUserProfile();

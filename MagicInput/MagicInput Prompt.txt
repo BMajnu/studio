@@ -2737,3 +2737,86 @@ I added the files menually. read the file to check if it is works.
 Prompt:
 I added the files menually. read the file to check if it is works.
 
+Prompt:
+continue
+
+Prompt:
+Run the app now.
+
+Prompt:
+fix it properly
+
+
+Prompt:
+if completed to fix it give me summary what completed.
+
+Prompt:
+fix them
+
+
+Prompt:
+Error: ./src/app/page.tsx:3301:1
+Parsing ecmascript source code failed
+[0m [90m 3299 |[39m }[0m
+[0m [90m 3300 |[39m[0m
+[0m[31m[1m>[22m[39m[90m 3301 |[39m[0m
+[0m [90m      |[39m [31m[1m^[22m[39m[0m
+
+Unexpected eof
+    at BuildError (http://localhost:9003/_next/static/chunks/%5Broot%20of%20the%20server%5D__3a40d6d2._.js:17247:41)
+    at renderWithHooks (http://localhost:9003/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_ab7e073c.js:13260:28)
+    at updateFunctionComponent (http://localhost:9003/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_ab7e073c.js:16760:40)
+    at beginWork (http://localhost:9003/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_ab7e073c.js:18388:32)
+    at beginWork$1 (http://localhost:9003/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_ab7e073c.js:23101:28)
+    at performUnitOfWork (http://localhost:9003/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_ab7e073c.js:22402:24)
+    at workLoopSync (http://localhost:9003/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_ab7e073c.js:22331:17)
+    at renderRootSync (http://localhost:9003/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_ab7e073c.js:22308:21)
+    at performConcurrentWorkOnRoot (http://localhost:9003/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_ab7e073c.js:21732:84)
+    at workLoop (http://localhost:9003/_next/static/chunks/node_modules_69e050bc._.js:267:48)
+    at flushWork (http://localhost:9003/_next/static/chunks/node_modules_69e050bc._.js:246:28)
+    at MessagePort.performWorkUntilDeadline (http://localhost:9003/_next/static/chunks/node_modules_69e050bc._.js:474:35)
+
+[{
+	"resource": "/e:/Developing Projects/DesAInR/studio/src/app/page.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "')' expected.",
+	"source": "ts",
+	"startLineNumber": 3300,
+	"startColumn": 3,
+	"endLineNumber": 3300,
+	"endColumn": 3
+}]
+
+
+Prompt:
+continue to fix it
+
+Prompt:
+fix the errors:
+
+Error: ./src/app/page.tsx:3301:1
+Parsing ecmascript source code failed
+[0m [90m 3299 |[39m }[0m
+[0m [90m 3300 |[39m[0m
+[0m[31m[1m>[22m[39m[90m 3301 |[39m[0m
+[0m [90m      |[39m [31m[1m^[22m[39m[0m
+
+Unexpected eof
+    at BuildError (http://localhost:9003/_next/static/chunks/%5Broot%20of%20the%20server%5D__3a40d6d2._.js:17247:41)
+    at renderWithHooks (http://localhost:9003/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_ab7e073c.js:13260:28)
+    at updateFunctionComponent (http://localhost:9003/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_ab7e073c.js:16760:40)
+    at beginWork (http://localhost:9003/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_ab7e073c.js:18388:32)
+    at beginWork$1 (http://localhost:9003/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_ab7e073c.js:23101:28)
+    at performUnitOfWork (http://localhost:9003/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_ab7e073c.js:22402:24)
+    at workLoopSync (http://localhost:9003/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_ab7e073c.js:22331:17)
+    at renderRootSync (http://localhost:9003/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_ab7e073c.js:22308:21)
+    at performConcurrentWorkOnRoot (http://localhost:9003/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_ab7e073c.js:21732:84)
+    at workLoop (http://localhost:9003/_next/static/chunks/node_modules_69e050bc._.js:267:48)
+    at flushWork (http://localhost:9003/_next/static/chunks/node_modules_69e050bc._.js:246:28)
+    at MessagePort.performWorkUntilDeadline (http://localhost:9003/_next/static/chunks/node_modules_69e050bc._.js:474:35)
+
+Prompt:
+wait 5 minute
+

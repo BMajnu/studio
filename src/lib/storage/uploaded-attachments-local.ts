@@ -37,10 +37,13 @@ export async function saveUploadedAttachments(userId: string | undefined, attach
   try {
     const now = Date.now();
     const prepared = attachments.map(att => {
-      const id = att.id || globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
+      // Prefer using attachmentId as the persisted id so hydration can map correctly on reload
+      const id = att.id || att.attachmentId || globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
       return {
         ...att,
         id,
+        // Ensure attachmentId is present and matches the persisted id when missing
+        attachmentId: att.attachmentId || id,
         createdAt: att.createdAt || now,
         key: `${resolveUserId(userId)}_${id}`,
         userId: resolveUserId(userId),

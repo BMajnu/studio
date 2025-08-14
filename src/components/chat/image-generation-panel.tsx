@@ -12,6 +12,10 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useUserProfile } from '@/lib/hooks/use-user-profile';
 import { ImagePreviewDialog } from '@/components/ui/image-preview-dialog';
+import { useAuth } from '@/contexts/auth-context';
+import { ensureAppFolderCached, uploadImagesBatch, type BatchUploadItem, type BatchUploadResult } from '@/lib/integrations/google-drive';
+import { GeneratedImageStorage } from '@/lib/firebase/generatedImageStorage';
+
 import {
   Tooltip,
   TooltipContent,
@@ -27,7 +31,8 @@ interface ImageGenerationPanelProps {
 export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelProps) {
   const { toast } = useToast();
   const { profile } = useUserProfile();
-  
+  const { googleAccessToken } = useAuth();
+
   // Settings state
   const [numImages, setNumImages] = useState(4);
   const aspectRatio = '1:1';
@@ -103,6 +108,80 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
 
       // `saveGeneratedImagesLocal` already dispatches the `generated-images-updated`
       // event, so no further action is required here.
+
+      // Always save to Firebase (24h TTL), and concurrently upload to Google Drive if available
+      try {
+        const tasks: Promise<any>[] = [];
+        if (profile?.userId) {
+          tasks.push(GeneratedImageStorage.saveImages(profile.userId, imagesWithIds, prompt));
+        }
+
+        if (googleAccessToken) {
+          const folderId = await ensureAppFolderCached(googleAccessToken, 'DesAInR');
+          const now = Date.now();
+          const batch: BatchUploadItem[] = imagesWithIds.map((img, index) => ({
+            dataUri: img.dataUri,
+            filename: getImageFilename(index),
+            description: `Prompt: ${img.prompt || prompt} | CreatedAt: ${new Date(img.createdAt || now).toISOString()}`,
+            appProperties: {
+              imageId: img.id || '',
+              userId: profile!.userId,
+              createdAt: String(img.createdAt || now),
+              prompt: img.prompt || prompt,
+            },
+          }));
+          const drivePromise = (async () => {
+            const results: BatchUploadResult[] = await uploadImagesBatch(googleAccessToken, batch, folderId, 4);
+            // Upsert Drive metadata onto Firestore docs for easy linking later
+            if (profile?.userId) {
+              const upserts = results.map((r) => {
+                const imageId = (r.item.appProperties?.imageId as string) || '';
+                if (!imageId) return Promise.resolve();
+                return GeneratedImageStorage.upsertDriveMeta(profile!.userId, imageId, {
+                  fileId: r.meta.id,
+                  webViewLink: (r.meta as any).webViewLink,
+                  webContentLink: (r.meta as any).webContentLink,
+                });
+              });
+              await Promise.allSettled(upserts);
+            }
+            // Optional debug
+            try {
+              if (typeof window !== 'undefined' && localStorage.getItem('debugImages') === '1') {
+                console.debug('[Images][Drive] upload complete', { success: results.length, total: batch.length });
+              }
+            } catch {}
+            return { success: results.length, total: batch.length };
+          })();
+          tasks.push(drivePromise);
+        }
+
+        const settled = await Promise.allSettled(tasks);
+        let driveResult: { success: number; total: number } | undefined;
+        for (const s of settled) {
+          if (s.status === 'fulfilled' && s.value && typeof s.value === 'object' && 'success' in (s.value as any) && 'total' in (s.value as any)) {
+            driveResult = s.value as any;
+            break;
+          }
+        }
+        if (driveResult) {
+          toast({ title: 'Saved to Google Drive', description: `Uploaded ${driveResult.success} images to your Drive.` });
+          const failed = driveResult.total - driveResult.success;
+          if (failed > 0) {
+            toast({ title: 'Some uploads failed', description: `${failed} of ${driveResult.total} images failed to upload to Drive.`, variant: 'destructive' });
+          }
+        }
+        if (profile?.userId) {
+          toast({ title: 'Saved to Cloud (24h)', description: 'Images saved to Firebase for 24 hours.' });
+        }
+      } catch (persistError) {
+        console.error('Persistence error (Drive/Firebase):', persistError);
+        toast({
+          title: 'Save Failed',
+          description: 'Could not save to Drive or Firebase. Images are still available this session.',
+          variant: 'destructive',
+        });
+      }
       
       toast({
         title: "Images Generated",

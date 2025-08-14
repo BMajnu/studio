@@ -109,8 +109,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
-      // Remove Drive scope - no longer needed
-      // provider.addScope('https://www.googleapis.com/auth/drive.appdata');
+      // Request Drive scope for creating files in the user's Drive
+      provider.addScope('https://www.googleapis.com/auth/drive.file');
       // Optionally, prompt for account selection every time
       // provider.setCustomParameters({ prompt: 'select_account' });
 

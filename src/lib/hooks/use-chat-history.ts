@@ -2565,25 +2565,42 @@ const updateSessionMetadataOnReload = (sessionId: string, session: ChatSession) 
 
   // Add hydrate function before getSession
   async function hydrateSessionAttachments(session: ChatSession, userId: string) {
-    const attachmentIds = new Set<string>();
+    const attachmentKeys = new Set<string>();
     session.messages.forEach(msg => {
       msg.attachedFiles?.forEach(file => {
-        if (file.attachmentId && !file.dataUri && !file.textContent) {
-          attachmentIds.add(file.attachmentId);
+        if (!file.dataUri && !file.textContent) {
+          if (file.attachmentId) attachmentKeys.add(file.attachmentId);
+          // Fallback for legacy records that used only `id` on the file
+          const fileId = (file as any).id as string | undefined;
+          if (fileId) attachmentKeys.add(fileId);
         }
       });
     });
-    if (attachmentIds.size === 0) return;
+    if (attachmentKeys.size === 0) return;
     const indexed = await loadAttachmentsIndexedDB(userId);
     const local = loadUploadedAttachments(userId);
     const all = [...indexed, ...local.filter(l => !indexed.some(i => i.id === l.id))];
-    const attMap = new Map(all.map(a => [a.id, a]));
+    // Map by both id and attachmentId to support older records saved with mismatched ids
+    const attMap = new Map<string, typeof all[number]>();
+    all.forEach(a => {
+      if (a.id) attMap.set(a.id, a);
+      // a may carry attachmentId from original file object
+      // @ts-ignore - allow presence even if not in interface at compile time
+      const attId = (a as any).attachmentId as string | undefined;
+      if (attId) attMap.set(attId, a);
+    });
     session.messages.forEach(msg => {
       msg.attachedFiles?.forEach(file => {
-        if (file.attachmentId && attMap.has(file.attachmentId)) {
-          const att = attMap.get(file.attachmentId)!;
+        const key = file.attachmentId || ((file as any).id as string | undefined);
+        if (key && attMap.has(key)) {
+          const att = attMap.get(key)!;
           file.dataUri = att.dataUri;
           file.textContent = att.textContent;
+          // Backfill attachmentId for future persistence if it was missing
+          if (!file.attachmentId) {
+            // @ts-ignore
+            file.attachmentId = key;
+          }
         }
       });
     });

@@ -153,7 +153,11 @@ export interface GeneratedImage {
   alt: string;
   prompt?: string; // The prompt used to generate this image
   createdAt?: number; // Unix ms timestamp when generated
-  expiresAt?: number; // Unix ms timestamp when image should expire (createdAt + 1h)
+  expiresAt?: number; // Unix ms timestamp when image should expire (createdAt + 24h)
+  // Cloud metadata (optional)
+  driveFileId?: string;
+  driveWebViewLink?: string;
+  driveWebContentLink?: string;
 }
 
 export interface EditHistoryEntry {

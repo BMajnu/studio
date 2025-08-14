@@ -1,6 +1,5 @@
-// Helper functions to persist generated images indefinitely in localStorage
+// Helper functions to persist generated images for the current browser session (sessionStorage)
 import { GeneratedImage } from '@/lib/types';
-import { saveImagesIndexedDB } from './generated-images-indexeddb';
 import { DEFAULT_USER_ID } from '@/lib/constants';
 
 const STORAGE_KEY_PREFIX = 'desainr_generated_images_';
@@ -13,10 +12,9 @@ function resolveUserId(userId?: string): string {
   return userId || DEFAULT_USER_ID;
 }
 
-// No expiration window – images are stored indefinitely
-// The exact localStorage quota varies by browser (often ~5-10 MB). We'll
-// optimistically aim for ~9 MB and then rely on the try/catch below to trim
-// older images if the browser still throws a QuotaExceededError.
+// Images are kept only for the lifetime of the browser tab/session.
+// sessionStorage quotas are typically similar to localStorage (~5-10 MB),
+// so we may still need to trim on quota errors.
 const MAX_BYTES = 9 * 1024 * 1024; // 9 MB pragmatic upper-bound
 
 function getKey(userId?: string) {
@@ -26,16 +24,16 @@ function getKey(userId?: string) {
 function approxBytes(str:string){return str.length*2;} // UTF-16
 
 /**
- * Load all generated images stored in localStorage (no expiration).
+ * Load all generated images stored in sessionStorage (cleared on browser close).
  */
 export function loadRecentGeneratedImages(userId?: string): GeneratedImage[] {
   try {
-    const raw = localStorage.getItem(getKey(userId));
+    const raw = sessionStorage.getItem(getKey(userId));
     if (!raw) return [];
     const arr: GeneratedImage[] = JSON.parse(raw);
     return arr;
   } catch (e) {
-    console.error('Failed to load generated images from localStorage', e);
+    console.error('Failed to load generated images from sessionStorage', e);
     return [];
   }
 }
@@ -56,16 +54,11 @@ export async function saveGeneratedImagesLocal(userId: string | undefined, image
     }));
     
     const safeUserId = resolveUserId(userId);
-    
-    // Persist to IndexedDB as the primary, larger-capacity store
-    await saveImagesIndexedDB(safeUserId, preparedImages).catch((e) => {
-      console.error('IndexedDB image save failed', e);
-    });
 
-    // Load existing images
+    // Load existing images from sessionStorage for this session
     let existingImages: GeneratedImage[] = [];
     try {
-      const raw = localStorage.getItem(getKey(safeUserId));
+      const raw = sessionStorage.getItem(getKey(safeUserId));
       if (raw) {
         existingImages = JSON.parse(raw);
       }
@@ -97,7 +90,7 @@ export async function saveGeneratedImagesLocal(userId: string | undefined, image
     
     // Attempt to save all images first
     try {
-      localStorage.setItem(getKey(safeUserId), JSON.stringify(allImages));
+      sessionStorage.setItem(getKey(safeUserId), JSON.stringify(allImages));
       
       // Notify listeners
       if (typeof window !== 'undefined') {
@@ -113,7 +106,7 @@ export async function saveGeneratedImagesLocal(userId: string | undefined, image
     let trimmedImages = [...allImages];
     while (trimmedImages.length > 0) {
       try {
-        localStorage.setItem(getKey(safeUserId), JSON.stringify(trimmedImages));
+        sessionStorage.setItem(getKey(safeUserId), JSON.stringify(trimmedImages));
         
         // Successfully saved, notify listeners
         if (typeof window !== 'undefined') {
@@ -126,33 +119,33 @@ export async function saveGeneratedImagesLocal(userId: string | undefined, image
       }
     }
     
-    console.error('Could not save any images, even after trimming');
+    console.error('Could not save any images to sessionStorage, even after trimming');
   } catch (e) {
-    console.error('Failed to save generated images to localStorage', e);
+    console.error('Failed to save generated images to sessionStorage', e);
   }
 }
 
 /**
- * Remove expired images from localStorage now.
+ * Rewrite images in sessionStorage (utility for consistency).
  */
 export function cleanupExpiredGeneratedImages(userId?: string) {
   try {
     const recent = loadRecentGeneratedImages(userId);
-    localStorage.setItem(getKey(userId), JSON.stringify(recent));
+    sessionStorage.setItem(getKey(userId), JSON.stringify(recent));
   } catch (e) {
-    console.error('Failed cleaning up generated images localStorage', e);
+    console.error('Failed writing generated images sessionStorage', e);
   }
 }
 
 /**
- * Try committing the array to localStorage. If we hit quota, pop the oldest
+ * Try committing the array to sessionStorage. If we hit quota, pop the oldest
  * image(s) and retry until it succeeds or the list is empty.
  */
 function persistSafely(key: string, images: GeneratedImage[]) {
   let pruned = [...images];
   while (pruned.length) {
     try {
-      localStorage.setItem(key, JSON.stringify(pruned));
+      sessionStorage.setItem(key, JSON.stringify(pruned));
       return; // success
     } catch (e: any) {
       // Remove the oldest (last) image and retry
@@ -160,4 +153,4 @@ function persistSafely(key: string, images: GeneratedImage[]) {
     }
   }
   // If we get here, even an empty array couldn't be stored – give up silently.
-} 
+}

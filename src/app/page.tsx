@@ -1900,29 +1900,13 @@ export default function ChatPage() {
             // and then use that latest state for saving.
             setMessages(currentMessagesFromState => {
               const messagesForSave = ensureMessagesHaveUniqueIds(currentMessagesFromState);
-              // Create a lighter copy of messages, removing large inline data
-              const slimMessages = messagesForSave.map(msg => {
-                // Strip dataUri & large inline text from attachments
-                const slimAttachments = msg.attachedFiles?.map(att => {
-                  const { dataUri, textContent, ...rest } = att;
-                  return { ...rest }; // keep name/type/size only
-                });
 
-                // Also slim editHistory if present
-                const slimEditHistory = msg.editHistory?.map(eh => {
-                  const ehSlimAttachments = eh.attachedFiles?.map(att => {
-                    const { dataUri, textContent, ...rest } = att;
-                    return { ...rest };
-                  });
-                  return { ...eh, attachedFiles: ehSlimAttachments } as EditHistoryEntry;
-                });
-
-                return { ...msg, attachedFiles: slimAttachments, editHistory: slimEditHistory } as ChatMessage;
-              });
-
+              // IMPORTANT: Pass full in-memory messages to saveSession so it can
+              // persist attachment data (dataUri/textContent) to attachment stores
+              // before trimming for storage internally.
               const sessionForSave: ChatSession = {
                 ...currentSession,
-                messages: slimMessages,
+                messages: messagesForSave,
                 updatedAt: Date.now(),
                 userId: userIdForHistory,
               };
@@ -1944,18 +1928,12 @@ export default function ChatPage() {
                       });
                   }
               });
-              return slimMessages; // Return the state for setMessages
+              return messagesForSave; // Keep full in-memory state
             });
         }
-    }, 0);
-  }, [
-    addMessage, updateMessageById, profile, currentSession,
-    currentAttachedFilesData, saveSession, ensureMessagesHaveUniqueIds,
-    userIdForHistory, profileLoading, toast,
-    lastSelectedActionButton, messagesRef, // Added messagesRef here
-    // Remove syncWithDrive, authUser, googleAccessToken from dependencies
-  ]);
 
+        }, 0);
+    }, [profileLoading, profile, currentSession, lastSelectedActionButton, currentModelId, isCustomMessage, currentAttachedFilesData, toast, addMessage, updateMessageById, ensureMessagesHaveUniqueIds, saveSession, userIdForHistory, setIsLoading, setInputMessage, setSelectedFiles, setCurrentAttachedFilesData, setActiveActionButton]);
 
   useEffect(() => {
     if (!pendingAiRequestAfterEdit || !isMounted.current) return;
@@ -1975,9 +1953,9 @@ export default function ChatPage() {
           if (descMatch) description = descMatch[1];
         } catch (_) { /* ignore */ }
 
-        try {
-          let placeholderAssistantId: string | null = null; // declare once here
+        let placeholderAssistantId: string | null = null; // declare once here
 
+        try {
           // Create placeholder assistant message with loading state
           placeholderAssistantId = addMessage(
             'assistant',
