@@ -13,6 +13,7 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
+    "composite": true,
     "plugins": [
       {
         "name": "next"
@@ -22,7 +23,10 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-    "types": ["node"]
+    "typeRoots": [
+      "./node_modules/@types"
+    ],
+    "types": ["node", "react", "react-dom"]
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": [

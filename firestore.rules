@@ -23,7 +23,7 @@ service cloud.firestore {
         allow read, write, delete: if (request.auth != null && request.auth.uid == userId) || userId == "default-user";
       }
 
-      // Generated images retained for 1 hour
+      // Generated images retained for 24 hours (TTL enforced via Firestore TTL on `expiresAt`)
       match /generated_images/{imageId} {
         allow read, write, delete: if (request.auth != null && request.auth.uid == userId) || userId == "default-user";
       }
@@ -36,4 +36,4 @@ service cloud.firestore {
     
     // Shared data or public resources can be added here
   }
-} 
+}

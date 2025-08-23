@@ -37,8 +37,14 @@ export function getActionTypeLabel(actionType: ActionType | undefined): string {
       return 'Microstock';
     case 'search':
       return 'Search';
+    case 'chat':
+      return 'AI Chat';
     case 'custom':
-      return 'Custom';
+      return 'AI Chat';
+    case 'videoTools':
+      return 'Video Tools';
+    case 'videoToolsGenerate':
+      return 'Video Prompt';
     default:
       return 'Chat';
   }

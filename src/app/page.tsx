@@ -26,6 +26,8 @@ import { generateEditingPrompts, type GenerateEditingPromptsInput, type Generate
 import { checkBestDesign, type CheckBestDesignInput, type CheckBestDesignOutput } from '@/ai/flows/check-best-design-flow';
 import { promptToReplicate } from '@/ai/flows/prompt-to-replicate-flow';
 import { type PromptToReplicateInput, type PromptToReplicateOutput } from '@/ai/flows/prompt-to-replicate-types';
+import { generateChatResponse, type GenerateChatResponseInput, type GenerateChatResponseOutput } from '@/ai/flows/generate-chat-response-flow';
+import { generateVideoPrompts, type GenerateVideoPromptsInput, type GenerateVideoPromptsOutput } from '@/ai/flows/generate-video-prompts-flow';
 
 // Add import for DesAInRLogo
 import { DesAInRLogo } from '@/components/icons/logo';
@@ -40,7 +42,6 @@ import { useAuth } from '@/contexts/auth-context';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { LoginForm } from '@/components/auth/login-form';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { firebaseAppInstance } from '@/lib/firebase/clientApp'; // Import Firebase app instance
 import { FullscreenSearch } from '@/components/chat/fullscreen-search';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 // Add import for PromptToReplicate component
@@ -61,6 +62,10 @@ import type { PromptWithCustomSenseOutput } from '@/ai/flows/prompt-with-custom-
 import { motion, AnimatePresence } from 'framer-motion';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { VideoToolsModal, type VideoGenerationParams } from '@/components/chat/video-tools-modal';
+import { VideoPromptModal, type VideoPromptGenerationParams } from '@/components/video-tools/VideoPromptModal';
+import { VideoToolsSelector } from '@/components/video-tools/VideoToolsSelector';
+import { VideoToolType } from '@/lib/video/types';
 
 // Insert after state declarations, before readFileAsDataURL
 const debugLogAiRequest = (action: ActionType, message: string, attachments: AttachedFile[]) => {
@@ -114,6 +119,15 @@ const getMessageText = (content: string | ChatMessageContentPart[] | undefined):
           tgContent += `Bengali Translation:\n${bengaliCombined.trim()}\n`;
         }
         fullText += tgContent;
+        break;
+      case 'bilingual_text_split':
+        fullText += titlePrefix;
+        if (part.english) {
+          fullText += `English:\n${part.english}\n\n`;
+        }
+        if (part.bengali) {
+          fullText += `Bengali:\n${part.bengali}\n`;
+        }
         break;
       case 'bilingual_analysis': {
         const ba = part as any;
@@ -223,6 +237,19 @@ const generateRobustMessageId = (): string => {
   return `msg-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 };
 
+// Normalize any AI-to-user question phrasing into user-to-AI imperative requests
+const normalizeSuggestion = (s: string): string => {
+  if (!s) return s;
+  let out = s.trim();
+  // Remove leading polite/question forms
+  out = out.replace(/^\s*(could you|can you|would you|would you please|could u|can u)\s*/i, '');
+  // Remove trailing question marks/spaces
+  out = out.replace(/[?\s]+$/g, '').trim();
+  // Capitalize first letter
+  out = out.charAt(0).toUpperCase() + out.slice(1);
+  return out;
+};
+
 const baseEnsureMessagesHaveUniqueIds = (messagesToProcess: ChatMessage[]): ChatMessage[] => {
   if (!Array.isArray(messagesToProcess) || messagesToProcess.length === 0) {
     return [];
@@ -259,6 +286,8 @@ export default function ChatPage() {
   const [isProcessingReplicatePrompts, setIsProcessingReplicatePrompts] = useState(false);
   // Add state for collapsible header and footer
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
+  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
+  const [voiceTranscription, setVoiceTranscription] = useState<string>('');
   const [isFooterCollapsed, setIsFooterCollapsed] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -307,12 +336,20 @@ export default function ChatPage() {
   const [customInstructionText, setCustomInstructionText] = useState('');
   const [customInstructionFiles, setCustomInstructionFiles] = useState<AttachedFile[]>([]);
   const customInstructionFileInputRef = useRef<HTMLInputElement>(null);
+  
+  // State for Video Tools
+  const [isVideoToolsSelectorOpen, setIsVideoToolsSelectorOpen] = useState(false);
+  const [isVideoToolsModalOpen, setIsVideoToolsModalOpen] = useState(false);
+  const [selectedVideoTool, setSelectedVideoTool] = useState<VideoToolType | null>(null);
 
   // Add state for custom sense prefill
   const [customSensePrefill, setCustomSensePrefill] = useState<CustomSensePrefill | null>(null);
 
   // New state for collapsed history panel
   const [isHistoryPanelCollapsed, setIsHistoryPanelCollapsed] = useState(false);
+  
+  // State for AI model selector modal
+  const [showAIModelDropdown, setShowAIModelDropdown] = useState(false);
 
   const [currentModelId, setCurrentModelId] = useState(DEFAULT_MODEL_ID);
   useEffect(() => {
@@ -637,11 +674,20 @@ export default function ChatPage() {
         if (newSession.id && newSession.id.startsWith(userIdForHistory + '_')) {
           try {
             localStorage.setItem(lastActiveSessionIdKey, newSession.id);
-            // console.log(`ChatPage: loadOrCreateSession - Set ${newSession.id} as last active session for user ${userIdForHistory}`);
+            // console.log(`handleNewChat: Set ${newSession.id} as last active session for user ${userIdForHistory}`);
             
-            // Save the empty session to ensure it appears in history
-            await saveSession(newSession, true);
-            // console.log(`ChatPage: loadOrCreateSession - Saved new empty session ${newSession.id} to history`);
+            // Explicitly save the new empty session to ensure it appears in history
+            // console.log('Explicitly saving new empty session to history:', newSession.id);
+            
+            // Make sure to save with name generation enabled (true) to ensure it shows up in history properly
+            const savedSession = await saveSession(newSession, true);
+            // console.log('New empty session saved successfully to history:', savedSession.id);
+            
+            // Force refresh history UI immediately
+            const historyEvent = new CustomEvent('history-updated', {
+              detail: { sessionId: savedSession.id, force: true, source: 'new_chat' }
+            });
+            window.dispatchEvent(historyEvent);
           } catch (error) {
             console.error(`ChatPage: loadOrCreateSession - Error in session creation/saving process:`, error);
           }
@@ -1160,6 +1206,11 @@ export default function ChatPage() {
     };
     
     const currentActionType = determineActionType();
+    // For processing, treat 'chat' (and legacy 'custom') as the normal chat flow 'processMessage',
+    // but keep the original action type for message metadata and UI rendering.
+    const actionForFlow: ActionType = (currentActionType === 'chat' || currentActionType === 'custom')
+      ? 'processMessage'
+      : currentActionType;
     
     // Update active button for UI highlighting (only for direct user actions)
     if (!isUserMessageEdit && !isRegenerationCall) {
@@ -1199,7 +1250,7 @@ export default function ChatPage() {
       });
     }
 
-    if (currentActionType === 'checkMadeDesigns') {
+    if (actionForFlow === 'checkMadeDesigns') {
         const hasImage = filesToSendWithThisMessage.some(f => f.type?.startsWith('image/') && f.dataUri);
         if(!hasImage) {
             toast({ title: "No Design Attached", description: `Please attach a design image to use the 'Check Designs' feature.`, variant: "destructive" });
@@ -1287,96 +1338,57 @@ export default function ChatPage() {
             }))
             .filter(msg => msg.text.trim() !== '' && (msg.role === 'user' || msg.role === 'assistant'));
 
-          // Handle custom message flow if isCustom flag is true
-          if (isCustom) {
-            // Extract the original client message and custom instruction
-            // The userMessageContent is the custom instruction from the designer
-            // We need to find the client's original message that this instruction is for
-            
-            // If we have history, use the last client message as context
-            const lastClientMessageInHistory = chatHistoryForAI.filter(msg => msg.role === 'user').pop();
-            const clientMessageForContext = lastClientMessageInHistory?.text || userMessageContent;
-            
-            console.log(`Using model ID for custom instruction: ${modelIdToUse}`);
-            console.log(`Using API key (exists): ${!!apiKeyToUseThisTurn}`);
-            
-            // Custom instruction is whatever the designer entered
-            const customInstructionInput: ProcessCustomInstructionInput = {
-              ...baseInput,
-              clientMessage: clientMessageForContext,
-              customInstruction: userMessageContent,
-              attachedFiles: filesForFlow, 
-              chatHistory: chatHistoryForAI,
-              userName: userProfile.name,
-              communicationStyleNotes: userProfile.communicationStyleNotes || '',
-              userApiKey: apiKeyToUseThisTurn,
-              modelId: modelIdToUse,
-              useAlternativeImpl: userProfile.useAlternativeAiImpl || false,
-              useFirebaseAI: userProfile.useFirebaseAI || false, // Pass useFirebaseAI
-              firebaseApp: firebaseAppInstance // Pass Firebase app instance
-            };
-            
-            // Call the custom instruction flow
-            const customOutput = await processCustomInstruction(customInstructionInput);
-            
-            // Format the output as a special custom response message
-            finalAiResponseContent = [
-              { 
-                type: 'custom',  
-                title: customOutput.title,
-                text: customOutput.response 
-              }
-            ];
-          }
-          else if (currentActionType === 'processMessage') {
+          // Handle processMessage action for graphic design chatbot
+          if (actionForFlow === 'processMessage') {
             try {
               const pmInput: ProcessClientMessageInput = {
-                ...baseInput, clientMessage: userMessageContent,
-                attachedFiles: filesForFlow, chatHistory: chatHistoryForAI
+                ...baseInput,
+                clientMessage: userMessageContent,
+                attachedFiles: filesForFlow,
+                chatHistory: chatHistoryForAI
               };
               const pmOutput = await processClientMessage(pmInput);
 
-              // Build a richer bilingual block so the UI tabs (Key Points, Analysis, etc.) have data
-              finalAiResponseContent.push({
-                type: 'translation_group',
-                title: 'Client Message Analyze',
-                english: {
-                  keyPoints: pmOutput.keyPointsEnglish || [],
-                  analysis: pmOutput.analysis,
-                  simplifiedRequest: pmOutput.simplifiedRequest,
-                  stepByStepApproach: pmOutput.stepByStepApproach,
-                  suggestions: pmOutput.suggestedEnglishReplies || []
-                },
-                bengali: {
-                  keyPoints: pmOutput.keyPointsBengali || [],
-                  analysis: pmOutput.bengaliTranslation,
-                  // We do not yet have separate Bengali simplified request / approach, leave undefined
-                  suggestions: pmOutput.suggestedBengaliReplies || []
-                }
-              });
+            // Build a richer bilingual block so the UI tabs (Key Points, Analysis, etc.) have data
+            finalAiResponseContent.push({
+              type: 'translation_group',
+              title: 'Client Message Analyze',
+              english: {
+                keyPoints: pmOutput.keyPointsEnglish || [],
+                analysis: pmOutput.analysis,
+                simplifiedRequest: pmOutput.simplifiedRequest,
+                stepByStepApproach: pmOutput.stepByStepApproach,
+                suggestions: pmOutput.suggestedEnglishReplies || []
+              },
+              bengali: {
+                keyPoints: pmOutput.keyPointsBengali || [],
+                analysis: pmOutput.bengaliTranslation,
+                // We do not yet have separate Bengali simplified request / approach, leave undefined
+                suggestions: pmOutput.suggestedBengaliReplies || []
+              }
+            });
 
-              // Keep standalone sections for easy copying if desired
-              finalAiResponseContent.push({ type: 'text', title: 'Analysis', text: pmOutput.analysis });
-              finalAiResponseContent.push({ type: 'text', title: 'Simplified Request', text: pmOutput.simplifiedRequest });
-              finalAiResponseContent.push({ type: 'text', title: 'Step-by-Step Approach', text: pmOutput.stepByStepApproach });
+            // Keep standalone sections for easy copying if desired
+            finalAiResponseContent.push({ type: 'text', title: 'Analysis', text: pmOutput.analysis });
+            finalAiResponseContent.push({ type: 'text', title: 'Simplified Request', text: pmOutput.simplifiedRequest });
+            finalAiResponseContent.push({ type: 'text', title: 'Step-by-Step Approach', text: pmOutput.stepByStepApproach });
 
-              const repliesSection: ChatMessageContentPart = {
-                type: 'suggested_replies',
-                title: 'Suggested Replies',
-                suggestions: {
-                  english: pmOutput.suggestedEnglishReplies || [],
-                  bengali: pmOutput.suggestedBengaliReplies || []
-                }
-              };
-              finalAiResponseContent.push(repliesSection);
-            }
-            catch (error) {
-              console.error("Error processing client message:", error);
-              aiCallError = error;
-            }
+            const repliesSection: ChatMessageContentPart = {
+              type: 'suggested_replies',
+              title: 'Suggested Replies',
+              suggestions: {
+                english: pmOutput.suggestedEnglishReplies || [],
+                bengali: pmOutput.suggestedBengaliReplies || []
+              }
+            };
+            finalAiResponseContent.push(repliesSection);
+          } catch (error) {
+            console.error("Error processing client message:", error);
+            aiCallError = error;
           }
-          // Handle promptToReplicate action directly in the chat interface
-          else if (currentActionType === 'promptToReplicate') {
+        }
+        // Handle promptToReplicate action directly in the chat interface
+        else if (currentActionType === 'promptToReplicate') {
             try {
               // Check if we have attached image files
               const hasImageFiles = filesForFlow.some(file => file.type?.startsWith('image/') && file.dataUri);
@@ -1418,9 +1430,9 @@ export default function ChatPage() {
                 title: 'Error Processing Images',
                 text: `There was an error generating prompts: ${error instanceof Error ? error.message : String(error)}. Please try again with different images.`
               }];
-              }
             }
-          else if (currentActionType === 'analyzeRequirements') {
+          }
+          else if (actionForFlow === 'analyzeRequirements') {
             try {
               const requirementsInput: AnalyzeClientRequirementsInput = {
                 ...baseInput,
@@ -1473,7 +1485,7 @@ export default function ChatPage() {
                 },
               ];
             }
-          } else if (currentActionType === 'generateEngagementPack') {
+          } else if (actionForFlow === 'generateEngagementPack') {
             const engagementInput: GenerateEngagementPackInput = {
               ...baseInput, clientMessage: userMessageContent, designerName: userProfile.name,
               designerRawStatement: userProfile.rawPersonalStatement || '',
@@ -1519,7 +1531,7 @@ export default function ChatPage() {
                 code: replyWithQuestionsContent 
               });
             }
-          } else if (currentActionType === 'generateDesignPrompts') {
+          } else if (actionForFlow === 'generateDesignPrompts') {
             // Use last design ideas from assistant as input for prompt generation if available
             let designIdeasText = userMessageContent;
             const lastDesignIdeasMsg = historyMessagesToConsider
@@ -1568,7 +1580,7 @@ export default function ChatPage() {
                 promptsData: promptsData,
               });
             }
-          } else if (currentActionType === 'checkMadeDesigns') {
+          } else if (actionForFlow === 'checkMadeDesigns') {
             const designFile = filesForFlow.find(f => f.type?.startsWith('image/') && f.dataUri);
             if (!designFile || !designFile.dataUri) {
               finalAiResponseContent = [{type: 'text', text: "Error: CheckMadeDesigns was called without a design image. Please attach an image."}];
@@ -1589,7 +1601,7 @@ export default function ChatPage() {
                 finalAiResponseContent.push({ type: 'text', title: 'অনুপস্থিত উপাদান', text: result.mistakeAnalysis.missingElements });
                 finalAiResponseContent.push({ type: 'text', title: 'অন্যান্য ভুল', text: result.mistakeAnalysis.otherMistakes });
             }
-          } else if (currentActionType === 'checkBestDesign') {
+          } else if (actionForFlow === 'checkBestDesign') {
             // Check if there are design images attached to analyze
             const designFiles = filesForFlow.filter(f => f.type?.startsWith('image/') && f.dataUri);
             
@@ -1794,7 +1806,7 @@ export default function ChatPage() {
                 }];
               }
             }
-          } else if (currentActionType === 'generateEditingPrompts') {
+          } else if (actionForFlow === 'generateEditingPrompts') {
             let designToEditDataUriForFlow: string | undefined = undefined;
             const currentDesignFile = filesToSendWithThisMessage.find(f => f.type?.startsWith('image/') && f.dataUri);
             if (currentDesignFile && currentDesignFile.dataUri) {
@@ -1822,6 +1834,131 @@ export default function ChatPage() {
                     });
                 }
             } else { finalAiResponseContent.push({ type: 'text', text: "No editing prompts were generated."}); }
+          }
+          else if (currentActionType === 'chat') {
+            // Handle AI Chat as a standard conversational reply (no analysis cards/tabs)
+            try {
+              const chatInput: GenerateChatResponseInput = {
+                userMessage: userMessageContent,
+                userName: userProfile.name,
+                attachedFiles: filesForFlow,
+                chatHistory: chatHistoryForAI,
+                modelId: modelIdToUse,
+                userApiKey: apiKeyToUseThisTurn,
+              };
+
+              const chatOutput: GenerateChatResponseOutput = await generateChatResponse(chatInput);
+
+              // Render as two-column bilingual split (EN left, BN right)
+              finalAiResponseContent.push({
+                type: 'bilingual_text_split',
+                english: chatOutput.responseEnglish,
+                bengali: chatOutput.responseBengali,
+              });
+
+              // Add suggestion buttons data (up to 5) for follow-up regeneration
+              if (Array.isArray((chatOutput as any).suggestedActions) && (chatOutput as any).suggestedActions.length > 0) {
+                // Use shared normalizeSuggestion helper defined at component scope
+
+                const suggestions: string[] = (chatOutput as any).suggestedActions
+                  .slice(0, 5)
+                  .map((s: string) => normalizeSuggestion(s))
+                  .filter((s: string) => !!s);
+
+                if (suggestions.length > 0) {
+                  finalAiResponseContent.push({
+                    type: 'suggested_replies',
+                    suggestions: { english: suggestions }
+                  });
+                }
+              }
+            } catch (error) {
+              console.error("Error in generateChatResponse flow:", error);
+              aiCallError = error;
+              
+              finalAiResponseContent = [{
+                type: 'text',
+                title: 'Error in Chat',
+                text: `There was an error generating the chat response: ${error instanceof Error ? error.message : String(error)}. Please try again.`
+              }];
+            }
+          }
+          // Removed switchModel handler since it's now handled by the dropdown
+          else if (currentActionType === 'videoTools') {
+            // Open Video Tools Selector to choose which tool to use
+            setIsVideoToolsSelectorOpen(true);
+            setIsLoading(false);
+            return;
+          }
+          else if (currentActionType === 'videoToolsGenerate') {
+            // Handle actual video generation from modal with params from the message
+            try {
+              // Parse video parameters from the message
+              const messageLines = userMessageContent.split('\n');
+              let videoDescription = userMessageContent;
+              let videoStyle = 'cinematic';
+              let contentCategory: GenerateVideoPromptsInput['contentCategory'] | undefined = undefined;
+              let duration = 15;
+              let aspectRatio = '16:9';
+              
+              // Extract parameters from structured message
+              messageLines.forEach(line => {
+                if (line.startsWith('Generate a video prompt for:')) {
+                  videoDescription = line.replace('Generate a video prompt for:', '').trim();
+                } else if (line.startsWith('Style:')) {
+                  videoStyle = line.replace('Style:', '').trim();
+                } else if (line.startsWith('Content Category:')) {
+                  const raw = line.replace('Content Category:', '').trim();
+                  contentCategory = raw as GenerateVideoPromptsInput['contentCategory'];
+                } else if (line.startsWith('Duration:')) {
+                  const durationMatch = line.match(/\d+/);
+                  if (durationMatch) duration = parseInt(durationMatch[0]);
+                } else if (line.startsWith('Aspect Ratio:')) {
+                  aspectRatio = line.replace('Aspect Ratio:', '').trim();
+                }
+              });
+              
+              const videoInput: GenerateVideoPromptsInput = {
+                userMessage: videoDescription,
+                videoStyle,
+                contentCategory,
+                duration,
+                aspectRatio,
+                attachedFiles: filesForFlow,
+                modelId: modelIdToUse,
+                userApiKey: apiKeyToUseThisTurn,
+              };
+              
+              const videoOutput: GenerateVideoPromptsOutput = await generateVideoPrompts(videoInput);
+              
+              // Add bilingual prompts without chat-style tabs
+              finalAiResponseContent.push({
+                type: 'bilingual_text_split',
+                title: '🎬 Video Prompt Generation',
+                english: videoOutput.normalPromptEnglish,
+                bengali: videoOutput.normalPromptBengali
+              });
+              
+              // Unified Video Prompt Tabs (Scenes, JSON, Veo3, Notes, Keywords)
+              finalAiResponseContent.push({
+                type: 'video_prompt_tabs',
+                title: '🎬 Video Prompt',
+                jsonPrompt: videoOutput.jsonPrompt,
+                veo3OptimizedPrompt: videoOutput.veo3OptimizedPrompt,
+                technicalNotes: videoOutput.technicalNotes,
+                sceneBreakdown: videoOutput.sceneBreakdown,
+                keywords: (videoOutput as any).keywords || videoOutput.suggestedKeywords,
+              });
+            } catch (error) {
+              console.error("Error in generateVideoPrompts flow:", error);
+              aiCallError = error;
+              
+              finalAiResponseContent = [{
+                type: 'text',
+                title: 'Error in Video Tools',
+                text: `There was an error generating video prompts: ${error instanceof Error ? error.message : String(error)}. Please try again.`
+              }];
+            }
           }
            else if (currentActionType === 'generateDeliveryTemplates' || currentActionType === 'generateRevision') {
             const platformInput: GeneratePlatformMessagesInput = {
@@ -1895,7 +2032,7 @@ export default function ChatPage() {
 
         if (isMounted.current) setIsLoading(false);
 
-        if (currentSession && userIdForHistory && isMounted.current && !aiCallError && currentActionType !== 'checkBestDesign') { // Only save if no AI error
+        if (currentSession && userIdForHistory && isMounted.current && !aiCallError && actionForFlow !== 'checkBestDesign') { // Only save if no AI error
             // Use a functional update with setMessages to get the latest state
             // and then use that latest state for saving.
             setMessages(currentMessagesFromState => {
@@ -1931,9 +2068,8 @@ export default function ChatPage() {
               return messagesForSave; // Keep full in-memory state
             });
         }
-
-        }, 0);
-    }, [profileLoading, profile, currentSession, lastSelectedActionButton, currentModelId, isCustomMessage, currentAttachedFilesData, toast, addMessage, updateMessageById, ensureMessagesHaveUniqueIds, saveSession, userIdForHistory, setIsLoading, setInputMessage, setSelectedFiles, setCurrentAttachedFilesData, setActiveActionButton]);
+    }, 0);
+  }, [profileLoading, profile, currentSession, lastSelectedActionButton, currentModelId, isCustomMessage, currentAttachedFilesData, toast, addMessage, updateMessageById, ensureMessagesHaveUniqueIds, saveSession, userIdForHistory, setIsLoading, setInputMessage, setSelectedFiles, setCurrentAttachedFilesData, setActiveActionButton]);
 
   useEffect(() => {
     if (!pendingAiRequestAfterEdit || !isMounted.current) return;
@@ -2084,63 +2220,92 @@ export default function ChatPage() {
 
 
   const handleConfirmEditAndResendUserMessage = useCallback((messageId: string, newContent: string, originalAttachments?: AttachedFile[], newActionType?: ActionType) => {
+    // When a suggestion is clicked (or a user confirms edit), we should append
+    // a NEW user message and regenerate using full history.
+    // We leverage the existing pendingAiRequestAfterEdit watcher to route this
+    // through the normal send flow (isUserMessageEdit=false), which appends a
+    // new message and triggers AI generation.
+
+    const normalized = normalizeSuggestion(newContent || '');
+
     setMessages(prevMessages => {
-        const messageIndex = prevMessages.findIndex(msg => msg.id === messageId);
-        if (messageIndex === -1 || prevMessages[messageIndex].role !== 'user') {
-            return prevMessages;
-        }
-
-        const targetMessage = { ...prevMessages[messageIndex] };
-        const linkedAssistantIdForHistory: string | undefined = targetMessage.linkedAssistantMessageId;
-
-        const currentVersionToArchive: EditHistoryEntry = {
-            content: targetMessage.content,
-            timestamp: targetMessage.timestamp,
-            attachedFiles: targetMessage.attachedFiles,
-            actionType: targetMessage.actionType, // Preserve the original action type
-            linkedAssistantMessageId: linkedAssistantIdForHistory,
-        };
-
-        const updatedEditHistory = [...(targetMessage.editHistory || []), currentVersionToArchive];
-        
-        const updatedUserMessage: ChatMessage = {
-          ...targetMessage,
-          content: newContent,
-          timestamp: Date.now(),
-          attachedFiles: originalAttachments,
-          actionType: newActionType || targetMessage.actionType, // Use new action type if provided, otherwise keep existing
-          editHistory: updatedEditHistory,
-          linkedAssistantMessageId: undefined,
-        };
-
-        let messagesUpToEditedAndIncluding = prevMessages.slice(0, messageIndex);
-        messagesUpToEditedAndIncluding.push(updatedUserMessage);
-        
+      const messageIndex = prevMessages.findIndex(msg => msg.id === messageId);
+      if (messageIndex === -1 || prevMessages[messageIndex].role !== 'user') {
+        // If we cannot locate a user message by this id, still proceed to send
+        // as a fresh message without modifying existing messages.
         if (isMounted.current) {
-            setPendingAiRequestAfterEdit({
-                content: newContent,
-                attachments: originalAttachments,
-                isUserMessageEdit: true,
-                editedUserMessageId: updatedUserMessage.id,
-                actionType: newActionType || targetMessage.actionType // Pass along the action type
-            });
+          setPendingAiRequestAfterEdit({
+            content: normalized,
+            attachments: originalAttachments,
+            isUserMessageEdit: false,
+            editedUserMessageId: undefined,
+            actionType: newActionType
+          });
         }
-        
-        return ensureMessagesHaveUniqueIds(messagesUpToEditedAndIncluding);
-    });
-  }, [ensureMessagesHaveUniqueIds, setMessages, setPendingAiRequestAfterEdit]);
+        return prevMessages;
+      }
 
+      const targetMessage = prevMessages[messageIndex];
+
+      if (isMounted.current) {
+        setPendingAiRequestAfterEdit({
+          content: normalized,
+          attachments: originalAttachments,
+          isUserMessageEdit: false,
+          editedUserMessageId: undefined,
+          actionType: newActionType || targetMessage.actionType
+        });
+      }
+
+      // Do NOT mutate or remove the original message; let the normal send flow
+      // append a brand new user message so the UI shows it as a separate turn.
+      return prevMessages;
+    });
+  }, [setMessages, setPendingAiRequestAfterEdit]);
 
   const handleAction = useCallback((action: ActionType) => {
     if (!profile) {
        return;
     }
 
-    // Handle custom instruction toggle
-    if (action === 'custom') {
-      setShowCustomInstructionModal(true);
+    // Handle Video Tools - only open modal, don't send message
+    if (action === 'videoTools') {
+      setIsVideoToolsModalOpen(true);
+      return;
+    }
+
+    // Handle AI Chat ('chat' primary, support legacy 'custom') — do NOT open modal
+    if (action === 'chat' || action === 'custom') {
+      // Remember/select the button for UX consistency
       setActiveActionButton(action);
       setLastSelectedActionButton(action);
+      
+      // If there's content (text or attachments), send directly
+      const hasText = (inputMessage || '').trim().length > 0;
+      const hasAttachments = Array.isArray(currentAttachedFilesData) && currentAttachedFilesData.length > 0;
+      if (hasText || hasAttachments) {
+        handleSendMessage(
+          inputMessage || '',
+          'processMessage',
+          undefined,
+          undefined, // use current attached files already tracked by state if needed by handler
+          false,
+          false,
+          undefined,
+          undefined,
+          isCustomMessage,
+          'chat' // actionTypeOverride to route to chat flow
+        );
+        // Clear the active highlight after a short delay
+        setTimeout(() => setActiveActionButton(null), 500);
+      } else {
+        // No content: focus the input for a seamless experience
+        if (inputTextAreaRef.current) {
+          inputTextAreaRef.current.focus();
+        }
+        // Also clear highlight shortly
+        setTimeout(() => setActiveActionButton(null), 500);
+      }
       return;
     }
 
@@ -2803,9 +2968,9 @@ export default function ChatPage() {
   if (authLoading || (!currentSession && !profileLoading && !historyHookLoading)) {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-var(--header-height,0px))] bg-gradient-to-b from-background-start-hsl to-background-end-hsl">
-        <div className="glass-panel p-8 rounded-xl shadow-2xl flex flex-col items-center animate-float">
-          <div className="relative">
-            <div className="absolute inset-0 rounded-full bg-primary/20 blur-xl animate-pulse-slow"></div>
+        <div className="glass-panel p-8 md:p-12 rounded-2xl shadow-2xl flex flex-col items-center animate-fade-in">
+          <div className="relative mb-6">
+            <div className="absolute -inset-2 rounded-full bg-primary/10 blur-xl animate-pulse-slow opacity-70"></div>
             <Loader2 className="h-16 w-16 animate-spin text-primary relative z-10" />
           </div>
           <p className="mt-6 text-xl font-semibold text-gradient">Loading DesAInR Pro...</p>
@@ -2821,9 +2986,9 @@ export default function ChatPage() {
           <div className="glass-panel p-8 md:p-12 rounded-2xl shadow-2xl flex flex-col items-center animate-fade-in max-w-lg w-full">
               <div className="relative mb-6">
                   <div className="absolute -inset-2 rounded-full bg-primary/10 blur-xl animate-pulse-slow opacity-70"></div>
-                  <BotIcon className="w-20 h-20 md:w-24 md:h-24 text-primary relative z-10 animate-float" />
+                  <BotIcon className="w-20 h-20 text-primary relative z-10 animate-float" />
               </div>
-              <h1 className="text-3xl md:text-4xl font-bold mb-4 text-gradient">Welcome to DesAInR Pro!</h1>
+              <h1 className="text-3xl font-bold mb-4 text-gradient">Welcome to DesAInR Pro!</h1>
               <p className="text-lg md:text-xl text-foreground/80 mb-6">
                   Your AI-powered design assistant.
               </p>
@@ -2959,14 +3124,14 @@ export default function ChatPage() {
                 onRegenerateCustomSense={handleRegenerateCustomSense}
                 searchHighlightTerm={searchHighlightTerm}
                 currentModelId={currentModelId}
-                setCurrentModelId={setCurrentModelId}
+                setCurrentModelIdAction={setCurrentModelId}
               />
               </ErrorBoundary>
             ))}
              {messages.length === 0 && !isLoading && (
                 <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 animate-fade-in w-full">
                     <div className="relative mb-6">
-                      <div className="absolute inset-0 rounded-full bg-accent/20 blur-xl animate-pulse-slow"></div>
+                      <div className="absolute -inset-2 rounded-full bg-accent/20 blur-xl animate-pulse-slow"></div>
                       <BotIcon className="w-20 h-20 text-accent relative z-10 animate-float" />
                     </div>
                     <h2 className="text-3xl font-bold mb-3 text-gradient">Welcome to DesAInR Pro</h2>
@@ -3021,7 +3186,7 @@ export default function ChatPage() {
                 )}
                 aria-label={isFooterCollapsed ? "Expand input area" : "Collapse input area"}
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-t-lg"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 rounded-t-lg blur opacity-30 group-hover:opacity-70 transition-opacity duration-500"></div>
                 <div className={`transition-all duration-300 ${isFooterCollapsed ? "transform rotate-180" : ""}`}>
                   <ChevronDown size={16} className="text-foreground/70 group-hover:text-primary transition-colors" />
                 </div>
@@ -3078,7 +3243,7 @@ export default function ChatPage() {
 
                 <div className="flex items-end gap-2 animate-fade-in transition-all duration-300 w-full">
                   <div className="relative w-full group">
-                    <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 rounded-xl blur opacity-30 group-hover:opacity-70 transition-opacity duration-500"></div>
+                    <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 rounded-xl blur opacity-20 group-hover:opacity-40 transition-opacity duration-500"></div>
                     <Textarea
                       ref={inputTextAreaRef}
                       value={inputMessage}
@@ -3129,10 +3294,10 @@ export default function ChatPage() {
                 </div>
 
                 <div className={cn(
-                  "flex items-center justify-between mt-4 gap-x-3 gap-y-2 w-full",
-                   isMobile ? "flex-col items-stretch gap-y-3" : "flex-nowrap overflow-x-auto"
+                  "flex items-center justify-center mt-4 gap-x-3 gap-y-2 w-full",
+                   isMobile ? "flex-col items-stretch gap-y-3" : "flex-nowrap"
                 )}>
-                  <div className={cn("flex-1 flex justify-end animate-stagger items-center gap-2", isMobile ? "w-full justify-center mt-0" : "")} style={{ animationDelay: '200ms' }}>
+                  <div className={cn("flex justify-center animate-stagger items-center gap-2 w-full", isMobile ? "justify-center mt-0" : "")} style={{ animationDelay: '200ms' }}>
                     <ActionButtonsPanel
                       onAction={handleAction}
                       isLoading={isLoading}
@@ -3142,6 +3307,15 @@ export default function ChatPage() {
                       isMobile={isMobile}
                       activeButton={activeActionButton}
                       lastSelectedButton={lastSelectedActionButton}
+                      currentModelId={currentModelId}
+                      onModelChange={(modelId: string) => {
+                        setCurrentModelId(modelId);
+                        localStorage.setItem('preferred-ai-model', modelId);
+                        safeToast({
+                          title: "Model Changed",
+                          description: `Switched to ${AVAILABLE_MODELS.find(m => m.id === modelId)?.name || modelId}`,
+                        });
+                      }}
                     />
                   </div>
                 </div>
@@ -3256,6 +3430,10 @@ export default function ChatPage() {
           />
         </div>
       )}
+
+
+
+      
       {/* Custom Instruction Modal */}
       {showCustomInstructionModal && (
         <Dialog open={showCustomInstructionModal} onOpenChange={setShowCustomInstructionModal}>
@@ -3297,6 +3475,58 @@ export default function ChatPage() {
           </DialogContent>
         </Dialog>
       )}
+      
+      {/* Video Tools Selector */}
+      <VideoToolsSelector
+        isOpen={isVideoToolsSelectorOpen}
+        onClose={() => setIsVideoToolsSelectorOpen(false)}
+        onToolSelect={(toolType: VideoToolType) => {
+          setSelectedVideoTool(toolType);
+          setIsVideoToolsSelectorOpen(false);
+          
+          // Open the appropriate modal based on selection
+          if (toolType === 'video_prompt') {
+            setIsVideoToolsModalOpen(true);
+          } else {
+            // For now, use the existing modal for all tools
+            // TODO: Implement separate modals for each tool
+            setIsVideoToolsModalOpen(true);
+          }
+        }}
+      />
+      
+      {/* Video Tools Modal - Currently for Video Prompt */}
+      <VideoToolsModal
+        isOpen={isVideoToolsModalOpen}
+        onClose={() => {
+          setIsVideoToolsModalOpen(false);
+          setSelectedVideoTool(null);
+        }}
+        onGenerate={async (params: VideoGenerationParams) => {
+          setIsVideoToolsModalOpen(false);
+          
+          // Create a structured message with the video parameters
+          const videoMessage = `Generate a video prompt for: ${params.description}\nStyle: ${params.style}\nContent Category: ${params.contentCategory}\nDuration: ${params.duration}s\nAspect Ratio: ${params.aspectRatio}\nLanguage: ${params.language}\nOutput Format: ${params.outputFormat}`;
+          
+          // Process the video generation using the existing flow
+          const actionType = 'videoToolsGenerate' as ActionType;
+          
+          // Call handleSendMessage with the structured parameters
+          await handleSendMessage(
+            videoMessage,
+            actionType,
+            undefined, // notes
+            [], // attachedFiles
+            false, // isUserMessageEdit
+            false, // isRegenerationCall
+            undefined, // messageIdToUpdate
+            undefined, // userMessageIdForAiPrompting
+            false, // isCustomMessage
+            actionType // actionTypeOverride
+          );
+        }}
+        isLoading={isLoading}
+      />
     </div>
   );
 }

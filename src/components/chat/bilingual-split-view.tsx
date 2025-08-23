@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Sparkles, Edit3, Upload, Check, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -120,12 +121,13 @@ export function BilingualSplitView({
           <div className="flex flex-row gap-1 h-full">
             <ScrollArea ref={englishScrollRef} className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
-              <ul className="list-disc pl-5 space-y-2">
+              <ul className="list-disc pl-5 space-y-[3px]">
                 {Array.isArray(keyPoints.english) ? (
                   keyPoints.english.map((point, index) => (
                     <li key={index} className="text-foreground font-medium">
                       <ReactMarkdown
-                        components={{ p: ({node, ...props}) => <span {...props} /> }}
+                        remarkPlugins={[remarkGfm]}
+                        components={{ p: ({ node, ...props }: any) => <p className="m-0 inline" {...props} /> }}
                         className="inline"
                       >
                         {point as string}
@@ -134,7 +136,7 @@ export function BilingualSplitView({
                   ))
                 ) : (
                   <li className="text-foreground font-medium">
-                    <ReactMarkdown components={{ p: ({node, ...props}) => <span {...props} /> }} className="inline">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ p: ({ node, ...props }: any) => <p className="m-0 inline" {...props} /> }} className="inline">
                       {keyPoints.english as string}
                     </ReactMarkdown>
                   </li>
@@ -146,18 +148,18 @@ export function BilingualSplitView({
             
             <ScrollArea ref={bengaliScrollRef} className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
-              <ul className="list-disc pl-5 space-y-2">
+              <ul className="list-disc pl-5 space-y-[3px]">
                 {Array.isArray(keyPoints.bengali) ? (
                   keyPoints.bengali.map((point, index) => (
                     <li key={index} className="text-foreground font-medium">
-                      <ReactMarkdown components={{ p: ({node, ...props}) => <span {...props} /> }} className="inline">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ p: ({ node, ...props }: any) => <p className="m-0 inline" {...props} /> }} className="inline">
                         {point as string}
                       </ReactMarkdown>
                     </li>
                   ))
                 ) : (
                   <li className="text-foreground font-medium">
-                    <ReactMarkdown components={{ p: ({node, ...props}) => <span {...props} /> }} className="inline">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ p: ({ node, ...props }: any) => <p className="m-0 inline" {...props} /> }} className="inline">
                       {keyPoints.bengali as string}
                     </ReactMarkdown>
                   </li>
@@ -172,7 +174,14 @@ export function BilingualSplitView({
           <div className="flex flex-row gap-1 h-full">
             <ScrollArea ref={englishScrollRef} className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
-              <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+              <ReactMarkdown 
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  ul: ({ node, ...props }: any) => <ul className="list-disc pl-5 space-y-[3px]" {...props} />,
+                  ol: ({ node, ...props }: any) => <ol className="list-decimal pl-5 space-y-[3px]" {...props} />,
+                }}
+                className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug font-medium prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0"
+              >
                 {typeof detailedRequirements.english === 'string' ? detailedRequirements.english : (detailedRequirements.english as string[]).join('\n\n')}
               </ReactMarkdown>
             </ScrollArea>
@@ -181,7 +190,14 @@ export function BilingualSplitView({
             
             <ScrollArea ref={bengaliScrollRef} className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
-              <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+              <ReactMarkdown 
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  ul: ({ node, ...props }: any) => <ul className="list-disc pl-5 space-y-[3px]" {...props} />,
+                  ol: ({ node, ...props }: any) => <ol className="list-decimal pl-5 space-y-[3px]" {...props} />,
+                }}
+                className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug font-medium prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0"
+              >
                 {typeof detailedRequirements.bengali === 'string' ? detailedRequirements.bengali : (detailedRequirements.bengali as string[]).join('\n\n')}
               </ReactMarkdown>
             </ScrollArea>
@@ -193,7 +209,14 @@ export function BilingualSplitView({
           <div className="flex flex-row gap-1 h-full">
             <ScrollArea ref={englishScrollRef} className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
-              <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+              <ReactMarkdown 
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  ul: ({ node, ...props }: any) => <ul className="list-disc pl-5 space-y-[3px]" {...props} />,
+                  ol: ({ node, ...props }: any) => <ol className="list-decimal pl-5 space-y-[3px]" {...props} />,
+                }}
+                className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug font-medium prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0"
+              >
                 {typeof designMessage.english === 'string' ? designMessage.english : (designMessage.english as string[]).join('\n\n')}
               </ReactMarkdown>
             </ScrollArea>
@@ -202,7 +225,14 @@ export function BilingualSplitView({
             
             <ScrollArea ref={bengaliScrollRef} className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
-              <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+              <ReactMarkdown 
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  ul: ({ node, ...props }: any) => <ul className="list-disc pl-5 space-y-[3px]" {...props} />,
+                  ol: ({ node, ...props }: any) => <ol className="list-decimal pl-5 space-y-[3px]" {...props} />,
+                }}
+                className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug font-medium prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0"
+              >
                 {typeof designMessage.bengali === 'string' ? designMessage.bengali : (designMessage.bengali as string[]).join('\n\n')}
               </ReactMarkdown>
             </ScrollArea>
@@ -214,7 +244,14 @@ export function BilingualSplitView({
           <div className="flex flex-row gap-1 h-full">
             <ScrollArea ref={englishScrollRef} className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
-              <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+              <ReactMarkdown 
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  ul: ({ node, ...props }: any) => <ul className="list-disc pl-5 space-y-[3px]" {...props} />,
+                  ol: ({ node, ...props }: any) => <ol className="list-decimal pl-5 space-y-[3px]" {...props} />,
+                }}
+                className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug font-medium prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0"
+              >
                 {typeof nicheAndAudience.english === 'string' ? nicheAndAudience.english : (nicheAndAudience.english as string[]).join('\n\n')}
               </ReactMarkdown>
             </ScrollArea>
@@ -223,7 +260,14 @@ export function BilingualSplitView({
             
             <ScrollArea ref={bengaliScrollRef} className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
-              <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+              <ReactMarkdown 
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  ul: ({ node, ...props }: any) => <ul className="list-disc pl-5 space-y-[3px]" {...props} />,
+                  ol: ({ node, ...props }: any) => <ol className="list-decimal pl-5 space-y-[3px]" {...props} />,
+                }}
+                className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug font-medium prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0"
+              >
                 {typeof nicheAndAudience.bengali === 'string' ? nicheAndAudience.bengali : (nicheAndAudience.bengali as string[]).join('\n\n')}
               </ReactMarkdown>
             </ScrollArea>
@@ -235,14 +279,28 @@ export function BilingualSplitView({
           <div className="flex flex-row gap-1 h-full">
             <ScrollArea ref={englishScrollRef} className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
-              <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+              <ReactMarkdown 
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  ul: ({ node, ...props }: any) => <ul className="list-disc pl-5 space-y-[3px]" {...props} />,
+                  ol: ({ node, ...props }: any) => <ol className="list-decimal pl-5 space-y-[3px]" {...props} />,
+                }}
+                className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug font-medium prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0"
+              >
                 {typeof imageAnalysis?.english === 'string' ? imageAnalysis?.english : ((imageAnalysis?.english || []) as string[]).join('\n\n')}
               </ReactMarkdown>
             </ScrollArea>
             <div className="w-px bg-border mx-2 h-full"></div>
             <ScrollArea ref={bengaliScrollRef} className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
-              <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+              <ReactMarkdown 
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  ul: ({ node, ...props }: any) => <ul className="list-disc pl-5 space-y-[3px]" {...props} />,
+                  ol: ({ node, ...props }: any) => <ol className="list-decimal pl-5 space-y-[3px]" {...props} />,
+                }}
+                className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug font-medium prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0"
+              >
                 {typeof imageAnalysis?.bengali === 'string' ? imageAnalysis?.bengali : ((imageAnalysis?.bengali || []) as string[]).join('\n\n')}
               </ReactMarkdown>
             </ScrollArea>
@@ -360,7 +418,7 @@ function DesignItemCard({
       const reader = new FileReader();
       reader.onload = () => {
         const dataUrl = reader.result as string;
-        setCustomAttachedFiles(prev => [...prev, {
+        setCustomAttachedFiles((prev: AttachedFile[]) => [...prev, {
           name: file.name,
           type: file.type,
           size: file.size,
@@ -375,7 +433,7 @@ function DesignItemCard({
   };
 
   const handleRemoveCustomImage = (index: number) => {
-    setCustomAttachedFiles(prev => prev.filter((_, i) => i !== index));
+    setCustomAttachedFiles((prev: AttachedFile[]) => prev.filter((_: AttachedFile, i: number) => i !== index));
   };
 
   // State for inline editing
@@ -453,34 +511,34 @@ function DesignItemCard({
         </div>
       ) : (
         <>
-      <h4 className="font-medium text-lg mb-2">{item.title}</h4>
-      <p className="text-muted-foreground mb-2">{item.description}</p>
-      {item.textContent && (
-        <div className="mt-2 border-l-2 border-primary/30 pl-3 italic text-sm">
-          &ldquo;{item.textContent}&rdquo;
-        </div>
-      )}
-      
-      {item.mustFollow && item.mustFollow.length > 0 && (
-        <div className="mt-4">
-          <h5 className="font-semibold text-sm mb-1">Must follow:</h5>
-          <ul className="list-disc pl-5 space-y-1 text-foreground text-sm">
-            {item.mustFollow.map((point, idx) => (
-              <li key={idx}>{point}</li>
-            ))}
-          </ul>
-        </div>
+          <h4 className="font-medium text-lg mb-2">{item.title}</h4>
+          <p className="text-muted-foreground mb-2">{item.description}</p>
+          {item.textContent && (
+            <div className="mt-2 border-l-2 border-primary/30 pl-3 italic text-sm">
+              &ldquo;{item.textContent}&rdquo;
+            </div>
+          )}
+          
+          {item.mustFollow && item.mustFollow.length > 0 && (
+            <div className="mt-4">
+              <h5 className="font-semibold text-sm mb-1">Must follow:</h5>
+              <ul className="list-disc pl-5 space-y-0 text-foreground text-sm">
+                {item.mustFollow.map((point, idx) => (
+                  <li key={idx}>{point}</li>
+                ))}
+              </ul>
+            </div>
           )}
         </>
       )}
-      
-      {showActionButton && (
-        <div className="mt-3 space-y-1 text-sm">
-          <label className="flex items-center gap-2"><Checkbox checked={includeOriginalPrompt} onCheckedChange={(val: boolean | "indeterminate")=>setIncludeOriginalPrompt(!!val)} />Include original prompt</label>
-          <label className="flex items-center gap-2 opacity-100"><Checkbox checked={includeOriginalImages} onCheckedChange={(val: boolean | "indeterminate")=>setIncludeOriginalImages(!!val)} />Include attached images</label>
-          <label className="flex items-center gap-2"><Checkbox checked={includeFullAnalysis} onCheckedChange={(val: boolean | "indeterminate")=>setIncludeFullAnalysis(!!val)} />Include full analysis</label>
-        </div>
-      )}
+  
+  {showActionButton && (
+    <div className="mt-3 space-y-1 text-sm">
+      <label className="flex items-center gap-2"><Checkbox checked={includeOriginalPrompt} onCheckedChange={(val: boolean | "indeterminate")=>setIncludeOriginalPrompt(!!val)} />Include original prompt</label>
+      <label className="flex items-center gap-2 opacity-100"><Checkbox checked={includeOriginalImages} onCheckedChange={(val: boolean | "indeterminate")=>setIncludeOriginalImages(!!val)} />Include attached images</label>
+      <label className="flex items-center gap-2"><Checkbox checked={includeFullAnalysis} onCheckedChange={(val: boolean | "indeterminate")=>setIncludeFullAnalysis(!!val)} />Include full analysis</label>
+    </div>
+  )}
 
       {showActionButton && (
         <div className="mt-4 grid grid-cols-2 gap-2">
@@ -521,7 +579,7 @@ function DesignItemCard({
         <div className="mt-2 space-y-2">
           {customAttachedFiles.length > 0 && (
             <div className="flex flex-wrap gap-2">
-              {customAttachedFiles.map((file, idx) => (
+              {customAttachedFiles.map((file: AttachedFile, idx: number) => (
                 <div key={idx} className="relative w-16 h-16 rounded-md border border-primary/20 bg-card/50 overflow-hidden flex items-center justify-center">
                   {/* Image preview */}
                   {file.dataUri && (

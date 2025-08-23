@@ -448,8 +448,8 @@ const getMessageTextPreview = (message: ChatMessage | undefined): string => {
                 if (part.english?.analysis) return `Eng Analysis: ${part.english.analysis.substring(0, 30).trim()}`;
                 break;
             case 'custom':
-                if (part.title) return `Custom: ${part.title.substring(0, 40).trim()}`;
-                if (part.text) return `Custom instruction: ${part.text.substring(0, 40).trim()}`;
+                if (part.title) return `AI Chat: ${part.title.substring(0, 40).trim()}`;
+                if (part.text) return `AI Chat instruction: ${part.text.substring(0, 40).trim()}`;
                 break;
             case 'suggested_replies':
                 return 'Suggested Replies';

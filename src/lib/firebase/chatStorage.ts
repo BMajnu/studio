@@ -1,5 +1,5 @@
 // src/lib/firebase/chatStorage.ts
-import { firebaseAppInstance } from './clientApp';
+import { firebaseApp } from './clientApp';
 import { 
   getFirestore, 
   collection, 
@@ -15,6 +15,7 @@ import {
   serverTimestamp,
   Timestamp
 } from 'firebase/firestore';
+
 import type { ChatSession, ChatSessionMetadata } from '@/lib/types';
 
 // Maximum document size for Firestore (1 MiB) -- using 950 KB safety buffer
@@ -108,7 +109,7 @@ const stripBinaryFieldsDeep = (val: any): any => {
 };
 
 // Initialize Firestore
-const db = getFirestore(firebaseAppInstance);
+const db = getFirestore(firebaseApp);
 
 /**
  * Firebase Chat Storage Service

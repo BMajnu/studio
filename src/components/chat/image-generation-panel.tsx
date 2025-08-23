@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { useUserProfile } from '@/lib/hooks/use-user-profile';
 import { ImagePreviewDialog } from '@/components/ui/image-preview-dialog';
 import { useAuth } from '@/contexts/auth-context';
-import { ensureAppFolderCached, uploadImagesBatch, type BatchUploadItem, type BatchUploadResult } from '@/lib/integrations/google-drive';
+import { ensureAppFolderCached, uploadImagesBatchVerbose, type BatchUploadItem } from '@/lib/integrations/google-drive';
 import { GeneratedImageStorage } from '@/lib/firebase/generatedImageStorage';
 
 import {
@@ -131,10 +131,10 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
             },
           }));
           const drivePromise = (async () => {
-            const results: BatchUploadResult[] = await uploadImagesBatch(googleAccessToken, batch, folderId, 4);
+            const outcome = await uploadImagesBatchVerbose(googleAccessToken, batch, folderId, 4);
             // Upsert Drive metadata onto Firestore docs for easy linking later
             if (profile?.userId) {
-              const upserts = results.map((r) => {
+              const upserts = outcome.results.map((r) => {
                 const imageId = (r.item.appProperties?.imageId as string) || '';
                 if (!imageId) return Promise.resolve();
                 return GeneratedImageStorage.upsertDriveMeta(profile!.userId, imageId, {
@@ -148,31 +148,42 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
             // Optional debug
             try {
               if (typeof window !== 'undefined' && localStorage.getItem('debugImages') === '1') {
-                console.debug('[Images][Drive] upload complete', { success: results.length, total: batch.length });
+                console.debug('[Images][Drive] upload complete', { success: outcome.success, total: outcome.total, failed: outcome.total - outcome.success });
               }
             } catch {}
-            return { success: results.length, total: batch.length };
+            return { success: outcome.success, total: outcome.total };
           })();
           tasks.push(drivePromise);
         }
 
         const settled = await Promise.allSettled(tasks);
         let driveResult: { success: number; total: number } | undefined;
+        let firebaseResult: { ok: number; failed: number } | undefined;
         for (const s of settled) {
-          if (s.status === 'fulfilled' && s.value && typeof s.value === 'object' && 'success' in (s.value as any) && 'total' in (s.value as any)) {
-            driveResult = s.value as any;
-            break;
+          if (s.status === 'fulfilled' && s.value && typeof s.value === 'object') {
+            const val: any = s.value;
+            if ('success' in val && 'total' in val) {
+              driveResult = val as any;
+            } else if ('ok' in val && 'failed' in val) {
+              firebaseResult = val as any;
+            }
           }
         }
         if (driveResult) {
           toast({ title: 'Saved to Google Drive', description: `Uploaded ${driveResult.success} images to your Drive.` });
-          const failed = driveResult.total - driveResult.success;
-          if (failed > 0) {
-            toast({ title: 'Some uploads failed', description: `${failed} of ${driveResult.total} images failed to upload to Drive.`, variant: 'destructive' });
+          const dFailed = driveResult.total - driveResult.success;
+          if (dFailed > 0) {
+            toast({ title: 'Some Drive uploads failed', description: `${dFailed} of ${driveResult.total} images failed to upload to Drive.`, variant: 'destructive' });
           }
         }
-        if (profile?.userId) {
-          toast({ title: 'Saved to Cloud (24h)', description: 'Images saved to Firebase for 24 hours.' });
+        if (firebaseResult && profile?.userId) {
+          if (firebaseResult.failed === 0) {
+            toast({ title: 'Saved to Firebase (24h)', description: `Saved ${firebaseResult.ok} images to Firestore.` });
+          } else if (firebaseResult.ok > 0) {
+            toast({ title: 'Partially saved to Firebase', description: `${firebaseResult.ok} saved, ${firebaseResult.failed} failed. Some images may be too large for Firestore; they remain available this session and in Drive.`, variant: 'destructive' });
+          } else {
+            toast({ title: 'Firebase save failed', description: 'Could not save images to Firestore.', variant: 'destructive' });
+          }
         }
       } catch (persistError) {
         console.error('Persistence error (Drive/Firebase):', persistError);

@@ -127,7 +127,7 @@ export function useStorage(userIdFromProfile?: string) {
             id: sessionId,
             name: 'New Chat',
             lastMessageTimestamp: now,
-            preview: initialMessages.length > 0 ? 'Custom starting prompt' : 'New conversation',
+            preview: initialMessages.length > 0 ? 'AI Chat starting prompt' : 'New conversation',
             messageCount: initialMessages.length,
             createdAt: now
           };

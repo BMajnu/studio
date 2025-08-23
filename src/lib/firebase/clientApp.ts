@@ -1,4 +1,5 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
 // To use features like Firebase Analytics, you would import them here
 // import { getAnalytics } from "firebase/analytics";
 
@@ -31,4 +32,6 @@ if (!getApps().length) {
   console.log("Firebase app already initialized");
 }
 
-export { firebaseAppInstance }; 
+export const firebaseApp = firebaseAppInstance;
+export const firebaseAuth = getAuth(firebaseAppInstance);
+export { firebaseAppInstance };
