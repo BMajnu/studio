@@ -18,7 +18,6 @@ export async function POST(request: Request) {
     const generateImagesInput: GenerateImagesInput = {
       prompt: requestData.prompt,
       numImages: requestData.numImages || 4,
-      aspectRatio: requestData.aspectRatio || '1:1',
       temperature: typeof requestData.temperature === 'number' ? requestData.temperature : 1,
       userName: requestData.userName || 'User',
       communicationStyleNotes: requestData.communicationStyleNotes || '',

@@ -192,23 +192,16 @@ Please follow the custom instruction precisely in relation to the client message
 
   try {
     // Try to use the user's API key if provided, otherwise fall back to environment variable
-    const apiKey = userApiKey || process.env.GOOGLE_API_KEY; // Removed fallback to empty string for clarity, handled by service
-    
-    // API key is optional if Firebase AI is used and configured correctly
-    // if (!apiKey && !useFirebaseAI) { 
-    //   console.error('Error in processCustomInstruction: No API key available and Firebase AI not primary');
-    //   throw new Error('No API key available for AI model and Firebase AI not configured as primary.');
-    // }
+    const apiKey = userApiKey || profile?.geminiApiKeys?.[0] || null;
+    if (!apiKey) {
+      throw new Error('No user API key configured. Please add your Gemini API key to your profile settings.');
+    }
     
     // Format the model ID to ensure it's in the correct format
     const rawModelToUse = modelId || DEFAULT_MODEL_ID;
     formattedModelId = formatModelId(rawModelToUse);
     
     console.log(`Processing custom instruction using model: ${formattedModelId} (original: ${rawModelToUse})`);
-    if (useFirebaseAI) {
-      console.log('Attempting to use Firebase AI as primary.');
-    }
-    console.log(`Using @google/genai implementation: ${useAlternativeImpl}`);
     
     // Initialize the AI service with the appropriate configuration
     const aiService = new GoogleAIService({
@@ -218,7 +211,7 @@ Please follow the custom instruction precisely in relation to the client message
       maxOutputTokens: 1000,
       responseMimeType: 'text/plain',
       useAlternativeImpl,
-      useFirebaseAI, // Pass useFirebaseAI
+      useFirebaseAI: false, // Force off to avoid using developer Firebase credentials
       firebaseApp, // Pass firebaseApp
       profile, // Pass the full profile
       thinkingMode: profile?.thinkingMode, // Pass the thinking mode

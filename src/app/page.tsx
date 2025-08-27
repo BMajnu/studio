@@ -28,6 +28,9 @@ import { promptToReplicate } from '@/ai/flows/prompt-to-replicate-flow';
 import { type PromptToReplicateInput, type PromptToReplicateOutput } from '@/ai/flows/prompt-to-replicate-types';
 import { generateChatResponse, type GenerateChatResponseInput, type GenerateChatResponseOutput } from '@/ai/flows/generate-chat-response-flow';
 import { generateVideoPrompts, type GenerateVideoPromptsInput, type GenerateVideoPromptsOutput } from '@/ai/flows/generate-video-prompts-flow';
+import { generateStoryFilm, type GenerateStoryFilmInput, type GenerateStoryFilmOutput } from '@/ai/flows/generate-story-film-flow';
+import { generateAds, type GenerateAdsInput, type GenerateAdsOutput } from '@/ai/flows/generate-ads-flow';
+import { generateViralVideo, type GenerateViralVideoInput, type GenerateViralVideoOutput } from '@/ai/flows/generate-viral-video-flow';
 
 // Add import for DesAInRLogo
 import { DesAInRLogo } from '@/components/icons/logo';
@@ -64,6 +67,9 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { VideoToolsModal, type VideoGenerationParams } from '@/components/chat/video-tools-modal';
 import { VideoPromptModal, type VideoPromptGenerationParams } from '@/components/video-tools/VideoPromptModal';
+import { StoryFilmModal, type StoryFilmGenerationParams } from '@/components/video-tools/StoryFilmModal';
+import { AdsGeneratorModal, type AdsGenerationParams } from '@/components/video-tools/AdsGeneratorModal';
+import { ViralVideoModal, type ViralVideoGenerationParams } from '@/components/video-tools/ViralVideoModal';
 import { VideoToolsSelector } from '@/components/video-tools/VideoToolsSelector';
 import { VideoToolType } from '@/lib/video/types';
 
@@ -341,6 +347,190 @@ export default function ChatPage() {
   const [isVideoToolsSelectorOpen, setIsVideoToolsSelectorOpen] = useState(false);
   const [isVideoToolsModalOpen, setIsVideoToolsModalOpen] = useState(false);
   const [selectedVideoTool, setSelectedVideoTool] = useState<VideoToolType | null>(null);
+  const [isVideoGenerating, setIsVideoGenerating] = useState(false);
+  
+  // Open the appropriate modal when a tool is selected
+  useEffect(() => {
+    if (selectedVideoTool) {
+      // Small delay to ensure selector closes smoothly
+      setTimeout(() => {
+        setIsVideoToolsModalOpen(true);
+      }, 100);
+    }
+  }, [selectedVideoTool]);
+
+  // Handler for video tools generation
+  const handleVideoToolsGenerate = async (params: any & { toolType?: VideoToolType }) => {
+    setIsVideoGenerating(true);
+    
+    // Close modal immediately
+    setIsVideoToolsModalOpen(false);
+    
+    try {
+      const toolType: VideoToolType | null = params.toolType ?? selectedVideoTool;
+      const toolLabel = toolType === 'video_prompt' ? 'Video Prompt'
+        : toolType === 'story_film' ? 'Story/Film'
+        : toolType === 'ads' ? 'Ads'
+        : toolType === 'viral_video' ? 'Viral Video'
+        : 'Video Tool';
+      // Create user message with video request details
+      const userMessageContent = `Generate video with the following specifications:
+${params.description ? `Description: ${params.description}` : ''}
+${params.style ? `Style: ${params.style}` : ''}
+${params.contentCategory ? `Category: ${params.contentCategory}` : ''}
+${params.duration ? `Duration: ${params.duration}s` : ''}
+${params.resolution ? `Resolution: ${params.resolution}` : ''}
+${params.frameRate ? `Frame Rate: ${params.frameRate} fps` : ''}
+${params.audioMode ? `Audio Mode: ${params.audioMode}` : ''}
+${params.language ? `Language: ${params.language}` : ''}`;
+      
+      // Add user message to chat
+      const userMessageId = addMessage(
+        'user',
+        userMessageContent,
+        [],
+        false,
+        false,
+        undefined,
+        undefined,
+        'videoToolsGenerate'
+      );
+      
+      // Add assistant processing message
+      const assistantMessageId = addMessage(
+        'assistant',
+        `Generating ${toolLabel}...`,
+        [],
+        true,
+        false,
+        {
+          actionType: 'videoToolsGenerate',
+          messageText: userMessageContent,
+          notes: undefined,
+          attachedFilesData: []
+        },
+        userMessageId
+      );
+      
+      // Dispatch to the appropriate AI flow
+      let flowOutput:
+        | GenerateVideoPromptsOutput
+        | GenerateStoryFilmOutput
+        | GenerateAdsOutput
+        | GenerateViralVideoOutput;
+
+      if (toolType === 'video_prompt') {
+        const input: GenerateVideoPromptsInput = {
+          userMessage: params.description || '',
+          userName: profile?.name || 'Designer',
+          videoStyle: params.style,
+          duration: params.duration,
+          contentCategory: params.contentCategory,
+          modelId: currentModelId,
+          userApiKey: profile?.geminiApiKeys?.[0],
+        };
+        flowOutput = await generateVideoPrompts(input);
+      } else if (toolType === 'story_film') {
+        const input: GenerateStoryFilmInput = {
+          userName: profile?.name || 'Designer',
+          storylineIdea: params.description || '',
+          sceneCount: undefined,
+          decideByAI: true,
+          storyType: params.style,
+          audioMode: 'speaking',
+          duration: params.duration,
+          selectedGalleryAssets: params.selectedGalleryAssets,
+        };
+        flowOutput = await generateStoryFilm(input);
+      } else if (toolType === 'ads') {
+        const input: GenerateAdsInput = {
+          userName: profile?.name || 'Designer',
+          productInfo: params.description || '',
+          slogans: undefined,
+          scriptIdea: undefined,
+          adLengthSeconds: params.duration,
+          visualStyle: params.style,
+          selectedGalleryAssets: params.selectedGalleryAssets,
+        };
+        flowOutput = await generateAds(input);
+      } else if (toolType === 'viral_video') {
+        const input: GenerateViralVideoInput = {
+          userName: profile?.name || 'Designer',
+          topic: params.description || '',
+          targetAudience: params.contentCategory || 'shortform',
+          duration: params.duration || 30,
+          style: params.style || 'social_media',
+          selectedGalleryAssets: params.selectedGalleryAssets,
+        };
+        flowOutput = await generateViralVideo(input);
+      } else {
+        // Fallback to video prompts
+        const input: GenerateVideoPromptsInput = {
+          userMessage: params.description || '',
+          userName: profile?.name || 'Designer',
+          videoStyle: params.style,
+          duration: params.duration,
+          contentCategory: params.contentCategory,
+          modelId: currentModelId,
+          userApiKey: profile?.geminiApiKeys?.[0],
+        };
+        flowOutput = await generateVideoPrompts(input);
+      }
+
+      // Normalize to video_prompt_tabs content expected by renderer
+      const bilingual = {
+        english: (flowOutput as any).normalPromptEnglish || '',
+        bengali: (flowOutput as any).normalPromptBengali || ''
+      };
+      const videoPromptResponse: ChatMessageContentPart[] = [
+        {
+          type: 'video_prompt_tabs',
+          title: `${toolLabel} Generation`,
+          bilingual,
+          jsonPrompt: (flowOutput as any).jsonPrompt,
+          veo3OptimizedPrompt: (flowOutput as any).veo3OptimizedPrompt,
+          technicalNotes: (flowOutput as any).technicalNotes,
+          sceneBreakdown: (flowOutput as any).sceneBreakdown,
+          keywords: (flowOutput as any).keywords,
+        }
+      ];
+      
+      // Update assistant message with generated content
+      updateMessageById(
+        assistantMessageId,
+        videoPromptResponse,
+        false,
+        false,
+        {
+          actionType: 'videoToolsGenerate',
+          messageText: userMessageContent,
+          notes: undefined,
+          attachedFilesData: []
+        },
+        userMessageId,
+        'videoToolsGenerate'
+      );
+      
+      // Show success toast (safe)
+      safeToast({
+        title: `${toolLabel} Generated`,
+        description: 'AI output created successfully!',
+        duration: 3000
+      });
+      
+    } catch (error) {
+      console.error('Video generation error:', error);
+      safeToast({
+        title: 'Generation Failed',
+        description: 'Failed to generate video prompt. Please try again.',
+        variant: 'destructive',
+        duration: 3000
+      });
+    } finally {
+      setIsVideoGenerating(false);
+      setSelectedVideoTool(null);
+    }
+  };
 
   // Add state for custom sense prefill
   const [customSensePrefill, setCustomSensePrefill] = useState<CustomSensePrefill | null>(null);
@@ -1899,7 +2089,7 @@ export default function ChatPage() {
               let videoStyle = 'cinematic';
               let contentCategory: GenerateVideoPromptsInput['contentCategory'] | undefined = undefined;
               let duration = 15;
-              let aspectRatio = '16:9';
+              // aspectRatio removed as a parameter per deprecation
               
               // Extract parameters from structured message
               messageLines.forEach(line => {
@@ -1913,17 +2103,15 @@ export default function ChatPage() {
                 } else if (line.startsWith('Duration:')) {
                   const durationMatch = line.match(/\d+/);
                   if (durationMatch) duration = parseInt(durationMatch[0]);
-                } else if (line.startsWith('Aspect Ratio:')) {
-                  aspectRatio = line.replace('Aspect Ratio:', '').trim();
                 }
               });
               
               const videoInput: GenerateVideoPromptsInput = {
                 userMessage: videoDescription,
+                userName: profile?.name || 'Designer',
                 videoStyle,
                 contentCategory,
                 duration,
-                aspectRatio,
                 attachedFiles: filesForFlow,
                 modelId: modelIdToUse,
                 userApiKey: apiKeyToUseThisTurn,
@@ -2268,9 +2456,9 @@ export default function ChatPage() {
        return;
     }
 
-    // Handle Video Tools - only open modal, don't send message
+    // Handle Video Tools - open selector first, don't send message
     if (action === 'videoTools') {
-      setIsVideoToolsModalOpen(true);
+      setIsVideoToolsSelectorOpen(true);
       return;
     }
 
@@ -3479,54 +3667,120 @@ export default function ChatPage() {
       {/* Video Tools Selector */}
       <VideoToolsSelector
         isOpen={isVideoToolsSelectorOpen}
-        onClose={() => setIsVideoToolsSelectorOpen(false)}
-        onToolSelect={(toolType: VideoToolType) => {
-          setSelectedVideoTool(toolType);
+        onCloseAction={() => setIsVideoToolsSelectorOpen(false)}
+        onToolSelectAction={(tool: VideoToolType) => {
+          setSelectedVideoTool(tool);
           setIsVideoToolsSelectorOpen(false);
-          
-          // Open the appropriate modal based on selection
-          if (toolType === 'video_prompt') {
-            setIsVideoToolsModalOpen(true);
-          } else {
-            // For now, use the existing modal for all tools
-            // TODO: Implement separate modals for each tool
-            setIsVideoToolsModalOpen(true);
-          }
         }}
       />
       
-      {/* Video Tools Modal - Currently for Video Prompt */}
-      <VideoToolsModal
-        isOpen={isVideoToolsModalOpen}
-        onClose={() => {
-          setIsVideoToolsModalOpen(false);
-          setSelectedVideoTool(null);
-        }}
-        onGenerate={async (params: VideoGenerationParams) => {
-          setIsVideoToolsModalOpen(false);
-          
-          // Create a structured message with the video parameters
-          const videoMessage = `Generate a video prompt for: ${params.description}\nStyle: ${params.style}\nContent Category: ${params.contentCategory}\nDuration: ${params.duration}s\nAspect Ratio: ${params.aspectRatio}\nLanguage: ${params.language}\nOutput Format: ${params.outputFormat}`;
-          
-          // Process the video generation using the existing flow
-          const actionType = 'videoToolsGenerate' as ActionType;
-          
-          // Call handleSendMessage with the structured parameters
-          await handleSendMessage(
-            videoMessage,
-            actionType,
-            undefined, // notes
-            [], // attachedFiles
-            false, // isUserMessageEdit
-            false, // isRegenerationCall
-            undefined, // messageIdToUpdate
-            undefined, // userMessageIdForAiPrompting
-            false, // isCustomMessage
-            actionType // actionTypeOverride
-          );
-        }}
-        isLoading={isLoading}
-      />
+      {/* Video Tools Modals - Render based on selected tool */}
+      {selectedVideoTool === 'video_prompt' && (
+        <VideoPromptModal
+          isOpen={isVideoToolsModalOpen}
+          onCloseAction={() => {
+            setIsVideoToolsModalOpen(false);
+            setSelectedVideoTool(null);
+          }}
+          onGenerateAction={(params) => {
+            handleVideoToolsGenerate({
+              toolType: 'video_prompt',
+              sceneMode: params.sceneMode,
+              scenes: params.scenes,
+              selectedGalleryAssets: params.selectedGalleryAssets,
+              style: params.videoStyle,
+              contentCategory: params.contentCategory || 'general',
+              duration: params.duration,
+              audioMode: params.audioMode || 'background',
+              userIdea: params.userIdea || ''
+            });
+          }}
+          isLoading={isVideoGenerating}
+        />
+      )}
+      
+      {selectedVideoTool === 'story_film' && (
+        <StoryFilmModal
+          isOpen={isVideoToolsModalOpen}
+          onCloseAction={() => {
+            setIsVideoToolsModalOpen(false);
+            setSelectedVideoTool(null);
+          }}
+          onGenerateAction={(params) => {
+            handleVideoToolsGenerate({
+              toolType: 'story_film',
+              description: params.storylineIdea,
+              style: params.storyType,
+              duration: undefined,
+              selectedGalleryAssets: params.selectedGalleryAssets,
+            });
+          }}
+          isLoading={isVideoGenerating}
+        />
+      )}
+      
+      {selectedVideoTool === 'ads' && (
+        <AdsGeneratorModal
+          isOpen={isVideoToolsModalOpen}
+          onCloseAction={() => {
+            setIsVideoToolsModalOpen(false);
+            setSelectedVideoTool(null);
+          }}
+          onGenerateAction={(params) => {
+            handleVideoToolsGenerate({
+              toolType: 'ads',
+              description: `Ad for ${params.productName} by ${params.brandName}`,
+              style: params.visualStyle,
+              contentCategory: 'advertisement',
+              duration: parseInt(params.adLength) || 30,
+              resolution: params.resolution || '1080p',
+              frameRate: params.frameRate || 30,
+              audioMode: params.audioMode || 'voiceover',
+              language: params.language,
+              selectedGalleryAssets: params.selectedGalleryAssets,
+            });
+          }}
+          isLoading={isVideoGenerating}
+        />
+      )}
+      
+      {selectedVideoTool === 'viral_video' && (
+        <ViralVideoModal
+          isOpen={isVideoToolsModalOpen}
+          onCloseAction={() => {
+            setIsVideoToolsModalOpen(false);
+            setSelectedVideoTool(null);
+          }}
+          onGenerateAction={(params) => {
+            handleVideoToolsGenerate({
+              toolType: 'viral_video',
+              description: `${params.topic} - ${params.trend}`,
+              style: params.style,
+              contentCategory: params.viralFormat,
+              duration: params.duration,
+              resolution: '1080p',
+              frameRate: 30,
+              audioMode: 'background',
+              language: params.language,
+              selectedGalleryAssets: params.selectedGalleryAssets,
+            });
+          }}
+          isLoading={isVideoGenerating}
+        />
+      )}
+      
+      {/* Fallback to original Video Tools Modal if needed */}
+      {!selectedVideoTool && (
+        <VideoToolsModal
+          isOpen={isVideoToolsModalOpen}
+          onCloseAction={() => {
+            setIsVideoToolsModalOpen(false);
+            setSelectedVideoTool(null);
+          }}
+          onGenerateAction={handleVideoToolsGenerate}
+          isLoading={isVideoGenerating}
+        />
+      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 // Safe text replacement utilities for selections in the page
+import { getGlobalUndoManager, createUndoableTextReplace } from './undoManager';
 
 function isEditable(el: Element | null): el is HTMLInputElement | HTMLTextAreaElement {
   if (!el) return false;
@@ -93,11 +94,15 @@ export function replaceSelectionSafelyWithUndo(newText: string): UndoHandle | nu
       const start = (input as any).selectionStart ?? 0;
       const end = (input as any).selectionEnd ?? start;
       const before = input.value ?? '';
+      const oldText = before.slice(start, end);
       input.value = before.slice(0, start) + newText + before.slice(end);
       const caret = start + newText.length;
       (input as any).selectionStart = (input as any).selectionEnd = caret;
       input.dispatchEvent(new Event('input', { bubbles: true }));
-      return {
+      
+      // Register with global undo manager
+      const undoAction = {
+        description: `Replace "${oldText.slice(0, 20)}${oldText.length > 20 ? '...' : ''}" with "${newText.slice(0, 20)}${newText.length > 20 ? '...' : ''}"`,
         undo: () => {
           try {
             input.value = before;
@@ -108,7 +113,22 @@ export function replaceSelectionSafelyWithUndo(newText: string): UndoHandle | nu
           } catch {
             return false;
           }
+        },
+        redo: () => {
+          try {
+            input.value = before.slice(0, start) + newText + before.slice(end);
+            (input as any).selectionStart = (input as any).selectionEnd = start + newText.length;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            return true;
+          } catch {
+            return false;
+          }
         }
+      };
+      getGlobalUndoManager().addAction(undoAction);
+      
+      return {
+        undo: undoAction.undo
       };
     } catch {
       // fall through

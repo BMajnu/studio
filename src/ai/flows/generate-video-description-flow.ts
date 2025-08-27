@@ -1,7 +1,7 @@
 'use server';
 /**
  * @fileOverview Generate an AI-powered random video description based on style, category, duration,
- * aspect ratio, output language, and format. Includes parameter-specific guidelines similar to other flows.
+ * and output language. Includes parameter-specific guidelines similar to other flows.
  */
 
 import { z } from 'genkit';
@@ -111,14 +111,7 @@ const CategoryGuidelines: Record<string, string[]> = {
   ],
 };
 
-const AspectRatioNotes: Record<string, string[]> = {
-  '16:9': ['Widescreen composition; room for side-to-side action and b-roll'],
-  '9:16': ['Vertical-first framing; subject centered; large readable overlays'],
-  '1:1': ['Square framing; balanced central composition; minimal empty space'],
-  '4:3': ['Classic framing; simpler compositions; avoid ultra-wide scenes'],
-  '21:9': ['Cinematic ultra-wide; panoramic shots; careful subject placement'],
-  '4:5': ['Portrait-friendly; emphasize vertical motion and hierarchy'],
-};
+// Aspect ratio guidance removed per deprecation
 
 function getDurationGuidance(duration: number): string[] {
   if (duration <= 15) return ['Ultra concise; 1-3 punchy beats; immediate hook'];
@@ -131,9 +124,7 @@ const GenerateVideoDescriptionFlowInputSchema = z.object({
   style: z.string().describe('Selected video style'),
   contentCategory: z.string().describe('Selected content category'),
   duration: z.number().describe('Target duration (seconds)'),
-  aspectRatio: z.string().describe('Aspect ratio e.g. 16:9, 9:16'),
   language: z.enum(['english', 'bengali', 'both']).describe('Output language for the description'),
-  outputFormat: z.enum(['normal', 'json', 'both']).optional().describe('Prompt output format preference'),
   userName: z.string().optional().describe('Optional user name to personalize tone'),
 });
 export type GenerateVideoDescriptionInput = z.infer<typeof GenerateVideoDescriptionFlowInputSchema>;
@@ -148,11 +139,10 @@ export async function generateVideoDescription(flowInput: GenerateVideoDescripti
   const flowName = 'generateVideoDescription';
   logDebug('input', flowInput);
 
-  const { language, style, contentCategory, duration, aspectRatio, outputFormat, userName } = flowInput;
+  const { language, style, contentCategory, duration, userName } = flowInput;
 
   const styleGuides = StyleGuidelines[style] || [];
   const categoryGuides = CategoryGuidelines[contentCategory] || [];
-  const ratioGuides = AspectRatioNotes[aspectRatio] || [];
   const durationGuides = getDurationGuidance(duration);
 
   const modelToUse = DEFAULT_MODEL_ID;
@@ -171,8 +161,6 @@ User: ${userName || 'Designer'}
 Style: ${style}
 Content Category: ${contentCategory}
 Duration: ${duration} seconds
-Aspect Ratio: ${aspectRatio}
-Output Format Preference: ${outputFormat || 'normal'}
 
 Quality Guidelines (follow all):
 - Global:
@@ -180,11 +168,9 @@ Quality Guidelines (follow all):
   • Prefer verbs for motion: dolly, truck, crane, tilt, pan, orbit, rack focus
   • Describe lighting: key/fill/rim; golden hour, overcast softbox, neon practicals
   • Include mood and atmosphere cues; specify environment textures and depth
-  • Ensure subject readability for ${aspectRatio}; prioritize composition safety areas
 - Style: ${styleGuides.map(g => `• ${g}`).join('\n')}
 - Category: ${categoryGuides.map(g => `• ${g}`).join('\n')}
 - Duration: ${durationGuides.map(g => `• ${g}`).join('\n')}
-- Aspect Ratio: ${ratioGuides.map(g => `• ${g}`).join('\n')}
 
 Your task:
 - Write a single, tightly crafted description that a video model can follow to produce a high-quality result.

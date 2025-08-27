@@ -15,6 +15,7 @@ const nextConfig = {
   reactStrictMode: true,
   env: {
     APP_VERSION: process.env.npm_package_version,
+    ENABLE_FIREBASE_MONITORING: process.env.ENABLE_FIREBASE_MONITORING || 'false',
   },
   images: {
     remotePatterns: [
@@ -76,6 +77,14 @@ if (!process.env.TURBOPACK) {
         message: /Can't resolve '@vercel\/turbopack-next\/internal\/font\/google\/font'/,
       },
     ];
+
+    // Ensure resolve is defined
+    config.resolve = config.resolve || {};
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      // Stub optional Genkit Firebase plugin to avoid module-not-found
+      '@genkit-ai/firebase': path.resolve(__dirname, 'src/shims/genkit-firebase-stub.ts'),
+    };
 
     return config;
   };

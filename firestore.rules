@@ -27,6 +27,68 @@ service cloud.firestore {
       match /generated_images/{imageId} {
         allow read, write, delete: if (request.auth != null && request.auth.uid == userId) || userId == "default-user";
       }
+      
+      // Custom prompts/templates for extension actions
+      match /prompts/{promptId} {
+        // Users can read, write, and delete their own prompts
+        allow read, write, delete: if (request.auth != null && request.auth.uid == userId) || userId == "default-user";
+        
+        // Validation: ensure required fields and limits
+        allow create: if request.auth != null && request.auth.uid == userId &&
+          request.resource.data.keys().hasAll(['title', 'instruction', 'createdAt']) &&
+          request.resource.data.title is string &&
+          request.resource.data.title.size() > 0 &&
+          request.resource.data.title.size() <= 100 &&
+          request.resource.data.instruction is string &&
+          request.resource.data.instruction.size() > 0 &&
+          request.resource.data.instruction.size() <= 2000 &&
+          request.resource.data.createdAt is timestamp;
+          
+        allow update: if request.auth != null && request.auth.uid == userId &&
+          request.resource.data.title is string &&
+          request.resource.data.title.size() > 0 &&
+          request.resource.data.title.size() <= 100 &&
+          request.resource.data.instruction is string &&
+          request.resource.data.instruction.size() > 0 &&
+          request.resource.data.instruction.size() <= 2000;
+      }
+      
+      // Memos collection for saving web content
+      match /memos/{memoId} {
+        // Users can read, write, and delete their own memos
+        allow read, write, delete: if (request.auth != null && request.auth.uid == userId) || userId == "default-user";
+        
+        // Validation: ensure required fields and limits
+        allow create: if request.auth != null && request.auth.uid == userId &&
+          request.resource.data.keys().hasAll(['title', 'content', 'createdAt']) &&
+          request.resource.data.title is string &&
+          request.resource.data.title.size() > 0 &&
+          request.resource.data.title.size() <= 200 &&
+          request.resource.data.content is string &&
+          request.resource.data.content.size() > 0 &&
+          request.resource.data.content.size() <= 50000 &&
+          request.resource.data.createdAt is timestamp &&
+          (!request.resource.data.keys().hasAny(['tags']) || 
+           (request.resource.data.tags is list && request.resource.data.tags.size() <= 20));
+          
+        allow update: if request.auth != null && request.auth.uid == userId &&
+          request.resource.data.title is string &&
+          request.resource.data.title.size() > 0 &&
+          request.resource.data.title.size() <= 200 &&
+          request.resource.data.content is string &&
+          request.resource.data.content.size() > 0 &&
+          request.resource.data.content.size() <= 50000 &&
+          (!request.resource.data.keys().hasAny(['tags']) || 
+           (request.resource.data.tags is list && request.resource.data.tags.size() <= 20));
+      }
+      
+      // Usage tracking for quotas
+      match /usage/{date} {
+        // Users can read their own usage data
+        allow read: if (request.auth != null && request.auth.uid == userId) || userId == "default-user";
+        // Only backend can write usage data (via Admin SDK)
+        allow write: if false;
+      }
     }
 
     // Support for previous userProfiles collection structure

@@ -4,15 +4,214 @@
     <meta charset="utf-8" />
     <title>DesAInR</title>
     <style>
-      body { font-family: Segoe UI, Arial, sans-serif; min-width: 260px; padding: 10px; }
-      button { padding: 8px 10px; border-radius: 6px; border: 1px solid #ddd; background: #4F46E5; color: white; }
+      body { 
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        min-width: 320px;
+        padding: 16px;
+        margin: 0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      }
+      .container {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      }
+      h3 {
+        margin: 0 0 8px 0;
+        color: #1a202c;
+        font-size: 20px;
+        font-weight: 600;
+      }
+      .subtitle {
+        color: #718096;
+        margin: 0 0 20px 0;
+        font-size: 14px;
+      }
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 16px;
+        padding: 12px;
+        background: #f7fafc;
+        border-radius: 8px;
+      }
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #cbd5e0;
+      }
+      .status-dot.active { background: #48bb78; }
+      .status-text {
+        font-size: 14px;
+        color: #4a5568;
+      }
+      button {
+        width: 100%;
+        padding: 10px 16px;
+        border-radius: 8px;
+        border: none;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+      .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      }
+      .btn-secondary {
+        background: #e2e8f0;
+        color: #2d3748;
+        margin-top: 8px;
+      }
+      .btn-secondary:hover {
+        background: #cbd5e0;
+      }
+      .features {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid #e2e8f0;
+      }
+      .feature-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+        font-size: 13px;
+        color: #4a5568;
+      }
+      .feature-icon {
+        color: #667eea;
+      }
+      #loading {
+        display: none;
+        text-align: center;
+        padding: 20px;
+      }
+      .spinner {
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #667eea;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      #error {
+        display: none;
+        color: #e53e3e;
+        font-size: 13px;
+        margin-top: 8px;
+        padding: 8px;
+        background: #fff5f5;
+        border-radius: 6px;
+      }
     </style>
   </head>
   <body>
-    <h3>DesAInR Assistant</h3>
-    <p>Monica-like AI assistant (stub).</p>
-    <button id="signin">Sign In</button>
-    <button id="signout" style="display:none">Sign Out</button>
+    <div class="container">
+      <h3>🚀 DesAInR Assistant</h3>
+      <p class="subtitle">AI-powered writing and translation</p>
+      
+      <div class="status">
+        <span class="status-dot" id="status-dot"></span>
+        <span class="status-text" id="status-text">Not signed in</span>
+      </div>
+
+      <div id="signin-section">
+        <button id="signin" class="btn-primary">Sign in with DesAInR</button>
+        <div class="features">
+          <div class="feature-item">
+            <span class="feature-icon">✨</span>
+            <span>Refine and improve your writing</span>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">🌐</span>
+            <span>Translate text and entire pages</span>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">📝</span>
+            <span>Analyze and summarize content</span>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">💬</span>
+            <span>Chat with AI assistant (Ctrl+M)</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="signout-section" style="display:none">
+        <button id="open-overlay" class="btn-primary">Open Assistant (Ctrl+M)</button>
+        <button id="open-webapp" class="btn-secondary">Open Web App</button>
+        <button id="open-designer" class="btn-secondary">Open Designer Page</button>
+        <button id="toggle-settings" class="btn-secondary">Settings</button>
+        <button id="signout" class="btn-secondary">Sign Out</button>
+      </div>
+
+      <!-- Settings Panel -->
+      <div id="settings-panel" style="display:none; margin-top:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
+        <h3 style="font-size:14px; color:#2d3748; margin-bottom:8px;">Extension Settings</h3>
+        <label style="display:block; font-size:12px; color:#4a5568; margin-bottom:4px;">Default Target Language</label>
+        <select id="setting-target-lang" style="width:100%; padding:8px; border:1px solid #cbd5e0; border-radius:6px; margin-bottom:8px;">
+          <option value="en">English (en)</option>
+          <option value="bn">Bengali (bn)</option>
+          <option value="hi">Hindi (hi)</option>
+          <option value="es">Spanish (es)</option>
+          <option value="fr">French (fr)</option>
+          <option value="de">German (de)</option>
+          <option value="ar">Arabic (ar)</option>
+          <option value="zh">Chinese (zh)</option>
+          <option value="ja">Japanese (ja)</option>
+        </select>
+        <label style="display:block; font-size:12px; color:#4a5568; margin-bottom:4px;">Preferred Model ID</label>
+        <select id="setting-model-id" style="width:100%; padding:8px; border:1px solid #cbd5e0; border-radius:6px; margin-bottom:8px;">
+          <option value="googleai/gemini-1.5-pro-latest">Gemini 1.5 Pro (Latest)</option>
+          <option value="googleai/gemini-2.5-pro-preview-05-06">Gemini 2.5 Pro Preview (05-06)</option>
+          <option value="googleai/gemini-2.0-pro-exp">Gemini 2.0 Pro Experimental</option>
+          <option value="googleai/gemini-2.5-pro-exp-03-25">Gemini 2.5 Pro Experimental (03-25)</option>
+          <option value="googleai/gemini-pro">Gemini 1.0 Pro</option>
+          <option value="googleai/gemini-2.5-pro">Gemini 2.5 Pro</option>
+          <option value="googleai/gemini-1.5-flash-latest" selected>Gemini 1.5 Flash (Latest)</option>
+          <option value="googleai/gemini-2.5-flash">Gemini 2.5 Flash</option>
+          <option value="googleai/gemini-2.5-flash-preview-04-17">Gemini 2.5 Flash Preview (04-17)</option>
+          <option value="googleai/gemini-2.5-flash-preview-05-20">Gemini 2.5 Flash Preview (05-20)</option>
+          <option value="googleai/gemini-2.0-flash">Gemini 2.0 Flash</option>
+          <option value="googleai/gemini-2.0-flash-preview-image-generation">Gemini 2.0 Flash Preview (Image Gen)</option>
+          <option value="googleai/gemini-2.5-flash-lite-preview-06-17">Gemini 2.5 Flash-Lite Preview 06-17</option>
+          <option value="googleai/gemini-2.0-flash-lite">Gemini 2.0 Flash Lite</option>
+          <option value="gemma-3n-e4b">Gemma 3n E4B</option>
+          <option value="gemma-3n-e2b">Gemma 3n E2B</option>
+        </select>
+        <label style="display:block; font-size:12px; color:#4a5568; margin-bottom:4px;">Thinking Mode</label>
+        <select id="setting-thinking-mode" style="width:100%; padding:8px; border:1px solid #cbd5e0; border-radius:6px; margin-bottom:8px;">
+          <option value="none" selected>Fast (Non-thinking)</option>
+          <option value="default">Standard (Default)</option>
+        </select>
+        <div style="display:flex; gap:8px;">
+          <button id="save-settings" class="btn-primary" style="flex:1;">Save Settings</button>
+          <button id="close-settings" class="btn-secondary" style="flex:1;">Close</button>
+        </div>
+        <p style="font-size:11px; color:#718096; margin-top:8px;">Settings are stored locally in your browser for this extension.</p>
+      </div>
+
+      <div id="loading">
+        <div class="spinner"></div>
+        <p style="margin-top: 12px; color: #718096; font-size: 14px;">Signing in...</p>
+      </div>
+
+      <div id="error"></div>
+    </div>
     <script type="module" src="popup.js"></script>
   </body>
 </html>

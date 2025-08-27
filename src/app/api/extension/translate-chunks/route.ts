@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getUserIdFromRequest } from '@/lib/middleware/verifyFirebaseToken';
-
-export const runtime = 'nodejs';
+import { extensionAssistFlow } from '@/ai/flows/extension-assist-flow';
+import { getUserProfileByUid } from '@/lib/server/getUserProfile';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,17 +15,61 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
     const targetLang = String(body?.targetLang ?? 'en');
     const url = String(body?.url ?? '');
+    const modelId: string | undefined = body?.modelId;
+    const userApiKey: string | undefined = body?.userApiKey;
 
     // Support both single selection and batch chunks
     const chunks = Array.isArray(body?.chunks) ? body.chunks as string[] : null;
     if (chunks && chunks.length) {
-      // Stub: echo each chunk; shape matches batch mode
-      const results = chunks.map((c) => String(c));
+      const instruction = `Translate the following text into ${targetLang}. Return only the translation, no comments.`;
+      const results: string[] = [];
+      const profile = uid ? await getUserProfileByUid(uid) : null;
+      const mergedProfile = profile ? {
+        ...profile,
+        selectedGenkitModelId: modelId ?? profile.selectedGenkitModelId,
+        geminiApiKeys: userApiKey ? [userApiKey] : profile.geminiApiKeys,
+      } : undefined;
+      for (const chunk of chunks) {
+        if (!chunk) { results.push(''); continue; }
+        const safeChunk = String(chunk)
+          .replace(/\{\{[^]*?\}\}/g, (m) => `«${m.slice(2, -2)}»`)
+          .replace(/\{\{/g, '{ {')
+          .replace(/\}\}/g, '} }');
+        try {
+          const { response } = await extensionAssistFlow({
+            clientMessage: safeChunk,
+            customInstruction: instruction,
+            profile: mergedProfile,
+          } as any);
+          results.push(String((response as any) ?? ''));
+        } catch (e) {
+          results.push('');
+        }
+      }
       return NextResponse.json({ ok: true, endpoint: 'translate-chunks', uid, url, targetLang, results }, { headers: corsHeaders });
     }
 
     const selection = String(body?.selection ?? '');
-    const result = selection; // stub
+    if (!selection) {
+      return NextResponse.json({ ok: false, error: 'selection or chunks is required' }, { status: 400, headers: corsHeaders });
+    }
+    const instruction = `Translate the following text into ${targetLang}. Return only the translation, no comments.`;
+    const safeSelection = String(selection)
+      .replace(/\{\{[^]*?\}\}/g, (m) => `«${m.slice(2, -2)}»`)
+      .replace(/\{\{/g, '{ {')
+      .replace(/\}\}/g, '} }');
+    const profile = uid ? await getUserProfileByUid(uid) : null;
+    const mergedProfile = profile ? {
+      ...profile,
+      selectedGenkitModelId: modelId ?? profile.selectedGenkitModelId,
+      geminiApiKeys: userApiKey ? [userApiKey] : profile.geminiApiKeys,
+    } : undefined;
+    const { response } = await extensionAssistFlow({
+      clientMessage: safeSelection,
+      customInstruction: instruction,
+      profile: mergedProfile,
+    } as any);
+    const result = String((response as any) ?? '');
     return NextResponse.json({ ok: true, endpoint: 'translate-chunks', uid, url, targetLang, result }, { headers: corsHeaders });
   } catch (err: any) {
     const msg = String(err?.message || '');

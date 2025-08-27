@@ -8,8 +8,8 @@ import { Video, Film, Megaphone, TrendingUp } from 'lucide-react';
 
 interface VideoToolsSelectorProps {
   isOpen: boolean;
-  onClose: () => void;
-  onToolSelect: (toolType: VideoToolType) => void;
+  onCloseAction: () => void;
+  onToolSelectAction: (toolType: VideoToolType) => void;
 }
 
 // Map icon names to components
@@ -28,14 +28,14 @@ const colorMap = {
   'orange': 'border-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950'
 };
 
-export function VideoToolsSelector({ isOpen, onClose, onToolSelect }: VideoToolsSelectorProps) {
+export function VideoToolsSelector({ isOpen, onCloseAction, onToolSelectAction }: VideoToolsSelectorProps) {
   const handleToolSelect = (toolType: VideoToolType) => {
-    onToolSelect(toolType);
-    onClose();
+    onToolSelectAction(toolType);
+    onCloseAction();
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onCloseAction}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold flex items-center gap-2">
@@ -92,7 +92,7 @@ export function VideoToolsSelector({ isOpen, onClose, onToolSelect }: VideoTools
         </div>
         
         <div className="flex justify-end gap-2 pt-2">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onCloseAction}>
             Cancel
           </Button>
         </div>

@@ -3,7 +3,7 @@ import { callExtensionApi } from './api';
 export type ApiResp<T> = { ok: boolean; status: number; json?: T; error?: string };
 
 // Simple exponential backoff retry wrapper for background API calls
-async function withRetry<T>(fn: () => Promise<ApiResp<T>>, attempts = 3, baseDelayMs = 300): Promise<ApiResp<T>> {
+async function withRetry<T>(fn: () => Promise<ApiResp<T>>, attempts = 3, baseDelayMs = 100): Promise<ApiResp<T>> {
   let last: ApiResp<T> | undefined;
   for (let i = 0; i < attempts; i++) {
     const res = await fn();
@@ -17,12 +17,12 @@ async function withRetry<T>(fn: () => Promise<ApiResp<T>>, attempts = 3, baseDel
 }
 
 // Typed wrappers
-export type RewriteBody = { selection: string; url: string; task?: 'grammar'|'clarify'|'shorten'|'expand'|'tone' };
-export type TranslateBody = { selection: string; url: string; targetLang?: string };
-export type TranslateBatchBody = { chunks: string[]; url: string; targetLang?: string };
+export type RewriteBody = { selection: string; url: string; task?: 'grammar'|'clarify'|'shorten'|'expand'|'tone'; modelId?: string; thinkingMode?: 'default'|'none' };
+export type TranslateBody = { selection: string; url: string; targetLang?: string; modelId?: string; thinkingMode?: 'default'|'none' };
+export type TranslateBatchBody = { chunks: string[]; url: string; targetLang?: string; modelId?: string; thinkingMode?: 'default'|'none' };
 export type AnalyzeBody = { url: string; title?: string };
 export type ChatHistoryMsg = { role: 'user'|'assistant'; text: string };
-export type ChatBody = { message: string; userName?: string; chatHistory?: ChatHistoryMsg[]; modelId?: string };
+export type ChatBody = { message: string; userName?: string; chatHistory?: ChatHistoryMsg[]; modelId?: string; thinkingMode?: 'default'|'none' };
 export type SlashPrompt = { title: string; prompt: string };
 export type ActionsBody = {
   selection?: string;
@@ -31,6 +31,15 @@ export type ActionsBody = {
   templateId?: string;
   language?: 'english'|'bengali'|'both';
   modelId?: string;
+  thinkingMode?: 'default'|'none';
+};
+export type MemoBody = {
+  title: string;
+  content: string;
+  url?: string;
+  type?: 'text' | 'analysis' | 'selection';
+  metadata?: Record<string, any>;
+  tags?: string[];
 };
 
 export async function rewrite(body: RewriteBody) {
@@ -61,4 +70,10 @@ export async function getSlashPrompts(limit = 50) {
 
 export async function actions(body: ActionsBody) {
   return withRetry(() => callExtensionApi('actions', body));
+}
+
+export async function saveMemo(body: MemoBody) {
+  return withRetry<{ success: boolean; memoId: string; message: string }>(
+    () => callExtensionApi('memo/save', body)
+  );
 }

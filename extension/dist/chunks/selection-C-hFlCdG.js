@@ -1,1 +1,0 @@
-function l(){const t=window.getSelection();if(!t||t.rangeCount===0)return null;const n=t.getRangeAt(0).getBoundingClientRect(),e=t.toString();if(!e.trim())return null;const o=n.left+window.scrollX,r=n.top+window.scrollY;return{text:e,rect:n,pageX:o,pageY:r}}export{l as getSelectionInfo};

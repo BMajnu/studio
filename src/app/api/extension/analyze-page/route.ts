@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server';
 import { getUserIdFromRequest } from '@/lib/middleware/verifyFirebaseToken';
 import { analyzeWebpageFlow } from '@/lib/analyze/analyze-webpage-flow';
 
-export const runtime = 'nodejs';
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',

@@ -89,12 +89,7 @@ const CategoryGuidelines: Record<'shortform'|'youtube_vlog'|'educational'|'produ
   ],
 };
 
-const AspectRatioNotes: Record<'16:9'|'9:16'|'1:1'|'4:3', string[]> = {
-  '16:9': ['Widescreen composition; room for lateral motion and b-roll'],
-  '9:16': ['Vertical-first framing; centered subjects; oversized overlays'],
-  '1:1': ['Central balance; minimize empty corners; strong hierarchy'],
-  '4:3': ['Classic framing; simpler compositions; avoid ultra-wide pans'],
-};
+// Aspect ratio guidance removed as part of deprecation
 
 // Load up to N JSON code blocks from the research file to use as reference examples
 function loadResearchExamples(maxBlocks: number = 2): string {
@@ -143,7 +138,6 @@ const GenerateVideoPromptsFlowInputSchema = z.object({
   userName: z.string().describe('The name of the user'),
   videoStyle: z.enum(['cinematic', 'animation', 'documentary', 'commercial', 'music_video', 'social_media']).optional().describe('Preferred video style'),
   duration: z.number().optional().describe('Target video duration in seconds'),
-  aspectRatio: z.enum(['16:9', '9:16', '1:1', '4:3']).optional().describe('Video aspect ratio'),
   attachedFiles: z.array(AttachedFileSchema).optional().describe("Reference files attached by the user"),
   modelId: z.string().optional().describe('The Genkit model ID to use'),
   userApiKey: z.string().optional().describe('User-provided Gemini API key'),
@@ -159,7 +153,6 @@ const GenerateVideoPromptsPromptInputSchema = z.object({
   userName: z.string().describe('The name of the user'),
   videoStyle: z.enum(['cinematic', 'animation', 'documentary', 'commercial', 'music_video', 'social_media']).optional(),
   duration: z.number().optional(),
-  aspectRatio: z.enum(['16:9', '9:16', '1:1', '4:3']).optional(),
   attachedFiles: z.array(AttachedFileSchema).optional(),
   contentCategory: z.enum(['shortform','youtube_vlog','educational','product_review','storytelling','gaming','travel','fitness','food','news']).optional(),
 });
@@ -184,7 +177,7 @@ const VideoPromptSchema = z.object({
   visualStyle: z.string().describe('Overall visual style and aesthetic'),
   colorPalette: z.array(z.string()).describe('Suggested color palette'),
   audioNotes: z.string().optional().describe('Audio and music suggestions'),
-  aspectRatio: z.string().optional().describe('Aspect ratio for composition safety'),
+  // aspectRatio removed from output schema
   totalDuration: z.number().optional().describe('Total target duration in seconds'),
   postProcessing: z.string().optional().describe('Color grade, grain, vignettes, overlays'),
   negativePrompts: z.array(z.string()).optional().describe('Things to avoid'),
@@ -229,7 +222,6 @@ export async function generateVideoPrompts(flowInput: GenerateVideoPromptsInput)
 
   const styleGuides: string[] = promptInputData.videoStyle ? (StyleGuidelines[promptInputData.videoStyle] ?? []) : [] as string[];
   const categoryGuides: string[] = promptInputData.contentCategory ? (CategoryGuidelines[promptInputData.contentCategory] ?? []) : [] as string[];
-  const ratioGuides: string[] = promptInputData.aspectRatio ? (AspectRatioNotes[promptInputData.aspectRatio] ?? []) : [] as string[];
   const durationGuides: string[] = getDurationGuidance(promptInputData.duration);
 
   // Load example prompts from research (if available)
@@ -246,7 +238,6 @@ User Requirements: ${promptInputData.userMessage}
 ${promptInputData.videoStyle ? `Style: ${promptInputData.videoStyle}` : ''}
 ${promptInputData.contentCategory ? `Content Category: ${promptInputData.contentCategory}` : ''}
 ${promptInputData.duration ? `Duration: ${promptInputData.duration} seconds` : ''}
-${promptInputData.aspectRatio ? `Aspect Ratio: ${promptInputData.aspectRatio}` : ''}
 ${promptInputData.attachedFiles?.length ? `Attached Files (${promptInputData.attachedFiles.length}):\n${attachmentsSummary}` : ''}
 
 Quality Guidelines (must follow):
@@ -254,11 +245,11 @@ Quality Guidelines (must follow):
   • Avoid brands, watermarks, copyrighted characters, and real identities
   • Use camera verbs (dolly/truck/crane/tilt/pan/orbit/rack focus) instead of vague phrasing
   • Specify lighting (key/fill/rim), time-of-day, atmosphere, and texture
-  • Ensure composition readability for the target aspect ratio
+  
 - Style: ${styleGuides.map((g: string) => `• ${g}`).join('\n')}
 - Category: ${categoryGuides.map((g: string) => `• ${g}`).join('\n')}
 - Duration: ${durationGuides.map((g: string) => `• ${g}`).join('\n')}
-- Aspect Ratio: ${ratioGuides.map((g: string) => `• ${g}`).join('\n')}
+ 
 
 ${researchExamples}
 Your Tasks:
@@ -281,14 +272,14 @@ Structured JSON must follow this exact top-level format (return JSON only, no ex
     "visualStyle": "...",
     "colorPalette": ["#...", "#..."],
     "audioNotes": "...",
-    "aspectRatio": "${promptInputData.aspectRatio || ''}",
+    
     "totalDuration": ${promptInputData.duration || 0},
     "postProcessing": "Color grade and finishing notes",
     "negativePrompts": ["watermarks", "logos", "celebrity likeness"]
   },
   "veo3OptimizedPrompt": "...",
   "technicalNotes": ["Frame rate suggestions", "Shutter/ND hints", "Safe areas for text"],
-  "suggestedKeywords": ["cinematic", "${promptInputData.videoStyle || 'style'}", "${promptInputData.aspectRatio || 'ratio'}"],
+  "suggestedKeywords": ["cinematic", "${promptInputData.videoStyle || 'style'}"],
   "sceneBreakdown": ["Scene 1 – ...", "Scene 2 – ..."],
   "keywords": ["cinematic", "high-contrast"]
 }`;

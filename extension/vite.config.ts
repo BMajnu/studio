@@ -5,17 +5,17 @@ export default defineConfig({
   publicDir: 'public',
   build: {
     outDir: 'dist',
-    emptyOutDir: true,
+    // Do not wipe dist; contentScript is built separately
+    emptyOutDir: false,
     rollupOptions: {
       input: {
         background: resolve(__dirname, 'src/background.ts'),
-        contentScript: resolve(__dirname, 'src/contentScript.ts'),
         popup: resolve(__dirname, 'src/popup.ts'),
       },
       output: {
+        // ES modules for background (module service worker) and popup (type="module")
         entryFileNames: (chunk: any) => {
           if (chunk.name === 'background') return 'background.js';
-          if (chunk.name === 'contentScript') return 'contentScript.js';
           if (chunk.name === 'popup') return 'popup.js';
           return '[name].js';
         },

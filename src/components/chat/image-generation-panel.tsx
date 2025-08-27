@@ -35,7 +35,6 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
 
   // Settings state
   const [numImages, setNumImages] = useState(4);
-  const aspectRatio = '1:1';
   const [temperature, setTemperature] = useState<number>(1);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
@@ -75,7 +74,6 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
         body: JSON.stringify({
           prompt,
           numImages,
-          aspectRatio,
           temperature,
           userName: profile.name,
           userId: profile.userId,

@@ -16,6 +16,15 @@ export async function POST(req: Request) {
     if (!idToken) {
       return NextResponse.json({ ok: false, error: 'idToken is required' }, { status: 400, headers: corsHeaders });
     }
+    // Development mode: If Firebase Admin is not configured, use a simple passthrough
+    const hasAdminCreds = !!(process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY);
+    if (!hasAdminCreds) {
+      console.warn('Firebase Admin not configured - using development mode passthrough');
+      return NextResponse.json(
+        { ok: true, endpoint: 'auth/exchange', customToken: idToken, uid: 'dev-user' },
+        { headers: corsHeaders }
+      );
+    }
 
     const decoded = await getAdminAuth().verifyIdToken(idToken);
     const uid = decoded.uid;

@@ -1,4 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { createFocusTrap, setupEscapeHandler, announceToScreenReader, getAriaLabel, detectHighContrastMode } from './accessibility';
+import { Toast, useToast } from './Toast';
+import { getTheme, themed } from './theme';
 
 export type AppProps = { onClose?: () => void };
 
@@ -13,6 +16,11 @@ const tabLabel: Record<TabKey, string> = {
 
 export function App({ onClose }: AppProps) {
   const [tab, setTab] = useState<TabKey>('chat');
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const [highContrast, setHighContrast] = useState(detectHighContrastMode());
+  const theme = getTheme(highContrast);
+  const styles = themed(theme);
+  const { messages: toastMessages, removeToast, showSuccess, showError, showWarning, showInfo } = useToast();
   // Chat tab state
   type ChatMsg = { role: 'user' | 'assistant'; text: string };
   const [chatBusy, setChatBusy] = useState(false);
@@ -29,6 +37,7 @@ export function App({ onClose }: AppProps) {
   const [keyPoints, setKeyPoints] = useState<string[]>([]);
   const [links, setLinks] = useState<string[]>([]);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+  const [memoSaveStatus, setMemoSaveStatus] = useState<string>('');
   // Translate tab state
   const [translateBusy, setTranslateBusy] = useState(false);
   const [translateMsg, setTranslateMsg] = useState('');
@@ -38,6 +47,10 @@ export function App({ onClose }: AppProps) {
   const [writeBusy, setWriteBusy] = useState(false);
   const [writeMsg, setWriteMsg] = useState('');
   const [writeUndo, setWriteUndo] = useState<null | (() => boolean)>(null);
+
+  // Style helper functions using theme
+  const btn = (): React.CSSProperties => styles.button('secondary', false) as React.CSSProperties;
+  const tabBtn = (active: boolean): React.CSSProperties => styles.button('secondary', active) as React.CSSProperties;
 
   // Helpers for suggestions
   function normalizeSuggestions(input: any): { title: string; prompt: string }[] {
@@ -70,12 +83,38 @@ export function App({ onClose }: AppProps) {
 
   const header = useMemo(() => (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-      <div style={{ fontWeight: 700 }}>DesAInR</div>
+      <div style={{ fontWeight: 700 }} role="heading" aria-level={1}>DesAInR</div>
       <div style={{ display: 'flex', gap: 6 }}>
-        <button onClick={onClose} style={btn()}>Close</button>
+        <button 
+          onClick={onClose} 
+          style={btn()}
+          aria-label={getAriaLabel('close')}
+        >
+          Close
+        </button>
       </div>
     </div>
   ), [onClose]);
+
+  // Setup accessibility features
+  useEffect(() => {
+    if (!overlayRef.current) return;
+    
+    // Create focus trap
+    const cleanupFocusTrap = createFocusTrap(overlayRef.current);
+    
+    // Setup escape handler
+    const cleanupEscape = onClose ? setupEscapeHandler(onClose) : undefined;
+    
+    // Announce overlay opened
+    announceToScreenReader('DesAInR overlay opened', 'polite');
+    
+    return () => {
+      cleanupFocusTrap();
+      cleanupEscape?.();
+      announceToScreenReader('DesAInR overlay closed', 'polite');
+    };
+  }, [onClose]);
 
   useEffect(() => {
     (async () => {
@@ -262,6 +301,57 @@ export function App({ onClose }: AppProps) {
     }
   }
 
+  async function saveToMemo() {
+    if (!summary && keyPoints.length === 0) {
+      setMemoSaveStatus('No content to save');
+      return;
+    }
+    
+    setMemoSaveStatus('Saving...');
+    
+    try {
+      const api = await import('../apiClient');
+      
+      // Prepare memo content
+      let content = '';
+      if (summary) {
+        content += `Summary:\n${summary}\n\n`;
+      }
+      if (keyPoints.length > 0) {
+        content += `Key Points:\n${keyPoints.map(p => `• ${p}`).join('\n')}\n\n`;
+      }
+      if (links.length > 0) {
+        content += `Links:\n${links.slice(0, 10).join('\n')}`;
+      }
+      
+      const memoData = {
+        title: document.title || 'Page Analysis',
+        content: content.trim(),
+        url: window.location.href,
+        type: 'analysis' as const,
+        metadata: {
+          summary,
+          keyPoints,
+          links: links.slice(0, 10)
+        },
+        tags: ['analysis', 'extension']
+      };
+      
+      const res = await api.saveMemo(memoData);
+      
+      if (res.ok && res.json) {
+        setMemoSaveStatus(`✓ Saved to memo (ID: ${res.json.memoId})`);
+        // Clear status after 3 seconds
+        setTimeout(() => setMemoSaveStatus(''), 3000);
+      } else {
+        setMemoSaveStatus(`Failed: ${res.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Save to memo error:', err);
+      setMemoSaveStatus('Failed to save memo');
+    }
+  }
+
   async function refineSelectionAction() {
     try {
       setWriteBusy(true);
@@ -296,7 +386,22 @@ export function App({ onClose }: AppProps) {
   }
 
   return (
-    <div style={{ color: '#111', background: '#fff', border: '1px solid #ddd', borderRadius: 8, padding: '10px 12px', minWidth: 360, maxWidth: 520, maxHeight: 520, overflow: 'auto', fontFamily: 'Segoe UI, Arial, sans-serif', boxShadow: '0 6px 20px rgba(0,0,0,0.15)' }}>
+    <>
+      <Toast messages={toastMessages} onRemove={removeToast} highContrast={highContrast} />
+      <div 
+        ref={overlayRef}
+        style={{ 
+          ...styles.container,
+          padding: '10px 12px', 
+          minWidth: 360, 
+          maxWidth: 520, 
+          maxHeight: 520, 
+          overflow: 'auto', 
+          fontFamily: 'Segoe UI, Arial, sans-serif'
+        }}
+        role="dialog"
+        aria-label="DesAInR Extension Overlay"
+      >
       {header}
       <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
         {(['chat','write','translate','analyze'] as TabKey[]).map(k => (
@@ -379,7 +484,11 @@ export function App({ onClose }: AppProps) {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <button onClick={runAnalyze} disabled={analyzeBusy} style={btn()}>{analyzeBusy ? 'Analyzing...' : 'Analyze this page'}</button>
+              {(summary || keyPoints.length > 0) && (
+                <button onClick={saveToMemo} style={btn()}>Save to Memo</button>
+              )}
               {analyzeError && <span style={{ color: '#c00', fontSize: 12 }}> {analyzeError} </span>}
+              {memoSaveStatus && <span style={{ color: memoSaveStatus.includes('✓') ? '#0a0' : '#555', fontSize: 12 }}>{memoSaveStatus}</span>}
             </div>
             {summary && <div style={{ marginTop: 8, fontSize: 13 }}>{summary}</div>}
             {keyPoints.length > 0 && (
@@ -401,17 +510,9 @@ export function App({ onClose }: AppProps) {
         )}
       </div>
     </div>
+    </>
   );
 }
 
-function btn(): React.CSSProperties {
-  return { border: '1px solid #ddd', borderRadius: 6, padding: '6px 8px', background: '#f7f7f7', cursor: 'pointer' } as any;
-}
-
-function tabBtn(active: boolean): React.CSSProperties {
-  return {
-    ...btn(),
-    fontWeight: active ? 700 : 500,
-    background: active ? '#ececec' : '#f7f7f7',
-  } as any;
-}
+// Style helper functions are now part of the component
+// They will use the theme from the component scope

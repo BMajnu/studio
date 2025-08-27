@@ -5,165 +5,261 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
-import { GalleryAsset, GALLERY_SUB_TABS } from '@/lib/video/types';
-import { Plus, Upload, Sparkles, Check, X, RefreshCw } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { GalleryAsset, AssetType, GALLERY_SUB_TABS } from '@/lib/video/types';
+import { Sparkles, Upload, Save, Check, X, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { safeToast } from '@/lib/safe-toast';
 import { cn } from '@/lib/utils';
 
 interface GalleryManagerProps {
-  sceneId: string;
-  sceneNumber: number;
-  selectedAssets: GalleryAsset[];
-  onAssetSelect: (asset: GalleryAsset) => void;
-  galleryAssets: {
-    characters: string[];
-    objects: string[];
-    backgrounds: string[];
-  };
+  selectedAssets?: GalleryAsset[];
+  onAssetsChange?: (assets: GalleryAsset[]) => void;
 }
 
-export function GalleryManager({
-  sceneId,
-  sceneNumber,
-  selectedAssets,
-  onAssetSelect,
-  galleryAssets
+export function GalleryManager({ 
+  selectedAssets = [], 
+  onAssetsChange 
 }: GalleryManagerProps) {
-  const [activeTab, setActiveTab] = useState<string>(GALLERY_SUB_TABS[0].value);
-  const [generationPrompt, setGenerationPrompt] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedAssets, setGeneratedAssets] = useState<GalleryAsset[]>([]);
-  const [savedAssets, setSavedAssets] = useState<GalleryAsset[]>([]);
+  const [activeTab, setActiveTab] = useState<AssetType>('character');
+  const [prompts, setPrompts] = useState<Record<AssetType, string>>({
+    character: '',
+    subject: '',
+    object: '',
+    background: ''
+  });
+  const [isGenerating, setIsGenerating] = useState<Record<AssetType, boolean>>({
+    character: false,
+    subject: false,
+    object: false,
+    background: false
+  });
+  const [generatedAssets, setGeneratedAssets] = useState<Record<AssetType, GalleryAsset[]>>({
+    character: [],
+    subject: [],
+    object: [],
+    background: []
+  });
+  const [savedAssets, setSavedAssets] = useState<Record<AssetType, GalleryAsset[]>>({
+    character: [],
+    subject: [],
+    object: [],
+    background: []
+  });
   
-  const handleGenerateAssets = async () => {
-    if (!generationPrompt.trim()) return;
+  const handleGenerateAssets = async (type: AssetType) => {
+    if (!prompts[type].trim()) {
+      safeToast({
+        title: 'Missing prompt',
+        description: `Please enter a prompt for ${type} generation`,
+        variant: 'destructive',
+        duration: 3000,
+      });
+      return;
+    }
     
-    setIsGenerating(true);
+    setIsGenerating(prev => ({ ...prev, [type]: true }));
     
     try {
-      // TODO: Call API to generate assets using Gemini 2.0 Flash Preview
-      // For now, create mock assets
-      const mockAssets: GalleryAsset[] = Array.from({ length: 4 }, (_, i) => ({
-        id: `${sceneId}-${activeTab}-${Date.now()}-${i}`,
-        type: activeTab as GalleryAsset['type'],
-        name: `${activeTab} ${i + 1}`,
-        prompt: generationPrompt,
-        imageUrl: `https://placehold.co/256x256?text=${activeTab}+${i + 1}`,
-        thumbnailUrl: `https://placehold.co/128x128?text=${activeTab}+${i + 1}`,
-        metadata: {
-          sceneId,
-          generatedAt: new Date().toISOString()
-        }
-      }));
+      const response = await fetch('/api/generate-gallery-asset', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: prompts[type],
+          type,
+          count: 4,
+          style: 'cinematic' // Could be made configurable
+        }),
+      });
       
-      setGeneratedAssets(mockAssets);
+      if (!response.ok) {
+        throw new Error('Failed to generate assets');
+      }
+      
+      const data = await response.json();
+      
+      if (data.success && data.assets) {
+        const assets: GalleryAsset[] = data.assets.map((asset: any) => ({
+          id: asset.id,
+          type: asset.type,
+          name: asset.title || asset.name || `${type} Asset`,
+          prompt: asset.prompt,
+          imageUrl: asset.imageUrl,
+          tags: asset.tags,
+          createdAt: new Date(asset.createdAt)
+        }));
+        
+        setGeneratedAssets(prev => ({
+          ...prev,
+          [type]: assets
+        }));
+        
+        safeToast({
+          title: 'Assets generated',
+          description: `Generated ${assets.length} ${type} variations`,
+          duration: 3000,
+        });
+      }
     } catch (error) {
       console.error('Error generating assets:', error);
+      safeToast({
+        title: 'Generation failed',
+        description: `Failed to generate ${type} assets`,
+        variant: 'destructive',
+        duration: 3500,
+      });
     } finally {
-      setIsGenerating(false);
+      setIsGenerating(prev => ({ ...prev, [type]: false }));
     }
   };
   
   const handleSaveAsset = (asset: GalleryAsset) => {
-    setSavedAssets([...savedAssets, asset]);
-    setGeneratedAssets(generatedAssets.filter(a => a.id !== asset.id));
+    setSavedAssets(prev => ({
+      ...prev,
+      [asset.type]: [...prev[asset.type], asset]
+    }));
+    setGeneratedAssets(prev => ({
+      ...prev,
+      [asset.type]: prev[asset.type].filter(a => a.id !== asset.id)
+    }));
   };
   
-  const handleUploadAsset = async (file: File) => {
-    // TODO: Implement file upload to Firebase Storage
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const newAsset: GalleryAsset = {
-        id: `${sceneId}-${activeTab}-upload-${Date.now()}`,
-        type: activeTab as GalleryAsset['type'],
+  const handleFileUpload = async (type: AssetType, files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    
+    const uploadPromises = Array.from(files).map(async (file) => {
+      // Create a temporary URL for preview
+      const tempUrl = URL.createObjectURL(file);
+      
+      const asset: GalleryAsset = {
+        id: `${type}_upload_${Date.now()}_${Math.random()}`,
+        type,
         name: file.name,
-        prompt: 'Uploaded file',
-        imageUrl: e.target?.result as string,
-        thumbnailUrl: e.target?.result as string,
+        prompt: `Uploaded: ${file.name}`,
+        imageUrl: tempUrl,
+        tags: [type, 'uploaded'],
+        createdAt: new Date(),
         metadata: {
-          sceneId,
-          uploadedAt: new Date().toISOString(),
-          fileName: file.name
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type
         }
       };
-      setSavedAssets([...savedAssets, newAsset]);
-    };
-    reader.readAsDataURL(file);
+      
+      return asset;
+    });
+    
+    try {
+      const uploadedAssets = await Promise.all(uploadPromises);
+      
+      setSavedAssets(prev => ({
+        ...prev,
+        [type]: [...prev[type], ...uploadedAssets]
+      }));
+      
+      safeToast({
+        title: 'Upload complete',
+        description: `Uploaded ${uploadedAssets.length} ${type} image${uploadedAssets.length > 1 ? 's' : ''}`,
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Error uploading files:', error);
+      safeToast({
+        title: 'Upload failed',
+        description: 'Failed to upload images',
+        variant: 'destructive',
+        duration: 3500,
+      });
+    }
+  };
+  
+  const handleAssetToggle = (asset: GalleryAsset) => {
+    if (!onAssetsChange) return;
+    
+    const isSelected = selectedAssets.some(a => a.id === asset.id);
+    
+    if (isSelected) {
+      onAssetsChange(selectedAssets.filter(a => a.id !== asset.id));
+    } else {
+      onAssetsChange([...selectedAssets, asset]);
+    }
   };
   
   const isAssetSelected = (assetId: string) => {
-    return selectedAssets.some(a => a.id === assetId);
+    return selectedAssets.some(asset => asset.id === assetId);
   };
   
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Label className="text-base font-medium">
-          Scene {sceneNumber} - Gallery Assets
-        </Label>
-      </div>
-      
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-4 w-full">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as AssetType)} className="w-full">
+        <TabsList className="grid grid-cols-3 w-full">
           {GALLERY_SUB_TABS.map(tab => (
-            <TabsTrigger key={tab.value} value={tab.value}>
+            <TabsTrigger key={tab.id} value={tab.id}>
               {tab.label}
             </TabsTrigger>
           ))}
         </TabsList>
         
         {GALLERY_SUB_TABS.map(tab => (
-          <TabsContent key={tab.value} value={tab.value} className="space-y-4 mt-4">
+          <TabsContent key={tab.id} value={tab.id} className="space-y-4">
             {/* Generation Section */}
             <Card className="p-4 bg-card">
               <div className="space-y-3">
-                <Label>Generate {tab.label}</Label>
-                <div className="flex gap-2">
+                <div className="space-y-2">
+                  <Label>Generate {tab.label}</Label>
                   <Textarea
-                    value={generationPrompt}
-                    onChange={(e) => setGenerationPrompt(e.target.value)}
                     placeholder={`Describe the ${tab.label.toLowerCase()} you want to generate...`}
-                    className="flex-1 min-h-[80px]"
+                    value={prompts[tab.id]}
+                    onChange={(e) => setPrompts(prev => ({ ...prev, [tab.id]: e.target.value }))}
+                    className="min-h-[80px] resize-none"
                   />
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleGenerateAssets}
-                    disabled={isGenerating || !generationPrompt.trim()}
-                    className="flex-1"
-                  >
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    {isGenerating ? 'Generating...' : 'Generate with AI'}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => document.getElementById(`upload-${tab.value}`)?.click()}
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => handleGenerateAssets(tab.id)}
+                      disabled={isGenerating[tab.id] || !prompts[tab.id].trim()}
+                      className="flex-1"
+                    >
+                      {isGenerating[tab.id] ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4 mr-2" />
+                          Generate 4 Variations
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => document.getElementById(`upload-${tab.id}`)?.click()}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload
+                    </Button>
+                  </div>
                   <input
-                    id={`upload-${tab.value}`}
+                    id={`upload-${tab.id}`}
                     type="file"
                     accept="image/*"
+                    multiple
                     className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleUploadAsset(file);
-                    }}
+                    onChange={(e) => handleFileUpload(tab.id, e.target.files)}
                   />
                 </div>
               </div>
             </Card>
             
             {/* Generated Assets Preview */}
-            {generatedAssets.length > 0 && (
+            {generatedAssets[tab.id] && generatedAssets[tab.id].length > 0 && (
               <Card className="p-4 bg-card">
                 <div className="space-y-3">
-                  <Label>Generated Options - Select to Save</Label>
+                  <Label>Generated Options - Click to Save</Label>
                   <div className="grid grid-cols-4 gap-3">
-                    {generatedAssets.map((asset) => (
+                    {generatedAssets[tab.id].map((asset) => (
                       <div key={asset.id} className="relative group">
                         <div className="aspect-square rounded-lg overflow-hidden bg-muted">
                           <img
@@ -179,12 +275,17 @@ export function GalleryManager({
                             onClick={() => handleSaveAsset(asset)}
                             className="h-8 w-8 p-0"
                           >
-                            <Check className="h-4 w-4" />
+                            <Save className="h-4 w-4" />
                           </Button>
                           <Button
                             size="sm"
                             variant="secondary"
-                            onClick={() => setGeneratedAssets(generatedAssets.filter(a => a.id !== asset.id))}
+                            onClick={() => {
+                              setGeneratedAssets(prev => ({
+                                ...prev,
+                                [tab.id]: prev[tab.id].filter(a => a.id !== asset.id)
+                              }));
+                            }}
                             className="h-8 w-8 p-0"
                           >
                             <X className="h-4 w-4" />
@@ -200,39 +301,37 @@ export function GalleryManager({
             {/* Saved Assets */}
             <Card className="p-4 bg-card">
               <div className="space-y-3">
-                <Label>Saved {tab.label}</Label>
-                {savedAssets.filter(a => a.type === tab.value).length === 0 ? (
+                <Label>Saved {tab.pluralLabel}</Label>
+                {!savedAssets[tab.id] || savedAssets[tab.id].length === 0 ? (
                   <div className="text-sm text-muted-foreground text-center py-8">
                     No saved {tab.label.toLowerCase()} yet
                   </div>
                 ) : (
                   <div className="grid grid-cols-4 gap-3">
-                    {savedAssets
-                      .filter(a => a.type === tab.value)
-                      .map((asset) => (
-                        <div
-                          key={asset.id}
-                          className={cn(
-                            "relative group cursor-pointer",
-                            isAssetSelected(asset.id) && "ring-2 ring-primary rounded-lg"
-                          )}
-                          onClick={() => onAssetSelect(asset)}
-                        >
-                          <div className="aspect-square rounded-lg overflow-hidden bg-muted">
-                            <img
-                              src={asset.thumbnailUrl}
-                              alt={asset.name}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          {isAssetSelected(asset.id) && (
-                            <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1">
-                              <Check className="h-3 w-3" />
-                            </div>
-                          )}
-                          <p className="text-xs mt-1 truncate">{asset.name}</p>
+                    {savedAssets[tab.id].map((asset) => (
+                      <div
+                        key={asset.id}
+                        className={cn(
+                          "relative group cursor-pointer",
+                          isAssetSelected(asset.id) && "ring-2 ring-primary rounded-lg"
+                        )}
+                        onClick={() => handleAssetToggle(asset)}
+                      >
+                        <div className="aspect-square rounded-lg overflow-hidden bg-muted">
+                          <img
+                            src={asset.imageUrl}
+                            alt={asset.name}
+                            className="w-full h-full object-cover"
+                          />
                         </div>
-                      ))}
+                        {isAssetSelected(asset.id) && (
+                          <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1">
+                            <Check className="h-3 w-3" />
+                          </div>
+                        )}
+                        <p className="text-xs mt-1 truncate">{asset.name}</p>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

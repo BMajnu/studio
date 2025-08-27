@@ -363,7 +363,7 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
         </div>
       );
     case 'video_prompt_tabs':
-      // Rich video prompt renderer: Scenes, JSON, Veo3, Notes, Keywords
+      // Rich video prompt renderer: Normal, JSON, Scene Image, Gallery
       const jsonObj: any = (part as any).jsonPrompt || {};
       const scenes: any[] = Array.isArray(jsonObj?.scenes) ? jsonObj.scenes : [];
       const allKeywords: string[] | undefined = (part as any).keywords;
@@ -384,84 +384,36 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
             </div>
           )}
           <div className="p-4">
-            <Tabs defaultValue={scenes.length > 0 ? 'scenes' : 'json'} className="w-full">
-              <TabsList className="grid grid-cols-5 gap-1 mb-4">
-                <TabsTrigger value="scenes" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">Scenes</TabsTrigger>
+            <Tabs defaultValue={(part as any)?.bilingual?.english || (part as any)?.bilingual?.bengali ? 'normal' : 'json'} className="w-full">
+              <TabsList className="grid grid-cols-4 gap-1 mb-4">
+                <TabsTrigger value="normal" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">Normal</TabsTrigger>
                 <TabsTrigger value="json" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">JSON</TabsTrigger>
-                <TabsTrigger value="veo3" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">Veo 3</TabsTrigger>
-                <TabsTrigger value="notes" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">Notes</TabsTrigger>
-                <TabsTrigger value="keywords" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">Keywords</TabsTrigger>
+                <TabsTrigger value="scene_image" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">Scene Image</TabsTrigger>
+                <TabsTrigger value="gallery" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">Gallery</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="scenes" className="mt-0">
-                {scenes.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">No scenes available.</div>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-end mb-2 gap-2">
-                      <button
-                        className="text-xs px-2 py-1 rounded-md border hover:bg-muted/60"
-                        onClick={() => handleCopyToClipboard(JSON.stringify(scenes, null, 2), 'all-scenes-json')}
-                      >
-                        Copy All JSON
-                      </button>
-                      <button
-                        className="text-xs px-2 py-1 rounded-md border hover:bg-muted/60"
-                        onClick={() => {
-                          const text = scenes.map((s: any, i: number) => {
-                            const parts: string[] = [];
-                            const title = `Scene ${s.sceneNumber ?? (i + 1)}${typeof s.duration === 'number' ? ` · ${s.duration}s` : ''}`;
-                            parts.push(title);
-                            if (s.description) parts.push(s.description);
-                            const fields: string[] = [];
-                            if (s.cameraMovement) fields.push(`Camera: ${s.cameraMovement}`);
-                            if (s.shotType) fields.push(`Shot: ${s.shotType}`);
-                            if (s.lighting) fields.push(`Lighting: ${s.lighting}`);
-                            if (s.mood) fields.push(`Mood: ${s.mood}`);
-                            if (s.lens) fields.push(`Lens: ${s.lens}`);
-                            if (s.location) fields.push(`Location: ${s.location}`);
-                            if (s.timeOfDay) fields.push(`Time: ${s.timeOfDay}`);
-                            if (s.transition) fields.push(`Transition: ${s.transition}`);
-                            if (fields.length) parts.push(fields.join(' | '));
-                            return parts.join('\n');
-                          }).join('\n\n');
-                          handleCopyToClipboard(text, 'all-scenes-text');
-                        }}
-                      >
-                        Copy Scenes Text
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {scenes.map((s: any, i: number) => (
-                      <div key={i} className="rounded-lg bg-card/60 border border-border p-3 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="font-semibold text-base">
-                            Scene {s.sceneNumber ?? (i + 1)}{typeof s.duration === 'number' ? ` · ${s.duration}s` : ''}
-                          </div>
-                          <button
-                            className="text-xs px-2 py-1 rounded-md border hover:bg-muted/60"
-                            onClick={() => handleCopyToClipboard(JSON.stringify(s, null, 2), `scene-${i}`)}
-                          >
-                            Copy JSON
-                          </button>
-                        </div>
-                        {s.description && (
-                          <p className="text-sm leading-snug text-foreground/90">{s.description}</p>
-                        )}
-                        <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-                          {s.cameraMovement && <div><span className="font-medium text-foreground/80">Camera:</span> {s.cameraMovement}</div>}
-                          {s.shotType && <div><span className="font-medium text-foreground/80">Shot:</span> {s.shotType}</div>}
-                          {s.lighting && <div><span className="font-medium text-foreground/80">Lighting:</span> {s.lighting}</div>}
-                          {s.mood && <div><span className="font-medium text-foreground/80">Mood:</span> {s.mood}</div>}
-                          {s.lens && <div><span className="font-medium text-foreground/80">Lens:</span> {s.lens}</div>}
-                          {s.location && <div><span className="font-medium text-foreground/80">Location:</span> {s.location}</div>}
-                          {s.timeOfDay && <div><span className="font-medium text-foreground/80">Time:</span> {s.timeOfDay}</div>}
-                          {s.transition && <div><span className="font-medium text-foreground/80">Transition:</span> {s.transition}</div>}
-                        </div>
-                      </div>
-                    ))}
+              <TabsContent value="normal" className="mt-0">
+                {((part as any)?.bilingual?.english || (part as any)?.bilingual?.bengali) ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {(part as any)?.bilingual?.english && (
+                      <CopyToClipboard
+                        textToCopy={(part as any).bilingual.english}
+                        title="📝 Normal Prompt (English)"
+                        language="text"
+                        className="shadow-lg hover:shadow-xl transition-all duration-300 w-full"
+                      />
+                    )}
+                    {(part as any)?.bilingual?.bengali && (
+                      <CopyToClipboard
+                        textToCopy={(part as any).bilingual.bengali}
+                        title="📝 Normal Prompt (Bengali)"
+                        language="text"
+                        className="shadow-lg hover:shadow-xl transition-all duration-300 w-full"
+                      />
+                    )}
                   </div>
-                  </>
+                ) : (
+                  <div className="text-sm text-muted-foreground">No normal prompt available.</div>
                 )}
               </TabsContent>
 
@@ -474,38 +426,80 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                 />
               </TabsContent>
 
-              <TabsContent value="veo3" className="mt-0">
-                {veo3Text ? (
-                  <CopyToClipboard
-                    textToCopy={veo3Text}
-                    title="🎬 Veo 3 Optimized Prompt"
-                    language="text"
-                    className="shadow-lg hover:shadow-xl transition-all duration-300 w-full"
-                  />
+              <TabsContent value="scene_image" className="mt-0">
+                {scenes.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">No scene image prompts available.</div>
                 ) : (
-                  <div className="text-sm text-muted-foreground">No Veo 3 prompt available.</div>
-                )}
-              </TabsContent>
-
-              <TabsContent value="notes" className="mt-0">
-                {techNotes && techNotes.length > 0 ? (
-                  <CopyableList items={techNotes} className="my-1" />
-                ) : (
-                  <div className="text-sm text-muted-foreground">No technical notes provided.</div>
-                )}
-              </TabsContent>
-
-              <TabsContent value="keywords" className="mt-0">
-                {allKeywords && allKeywords.length > 0 ? (
-                  <div className="flex flex-wrap gap-1">
-                    {allKeywords.map((k, i) => (
-                      <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-muted text-foreground border">
-                        {k}
-                      </span>
-                    ))}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {scenes.map((s: any, i: number) => {
+                      const desc: string = s.description || '';
+                      const derivedStart = s?.sceneImage?.start || (desc ? `Starting scene image: ${desc}` : 'Starting scene prompt not provided.');
+                      const derivedEnd = s?.sceneImage?.end || (desc ? `Ending scene image: ${desc}` : 'Ending scene prompt not provided.');
+                      return (
+                        <div key={i} className="rounded-lg bg-card/60 border border-border p-3 shadow-sm hover:shadow-md transition-shadow">
+                          <div className="font-semibold text-base mb-2">Scene {s.sceneNumber ?? (i + 1)} Image Prompts</div>
+                          <Tabs defaultValue="start" className="w-full">
+                            <TabsList className="grid grid-cols-2 gap-1 mb-3">
+                              <TabsTrigger value="start" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md text-xs">Starting</TabsTrigger>
+                              <TabsTrigger value="end" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md text-xs">Ending</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="start" className="mt-0">
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="text-xs font-medium text-foreground/80">Starting Image</div>
+                                <CopyToClipboard textToCopy={derivedStart} className="h-7 px-2 text-xs" />
+                              </div>
+                              <pre className="text-[12px] leading-snug whitespace-pre-wrap bg-muted p-2 rounded">{derivedStart}</pre>
+                            </TabsContent>
+                            <TabsContent value="end" className="mt-0">
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="text-xs font-medium text-foreground/80">Ending Image</div>
+                                <CopyToClipboard textToCopy={derivedEnd} className="h-7 px-2 text-xs" />
+                              </div>
+                              <pre className="text-[12px] leading-snug whitespace-pre-wrap bg-muted p-2 rounded">{derivedEnd}</pre>
+                            </TabsContent>
+                          </Tabs>
+                        </div>
+                      );
+                    })}
                   </div>
+                )}
+              </TabsContent>
+
+              
+
+              <TabsContent value="gallery" className="mt-0">
+                {scenes.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">No gallery assets provided.</div>
                 ) : (
-                  <div className="text-sm text-muted-foreground">No keywords provided.</div>
+                  <div className="space-y-3">
+                    <div className="text-xs text-muted-foreground">Gallery assets referenced per scene (if available).</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {scenes.map((s: any, i: number) => {
+                        const ga = s.galleryAssets || { characters: [], objects: [], backgrounds: [] };
+                        const hasAny = (ga.characters?.length || 0) + (ga.objects?.length || 0) + (ga.backgrounds?.length || 0) > 0;
+                        return (
+                          <div key={i} className="rounded-lg bg-card/60 border border-border p-3 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="font-semibold text-base mb-2">Scene {s.sceneNumber ?? (i + 1)} Gallery</div>
+                            {hasAny ? (
+                              <div className="flex flex-wrap gap-2 text-xs">
+                                {(ga.characters || []).map((_: any, idx: number) => (
+                                  <span key={`c-${idx}`} className="px-2 py-0.5 bg-muted rounded border">Character {idx + 1}</span>
+                                ))}
+                                {(ga.objects || []).map((_: any, idx: number) => (
+                                  <span key={`o-${idx}`} className="px-2 py-0.5 bg-muted rounded border">Object {idx + 1}</span>
+                                ))}
+                                {(ga.backgrounds || []).map((_: any, idx: number) => (
+                                  <span key={`b-${idx}`} className="px-2 py-0.5 bg-muted rounded border">Background {idx + 1}</span>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-xs text-muted-foreground">No gallery assets referenced in this scene.</div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
               </TabsContent>
             </Tabs>

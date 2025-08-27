@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Slider } from '@/components/ui/slider';
 import { Card } from '@/components/ui/card';
@@ -13,32 +14,30 @@ import { SceneData, GalleryAsset, VIDEO_STYLES, AUDIO_MODES } from '@/lib/video/
 import { SceneManager } from './shared/SceneManager';
 import { PromptTabs } from './shared/PromptTabs';
 import { Video, Sparkles, Wand2 } from 'lucide-react';
+import { processScenesWithGalleryAssets } from '@/lib/video/gallery-prompt-helper';
 
 interface VideoPromptModalProps {
   isOpen: boolean;
-  onClose: () => void;
-  onGenerate: (params: VideoPromptGenerationParams) => void;
+  onCloseAction: () => void;
+  onGenerateAction: (params: VideoPromptGenerationParams) => void;
   isLoading?: boolean;
 }
 
 export interface VideoPromptGenerationParams {
   sceneMode: 'single' | 'multiple';
   scenes: SceneData[];
+  selectedGalleryAssets: GalleryAsset[];
   videoStyle: string;
   contentCategory: string;
   duration: number;
-  aspectRatio: string;
-  language: string;
-  outputFormat: string;
   audioMode: string;
-  frameRate: number;
-  resolution: string;
+  userIdea?: string;  // User provides idea, AI generates prompts
 }
 
 export function VideoPromptModal({ 
   isOpen, 
-  onClose, 
-  onGenerate, 
+  onCloseAction, 
+  onGenerateAction, 
   isLoading = false 
 }: VideoPromptModalProps) {
   // Scene Management State
@@ -58,12 +57,8 @@ export function VideoPromptModal({
   const [videoStyle, setVideoStyle] = useState('cinematic');
   const [contentCategory, setContentCategory] = useState('general');
   const [duration, setDuration] = useState(15);
-  const [aspectRatio, setAspectRatio] = useState('16:9');
-  const [language, setLanguage] = useState('en');
-  const [outputFormat, setOutputFormat] = useState('mp4');
   const [audioMode, setAudioMode] = useState('auto');
-  const [frameRate, setFrameRate] = useState(30);
-  const [resolution, setResolution] = useState('1080p');
+  const [userIdea, setUserIdea] = useState(''); // User describes their idea
   
   // Gallery Assets State
   const [selectedGalleryAssets, setSelectedGalleryAssets] = useState<GalleryAsset[]>([]);
@@ -110,20 +105,19 @@ export function VideoPromptModal({
   };
   
   const handleGenerate = () => {
-    const params: VideoPromptGenerationParams = {
+    // Process scenes with gallery assets for consistency
+    const processedScenes = processScenesWithGalleryAssets(scenes, selectedGalleryAssets);
+    
+    onGenerateAction({
       sceneMode,
-      scenes,
+      scenes: processedScenes,
+      selectedGalleryAssets,
       videoStyle,
       contentCategory,
       duration,
-      aspectRatio,
-      language,
-      outputFormat,
       audioMode,
-      frameRate,
-      resolution
-    };
-    onGenerate(params);
+      userIdea
+    });
   };
   
   const handleGenerateRandomIdea = async () => {
@@ -141,14 +135,12 @@ export function VideoPromptModal({
   };
   
   const isValidToGenerate = () => {
-    return scenes.every(scene => 
-      scene.normalPrompt.trim() || 
-      (typeof scene.jsonPrompt === 'object' && Object.keys(scene.jsonPrompt).length > 0)
-    );
+    // User only needs to provide an idea, AI will generate prompts
+    return userIdea.trim().length > 0;
   };
   
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onCloseAction}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -175,6 +167,23 @@ export function VideoPromptModal({
                   <Label htmlFor="multiple">Multiple Scenes</Label>
                 </div>
               </RadioGroup>
+            </div>
+          </Card>
+          
+          {/* User Idea Input */}
+          <Card className="p-4 bg-card">
+            <div className="space-y-3">
+              <Label htmlFor="user-idea">Describe Your Video Idea</Label>
+              <Textarea
+                id="user-idea"
+                placeholder="Describe what you want to create. AI will generate the detailed prompts for you..."
+                value={userIdea}
+                onChange={(e) => setUserIdea(e.target.value)}
+                className="min-h-[100px]"
+              />
+              <p className="text-sm text-muted-foreground">
+                Provide your idea or concept, and AI will generate professional video prompts
+              </p>
             </div>
           </Card>
           
@@ -225,50 +234,6 @@ export function VideoPromptModal({
               </div>
               
               <div className="space-y-2">
-                <Label>Aspect Ratio</Label>
-                <Select value={aspectRatio} onValueChange={setAspectRatio}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="16:9">16:9 (Landscape)</SelectItem>
-                    <SelectItem value="9:16">9:16 (Portrait)</SelectItem>
-                    <SelectItem value="1:1">1:1 (Square)</SelectItem>
-                    <SelectItem value="4:3">4:3 (Classic)</SelectItem>
-                    <SelectItem value="21:9">21:9 (Cinematic)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Resolution</Label>
-                <Select value={resolution} onValueChange={setResolution}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="720p">720p HD</SelectItem>
-                    <SelectItem value="1080p">1080p Full HD</SelectItem>
-                    <SelectItem value="4K">4K Ultra HD</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Frame Rate</Label>
-                <Select value={String(frameRate)} onValueChange={(v) => setFrameRate(Number(v))}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="24">24 fps (Cinematic)</SelectItem>
-                    <SelectItem value="30">30 fps (Standard)</SelectItem>
-                    <SelectItem value="60">60 fps (Smooth)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
                 <Label>Audio Mode</Label>
                 <Select value={audioMode} onValueChange={setAudioMode}>
                   <SelectTrigger>
@@ -283,29 +248,14 @@ export function VideoPromptModal({
                   </SelectContent>
                 </Select>
               </div>
-              
-              <div className="space-y-2">
-                <Label>Output Format</Label>
-                <Select value={outputFormat} onValueChange={setOutputFormat}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="mp4">MP4</SelectItem>
-                    <SelectItem value="webm">WebM</SelectItem>
-                    <SelectItem value="mov">MOV</SelectItem>
-                    <SelectItem value="avi">AVI</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
           </Card>
           
-          {/* Scene Management */}
+          {/* Gallery Management (for consistency) */}
           <Card className="p-4 bg-card">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <Label className="text-base font-medium">Scene Content</Label>
+                <Label className="text-base font-medium">Gallery Assets (Optional)</Label>
                 <Button
                   variant="outline"
                   size="sm"
@@ -315,30 +265,15 @@ export function VideoPromptModal({
                   Random Idea
                 </Button>
               </div>
-              
-              <SceneManager
-                scenes={scenes}
-                sceneMode={sceneMode}
-                onSceneAdd={handleSceneAdd}
-                onSceneRemove={handleSceneRemove}
-                onSceneUpdate={handleSceneUpdate}
-                onSceneReorder={handleSceneReorder}
-                renderSceneContent={(scene, index) => (
-                  <PromptTabs
-                    scene={scene}
-                    sceneIndex={index}
-                    onSceneUpdate={(updates) => handleSceneUpdate(scene.id, updates)}
-                    selectedGalleryAssets={selectedGalleryAssets}
-                    onGalleryAssetsChange={setSelectedGalleryAssets}
-                  />
-                )}
-              />
+              <p className="text-sm text-muted-foreground">
+                AI will generate scene prompts based on your idea. You can optionally use gallery assets for consistency.
+              </p>
             </div>
           </Card>
         </div>
         
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onCloseAction}>
             Cancel
           </Button>
           <Button 

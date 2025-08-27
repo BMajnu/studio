@@ -7,8 +7,11 @@ export function getAdminApp(): App {
   if (!app) {
     const projectId = process.env.FIREBASE_PROJECT_ID;
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    // Support escaped newlines in env (e.g., GitHub secrets)
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+    // Support escaped newlines in env (e.g., GitHub secrets) and strip wrapping quotes if present
+    const rawPrivateKey = process.env.FIREBASE_PRIVATE_KEY;
+    const privateKey = rawPrivateKey
+      ?.replace(/\\n/g, '\n')
+      ?.replace(/^"|"$/g, '');
 
     if (getApps().length === 0) {
       if (projectId && clientEmail && privateKey) {

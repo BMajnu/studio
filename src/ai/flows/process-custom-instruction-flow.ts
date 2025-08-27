@@ -10,7 +10,7 @@
 import { z } from 'genkit';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
 import { GeminiClient } from '@/lib/ai/gemini-client';
-import { createGeminiAiInstance } from '@/lib/ai/genkit-utils';
+import { getOrCreateGeminiAiInstance } from '@/lib/ai/genkit-utils';
 
 // DEBUG helper
 const logDebug = (label: string, ...args: any[]) => {
@@ -20,7 +20,7 @@ const logDebug = (label: string, ...args: any[]) => {
 const AttachedFileSchema = z.object({
   name: z.string().describe('Name of the file'),
   type: z.string().describe('MIME type of the file'),
-  dataUri: z.string().optional().describe('Base64 data URI for image files; will be referenced with {{media url=...}}'),
+  dataUri: z.string().optional().describe('Base64 data URI for image files; will be referenced with «media url=…»'),
   textContent: z.string().optional().describe('Text content for text files'),
   dimensions: z.object({ width: z.number().optional(), height: z.number().optional() }).optional()
 });
@@ -36,6 +36,7 @@ const ProcessCustomInstructionFlowInputSchema = z.object({
   clientMessage: z.string().describe("Original client message/content"),
   customInstruction: z.string().describe("Designer instruction describing how to respond"),
   userName: z.string().optional().describe("Designer name for tone/context"),
+  professionalTitle: z.string().optional().describe("Professional title used to steer tone and expertise"),
   communicationStyleNotes: z.string().optional().describe("Notes about designer communication style"),
   attachedFiles: z.array(AttachedFileSchema).optional().describe("Files attached by the user"),
   chatHistory: z.array(ChatHistoryMessageSchema).optional().describe("Recent chat history"),
@@ -50,6 +51,7 @@ const ProcessCustomInstructionPromptInputSchema = z.object({
   clientMessage: z.string(),
   customInstruction: z.string(),
   userName: z.string().optional(),
+  professionalTitle: z.string().optional(),
   communicationStyleNotes: z.string().optional(),
   attachedFiles: z.array(AttachedFileSchema).optional(),
   chatHistory: z.array(ChatHistoryMessageSchema).optional(),
@@ -74,7 +76,8 @@ export async function processCustomInstructionFlow(flowInput: ProcessCustomInstr
     ...promptInputData,
     attachedFiles: promptInputData.attachedFiles?.map(f => ({
       ...f,
-      dataUri: f.dataUri ? `{{media url=${f.dataUri}}}` : undefined,
+      // Use a non-template marker to avoid Handlebars parsing issues
+      dataUri: f.dataUri ? `«media url=${f.dataUri}»` : undefined,
     }))
   };
 
@@ -88,8 +91,9 @@ Your job is to follow the designer's instruction precisely and produce a helpful
 If language preference is provided (english/bengali/both), write accordingly. If both, you may include both languages in sections.
 
 If a designer name ({{{userName}}}) or communication style is given ({{{communicationStyleNotes}}}), keep the tone aligned.
+If a professional title is provided ({{{professionalTitle}}}), implicitly adopt that role and domain expertise.
 
-Attached files may include images referenced via {{media url=...}} tokens and/or text contents.
+Attached files may include images referenced via «media url=…» tokens and/or text contents.
 
 Respond with a concise title and the main response content. Do not include any extra metadata besides the required JSON fields.
 
@@ -129,19 +133,34 @@ Return strictly as JSON matching this schema:
       userId: 'default',
       name: 'User',
       services: [],
-      userApiKeys: userApiKey ? [userApiKey] : []
+      geminiApiKeys: userApiKey ? [userApiKey] : []
     } as any;
 
     const client = new GeminiClient({ profile: profileStub });
 
+    // Cache prompt definitions per API key to avoid repeated definePrompt cost
+    const promptCache = (globalThis as any).__desainr_prompt_cache__ as Map<string, any> | undefined;
+    const ensureCache = () => {
+      if (!(globalThis as any).__desainr_prompt_cache__) {
+        (globalThis as any).__desainr_prompt_cache__ = new Map<string, any>();
+      }
+      return (globalThis as any).__desainr_prompt_cache__ as Map<string, any>;
+    };
+
     const { data: output, apiKeyUsed } = await client.request(async (apiKey) => {
-      const instance = createGeminiAiInstance(apiKey);
-      const promptDef = instance.definePrompt({
-        name: `${flowName}Prompt_${Date.now()}`,
-        input: { schema: ProcessCustomInstructionPromptInputSchema },
-        output: { schema: ProcessCustomInstructionFlowOutputSchema },
-        prompt: promptText
-      });
+      const cache = promptCache || ensureCache();
+      const cacheKey = `${apiKey}|${flowName}`; // stable per key/flow
+      let promptDef = cache.get(cacheKey);
+      if (!promptDef) {
+        const instance = getOrCreateGeminiAiInstance(apiKey);
+        promptDef = instance.definePrompt({
+          name: `${flowName}Prompt`,
+          input: { schema: ProcessCustomInstructionPromptInputSchema },
+          output: { schema: ProcessCustomInstructionFlowOutputSchema },
+          prompt: promptText
+        });
+        cache.set(cacheKey, promptDef);
+      }
       const { output } = await promptDef(actualPromptInputData, { model: modelToUse });
       if (!output) throw new Error('AI returned empty output');
       return output;

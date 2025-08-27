@@ -8,12 +8,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
-import { Video, Sparkles, Clock, RatioIcon, Palette, Globe, List, Loader2 } from 'lucide-react';
+import { Video, Sparkles, Clock, Palette, Globe, List, Loader2 } from 'lucide-react';
 
 interface VideoToolsModalProps {
   isOpen: boolean;
-  onClose: () => void;
-  onGenerate: (params: VideoGenerationParams) => void;
+  onCloseAction: () => void;
+  onGenerateAction: (params: VideoGenerationParams) => void;
   isLoading?: boolean;
 }
 
@@ -21,9 +21,7 @@ export interface VideoGenerationParams {
   description: string;
   style: string;
   duration: number;
-  aspectRatio: string;
   language: 'english' | 'bengali' | 'both';
-  outputFormat: 'normal' | 'json' | 'both';
   contentCategory: string;
 }
 
@@ -56,22 +54,13 @@ const CONTENT_CATEGORIES = [
   { value: 'news', label: 'News & Current Events', description: 'Updates, analysis, explainers' },
 ];
 
-const ASPECT_RATIOS = [
-  { value: '16:9', label: '16:9', description: 'Widescreen (YouTube, TV)' },
-  { value: '9:16', label: '9:16', description: 'Vertical (TikTok, Reels)' },
-  { value: '1:1', label: '1:1', description: 'Square (Instagram)' },
-  { value: '4:3', label: '4:3', description: 'Classic TV' },
-  { value: '21:9', label: '21:9', description: 'Ultra-wide Cinematic' },
-  { value: '4:5', label: '4:5', description: 'Portrait (Instagram)' },
-];
+// Defaults removed: aspect ratio and output format are no longer exposed or sent
 
-export function VideoToolsModal({ isOpen, onClose, onGenerate, isLoading = false }: VideoToolsModalProps) {
+export function VideoToolsModal({ isOpen, onCloseAction, onGenerateAction, isLoading = false }: VideoToolsModalProps) {
   const [description, setDescription] = useState('');
   const [style, setStyle] = useState('cinematic');
   const [duration, setDuration] = useState([15]);
-  const [aspectRatio, setAspectRatio] = useState('16:9');
   const [language, setLanguage] = useState<'english' | 'bengali' | 'both'>('both');
-  const [outputFormat, setOutputFormat] = useState<'normal' | 'json' | 'both'>('both');
   const [contentCategory, setContentCategory] = useState(CONTENT_CATEGORIES[0].value);
   const [isGeneratingIdea, setIsGeneratingIdea] = useState(false);
   const [aiDescriptionEnglish, setAiDescriptionEnglish] = useState<string | undefined>(undefined);
@@ -83,13 +72,11 @@ export function VideoToolsModal({ isOpen, onClose, onGenerate, isLoading = false
       return;
     }
 
-    onGenerate({
+    onGenerateAction({
       description: description.trim(),
       style,
       duration: duration[0],
-      aspectRatio,
       language,
-      outputFormat,
       contentCategory,
     });
   };
@@ -108,9 +95,7 @@ export function VideoToolsModal({ isOpen, onClose, onGenerate, isLoading = false
           style,
           contentCategory,
           duration: duration[0],
-          aspectRatio,
           language,
-          outputFormat,
         }),
       });
       if (!res.ok) {
@@ -145,14 +130,12 @@ export function VideoToolsModal({ isOpen, onClose, onGenerate, isLoading = false
     setDescription('');
     setStyle('cinematic');
     setDuration([15]);
-    setAspectRatio('16:9');
     setLanguage('both');
-    setOutputFormat('both');
     setContentCategory(CONTENT_CATEGORIES[0].value);
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onCloseAction}>
       <DialogContent className="sm:max-w-[680px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -297,28 +280,7 @@ export function VideoToolsModal({ isOpen, onClose, onGenerate, isLoading = false
             </div>
           </div>
 
-          {/* Aspect Ratio */}
-          <div className="space-y-2 bg-card border border-border rounded-md p-3">
-            <Label htmlFor="aspect-ratio" className="flex items-center gap-2">
-              <RatioIcon className="h-4 w-4" />
-              Aspect Ratio
-            </Label>
-            <Select value={aspectRatio} onValueChange={setAspectRatio}>
-              <SelectTrigger id="aspect-ratio">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ASPECT_RATIOS.map((ratio) => (
-                  <SelectItem key={ratio.value} value={ratio.value}>
-                    <div>
-                      <div className="font-medium">{ratio.label}</div>
-                      <div className="text-xs text-muted-foreground">{ratio.description}</div>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          
 
           {/* Language */}
           <div className="space-y-2 bg-card border border-border rounded-md p-3">
@@ -338,20 +300,7 @@ export function VideoToolsModal({ isOpen, onClose, onGenerate, isLoading = false
             </Select>
           </div>
 
-          {/* Output Format */}
-          <div className="space-y-2 bg-card border border-border rounded-md p-3">
-            <Label htmlFor="output-format">Output Format</Label>
-            <Select value={outputFormat} onValueChange={(v) => setOutputFormat(v as typeof outputFormat)}>
-              <SelectTrigger id="output-format">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="normal">Normal Text</SelectItem>
-                <SelectItem value="json">JSON Format (Google Veo 3)</SelectItem>
-                <SelectItem value="both">Both Formats</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          
         </div>
 
         <DialogFooter>
@@ -366,7 +315,7 @@ export function VideoToolsModal({ isOpen, onClose, onGenerate, isLoading = false
           <Button
             type="button"
             variant="outline"
-            onClick={onClose}
+            onClick={onCloseAction}
             disabled={isLoading}
           >
             Cancel

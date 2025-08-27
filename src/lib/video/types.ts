@@ -47,9 +47,7 @@ export interface BaseVideoParams {
   description: string;
   style: string;
   duration: number;
-  aspectRatio: string;
   language: 'english' | 'bengali' | 'both';
-  outputFormat: 'normal' | 'json' | 'both';
   contentCategory: string;
 }
 
@@ -57,32 +55,54 @@ export interface BaseVideoParams {
 export interface VideoPromptParams extends BaseVideoParams {
   sceneMode: 'single' | 'multiple';
   scenes?: SceneData[];
+  selectedGalleryAssets?: GalleryAsset[];
 }
 
 // Story/Film Generator params
 export interface StoryFilmParams extends BaseVideoParams {
-  storyline: string;
-  sceneCount: number | 'ai_decide';
-  videoType: 'realistic' | 'animation' | '2d_cartoon' | '3d_cartoon' | 'anime';
-  audioMode: 'speaking_characters' | 'storytelling' | 'without_audio';
+  title: string;
+  genre: string;
+  synopsis: string;
+  characters: string;
+  setting: string;
+  plotOutline: string;
+  targetDuration: string;
+  targetAudience: string;
+  storyline?: string;
+  sceneCount?: number | 'ai_decide';
+  videoType?: 'realistic' | 'animation' | '2d_cartoon' | '3d_cartoon' | 'anime';
+  audioMode?: 'speaking_characters' | 'storytelling' | 'without_audio';
+  sceneMode?: 'single' | 'multiple';
   scenes?: SceneData[];
+  selectedGalleryAssets?: GalleryAsset[];
 }
 
 // Ads Generator params
 export interface AdsParams extends BaseVideoParams {
-  productDetails: string;
-  textsAndSayings: string;
-  storylineScript: string;
+  productName: string;
+  brandName: string;
+  productDescription: string;
+  keyFeatures: string;
+  uniqueSellingPoints: string;
+  targetAudience: string;
+  callToAction: string;
+  brandGuidelines: string;
+  adLength: string;
+  adFormat: string;
+  platform: string;
   sceneMode: 'single' | 'multiple';
   scenes?: SceneData[];
 }
 
 // Viral Video Generator params
 export interface ViralVideoParams extends BaseVideoParams {
-  subjectsCharacters: string;
-  targetAudience: string[];
-  storylineScript: string;
-  platform: 'tiktok' | 'shorts' | 'reels' | 'all';
+  topic: string;
+  trend: string;
+  hashtags: string;
+  targetPlatforms: string[];
+  viralFormat: string;
+  hookType: string;
+  engagementTactics: string[];
   sceneMode: 'single' | 'multiple';
   scenes?: SceneData[];
 }
@@ -109,7 +129,6 @@ export interface SceneGenerationRequest {
   galleryAssets: string[];
   sceneNumber: number;
   style?: string;
-  aspectRatio?: string;
 }
 
 // Gallery asset generation request

@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { SceneData, PROMPT_TABS, GalleryAsset } from '@/lib/video/types';
-import { CopyToClipboard } from '@/components/ui/copy-to-clipboard';
+import { CopyToClipboard } from '@/components/copy-to-clipboard';
 import { Code, Image, Layers, ImageIcon } from 'lucide-react';
 import { GalleryManager } from './GalleryManager';
 
@@ -51,33 +51,21 @@ export function PromptTabs({
     });
   };
   
-  const handleGalleryAssetSelect = (asset: GalleryAsset) => {
-    const updatedAssets = [...selectedGalleryAssets];
-    const existingIndex = updatedAssets.findIndex(a => a.id === asset.id);
-    
-    if (existingIndex >= 0) {
-      updatedAssets.splice(existingIndex, 1);
-    } else {
-      updatedAssets.push(asset);
-    }
-    
-    onGalleryAssetsChange?.(updatedAssets);
+  const handleGalleryAssetsChange = (assets: GalleryAsset[]) => {
+    onGalleryAssetsChange?.(assets);
     
     // Update scene gallery assets based on type
-    const galleryAssets = { ...scene.galleryAssets };
-    if (asset.type === 'character' || asset.type === 'subject') {
-      galleryAssets.characters = updatedAssets
+    const galleryAssets = { 
+      characters: assets
         .filter(a => a.type === 'character' || a.type === 'subject')
-        .map(a => a.id);
-    } else if (asset.type === 'object') {
-      galleryAssets.objects = updatedAssets
+        .map(a => a.id),
+      objects: assets
         .filter(a => a.type === 'object')
-        .map(a => a.id);
-    } else if (asset.type === 'background') {
-      galleryAssets.backgrounds = updatedAssets
+        .map(a => a.id),
+      backgrounds: assets
         .filter(a => a.type === 'background')
-        .map(a => a.id);
-    }
+        .map(a => a.id)
+    };
     
     onSceneUpdate({ galleryAssets });
   };
@@ -108,10 +96,7 @@ export function PromptTabs({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label>Scene {sceneIndex + 1} - Normal Prompt</Label>
-            <CopyToClipboard 
-              text={scene.normalPrompt}
-              className="h-8 px-3"
-            />
+            <CopyToClipboard textToCopy={scene.normalPrompt} className="h-8 px-3" />
           </div>
           <Textarea
             value={scene.normalPrompt}
@@ -154,7 +139,7 @@ export function PromptTabs({
           <div className="flex items-center justify-between">
             <Label>Scene {sceneIndex + 1} - JSON Prompt</Label>
             <CopyToClipboard 
-              text={typeof scene.jsonPrompt === 'object' 
+              textToCopy={typeof scene.jsonPrompt === 'object' 
                 ? JSON.stringify(scene.jsonPrompt, null, 2)
                 : scene.jsonPrompt}
               className="h-8 px-3"
@@ -193,7 +178,7 @@ export function PromptTabs({
                 {sceneImageMode === 'start' ? 'Starting Scene Prompt' : 'Ending Scene Prompt'}
               </Label>
               <CopyToClipboard 
-                text={scene.sceneImage[sceneImageMode]}
+                textToCopy={scene.sceneImage[sceneImageMode]}
                 className="h-8 px-3"
               />
             </div>
@@ -210,11 +195,8 @@ export function PromptTabs({
       {/* Gallery Tab */}
       <TabsContent value="gallery" className="mt-4">
         <GalleryManager
-          sceneId={scene.id}
-          sceneNumber={sceneIndex + 1}
           selectedAssets={selectedGalleryAssets}
-          onAssetSelect={handleGalleryAssetSelect}
-          galleryAssets={scene.galleryAssets}
+          onAssetsChange={handleGalleryAssetsChange}
         />
       </TabsContent>
     </Tabs>

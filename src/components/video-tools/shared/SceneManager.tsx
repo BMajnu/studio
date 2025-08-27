@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { SceneData } from '@/lib/video/types';
 import { Plus, Trash2, Copy, ChevronUp, ChevronDown } from 'lucide-react';
-import { CopyToClipboard } from '@/components/ui/copy-to-clipboard';
+import { CopyToClipboard } from '@/components/copy-to-clipboard';
 
 interface SceneManagerProps {
   scenes: SceneData[];
@@ -79,7 +79,7 @@ export function SceneManager({
                 
                 {/* Copy Scene Button */}
                 <CopyToClipboard
-                  text={JSON.stringify({
+                  textToCopy={JSON.stringify({
                     sceneNumber: index + 1,
                     normalPrompt: scene.normalPrompt,
                     jsonPrompt: scene.jsonPrompt,
