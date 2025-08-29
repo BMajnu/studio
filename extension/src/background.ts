@@ -48,28 +48,9 @@ async function getBestBaseUrl(): Promise<string> {
   if (stored) candidatesPref.push(stored);
   if (APP_BASE_URL) candidatesPref.push(APP_BASE_URL);
 
+  // Only consider the stored base URL (if any) and the production APP_BASE_URL
   const candidates = [
     ...candidatesPref,
-    'http://localhost:9010',
-    'http://127.0.0.1:9010',
-    'https://localhost:9010',
-    'https://127.0.0.1:9010',
-    'http://localhost:9003',
-    'http://127.0.0.1:9003',
-    'https://localhost:9003',
-    'https://127.0.0.1:9003',
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'https://localhost:3000',
-    'https://127.0.0.1:3000',
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'https://localhost:5173',
-    'https://127.0.0.1:5173',
-    'http://localhost:8080',
-    'http://127.0.0.1:8080',
-    'https://localhost:8080',
-    'https://127.0.0.1:8080',
   ];
 
   const seen = new Set<string>();
@@ -84,7 +65,8 @@ async function getBestBaseUrl(): Promise<string> {
     }
   }
 
-  cachedBaseUrl = candidatesPref[0] || 'http://localhost:9010';
+  // Fallback: prefer stored, otherwise production APP_BASE_URL
+  cachedBaseUrl = candidatesPref[0] || APP_BASE_URL;
   lastBaseUrlCheck = now;
   return cachedBaseUrl;
 }
@@ -212,5 +194,27 @@ chrome.runtime.onMessage.addListener((msg: any, sender: any, sendResponse: (resp
       }
     })();
     return true; // keep the messaging channel open for async response
+  }
+  if (msg?.type === 'SAVE_PINNED_ACTIONS') {
+    (async () => {
+      try {
+        const actions = Array.isArray(msg.actions) ? msg.actions : [];
+        await chrome.storage?.sync?.set({ 'desainr.pinnedActions': actions });
+        // Broadcast to all tabs so any active contentScript can update its UI immediately
+        try {
+          chrome.tabs.query({}, (tabs: any[]) => {
+            for (const t of tabs) {
+              if (!t?.id) continue;
+              // Fire-and-forget; safeSendMessage will inject if needed
+              safeSendMessage(t.id, { type: 'SAVE_PINNED_ACTIONS', actions }).catch(() => {});
+            }
+          });
+        } catch {}
+        sendResponse({ ok: true });
+      } catch (e: any) {
+        sendResponse({ ok: false, status: 0, error: e?.message || String(e) });
+      }
+    })();
+    return true; // async
   }
 });

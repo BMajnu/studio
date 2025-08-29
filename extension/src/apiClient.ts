@@ -1,79 +1,58 @@
-import { callExtensionApi } from './api';
+type ApiResponse = { ok: boolean; status: number; json?: any; error?: string };
 
-export type ApiResp<T> = { ok: boolean; status: number; json?: T; error?: string };
-
-// Simple exponential backoff retry wrapper for background API calls
-async function withRetry<T>(fn: () => Promise<ApiResp<T>>, attempts = 3, baseDelayMs = 100): Promise<ApiResp<T>> {
-  let last: ApiResp<T> | undefined;
-  for (let i = 0; i < attempts; i++) {
-    const res = await fn();
-    if (res.ok) return res;
-    last = res;
-    // Only retry on network or 5xx
-    if (res.status && res.status < 500 && res.status !== 0) break;
-    await new Promise((r) => setTimeout(r, baseDelayMs * Math.pow(2, i)));
+async function getIdToken(): Promise<string | undefined> {
+  try {
+    const items = await new Promise<any>((resolve) => {
+      try {
+        chrome.storage?.local.get?.(['desainr.idToken'], (it: any) => resolve(it));
+      } catch {
+        resolve({});
+      }
+    });
+    return items?.['desainr.idToken'];
+  } catch {
+    return undefined;
   }
-  return last ?? { ok: false, status: 0, error: 'Unknown error' };
 }
 
-// Typed wrappers
-export type RewriteBody = { selection: string; url: string; task?: 'grammar'|'clarify'|'shorten'|'expand'|'tone'; modelId?: string; thinkingMode?: 'default'|'none' };
-export type TranslateBody = { selection: string; url: string; targetLang?: string; modelId?: string; thinkingMode?: 'default'|'none' };
-export type TranslateBatchBody = { chunks: string[]; url: string; targetLang?: string; modelId?: string; thinkingMode?: 'default'|'none' };
-export type AnalyzeBody = { url: string; title?: string };
-export type ChatHistoryMsg = { role: 'user'|'assistant'; text: string };
-export type ChatBody = { message: string; userName?: string; chatHistory?: ChatHistoryMsg[]; modelId?: string; thinkingMode?: 'default'|'none' };
-export type SlashPrompt = { title: string; prompt: string };
-export type ActionsBody = {
-  selection?: string;
-  clientMessage?: string;
-  customInstruction?: string;
-  templateId?: string;
-  language?: 'english'|'bengali'|'both';
-  modelId?: string;
-  thinkingMode?: 'default'|'none';
-};
-export type MemoBody = {
-  title: string;
-  content: string;
-  url?: string;
-  type?: 'text' | 'analysis' | 'selection';
-  metadata?: Record<string, any>;
-  tags?: string[];
-};
-
-export async function rewrite(body: RewriteBody) {
-  return withRetry(() => callExtensionApi('rewrite', body));
+async function callApi(path: string, body: any): Promise<ApiResponse> {
+  const token = await getIdToken();
+  return await new Promise<ApiResponse>((resolve) => {
+    try {
+      chrome.runtime.sendMessage({ type: 'API_CALL', path, body, token }, (resp: any) => {
+        if (!resp) {
+          const err = chrome.runtime.lastError?.message || 'no response';
+          resolve({ ok: false, status: 0, error: err });
+        } else {
+          resolve(resp as ApiResponse);
+        }
+      });
+    } catch (e: any) {
+      resolve({ ok: false, status: 0, error: e?.message || String(e) });
+    }
+  });
 }
 
-export async function translateChunks(body: TranslateBody) {
-  return withRetry(() => callExtensionApi('translate-chunks', body));
+export function rewrite(payload: { selection: string; url: string; task: string; modelId?: string; thinkingMode?: string; }) {
+  return callApi('rewrite', payload);
 }
 
-export async function translateChunksBatch(body: TranslateBatchBody) {
-  return withRetry(() => callExtensionApi('translate-chunks', body));
+export function translateChunks(payload: { selection: string; url: string; targetLang: string; modelId?: string; thinkingMode?: string; }) {
+  return callApi('translateChunks', payload);
 }
 
-export async function analyzePage(body: AnalyzeBody) {
-  return withRetry(() => callExtensionApi('analyze-page', body));
+export function actions(payload: { selection: string; clientMessage: string; customInstruction: string; modelId?: string; thinkingMode?: string; }) {
+  return callApi('actions', payload);
 }
 
-export async function chat(body: ChatBody) {
-  return withRetry(() => callExtensionApi('chat', body));
+export function translate(payload: { text: string; modelId?: string; thinkingMode?: string; }) {
+  return callApi('translate', payload);
 }
 
-export async function getSlashPrompts(limit = 50) {
-  return withRetry<{ ok: boolean; endpoint: string; uid: string; prompts: SlashPrompt[] }>(
-    () => callExtensionApi('slash-prompts', { limit })
-  );
+export function analyzePage(payload: { url: string; title: string; }) {
+  return callApi('analyze', payload);
 }
 
-export async function actions(body: ActionsBody) {
-  return withRetry(() => callExtensionApi('actions', body));
-}
-
-export async function saveMemo(body: MemoBody) {
-  return withRetry<{ success: boolean; memoId: string; message: string }>(
-    () => callExtensionApi('memo/save', body)
-  );
+export function saveMemo(payload: any) {
+  return callApi('saveMemo', payload);
 }
