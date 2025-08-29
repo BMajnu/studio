@@ -568,9 +568,11 @@ Beta ব্রাঞ্চের সব পরিবর্তন master ব্�
 - Merge commit: `491ff8f`
 
 ## Remainings
-- GitHub secret scanning ইস্যু: `MagicInput/Prompts Archive.txt`-এ Google Cloud credentials detect
-- Push blocked; secret remove করে পুনরায় push করতে হবে
+- GitHub secret scanning ইস্যু: Git history-তে secret থাকায় push blocked
+- Force push-ও ব্লক; repository-level protection এক্টিভ
+- GitHub unblock URL ব্যবহার করে secret allow করতে হবে
 
 ## Next Steps
-- Secret file clean/remove করে force push বা rebase
-- `python MagicInput.py` দিয়ে interactive loop continue
+- GitHub unblock URL-এ গিয়ে "Allow secret" ক্লিক করুন (fastest)
+- অথবা repo history rewrite (BFG/filter-repo) - জটিল
+- `python MagicInput.py` দিয়ে আপনার পছন্দ জানান

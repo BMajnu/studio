@@ -1,3 +1,40 @@
+[2025-08-29 16:59:30] (from previous session)
+Prompt:
+Sync changes button not working shows error to sync:
+
+> git push origin master:master
+remote: error: GH013: Repository rule violations found for refs/heads/master.        
+remote: 
+remote: - GITHUB PUSH PROTECTION        
+remote:   —————————————————————————————————————————        
+remote:     Resolve the following violations before pushing again        
+remote: 
+remote:     - Push cannot contain secrets        
+remote: 
+remote:             
+remote:      (?) Learn how to resolve a blocked push        
+remote:      https://docs.github.com/code-security/secret-scanning/working-with-secret-scanning-and-push-protection/working-with-push-protection-from-the-command-line#resolving-a-blocked-push        
+remote:             
+remote:      (?) This repository does not have Secret Scanning enabled, but is eligible. Enable Secret Scanning to view and manage detected secrets.        
+remote:      Visit the repository settings page, https://github.com/BMajnu/studio/settings/security_analysis        
+remote:             
+remote:             
+remote:       —— Google Cloud Service Account Credentials ——————————        
+remote:        locations:        
+remote:          - commit: 7d354db0bb1a5c2c07a0f517e01289e1f9a69356        
+remote:            path: MagicInput/Prompts Archive.txt:1695        
+remote:          - commit: 80a90c0652781c24515cf61438880bf36da9400e        
+remote:            path: MagicInput/Prompts Archive.txt:1703        
+remote:             
+remote:        (?) To push, remove secret from commit(s) or follow this URL to allow the secret.        
+remote:        https://github.com/BMajnu/studio/security/secret-scanning/unblock-secret/31xRm7di3jFBgzCrfribBOhys03        
+remote:             
+remote: 
+remote: 
+To https://github.com/BMajnu/studio.git
+ ! [remote rejected] master -> master (push declined due to repository rule violations)
+error: failed to push some refs to 'https://github.com/BMajnu/studio.git'
+--------------------------------------------------
 [2025-08-29 16:49:19] (from previous session)
 <<<<<<< Updated upstream
 sill waiting form user's prompt so run the command "timeout 30".
