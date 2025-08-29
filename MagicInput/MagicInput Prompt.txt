@@ -1,6 +1,1 @@
-<<<<<<< Updated upstream
 sill waiting form user's prompt so run the command "timeout 30".
-=======
-Prompt:
-marge all banch to just main banch
->>>>>>> Stashed changes

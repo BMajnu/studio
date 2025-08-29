@@ -1,3 +1,11 @@
+[2025-08-29 16:49:19] (from previous session)
+<<<<<<< Updated upstream
+sill waiting form user's prompt so run the command "timeout 30".
+=======
+Prompt:
+marge all banch to just main banch
+>>>>>>> Stashed changes
+--------------------------------------------------
 [2025-08-25 22:42:36] (from previous session)
 Prompt:
 I think env localhost port should be change becouse now signing is not working:
