@@ -138,24 +138,6 @@ const getMessageText = (content: string | ChatMessageContentPart[] | undefined):
           fullText += 'Detailed Requirements (Bengali):\n';
           fullText += ba.detailedRequirements.bengali.trim() + '\n\n';
         }
-        // Design Message
-        if (typeof ba.designMessage?.english === 'string') {
-          fullText += 'Design Message (English):\n';
-          fullText += ba.designMessage.english.trim() + '\n\n';
-        }
-        if (typeof ba.designMessage?.bengali === 'string') {
-          fullText += 'Design Message (Bengali):\n';
-          fullText += ba.designMessage.bengali.trim() + '\n\n';
-        }
-        // Niche and Audience
-        if (typeof ba.nicheAndAudience?.english === 'string') {
-          fullText += 'Niche and Audience (English):\n';
-          fullText += ba.nicheAndAudience.english.trim() + '\n\n';
-        }
-        if (typeof ba.nicheAndAudience?.bengali === 'string') {
-          fullText += 'Niche and Audience (Bengali):\n';
-          fullText += ba.nicheAndAudience.bengali.trim() + '\n\n';
-        }
         // Design Items
         if (Array.isArray(ba.designItems?.english)) {
           fullText += 'Design Items (English):\n';
@@ -1431,6 +1413,8 @@ export default function ChatPage() {
 
               const requirementsOutput: AnalyzeClientRequirementsOutput = await analyzeClientRequirements(requirementsInput);
 
+              // Editing prompts are now included directly in the analyze requirements output
+
               // Add the BilingualSplitView component for displaying the analysis
               finalAiResponseContent.push({
                 type: 'bilingual_analysis',
@@ -1442,13 +1426,9 @@ export default function ChatPage() {
                   english: requirementsOutput.detailedRequirementsEnglish,
                   bengali: requirementsOutput.detailedRequirementsBengali,
                 },
-                designMessage: {
-                  english: requirementsOutput.designMessageEnglish,
-                  bengali: requirementsOutput.designMessageBengali,
-                },
-                nicheAndAudience: {
-                  english: requirementsOutput.designNicheAndAudienceEnglish,
-                  bengali: requirementsOutput.designNicheAndAudienceBengali,
+                simplifiedRequirements: {
+                  english: requirementsOutput.simplifiedRequirementsEnglish,
+                  bengali: requirementsOutput.simplifiedRequirementsBengali,
                 },
                 imageAnalysis: {
                   english: requirementsOutput.imageAnalysisEnglish,
@@ -1458,6 +1438,8 @@ export default function ChatPage() {
                   english: requirementsOutput.designItemsEnglish,
                   bengali: requirementsOutput.designItemsBengali,
                 },
+                editingPrompts: requirementsOutput.editingPrompts,
+                editingPromptsByDesign: requirementsOutput.editingPromptsByDesign,
               });
             } catch (error) {
               console.error("Error in analyzeClientRequirements flow:", error);
@@ -1567,6 +1549,16 @@ export default function ChatPage() {
                 title: 'AI Image Generation Prompts',
                 promptsData: promptsData,
               });
+
+              // Also notify Requirements Analysis panel to show these under the "Generated Prompt" tab
+              try {
+                if (typeof window !== 'undefined') {
+                  const evt = new CustomEvent('design-prompts-generated', { detail: { promptsData } });
+                  window.dispatchEvent(evt);
+                }
+              } catch (e) {
+                console.warn('Failed to dispatch design-prompts-generated event', e);
+              }
             }
           } else if (currentActionType === 'checkMadeDesigns') {
             const designFile = filesForFlow.find(f => f.type?.startsWith('image/') && f.dataUri);
@@ -2605,6 +2597,8 @@ export default function ChatPage() {
   }, [handleNewChat]);
 
   // New: perform a fresh action on the original user request without overwriting
+
+  // Removed legacy 'editing-prompt-generate' event listener path; prompts are integrated in analysis flow.
   const handlePerformActionOnMessage = useCallback((originalRequest: ChatMessage['originalRequest'], action: ActionType) => {
     if (!originalRequest) return; // ensure originalRequest is defined
     if (profileLoading) return;

@@ -70,17 +70,20 @@ export async function generateEditingPrompts(flowInput: GenerateEditingPromptsIn
   const client = new GeminiClient({ profile: profileStub });
 
   const promptText = `You are an expert AI Prompt Engineer for {{{userName}}}, a graphic designer.
+
 Their communication style is: {{{communicationStyleNotes}}}.
 
 **Objective:** Generate 5 distinct, detailed prompts for revising an existing design image using an AI image generation/editing tool.
 The prompts should be based on a provided design image (either directly via \`designToEditDataUri\` or found in history), any prior "Check Made Designs" feedback found in the chat history, and an optional current instruction from the user.
 
-**Image to Edit:**
+**Image to Edit (If Available) or Prompt-Only Mode:**
 {{#if designToEditDataUri}}
 Primary Design to Edit (directly provided):
 {{media url=designToEditDataUri}}
 {{else}}
-No design was directly provided with this request. You MUST search the 'Chat History' below for the MOST RECENT image uploaded by the USER (role: 'user') that includes a data URI (e.g., {{media url=...}}). This will be the image to edit. If no such image is found in the recent history, you MUST indicate this in your output by returning a single prompt object with type "error_no_image_found" and a prompt message explaining that an image is needed.
+No design was directly provided with this request. You MUST search the 'Chat History' below for the MOST RECENT image uploaded by the USER (role: 'user') that includes a data URI (e.g., {{media url=...}}). This will be the image to edit.
+
+If no such image is found in the recent history, you will operate in PROMPT-ONLY mode and STILL GENERATE 5 HIGH-QUALITY EDITING PROMPTS based solely on the user's current instruction/theme and any cues from the chat history. These prompts should be suitable for modern editing-capable or prompt-only image models (e.g., ChatGPT-4o, Qwen Edit, Gemini 2.5 Flash Edit), clearly describing desired changes without requiring an explicit source image.
 {{/if}}
 
 **User's Current General Instruction/Theme for Editing (Optional):**
@@ -98,16 +101,18 @@ No chat history provided.
 
 **Tasks:**
 
-1.  **Identify Image to Edit:**
+1.  **Identify Image to Edit or Switch to Prompt-Only:**
     *   If \`designToEditDataUri\` is provided, use that image.
     *   If not, search the \`chatHistory\` for the most recent image provided by the 'user' role that has a viewable data URI.
-    *   If NO image can be identified (neither directly provided nor found in history), your output MUST be a single prompt object: \`{ "type": "error_no_image_found", "prompt": "No image was provided for editing, and no recent image could be found in the chat history. Please attach an image or refer to one." }\`. Do not proceed to step 2 or 3 if no image is found.
+    *   If NO image can be identified (neither directly provided nor found in history), CONTINUE in PROMPT-ONLY mode and generate the same 5 prompts using the user's current instruction/theme and chat history context. Do NOT return an error.
 
 2.  **Identify Prior Feedback (If Image Found):**
     *   Scan the \`chatHistory\` for the most recent assistant message that contains structured feedback from a "Check Made Designs" analysis. This feedback will be in Bangla and will include categories like "ভুল অবজেক্ট", "ভুল অবস্থান", "টাইপিং ভুল", "ভুল রঙ", "ভুল আকার", "বাদ পড়া উপাদান", and "অন্যান্য ভুল", along with terms like "অবশ্যই প্রয়োজনীয়" (Must Required) and "ঐচ্ছিক" (Optional).
     *   If such feedback is found, extract the "Must Required" and "Optional" points.
 
-3.  **Generate 5 Editing Prompts (If Image Found):** Create prompts for the following scenarios. Each prompt should be a single paragraph suitable for AI image tools, focusing on *revising the identified image*, not creating a new one from scratch. Use terms like "Revise this image to...", "Modify the existing design by...".
+3.  **Generate 5 Editing Prompts:** Create prompts for the following scenarios. Each prompt should be a single paragraph suitable for AI image tools.
+    *   If an image is available, focus on revising the identified image, not creating a new one from scratch. Use terms like "Revise this image to...", "Modify the existing design by...".
+    *   If operating in PROMPT-ONLY mode, write prompts that a prompt-only editing model can execute to create or revise a design according to the theme and feedback context (avoid references to a specific existing image, but be specific about the desired outcome).
 
     *   **Prompt 1: Must Need Edits (\`type: "must_need_edits"\`)**
         *   Generate a prompt incorporating *only* the "অবশ্যই প্রয়োজনীয়" (Must Required) changes identified from the "Check Made Designs" feedback. If no such feedback or no "Must Required" items are found, generate a general prompt for minor essential fixes based on the image.
@@ -137,9 +142,10 @@ No chat history provided.
 
 **Output Format:**
 Ensure the entire response is a single JSON object matching the \`GenerateEditingPromptsOutputSchema\`.
-If an image is found, the \`editingPrompts\` array should contain 5 objects, each with a \`type\` (e.g., "must_need_edits") and a \`prompt\` string.
-If no image is found, the \`editingPrompts\` array should contain a single object as described in Task 1.
+Always return exactly 5 objects in the \`editingPrompts\` array, each with a \`type\` (e.g., "must_need_edits") and a \`prompt\` string, regardless of image availability (image-based or prompt-only).
+
 Example for one prompt object: \`{ "type": "must_need_edits", "prompt": "Revise the provided image to correct the text alignment for the headline and change the primary icon's color to #FF5733, maintaining all other elements. Ensure the background remains white." }\`
+
 `;
 
   try {
@@ -158,14 +164,17 @@ Example for one prompt object: \`{ "type": "must_need_edits", "prompt": "Revise 
     console.log(`INFO (${flowName}): AI call succeeded using key ending with ...${apiKeyUsed.slice(-4)}`);
     if (!output || !output.editingPrompts || output.editingPrompts.length === 0) {
       console.error(`ERROR (${flowName}): AI returned empty or invalid editingPrompts output.`);
-      // Return a default or error structure if needed, or throw
-      return { editingPrompts: [{ type: "error", prompt: "Failed to generate editing prompts. No specific prompts were returned by the AI."}] };
-    }
-    // If AI returns the specific no_image_found error, ensure it's structured correctly
-    if (output.editingPrompts.length === 1 && output.editingPrompts[0].type === "error_no_image_found") {
-        console.warn(`WARN (${flowName}): AI indicated no image found for editing.`);
+      // Fallback to safe set if AI failed
+      return { editingPrompts: [
+        { type: 'must_need_edits', prompt: 'Revise the design to fix critical issues: correct any text typos, align headings consistently, ensure contrast ratios meet accessibility, and remove visual clutter while keeping the core concept intact.' },
+        { type: 'all_edits', prompt: 'Apply a comprehensive refinement: adjust layout spacing, harmonize font sizes/weights, improve iconography clarity, refine color hierarchy, and ensure visual balance across all elements.' },
+        { type: 'make_standout', prompt: 'Enhance visual impact: strengthen focal point contrast, add depth or subtle shadows, introduce accent color highlights, and refine composition to guide the viewer’s eye naturally.' },
+        { type: 'make_colorful', prompt: 'Introduce a vibrant palette: select 2–3 bold accent colors, ensure complementary harmony with the base tones, and maintain legibility with proper contrast on backgrounds.' },
+        { type: 'new_variations', prompt: 'Create a few subtle variations: experiment with alternative layouts, spacing scales, and icon sizes while preserving the central concept and brand consistency.' }
+      ] };
     }
     return output;
+
   } catch (error) {
     console.error(`ERROR (${flowName}): AI call failed after rotating through available keys. Error:`, error);
     throw new Error(`AI call failed in ${flowName}. Please check server logs for details. Original error: ${(error as Error).message}`);

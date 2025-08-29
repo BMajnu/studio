@@ -1069,10 +1069,11 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
           <BilingualSplitView
             keyPoints={{ english: part.keyPoints.english, bengali: part.keyPoints.bengali }}
             detailedRequirements={{ english: part.detailedRequirements.english, bengali: part.detailedRequirements.bengali }}
-            designMessage={{ english: part.designMessage.english, bengali: part.designMessage.bengali }}
-            nicheAndAudience={{ english: part.nicheAndAudience.english, bengali: part.nicheAndAudience.bengali }}
+            simplifiedRequirements={part.simplifiedRequirements ? { english: part.simplifiedRequirements.english, bengali: part.simplifiedRequirements.bengali } : undefined}
             imageAnalysis={part.imageAnalysis ? { english: part.imageAnalysis.english, bengali: part.imageAnalysis.bengali } : undefined}
             designItems={{ english: part.designItems.english, bengali: part.designItems.bengali }}
+            editingPrompts={part.editingPrompts}
+            editingPromptsByDesign={part.editingPromptsByDesign}
             onSelectDesign={(designItem: any, options: any) => {
               // Create a custom event that page.tsx can listen for, including user-selected options
               const event = new CustomEvent('design-item-selected', {

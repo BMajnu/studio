@@ -45,6 +45,7 @@ export interface DesignListItem {
   title: string;
   description: string;
   textContent?: string;
+  mustFollow?: string[];
 }
 
 export interface BilingualContent {
@@ -79,13 +80,17 @@ export type ChatMessageContentPart =
   title?: string; 
       keyPoints: BilingualContent;
       detailedRequirements: BilingualContent;
-      designMessage: BilingualContent;
-      nicheAndAudience: BilingualContent;
+      // Optional: simplified summary distinct from detailed requirements
+      simplifiedRequirements?: BilingualContent;
       imageAnalysis?: BilingualContent;
       designItems: {
         english: DesignListItem[];
         bengali: DesignListItem[];
       };
+      // Newly added: generated editing prompts to render in the Editing Prompt tab
+      editingPrompts?: { type: string; prompt: string }[];
+      // Optional new structure: one prompt per design when available
+      editingPromptsByDesign?: { designId: string; designTitle?: string; imageIndex?: number; prompt: string }[];
     }
   | { type: 'search_keywords'; title?: string; keywords: Array<string | { text: string; url?: string }> }
   | { type: 'generated_images'; title?: string; prompt: string; images: GeneratedImage[] }
