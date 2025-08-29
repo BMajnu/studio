@@ -76,7 +76,7 @@ Output all five prompts as separate fields.
 `;
 
   const MAX_RETRIES = 3;
-  const BASE_DELAY_MS = 2000;
+  const BASE_DELAY_MS = 500;
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {

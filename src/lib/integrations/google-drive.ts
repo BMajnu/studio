@@ -66,7 +66,14 @@ export async function ensureAppFolderCached(accessToken: string, folderName = 'D
         const check = await fetch(`${DRIVE_API_BASE}/files/${cached}?fields=id`, { headers });
         if (check.ok) return cached;
         // Invalidate bad cache
-        if (typeof window !== 'undefined') localStorage.removeItem(cacheKey);
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem(cacheKey);
+          try {
+            if (localStorage.getItem('debugImages') === '1') {
+              console.warn('[Images][Drive] invalid folder cache, removed', { cached });
+            }
+          } catch {}
+        }
       } catch {}
     }
   } catch {}
@@ -172,7 +179,13 @@ export async function uploadImagesBatch(
   while (index < images.length || inFlight.size > 0) {
     while (index < images.length && inFlight.size < Math.max(1, concurrency)) {
       const item = images[index++];
-      const p = runOne(item).catch(() => {});
+      const p = runOne(item).catch((e) => {
+        try {
+          if (typeof window !== 'undefined' && localStorage.getItem('debugImages') === '1') {
+            console.error('[Images][Drive] upload failed', { filename: item.filename, err: e });
+          }
+        } catch {}
+      });
       inFlight.add(p);
       p.finally(() => inFlight.delete(p));
     }
@@ -181,6 +194,60 @@ export async function uploadImagesBatch(
     }
   }
   return results;
+}
+
+// Verbose variant that also returns errors and summary counts
+export type BatchUploadError = { item: BatchUploadItem; error: any };
+export type BatchUploadOutcome = { results: BatchUploadResult[]; errors: BatchUploadError[]; success: number; total: number };
+
+export async function uploadImagesBatchVerbose(
+  accessToken: string,
+  images: BatchUploadItem[],
+  folderId?: string,
+  concurrency: number = 4,
+): Promise<BatchUploadOutcome> {
+  const results: BatchUploadResult[] = [];
+  const errors: BatchUploadError[] = [];
+  let index = 0;
+  const inFlight = new Set<Promise<void>>();
+
+  async function runOne(item: BatchUploadItem) {
+    try {
+      const meta = await uploadDataUriToDrive(accessToken, item.dataUri, item.filename, folderId, {
+        description: item.description,
+        appProperties: item.appProperties,
+      });
+      results.push({ meta, item });
+    } catch (e) {
+      errors.push({ item, error: e });
+      try {
+        if (typeof window !== 'undefined' && localStorage.getItem('debugImages') === '1') {
+          console.error('[Images][Drive] upload failed', { filename: item.filename, err: e });
+        }
+      } catch {}
+    }
+  }
+
+  while (index < images.length || inFlight.size > 0) {
+    while (index < images.length && inFlight.size < Math.max(1, concurrency)) {
+      const item = images[index++];
+      const p = runOne(item);
+      inFlight.add(p);
+      p.finally(() => inFlight.delete(p));
+    }
+    if (inFlight.size > 0) {
+      await Promise.race(inFlight);
+    }
+  }
+
+  const outcome: BatchUploadOutcome = { results, errors, success: results.length, total: images.length };
+  try {
+    if (typeof window !== 'undefined' && localStorage.getItem('debugImages') === '1') {
+      console.debug('[Images][Drive] batch summary', { success: outcome.success, total: outcome.total, failed: outcome.total - outcome.success });
+      if (errors.length) console.error('[Images][Drive] errors', errors);
+    }
+  } catch {}
+  return outcome;
 }
 
 /**

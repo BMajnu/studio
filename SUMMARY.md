@@ -535,3 +535,21 @@ MagicInput.py, SUMMARY.md, এবং MagicInput/MagicInput Prompt.txt ফাই�
 
 ## Asking (Optional)
 - এখন কি কমিট ও পুশ চালিয়ে দেব?
+
+## Merge & Commit Published (Local)
+
+## Overview
+ব্রাঞ্চ মার্জ কনফ্লিক্টগুলো সমাধান করা হয়েছে (MagicInput.py ও লগ ফাইলের ক্ষেত্রে "theirs", এক্সটেনশনের সোর্স/ডিস্টের ক্ষেত্রে "ours"). নতুন মডিউলগুলো যোগ করা হয়েছে এবং কমিট সম্পন্ন।
+
+## Completed
+- কনফ্লিক্ট রেজলভ: MagicInput.py, `.firebase/logs/vsce-debug.log`, এবং `extension/src/*`, `extension/dist/*`।
+- নতুন ফাইল স্টেজ+কমিট: `apiClient.ts`, `auth.ts`, `config.ts`, `domReplace.ts`, `formSupport.ts`, `pageTranslate.ts`, `parallel.ts`।
+- কমিট মেসেজ: chore(extension): use production APP_BASE_URL; remove localhost fallbacks; add missing modules; build dist; toolbar/custom actions sync; resolve merge conflicts
+
+## Remainings
+- রিমোটে পুশ করা।
+- MagicInput ইন্টারঅ্যাকটিভ লুপ পুনরায় চালানো।
+
+## Next Steps
+- `git push`
+- `python MagicInput.py`

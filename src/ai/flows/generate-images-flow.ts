@@ -19,7 +19,6 @@ import { UserProfile } from '@/lib/types';
 const GenerateImagesFlowInputSchema = z.object({
   prompt: z.string().describe('The text prompt to generate images from.'),
   numImages: z.number().min(1).max(8).default(4).describe('Number of images to generate (1-8).'),
-  aspectRatio: z.enum(['1:1', '4:3', '3:4', '16:9', '9:16']).default('1:1').describe('Aspect ratio for generated images.'),
   temperature: z.number().min(0).max(2).default(1).describe('Sampling temperature (0-2)'),
   userName: z.string().describe('The name of the user (designer).'),
   communicationStyleNotes: z.string().describe('The communication style notes of the user.'),
@@ -48,7 +47,7 @@ export type GenerateImagesOutput = z.infer<typeof GenerateImagesOutputSchema>;
  * @returns Array of generated images as data URIs with alt text
  */
 export async function generateImages(flowInput: GenerateImagesInput): Promise<GenerateImagesOutput> {
-  const { userApiKeys, modelId, prompt, numImages, aspectRatio, temperature, userName } = flowInput as any;
+  const { userApiKeys, modelId, prompt, numImages, temperature, userName } = flowInput as any;
   const modelToUse = modelId || 'gemini-pro-vision';
   const flowName = 'generateImages';
 
@@ -60,12 +59,13 @@ export async function generateImages(flowInput: GenerateImagesInput): Promise<Ge
 
     async function callGeminiWithKey(apiKey: string): Promise<string> {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${apiKey}`;
-      const promptWithDirectives = `Generate ${numImages} image${numImages > 1 ? 's' : ''} with an aspect ratio of ${aspectRatio}. Return the images only – no additional text. Description: ${prompt}`;
+      const promptWithDirectives = `Generate ${numImages} image${numImages > 1 ? 's' : ''}. Return the images only – no additional text. Description: ${prompt}`;
       const body = {
         contents: [ { parts: [{ text: promptWithDirectives }] } ],
         generationConfig: { responseModalities: ["TEXT","IMAGE"], temperature }
       };
       const res = await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+
       if(!res.ok){throw new Error(`Gemini image API error: ${res.status} - ${await res.text()}`);}      
       const data = await res.json();
       const part = data?.candidates?.[0]?.content?.parts?.find((p:any)=>p.inlineData?.data||p.url);

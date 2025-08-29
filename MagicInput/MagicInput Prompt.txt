@@ -1,4 +1,6 @@
+<<<<<<< Updated upstream
+sill waiting form user's prompt so run the command "timeout 30".
+=======
 Prompt:
-Change the defult link of the website to login the extension as https://desainr.vercel.app. 
-
-then pulish the commit with all the last changes.
+marge all banch to just main banch
+>>>>>>> Stashed changes

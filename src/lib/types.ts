@@ -38,7 +38,11 @@ export type ActionType =
   | 'promptToReplicate'
   | 'promptWithCustomSense'
   | 'promptForMicroStockMarkets'
-  | 'custom';
+  | 'custom'
+  | 'chat'
+  | 'switchModel'
+  | 'videoTools'
+  | 'videoToolsGenerate';
 
 export interface DesignListItem {
   id: string;
@@ -57,6 +61,7 @@ export type ChatMessageContentPart =
   | { type: 'text'; title?: string; text: string }
   | { type: 'code'; title?: string; language?: string; code: string }
   | { type: 'list'; title?: string; items: string[] }
+  | { type: 'bilingual_text_split'; title?: string; english: string; bengali: string }
   | { 
       type: 'translation_group'; 
       title?: string; 
@@ -137,6 +142,16 @@ export type ChatMessageContentPart =
       subcategory: string; 
     }; 
   }[] }
+  | { 
+      type: 'video_prompt_tabs'; 
+      title?: string; 
+      bilingual?: { english: string; bengali: string };
+      jsonPrompt?: any;
+      veo3OptimizedPrompt?: string;
+      technicalNotes?: string[];
+      sceneBreakdown?: string[];
+      keywords?: string[];
+    }
 
 export interface AttachedFile {
   name: string;

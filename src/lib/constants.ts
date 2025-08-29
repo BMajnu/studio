@@ -20,7 +20,7 @@ export const AVAILABLE_MODELS = [
   { id: 'googleai/gemini-2.0-flash-preview-image-generation', name: 'Gemini 2.0 Flash Preview (Image Gen)', supportsThinking: false },
 
   // Fastest (Lowest Accuracy) – Flash Lite & Gemma models
-  { id: 'gemini-2.5-flash-lite-preview-06-17', name: 'Gemini 2.5 Flash-Lite Preview 06-17', supportsThinking: true },
+  { id: 'googleai/gemini-2.5-flash-lite-preview-06-17', name: 'Gemini 2.5 Flash-Lite Preview 06-17', supportsThinking: true },
   { id: 'googleai/gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite', supportsThinking: false },
   { id: 'gemma-3n-e4b', name: 'Gemma 3n E4B', supportsThinking: false },
   { id: 'gemma-3n-e2b', name: 'Gemma 3n E2B', supportsThinking: false },

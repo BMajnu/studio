@@ -17,22 +17,14 @@ interface GeminiClientOptions {
 export class GeminiClient {
   private manager: GeminiKeyManager;
   private autoRotate: boolean;
-  private envKey?: string;
   private userId?: string;
 
   constructor({ profile, autoRotate = true }: GeminiClientOptions) {
     this.manager = new GeminiKeyManager(profile);
     this.autoRotate = autoRotate;
-    this.envKey = process.env.GOOGLE_API_KEY;
     this.userId = profile?.userId;
 
-    // include env key (if not already) so manager can use it as last resort
-    if (this.envKey && !profile?.geminiApiKeys?.includes(this.envKey)) {
-      this.manager = new GeminiKeyManager({
-        ...profile,
-        geminiApiKeys: [...(profile?.geminiApiKeys || []), this.envKey]
-      } as UserProfile);
-    }
+    // Removed environment key fallback to ensure only user-provided keys are used
   }
 
   /**

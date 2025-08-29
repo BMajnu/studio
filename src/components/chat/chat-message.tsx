@@ -11,6 +11,8 @@ import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -63,7 +65,7 @@ interface ChatMessageProps {
   currentAttachedFilesDataLength: number;
   searchHighlightTerm?: string;
   currentModelId: string;
-  setCurrentModelId: (modelId: string) => void;
+  setCurrentModelIdAction: (modelId: string) => void;
 }
 
 function AttachedFileDisplay({ file, userId }: { file: AttachedFile, userId?: string }) {
@@ -175,7 +177,7 @@ const processMarkdown = (text: string) => {
 // NEW: Helper to collapse multiple blank lines into a single line
 const removeExtraBlankLines = (text: string) => text.replace(/\n{2,}/g, '\n');
 
-function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMessageContentPart; index: number, searchHighlightTerm?: string }) {
+function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick }: { part: ChatMessageContentPart; index: number, searchHighlightTerm?: string, onSuggestionClick?: (suggestion: string, lang: 'en' | 'bn') => void }) {
   const animationDelay = `${index * 80}ms`;
   const commonClasses = "animate-slideUpAndFade rounded-lg w-full mb-3";
   const { toast } = useToast();
@@ -184,14 +186,14 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
   
   const handleCopyToClipboard = useCallback((text: string, id: string) => {
     navigator.clipboard.writeText(text);
-    setCopyState(prev => ({ ...prev, [id]: true }));
+    setCopyState((prev: Record<string, boolean>) => ({ ...prev, [id]: true }));
     toast({
       title: "Copied to clipboard",
       description: "The prompt has been copied to your clipboard.",
     });
     
     setTimeout(() => {
-      setCopyState(prev => ({ ...prev, [id]: false }));
+      setCopyState((prev: Record<string, boolean>) => ({ ...prev, [id]: false }));
     }, 2000);
   }, [toast]);
 
@@ -261,11 +263,16 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
             </div>
             {part.text && (
               <div className="px-4 py-3">
-                <p 
-                  className="whitespace-pre-wrap leading-relaxed" 
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    ul: ({ node, ...props }: any) => <ul className="list-disc pl-5 space-y-[3px]" {...props} />,
+                    ol: ({ node, ...props }: any) => <ol className="list-decimal pl-5 space-y-[3px]" {...props} />,
+                  }}
+                  className="prose prose-sm dark:prose-invert max-w-none space-y-[3px] leading-snug prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0"
                 >
-                  {highlightText(removeExtraBlankLines(part.text), searchHighlightTerm)}
-                </p>
+                  {part.text}
+                </ReactMarkdown>
               </div>
             )}
           </div>
@@ -274,10 +281,19 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
       return (
         <div 
           key={index} 
-          className="whitespace-pre-wrap leading-relaxed w-full animate-slideUpSlightly" 
+          className="w-full animate-slideUpSlightly" 
           style={{ animationDelay }}
         >
-          {highlightText(removeExtraBlankLines(part.text), searchHighlightTerm)}
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              ul: ({ node, ...props }: any) => <ul className="list-disc pl-5 space-y-[3px]" {...props} />,
+              ol: ({ node, ...props }: any) => <ol className="list-decimal pl-5 space-y-[3px]" {...props} />,
+            }}
+            className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0"
+          >
+            {part.text}
+          </ReactMarkdown>
         </div>
       );
     
@@ -294,6 +310,203 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
         </div>
       );
     
+    case 'bilingual_text_split':
+      return (
+        <div
+          key={index}
+          className={cn(
+            commonClasses,
+            "bg-card/80 backdrop-blur-sm border border-border rounded-lg shadow-md overflow-hidden"
+          )}
+          style={{ animationDelay }}
+        >
+          {/* Optional header for bilingual split cards */}
+          {part.title && (
+            <div className="px-4 pt-4 pb-0 bg-transparent">
+              <h3 className="text-xl font-semibold text-center text-purple-400 -mb-1">
+                {part.title}
+              </h3>
+            </div>
+          )}
+
+          <div className="p-4">
+            <div className="flex flex-row gap-1">
+              <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
+                <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    ul: ({ node, ...props }: any) => <ul className="list-disc pl-5 space-y-[3px]" {...props} />,
+                    ol: ({ node, ...props }: any) => <ol className="list-decimal pl-5 space-y-[3px]" {...props} />,
+                  }}
+                  className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0 prose-headings:my-2"
+                >
+                  {part.english}
+                </ReactMarkdown>
+              </ScrollArea>
+              <div className="w-px bg-border mx-2" />
+              <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
+                <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    ul: ({ node, ...props }: any) => <ul className="list-disc pl-5 space-y-[3px]" {...props} />,
+                    ol: ({ node, ...props }: any) => <ol className="list-decimal pl-5 space-y-[3px]" {...props} />,
+                  }}
+                  className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0 prose-headings:my-2"
+                >
+                  {part.bengali}
+                </ReactMarkdown>
+              </ScrollArea>
+            </div>
+          </div>
+        </div>
+      );
+    case 'video_prompt_tabs':
+      // Rich video prompt renderer: Normal, JSON, Scene Image, Gallery
+      const jsonObj: any = (part as any).jsonPrompt || {};
+      const scenes: any[] = Array.isArray(jsonObj?.scenes) ? jsonObj.scenes : [];
+      const allKeywords: string[] | undefined = (part as any).keywords;
+      const veo3Text: string | undefined = (part as any).veo3OptimizedPrompt;
+      const techNotes: string[] | undefined = (part as any).technicalNotes;
+      const jsonString = JSON.stringify(jsonObj || {}, null, 2);
+      return (
+        <div
+          key={index}
+          className={cn(commonClasses, "bg-card/80 backdrop-blur-sm border border-border rounded-lg shadow-md overflow-hidden")}
+          style={{ animationDelay }}
+        >
+          {part.title && (
+            <div className="px-4 pt-4 pb-0 bg-transparent">
+              <h3 className="text-xl font-semibold text-center text-purple-400 -mb-1">
+                {part.title}
+              </h3>
+            </div>
+          )}
+          <div className="p-4">
+            <Tabs defaultValue={(part as any)?.bilingual?.english || (part as any)?.bilingual?.bengali ? 'normal' : 'json'} className="w-full">
+              <TabsList className="grid grid-cols-4 gap-1 mb-4">
+                <TabsTrigger value="normal" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">Normal</TabsTrigger>
+                <TabsTrigger value="json" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">JSON</TabsTrigger>
+                <TabsTrigger value="scene_image" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">Scene Image</TabsTrigger>
+                <TabsTrigger value="gallery" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md">Gallery</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="normal" className="mt-0">
+                {((part as any)?.bilingual?.english || (part as any)?.bilingual?.bengali) ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {(part as any)?.bilingual?.english && (
+                      <CopyToClipboard
+                        textToCopy={(part as any).bilingual.english}
+                        title="📝 Normal Prompt (English)"
+                        language="text"
+                        className="shadow-lg hover:shadow-xl transition-all duration-300 w-full"
+                      />
+                    )}
+                    {(part as any)?.bilingual?.bengali && (
+                      <CopyToClipboard
+                        textToCopy={(part as any).bilingual.bengali}
+                        title="📝 Normal Prompt (Bengali)"
+                        language="text"
+                        className="shadow-lg hover:shadow-xl transition-all duration-300 w-full"
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground">No normal prompt available.</div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="json" className="mt-0">
+                <CopyToClipboard
+                  textToCopy={jsonString}
+                  title="📋 JSON Format (Google Veo 3)"
+                  language="json"
+                  className="shadow-lg hover:shadow-xl transition-all duration-300 w-full"
+                />
+              </TabsContent>
+
+              <TabsContent value="scene_image" className="mt-0">
+                {scenes.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">No scene image prompts available.</div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {scenes.map((s: any, i: number) => {
+                      const desc: string = s.description || '';
+                      const derivedStart = s?.sceneImage?.start || (desc ? `Starting scene image: ${desc}` : 'Starting scene prompt not provided.');
+                      const derivedEnd = s?.sceneImage?.end || (desc ? `Ending scene image: ${desc}` : 'Ending scene prompt not provided.');
+                      return (
+                        <div key={i} className="rounded-lg bg-card/60 border border-border p-3 shadow-sm hover:shadow-md transition-shadow">
+                          <div className="font-semibold text-base mb-2">Scene {s.sceneNumber ?? (i + 1)} Image Prompts</div>
+                          <Tabs defaultValue="start" className="w-full">
+                            <TabsList className="grid grid-cols-2 gap-1 mb-3">
+                              <TabsTrigger value="start" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md text-xs">Starting</TabsTrigger>
+                              <TabsTrigger value="end" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md text-xs">Ending</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="start" className="mt-0">
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="text-xs font-medium text-foreground/80">Starting Image</div>
+                                <CopyToClipboard textToCopy={derivedStart} className="h-7 px-2 text-xs" />
+                              </div>
+                              <pre className="text-[12px] leading-snug whitespace-pre-wrap bg-muted p-2 rounded">{derivedStart}</pre>
+                            </TabsContent>
+                            <TabsContent value="end" className="mt-0">
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="text-xs font-medium text-foreground/80">Ending Image</div>
+                                <CopyToClipboard textToCopy={derivedEnd} className="h-7 px-2 text-xs" />
+                              </div>
+                              <pre className="text-[12px] leading-snug whitespace-pre-wrap bg-muted p-2 rounded">{derivedEnd}</pre>
+                            </TabsContent>
+                          </Tabs>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </TabsContent>
+
+              
+
+              <TabsContent value="gallery" className="mt-0">
+                {scenes.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">No gallery assets provided.</div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="text-xs text-muted-foreground">Gallery assets referenced per scene (if available).</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {scenes.map((s: any, i: number) => {
+                        const ga = s.galleryAssets || { characters: [], objects: [], backgrounds: [] };
+                        const hasAny = (ga.characters?.length || 0) + (ga.objects?.length || 0) + (ga.backgrounds?.length || 0) > 0;
+                        return (
+                          <div key={i} className="rounded-lg bg-card/60 border border-border p-3 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="font-semibold text-base mb-2">Scene {s.sceneNumber ?? (i + 1)} Gallery</div>
+                            {hasAny ? (
+                              <div className="flex flex-wrap gap-2 text-xs">
+                                {(ga.characters || []).map((_: any, idx: number) => (
+                                  <span key={`c-${idx}`} className="px-2 py-0.5 bg-muted rounded border">Character {idx + 1}</span>
+                                ))}
+                                {(ga.objects || []).map((_: any, idx: number) => (
+                                  <span key={`o-${idx}`} className="px-2 py-0.5 bg-muted rounded border">Object {idx + 1}</span>
+                                ))}
+                                {(ga.backgrounds || []).map((_: any, idx: number) => (
+                                  <span key={`b-${idx}`} className="px-2 py-0.5 bg-muted rounded border">Background {idx + 1}</span>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-xs text-muted-foreground">No gallery assets referenced in this scene.</div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
+      );
+
     case 'translation_group':
       return (
         <div key={index} className={cn(
@@ -302,9 +515,11 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
         )} style={{ animationDelay }}>
           <div className="px-4 pt-4 pb-0 bg-transparent">
             <h3 className="text-xl font-semibold text-center text-purple-400 -mb-1">
-              Client Message Analyze
+              {part.title && String(part.title).trim()
+                ? part.title
+                : 'Client Message Analyze'}
             </h3>
-              </div>
+          </div>
           
           <div className="p-4">
             <Tabs defaultValue="keyPoints" className="w-full">
@@ -321,9 +536,9 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
                   <div className="flex flex-row gap-1 h-full">
                     <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
                       <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
-                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground leading-snug font-medium prose-li:my-0 prose-ul:my-0 prose-ol:my-0">
                         {part.english?.keyPoints && part.english.keyPoints.length > 0 ? (
-                          <ul className="list-disc pl-5 space-y-1">
+                          <ul className="list-disc pl-5 space-y-[3px]">
                             {part.english.keyPoints.map((point, i) => <li key={i}>{point}</li>)}
                           </ul>
                         ) : "No key points available"}
@@ -332,9 +547,9 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
                     <div className="w-px bg-border mx-2 h-full"></div>
                     <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
                       <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
-                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground leading-snug font-medium prose-li:my-0 prose-ul:my-0 prose-ol:my-0">
                         {part.bengali?.keyPoints && part.bengali.keyPoints.length > 0 ? (
-                          <ul className="list-disc pl-5 space-y-1">
+                          <ul className="list-disc pl-5 space-y-[3px]">
                             {part.bengali.keyPoints.map((point, i) => <li key={i}>{point}</li>)}
                           </ul>
                         ) : "কোন মূল বিষয় উপলব্ধ নেই"}
@@ -347,18 +562,32 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
                   <div className="flex flex-row gap-1 h-full">
                     <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
                       <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
-                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          ul: ({ node, ...props }: any) => <ul className="list-disc pl-5 space-y-[3px]" {...props} />,
+                          ol: ({ node, ...props }: any) => <ol className="list-decimal pl-5 space-y-[3px]" {...props} />,
+                        }}
+                        className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug font-medium prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0"
+                      >
                         {part.english?.analysis || "No analysis available"}
-              </div>
+                      </ReactMarkdown>
                     </ScrollArea>
                     
                     <div className="w-px bg-border mx-2 h-full"></div>
                     
                     <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
                       <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
-                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          ul: ({ node, ...props }: any) => <ul className="list-disc pl-5 space-y-[3px]" {...props} />,
+                          ol: ({ node, ...props }: any) => <ol className="list-decimal pl-5 space-y-[3px]" {...props} />,
+                        }}
+                        className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug font-medium prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0"
+                      >
                         {part.bengali?.analysis || "কোন বিশ্লেষণ উপলব্ধ নেই"}
-                      </div>
+                      </ReactMarkdown>
                     </ScrollArea>
                   </div>
                 </TabsContent>
@@ -367,18 +596,32 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
                   <div className="flex flex-row gap-1 h-full">
                     <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
                       <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
-                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          ul: ({ node, ...props }: any) => <ul className="list-disc pl-5 space-y-[3px]" {...props} />,
+                          ol: ({ node, ...props }: any) => <ol className="list-decimal pl-5 space-y-[3px]" {...props} />,
+                        }}
+                        className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug font-medium prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0"
+                      >
                         {part.english?.simplifiedRequest || "No simplified request available"}
-                      </div>
+                      </ReactMarkdown>
                     </ScrollArea>
                     
                     <div className="w-px bg-border mx-2 h-full"></div>
                     
                     <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
                       <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
-                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          ul: ({ node, ...props }: any) => <ul className="list-disc pl-5 space-y-[3px]" {...props} />,
+                          ol: ({ node, ...props }: any) => <ol className="list-decimal pl-5 space-y-[3px]" {...props} />,
+                        }}
+                        className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug font-medium prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0"
+                      >
                         {part.bengali?.simplifiedRequest || "কোন সরলীকৃত অনুরোধ উপলব্ধ নেই"}
-                      </div>
+                      </ReactMarkdown>
                     </ScrollArea>
                   </div>
                 </TabsContent>
@@ -387,18 +630,32 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
                   <div className="flex flex-row gap-1 h-full">
                     <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
                       <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
-                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          ul: ({ node, ...props }: any) => <ul className="list-disc pl-5 space-y-[3px]" {...props} />,
+                          ol: ({ node, ...props }: any) => <ol className="list-decimal pl-5 space-y-[3px]" {...props} />,
+                        }}
+                        className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug font-medium prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0"
+                      >
                         {part.english?.stepByStepApproach || "No step-by-step approach available"}
-                      </div>
+                      </ReactMarkdown>
                     </ScrollArea>
                     
                     <div className="w-px bg-border mx-2 h-full"></div>
                     
                     <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
                       <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
-                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          ul: ({ node, ...props }: any) => <ul className="list-disc pl-5 space-y-[3px]" {...props} />,
+                          ol: ({ node, ...props }: any) => <ol className="list-decimal pl-5 space-y-[3px]" {...props} />,
+                        }}
+                        className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug font-medium prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0"
+                      >
                         {part.bengali?.stepByStepApproach || "কোন ধাপে ধাপে পদ্ধতি উপলব্ধ নেই"}
-                      </div>
+                      </ReactMarkdown>
                     </ScrollArea>
                   </div>
                 </TabsContent>
@@ -407,40 +664,66 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
                   <div className="flex flex-row gap-1 h-full">
                     <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
                       <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
-                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground leading-snug font-medium prose-li:my-0 prose-ul:my-0 prose-ol:my-0">
                         {part.english?.suggestions ? (
-                          <ul className="list-disc pl-5 space-y-2">
+                          <div className="space-y-[3px]">
                             {Array.isArray(part.english.suggestions) && part.english.suggestions.map((suggestion, idx) => (
-                              <li key={idx} className="text-foreground">
-                                {suggestion}
-                              </li>
+                              <div
+                                key={`eng-tab-sugg-${idx}`}
+                                className="group relative"
+                                onClick={(e) => { if ((e.target as HTMLElement).closest('button')) return; onSuggestionClick && onSuggestionClick(suggestion, 'en'); }}
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => { if ((e.target as HTMLElement).closest('button')) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSuggestionClick && onSuggestionClick(suggestion, 'en'); } }}
+                                title={`Use suggestion: ${suggestion}`}
+                              >
+                                <CopyToClipboard
+                                  textToCopy={suggestion}
+                                  className="cursor-pointer not-prose bg-card border-border hover:border-primary/50 text-foreground"
+                                  contentClassName="font-sans [&_code]:font-sans"
+                                  style={{ marginTop: '3px', marginBottom: '3px' }}
+                                />
+                                <div className="pointer-events-none absolute inset-0 rounded-md ring-1 ring-primary/30 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
                             ))}
-                          </ul>
+                          </div>
                         ) : "No suggested replies available"}
                       </div>
                     </ScrollArea>
-                    
                     <div className="w-px bg-border mx-2 h-full"></div>
-                    
                     <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
                       <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
-                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-relaxed font-medium">
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground leading-snug font-medium prose-li:my-0 prose-ul:my-0 prose-ol:my-0">
                         {part.bengali?.suggestions ? (
-                          <ul className="list-disc pl-5 space-y-2">
+                          <div className="space-y-[3px]">
                             {Array.isArray(part.bengali.suggestions) && part.bengali.suggestions.map((suggestion, idx) => (
-                              <li key={idx} className="text-foreground">
-                                {suggestion}
-                              </li>
+                              <div
+                                key={`bn-tab-sugg-${idx}`}
+                                className="group relative"
+                                onClick={(e) => { if ((e.target as HTMLElement).closest('button')) return; onSuggestionClick && onSuggestionClick(suggestion, 'bn'); }}
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => { if ((e.target as HTMLElement).closest('button')) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSuggestionClick && onSuggestionClick(suggestion, 'bn'); } }}
+                                title={`Use suggestion: ${suggestion}`}
+                              >
+                                <CopyToClipboard
+                                  textToCopy={suggestion}
+                                  className="cursor-pointer not-prose bg-card border-border hover:border-secondary/50 text-foreground"
+                                  contentClassName="font-sans [&_code]:font-sans"
+                                  style={{ marginTop: '3px', marginBottom: '3px' }}
+                                />
+                                <div className="pointer-events-none absolute inset-0 rounded-md ring-1 ring-secondary/30 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
                             ))}
-                          </ul>
+                          </div>
                         ) : "কোন প্রস্তাবিত উত্তর উপলব্ধ নেই"}
                       </div>
                     </ScrollArea>
                   </div>
                 </TabsContent>
               </div>
-            </Tabs>
-          </div>
+             </Tabs>
+           </div>
         </div>
       );
 
@@ -457,14 +740,25 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
           {part.title && (
             <h3 className="font-bold text-base mb-3 bg-clip-text text-transparent bg-gradient-to-r from-accent to-secondary flex items-center">
               <span className="mr-2 text-lg">✨</span>
-              <span dangerouslySetInnerHTML={{ __html: processMarkdown(part.title) }} />
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{ p: ({ children }) => <span>{children}</span> }}
+                className="inline"
+              >
+                {part.title}
+              </ReactMarkdown>
             </h3>
           )}
           
           {part.text && (
-            <div className="whitespace-pre-wrap leading-relaxed pt-1">
+            <div className="pt-1">
               <div className="bg-background/50 p-3 rounded-lg border border-accent/10 shadow-inner">
-                <div dangerouslySetInnerHTML={{ __html: processMarkdown(part.text) }} />
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap leading-snug prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0"
+                >
+                  {part.text}
+                </ReactMarkdown>
               </div>
             </div>
           )}
@@ -475,29 +769,37 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
       return (
         <div key={index} className={cn(commonClasses, "space-y-3")} style={{ animationDelay }}>
           {part.title && <h4 className="font-semibold mb-2 text-base text-gradient">{part.title}</h4>}
-          
-          {part.suggestions?.english && part.suggestions.english.length > 0 && (
-            <div className="space-y-2">
-              {part.suggestions.english.map((reply, i) => (
-                <CopyToClipboard 
-                  key={`eng-reply-${i}`} 
-                  textToCopy={reply} 
-                  title={`English Reply ${i + 1}`}
-                  className="shadow-lg hover:shadow-xl transition-all duration-300 bg-primary/5 hover:bg-primary/10" 
-                />
+
+          {part.suggestions?.english && Array.isArray(part.suggestions.english) && part.suggestions.english.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {part.suggestions.english.slice(0, 5).map((reply, i) => (
+                <Button
+                  key={`eng-sugg-${i}`}
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary hover:text-primary shadow-sm"
+                  onClick={() => onSuggestionClick && onSuggestionClick(reply, 'en')}
+                  title={`Use suggestion: ${reply}`}
+                >
+                  <Sparkles className="h-3 w-3 mr-1" /> {reply}
+                </Button>
               ))}
             </div>
           )}
-          
-          {part.suggestions?.bengali && part.suggestions.bengali.length > 0 && (
-            <div className="space-y-2 mt-3">
-              {part.suggestions.bengali.map((reply, i) => (
-                <CopyToClipboard 
-                  key={`bng-reply-${i}`} 
-                  textToCopy={reply} 
-                  title={`Bengali Reply ${i + 1}`}
-                  className="shadow-lg hover:shadow-xl transition-all duration-300 bg-secondary/5 hover:bg-secondary/10" 
-                />
+
+          {part.suggestions?.bengali && Array.isArray(part.suggestions.bengali) && part.suggestions.bengali.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {part.suggestions.bengali.slice(0, 5).map((reply, i) => (
+                <Button
+                  key={`bn-sugg-${i}`}
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full bg-secondary/5 hover:bg-secondary/10 border-secondary/20 text-secondary-foreground/90 shadow-sm"
+                  onClick={() => onSuggestionClick && onSuggestionClick(reply, 'bn')}
+                  title={`Use suggestion: ${reply}`}
+                >
+                  <Sparkles className="h-3 w-3 mr-1" /> {reply}
+                </Button>
               ))}
             </div>
           )}
@@ -522,55 +824,25 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
           {part.title && (
             <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-3 border-b flex items-center text-white">
               <span className="mr-2 text-lg">🎨</span>
-              <h4 className="font-semibold text-base" dangerouslySetInnerHTML={{ __html: processMarkdown(part.title) }} />
+              <h4 className="font-semibold text-base">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{ p: ({ node, ...props }) => <span {...props} /> }}
+                  className="inline"
+                >
+                  {part.title}
+                </ReactMarkdown>
+              </h4>
             </div>
           )}
           {part.text && (
-            <div className="px-4 py-3 space-y-3">
-              {/* Split the content into sections by double line breaks and process each */}
-              {part.text.split('\n\n').map((section, sectionIndex) => {
-                // Check if this is a section header (starts with **)
-                if (section.startsWith('**') && section.includes(':**')) {
-                  const [header, ...content] = section.split('\n');
-                  return (
-                    <div key={sectionIndex} className="mb-4">
-                      <h5 className="text-indigo-700 dark:text-indigo-400 font-medium mb-2" 
-                          dangerouslySetInnerHTML={{ __html: processMarkdown(header) }} />
-                      <div className="pl-4 border-l-2 border-indigo-200 dark:border-indigo-800">
-                        {content.map((line, lineIndex) => (
-                          <p key={lineIndex} className="text-slate-700 dark:text-slate-300 mb-1" 
-                             dangerouslySetInnerHTML={{ __html: processMarkdown(line) }} />
-                        ))}
-                      </div>
-                    </div>
-                  );
-                }
-                
-                // Handle numbered lists (check if starts with number and period)
-                else if (/^\d+\./.test(section)) {
-                  return (
-                    <div key={sectionIndex} className="mb-4 pl-2">
-                      <ul className="list-decimal pl-5 space-y-2">
-                        {section.split('\n').map((item, itemIndex) => {
-                          const listContent = item.replace(/^\d+\.\s+/, '');
-                          return (
-                            <li key={itemIndex} className="text-slate-700 dark:text-slate-300" 
-                                dangerouslySetInnerHTML={{ __html: processMarkdown(listContent) }} />
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  );
-                }
-                
-                // Regular paragraph
-                else {
-                  return (
-                    <p key={sectionIndex} className="text-slate-700 dark:text-slate-300" 
-                       dangerouslySetInnerHTML={{ __html: processMarkdown(section) }} />
-                  );
-                }
-              })}
+            <div className="px-4 py-3">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-snug prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0"
+              >
+                {part.text}
+              </ReactMarkdown>
             </div>
           )}
           <div className="px-4 py-2 bg-slate-100 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 flex justify-end items-center gap-2">
@@ -596,6 +868,7 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
         </div>
       );
 
+
     // Add new case for design_ideas_group
     case 'design_ideas_group':
       return (
@@ -603,7 +876,15 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
           {part.title && (
             <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-3 rounded-t-lg flex items-center text-white">
               <span className="mr-2 text-lg">📋</span>
-              <h4 className="font-semibold text-lg" dangerouslySetInnerHTML={{ __html: processMarkdown(part.title) }} />
+              <h4 className="font-semibold text-lg">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{ p: ({ node, ...props }) => <span {...props} /> }}
+                  className="inline"
+                >
+                  {part.title}
+                </ReactMarkdown>
+              </h4>
             </div>
           )}
           
@@ -621,60 +902,21 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
                 <h4 className="font-semibold text-base">{group.category}</h4>
               </div>
               
-              <div className="p-4 space-y-6">
                 {group.items.map((idea, ideaIndex) => (
-                  <div key={ideaIndex} className="pb-4 mb-4 border-b border-slate-200 dark:border-slate-700 last:border-0 last:mb-0 last:pb-0">
-                    {/* Split the content into sections by double line breaks and process each */}
-                    {idea.split('\n\n').map((section, sectionIndex) => {
-                      // Check if this is a section header (starts with **)
-                      if (section.startsWith('**') && section.includes(':**')) {
-                        const [header, ...content] = section.split('\n');
-                        return (
-                          <div key={sectionIndex} className="mb-4">
-                            <h5 className="text-indigo-700 dark:text-indigo-400 font-medium mb-2" 
-                                dangerouslySetInnerHTML={{ __html: processMarkdown(header) }} />
-                            <div className="pl-4 border-l-2 border-indigo-200 dark:border-indigo-800">
-                              {content.map((line, lineIndex) => (
-                                <p key={lineIndex} className="text-slate-700 dark:text-slate-300 mb-1" 
-                                  dangerouslySetInnerHTML={{ __html: processMarkdown(line) }} />
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      }
-                      
-                      // Handle numbered lists (check if starts with number and period)
-                      else if (/^\d+\./.test(section)) {
-                        return (
-                          <div key={sectionIndex} className="mb-4 pl-2">
-                            <ul className="list-decimal pl-5 space-y-2">
-                              {section.split('\n').map((item, itemIndex) => {
-                                const listContent = item.replace(/^\d+\.\s+/, '');
-                                return (
-                                  <li key={itemIndex} className="text-slate-700 dark:text-slate-300" 
-                                      dangerouslySetInnerHTML={{ __html: processMarkdown(listContent) }} />
-                                );
-                              })}
-                            </ul>
-                          </div>
-                        );
-                      }
-                      
-                      // Regular paragraph
-                      else {
-                        return (
-                          <p key={sectionIndex} className="text-slate-700 dark:text-slate-300" 
-                            dangerouslySetInnerHTML={{ __html: processMarkdown(section) }} />
-                        );
-                      }
-                    })}
+                  <div key={ideaIndex} className="pb-2 mb-2 border-b border-slate-200 dark:border-slate-700 last:border-0 last:mb-0 last:pb-0">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-snug prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0"
+                    >
+                      {idea}
+                    </ReactMarkdown>
                   </div>
                 ))}
-              </div>
             </div>
           ))}
         </div>
       );
+      
 
     case 'prompt_tabs':
       return (
@@ -1158,7 +1400,7 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
             </div>
             {part.promptsData && (
               <Badge variant="secondary" className="font-mono text-xs">
-                {part.promptsData.reduce((acc, curr) => acc + curr.prompts.length, 0)} Prompts
+                {part.promptsData.reduce((acc: number, curr: any) => acc + curr.prompts.length, 0)} Prompts
               </Badge>
             )}
           </div>
@@ -1175,7 +1417,7 @@ function RenderContentPart({ part, index, searchHighlightTerm }: { part: ChatMes
   }
 }
 
-export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndResend, onOpenCustomSenseEditor, onStopRegeneration, onPerformAction, onRegenerateCustomSense, isMobile, profile, activeActionButton, lastSelectedActionButton, isLoading, currentUserMessage, currentAttachedFilesDataLength, searchHighlightTerm, currentModelId, setCurrentModelId }: ChatMessageProps) {
+export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndResend, onOpenCustomSenseEditor, onStopRegeneration, onPerformAction, onRegenerateCustomSense, isMobile, profile, activeActionButton, lastSelectedActionButton, isLoading, currentUserMessage, currentAttachedFilesDataLength, searchHighlightTerm, currentModelId, setCurrentModelIdAction }: ChatMessageProps) {
   const [isEditingThisMessage, setIsEditingThisMessage] = useState(false);
   const [editedText, setEditedText] = useState<string>('');
   const [editedAttachments, setEditedAttachments] = useState<AttachedFile[]>([]);
@@ -1272,16 +1514,16 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
   
       for (const file of files) {
         const basicInfo: AttachedFile = {
-          name: file.name,
-          type: file.type,
-          size: file.size
+          name: (file as File).name,
+          type: (file as File).type,
+          size: (file as File).size
         };
   
-        if (file.type.startsWith('image/')) {
-          try { basicInfo.dataUri = await readFileAsDataURL(file); } 
+        if ((file as File).type.startsWith('image/')) {
+          try { basicInfo.dataUri = await readFileAsDataURL(file as File); } 
           catch (e) { console.error("Error reading image file:", e); }
-        } else if (file.type === 'text/plain' || file.type === 'text/markdown' || file.type === 'application/json') {
-          try { basicInfo.textContent = await readFileAsText(file); } 
+        } else if ((file as File).type === 'text/plain' || (file as File).type === 'text/markdown' || (file as File).type === 'application/json') {
+          try { basicInfo.textContent = await readFileAsText(file as File); } 
           catch (e) { console.error("Error reading text file:", e); }
         }
         processedFiles.push(basicInfo);
@@ -1310,7 +1552,7 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
   };
 
   const removeAttachment = (index: number) => {
-    setEditedAttachments(prev => prev.filter((_, i) => i !== index));
+    setEditedAttachments(prev => prev.filter((_: AttachedFile, i: number) => i !== index));
   };
 
   const clearAttachments = () => {
@@ -1664,6 +1906,17 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
   const messageText = getMessageText(displayContent);
   const isLongMessage = messageText.split('\n').length > 2 || messageText.length > 200;
 
+  // Handle clicking a suggested reply button from assistant messages
+  const handleSuggestionClick = useCallback((suggestion: string, lang: 'en' | 'bn') => {
+    if (!onConfirmEditAndResend) return;
+    // Only send the clicked suggestion as a fresh user message to avoid duplication
+    const combined = suggestion;
+    const targetUserMessageId = message.promptedByMessageId ?? message.id;
+    const attachments = message.originalRequest?.attachedFilesData || message.attachedFiles;
+    const actionType = message.originalRequest?.actionType || message.actionType;
+    onConfirmEditAndResend(targetUserMessageId, combined, attachments, actionType);
+  }, [onConfirmEditAndResend, message.originalRequest, message.attachedFiles, message.actionType, message.promptedByMessageId, message.id, currentUserMessage]);
+
   return (
     <div className={cn(
         "flex items-start w-full animate-slideUpSlightly hover:shadow-sm transition-all duration-300",
@@ -1700,7 +1953,7 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
                           <p>Select Action Type</p>
                         </TooltipContent>
                       </Tooltip>
-                      <Select value={currentModelId} onValueChange={setCurrentModelId} disabled={isEditingThisMessage}>
+                      <Select value={currentModelId} onValueChange={setCurrentModelIdAction} disabled={isEditingThisMessage}>
                         <SelectTrigger className="inline-flex items-center justify-center gap-2 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-7 px-4 leading-none text-xs font-medium rounded-full hover:shadow-lg transition-all bg-gradient-to-r text-white shadow-md from-purple-500 to-pink-500 data-[state=open]:shadow-md">
                           <Bot className="h-3 w-3 mr-1.5" />
                           <SelectValue placeholder="Model" />
@@ -1832,7 +2085,7 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
                     />
                     
                     <div className="flex justify-end gap-2">
-                      <Select value={currentModelId} onValueChange={setCurrentModelId}>
+                      <Select value={currentModelId} onValueChange={setCurrentModelIdAction}>
                         <SelectTrigger className="inline-flex items-center justify-center gap-2 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-7 px-4 leading-none text-xs font-medium rounded-full hover:shadow-lg transition-all bg-gradient-to-r text-white shadow-md from-purple-500 to-pink-500 data-[state=open]:shadow-md">
                           <Bot className="h-3 w-3 mr-1.5" />
                           <SelectValue placeholder="Model" />
@@ -1862,7 +2115,7 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
               >
                 <div ref={contentRef}>
                   {contentToRender.map((part, index) =>
-                    <RenderContentPart part={part} index={index} key={`${message.id}-part-${index}`} searchHighlightTerm={searchHighlightTerm} />
+                    <RenderContentPart part={part} index={index} key={`${message.id}-part-${index}`} searchHighlightTerm={searchHighlightTerm} onSuggestionClick={handleSuggestionClick} />
                   )}
                 </div>
                 {isLongMessage && !isExpanded && (
@@ -1968,7 +2221,7 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
         ) : (
           <div className="stagger-animation relative z-10 w-full overflow-x-auto">
             {contentToRender.map((part, index) =>
-              <RenderContentPart part={part} index={index} key={`${message.id}-part-${index}`} searchHighlightTerm={searchHighlightTerm} />
+              <RenderContentPart part={part} index={index} key={`${message.id}-part-${index}`} searchHighlightTerm={searchHighlightTerm} onSuggestionClick={handleSuggestionClick} />
             )}
           </div>
         )}

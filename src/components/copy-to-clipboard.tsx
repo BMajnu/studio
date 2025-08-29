@@ -13,6 +13,7 @@ interface CopyToClipboardProps {
   language?: string;
   className?: string;
   style?: React.CSSProperties;
+  contentClassName?: string; // additional classes for the <pre> content, e.g. to override font family
 }
 
 export function CopyToClipboard({
@@ -22,6 +23,7 @@ export function CopyToClipboard({
   language,
   className,
   style,
+  contentClassName,
 }: CopyToClipboardProps) {
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
@@ -49,7 +51,7 @@ export function CopyToClipboard({
         </div>
       )}
       <div className="relative p-4">
-        <pre className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground font-mono">
+        <pre className={cn("whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground font-mono", contentClassName)}>
           <code>{displayContent}</code>
         </pre>
         <Button
