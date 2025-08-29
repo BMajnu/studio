@@ -1,4 +1,1 @@
-Prompt:
-extension is not working at all (not showing any, context buttons or anything). Also showing:
-
-This page does not allow the overlay or the content script is blocked. Try a regular website tab.
+sill waiting form user's prompt so run the command "timeout 30".

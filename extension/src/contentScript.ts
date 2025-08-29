@@ -1597,22 +1597,30 @@
     if (!inside) hideToolbar();
   }, true);
 
-  chrome.runtime.onMessage.addListener((msg: any) => {
-    if (msg?.type === 'TOGGLE_OVERLAY') toggleReactOverlay();
-    if (msg?.type === 'CONTEXT_MENU') {
-      handleContextMenu(msg.id, msg.info);
-    }
-    if (msg?.type === 'SAVE_PINNED_ACTIONS') {
-      pinnedActions = msg.actions;
-      chrome.storage?.sync?.set({ 'desainr.pinnedActions': pinnedActions });
-      // Rebuild toolbar with new pinned actions
-      if (toolbarHost) {
-        toolbarHost.remove();
-        toolbarHost = null;
-        toolbarShadow = null;
+  chrome.runtime.onMessage.addListener((msg: any, _sender, sendResponse) => {
+    try {
+      if (msg?.type === 'TOGGLE_OVERLAY') {
+        toggleReactOverlay();
+        try { sendResponse?.({ ok: true }); } catch {}
+        return; // response sent
       }
-      ensureToolbar();
-    }
+      if (msg?.type === 'CONTEXT_MENU') {
+        handleContextMenu(msg.id, msg.info);
+        return;
+      }
+      if (msg?.type === 'SAVE_PINNED_ACTIONS') {
+        pinnedActions = msg.actions;
+        chrome.storage?.sync?.set({ 'desainr.pinnedActions': pinnedActions });
+        // Rebuild toolbar with new pinned actions
+        if (toolbarHost) {
+          toolbarHost.remove();
+          toolbarHost = null;
+          toolbarShadow = null;
+        }
+        ensureToolbar();
+        return;
+      }
+    } catch {}
   });
 
   // Listen for messages from the Customize Toolbar window (opened via Blob).
