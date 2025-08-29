@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DesAInR Extension Test Page</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            line-height: 1.6;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #1f2937;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 10px;
+        }
+        .test-text {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #3b82f6;
+        }
+        .instructions {
+            background: #eff6ff;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .instructions h2 {
+            color: #3b82f6;
+            margin-top: 0;
+        }
+        .instructions ol {
+            margin: 10px 0;
+        }
+        .instructions li {
+            margin: 8px 0;
+        }
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .feature {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .feature-icon {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        code {
+            background: #374151;
+            color: #f9fafb;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 DesAInR Extension Test Page</h1>
+        
+        <div class="instructions">
+            <h2>📌 How to Test Toolbar Customization</h2>
+            <ol>
+                <li><strong>Select any text</strong> on this page to see the context toolbar</li>
+                <li>You'll see <strong>4 main action buttons</strong> in the toolbar</li>
+                <li>Click <strong>More (...)</strong> button to see additional options</li>
+                <li>Click <strong>⚙️ Customize Toolbar</strong> in the More menu</li>
+                <li>A new window opens where you can <strong>select which 4 actions to pin</strong></li>
+                <li>Check/uncheck actions to pin them to the main toolbar</li>
+                <li>Click <strong>Save Changes</strong> to apply your preferences</li>
+                <li>The toolbar will <strong>automatically update</strong> with your pinned actions</li>
+            </ol>
+        </div>
+
+        <div class="test-text">
+            <h3>Sample Text for Testing</h3>
+            <p>
+                The future of AI is incredibly exciting. Machine learning models are becoming more sophisticated, 
+                enabling breakthrough applications in natural language processing, computer vision, and robotics. 
+                Select this text to see the DesAInR toolbar with your customized actions!
+            </p>
+            <p>
+                আর্টিফিশিয়াল ইন্টেলিজেন্স প্রযুক্তি দ্রুত এগিয়ে যাচ্ছে। এই টেক্সট সিলেক্ট করে 
+                ট্রান্সলেট বা অন্যান্য অ্যাকশন টেস্ট করুন।
+            </p>
+        </div>
+
+        <h2>✨ Available Actions</h2>
+        <div class="feature-list">
+            <div class="feature">
+                <div class="feature-icon">✏️</div>
+                <strong>Refine</strong>
+                <p>Improve text quality</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🌐</div>
+                <strong>Translate</strong>
+                <p>Translate to any language</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">💬</div>
+                <strong>Rephrase</strong>
+                <p>Reword the text</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">📝</div>
+                <strong>Summarize</strong>
+                <p>Create a summary</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">➕</div>
+                <strong>Add Details</strong>
+                <p>Expand with details</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">📊</div>
+                <strong>More Informative</strong>
+                <p>Make more detailed</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">💡</div>
+                <strong>Explain</strong>
+                <p>Explain the content</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🎯</div>
+                <strong>Simplify</strong>
+                <p>Make it simpler</p>
+            </div>
+        </div>
+
+        <div class="instructions" style="background: #fef2f2; border-left: 4px solid #ef4444;">
+            <h3 style="color: #dc2626;">🎯 Current Features</h3>
+            <ul>
+                <li>✅ <strong>Context toolbar appears</strong> when text is selected</li>
+                <li>✅ <strong>4 pinned actions</strong> shown in main toolbar</li>
+                <li>✅ <strong>Customize which 4 actions</strong> appear via More → ⚙️ Customize</li>
+                <li>✅ <strong>Settings persist</strong> across browser sessions</li>
+                <li>✅ <strong>Custom Action</strong> option for user-defined prompts</li>
+                <li>❌ <strong>Quick Action button removed</strong> (as requested)</li>
+            </ul>
+        </div>
+
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #e5e7eb; text-align: center; color: #6b7280;">
+            <p>Extension Version: 0.1.0 | <code>chrome://extensions</code> → Reload to test changes</p>
+        </div>
+    </div>
+</body>
+</html>
