@@ -1,0 +1,13 @@
+{
+  "name": "desainr-extension",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "scripts": {
+    "build": "node build.mjs",
+    "clean": "powershell -NoProfile -Command \"if (Test-Path dist) { Remove-Item -Recurse -Force dist }\""
+  },
+  "devDependencies": {
+    "esbuild": "^0.21.5"
+  }
+}

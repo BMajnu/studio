@@ -1,0 +1,196 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>DesAInR Assistant</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        min-width: 320px;
+        padding: 16px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      }
+      .container {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      }
+      .header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .logo {
+        width: 32px;
+        height: 32px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 18px;
+      }
+      h1 {
+        font-size: 20px;
+        color: #1a202c;
+        font-weight: 600;
+      }
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px;
+        background: #f7fafc;
+        border-radius: 8px;
+        margin-bottom: 16px;
+      }
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #cbd5e0;
+      }
+      .status-dot.active {
+        background: #48bb78;
+      }
+      .status-text {
+        font-size: 14px;
+        color: #4a5568;
+      }
+      button {
+        width: 100%;
+        padding: 12px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-bottom: 8px;
+      }
+      button:last-child {
+        margin-bottom: 0;
+      }
+      .primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+      .primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      }
+      .secondary {
+        background: #edf2f7;
+        color: #4a5568;
+      }
+      .secondary:hover {
+        background: #e2e8f0;
+      }
+      .error {
+        background: #fed7d7;
+        color: #c53030;
+        padding: 10px;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        font-size: 13px;
+        display: none;
+      }
+      .loading {
+        text-align: center;
+        padding: 20px;
+        display: none;
+      }
+      .spinner {
+        width: 24px;
+        height: 24px;
+        border: 3px solid #e2e8f0;
+        border-top-color: #667eea;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin: 0 auto;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      #signin-section, #signout-section {
+        display: none;
+      }
+      .divider {
+        height: 1px;
+        background: #e2e8f0;
+        margin: 16px 0;
+      }
+      .shortcut {
+        text-align: center;
+        font-size: 12px;
+        color: #718096;
+        margin-top: 12px;
+      }
+      .shortcut kbd {
+        background: #edf2f7;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div class="logo">D</div>
+        <h1>DesAInR Assistant</h1>
+      </div>
+
+      <div class="status">
+        <div class="status-dot" id="status-dot"></div>
+        <span class="status-text" id="status-text">Checking status...</span>
+      </div>
+
+      <div class="error" id="error"></div>
+
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p style="margin-top: 12px; color: #718096;">Loading...</p>
+      </div>
+
+      <div id="signin-section">
+        <button id="signin" class="primary">Sign in with DesAInR</button>
+        <p style="margin-top: 12px; font-size: 12px; color: #718096; text-align: center;">
+          Sign in to access AI features
+        </p>
+      </div>
+
+      <div id="signout-section">
+        <button id="open-overlay" class="primary">Open Assistant</button>
+        <button id="open-webapp" class="secondary">Open Web App</button>
+        <button id="open-designer" class="secondary">Open Designer Page</button>
+        <button id="toggle-settings" class="secondary">Settings</button>
+        <button id="signout" class="secondary">Sign Out</button>
+        <div class="divider"></div>
+        <div class="shortcut">
+          Press <kbd>Ctrl</kbd>+<kbd>M</kbd> on any page
+        </div>
+      </div>
+
+      <!-- Settings Panel -->
+      <div id="settings-panel" style="display:none; margin-top:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
+        <h3 style="font-size:14px; color:#2d3748; margin-bottom:8px;">Extension Settings</h3>
+        <label style="display:block; font-size:12px; color:#4a5568; margin-bottom:4px;">Default Target Language</label>
+        <input id="setting-target-lang" type="text" placeholder="e.g., en, bn" style="width:100%; padding:8px; border:1px solid #cbd5e0; border-radius:6px; margin-bottom:8px;" />
+        <label style="display:block; font-size:12px; color:#4a5568; margin-bottom:4px;">Preferred Model ID</label>
+        <input id="setting-model-id" type="text" placeholder="e.g., gemini-1.5-pro" style="width:100%; padding:8px; border:1px solid #cbd5e0; border-radius:6px; margin-bottom:8px;" />
+        <div style="display:flex; gap:8px;">
+          <button id="save-settings" class="primary" style="flex:1;">Save Settings</button>
+          <button id="close-settings" class="secondary" style="flex:1;">Close</button>
+        </div>
+        <p style="font-size:11px; color:#718096; margin-top:8px;">Settings are stored locally in your browser for this extension.</p>
+      </div>
+    </div>
+    <script type="module" src="./popup.js"></script>
+  </body>
+</html>

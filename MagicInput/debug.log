@@ -179,3 +179,13 @@
 [2025-08-25 22:42:34] MagicInput initialized; logging to debug.log and magicinput.log
 [2025-08-29 16:49:17] MagicInput initialized; logging to debug.log and magicinput.log
 [2025-08-29 16:59:28] MagicInput initialized; logging to debug.log and magicinput.log
+[2025-08-29 17:15:31] MagicInput initialized; logging to debug.log and magicinput.log
+[2025-08-29 17:22:09] Starting image processing for 2 image(s). include_context=True; mode=describe
+[2025-08-29 17:22:09] Prepared 2 image part(s). total_bytes=296950 sizes=[209134, 87816]
+[2025-08-29 17:22:09] Context flags: include_context=True; project_brief=yes(10807 chars); prompts_archive=yes(10000 chars); terminal=no(0 chars)
+[2025-08-29 17:22:09] Context block total size=20864 chars; user_prompt size=230 chars
+[2025-08-29 17:22:09] Calling Gemini with 2 image part(s). Model=gemini-2.5-flash
+[2025-08-29 17:22:23] Gemini response received successfully
+[2025-08-29 18:44:00] MagicInput initialized; logging to debug.log and magicinput.log
+[2025-08-29 18:47:30] MagicInput initialized; logging to debug.log and magicinput.log
+[2025-08-29 18:54:57] MagicInput initialized; logging to debug.log and magicinput.log
