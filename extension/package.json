@@ -1,13 +1,24 @@
 {
   "name": "desainr-extension",
+  "version": "0.1.0",
   "private": true,
-  "type": "module",
-  "version": "0.0.0",
   "scripts": {
-    "build": "node build.mjs",
-    "clean": "powershell -NoProfile -Command \"if (Test-Path dist) { Remove-Item -Recurse -Force dist }\""
+    "dev": "vite",
+    "build:app": "vite build",
+    "build:content": "vite build -c vite.content.config.ts",
+    "build": "npm run build:app && npm run build:content",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "firebase": "^11.8.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "esbuild": "^0.21.5"
+    "@types/chrome": "^0.0.273",
+    "@types/react": "18.3.21",
+    "@types/react-dom": "^18",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10"
   }
 }
