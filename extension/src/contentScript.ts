@@ -1,7 +1,181 @@
 import { isEditableElement, getEditableSelection, replaceEditableSelection, enhanceFormSelection } from './formSupport';
+import { MonicaStyleContextMenu, type MenuAction, DefaultActions } from './ui/MonicaStyleContextMenu';
+import { MonicaStyleToolbar, type ToolbarAction } from './ui/MonicaStyleToolbar';
+import { MonicaTheme } from './ui/MonicaStyleTheme';
 
 (() => {
   const ID = 'desainr-overlay-root';
+  // Monica-style UI components
+  let monicaContextMenu: MonicaStyleContextMenu | null = null;
+  let monicaToolbar: MonicaStyleToolbar | null = null;
+  let monicaToast: HTMLElement | null = null;
+  
+  // Initialize Monica-style components
+  const initMonicaComponents = () => {
+    if (!monicaContextMenu) {
+      monicaContextMenu = new MonicaStyleContextMenu();
+    }
+    if (!monicaToolbar) {
+      monicaToolbar = new MonicaStyleToolbar();
+    }
+  };
+  
+  // Initialize on load
+  initMonicaComponents();
+  
+  // Monica-style action handler
+  async function handleMonicaAction(actionId: string, actionLabel: string) {
+    try {
+      // For Refine: show split popup (Original vs Refined) near selection
+      if (actionId === 'refine') {
+        const selection = window.getSelection()?.toString() || '';
+        if (!selection.trim()) {
+          showOverlayMessage('No text selected', 'warning');
+          return;
+        }
+        const rect = (() => {
+          try {
+            const sel = window.getSelection();
+            if (sel && sel.rangeCount) return sel.getRangeAt(0).getBoundingClientRect();
+          } catch {}
+          return null;
+        })();
+        try {
+          await showResultPopup('Refine', selection, 'Working…', rect || undefined);
+          const st = await chrome.storage?.local.get?.([
+            'desainr.settings.modelId',
+            'desainr.settings.thinkingMode'
+          ]).catch(() => ({} as any));
+          const modelId = st?.['desainr.settings.modelId'];
+          const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
+          const { rewrite } = await import('./apiClient');
+          const { ok, status, json, error } = await rewrite({ selection, url: location.href, task: 'clarify', modelId, thinkingMode } as any);
+          if (ok && (json as any)?.result) {
+            await showResultPopup('Refine', selection, (json as any).result, rect || undefined);
+          } else {
+            const msg = (json as any)?.error || error || 'unknown';
+            await showResultPopup('Refine', selection, `Failed (${status}): ${msg}`, rect || undefined);
+          }
+        } catch (e: any) {
+          await showResultPopup('Refine', selection, `Error: ${e?.message || e}`, rect || undefined);
+        }
+        return;
+      }
+
+      // Compute selection & rect for popup positioning
+      const selection = window.getSelection()?.toString() || '';
+      const rect = (() => {
+        try {
+          const sel = window.getSelection();
+          if (sel && sel.rangeCount) return sel.getRangeAt(0).getBoundingClientRect();
+        } catch {}
+        return null;
+      })();
+
+      if (actionId === 'translate') {
+        if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
+        const { translateChunks } = await import('./apiClient');
+        await showResultPopup('Translate', selection, 'Working…', rect || undefined);
+        const st = await chrome.storage?.local.get?.(['desainr.settings.targetLang','desainr.settings.modelId','desainr.settings.thinkingMode']).catch(() => ({} as any));
+        const targetLang = st?.['desainr.settings.targetLang'] || (await import('./config')).DEFAULT_TARGET_LANG;
+        const modelId = st?.['desainr.settings.modelId'];
+        const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
+        const { ok, status, json, error } = await translateChunks({ selection, url: location.href, targetLang, modelId, thinkingMode });
+        if (ok && (json as any)?.result) {
+          await showResultPopup('Translate', selection, (json as any).result, rect || undefined);
+        } else {
+          const msg = (json as any)?.error || error || 'unknown';
+          await showResultPopup('Translate', selection, `Failed (${status}): ${msg}`, rect || undefined);
+        }
+      } else if (actionId === 'rewrite') {
+        if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
+        const { rewrite } = await import('./apiClient');
+        await showResultPopup('Rewrite', selection, 'Working…', rect || undefined);
+        const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode']).catch(() => ({} as any));
+        const modelId = st?.['desainr.settings.modelId'];
+        const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
+        const { ok, status, json, error } = await rewrite({ selection, url: location.href, task: 'clarify', modelId, thinkingMode } as any);
+        if (ok && (json as any)?.result) {
+          await showResultPopup('Rewrite', selection, (json as any).result, rect || undefined);
+        } else {
+          const msg = (json as any)?.error || error || 'unknown';
+          await showResultPopup('Rewrite', selection, `Failed (${status}): ${msg}`, rect || undefined);
+        }
+      } else if (actionId === 'expand') {
+        if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
+        const { rewrite } = await import('./apiClient');
+        await showResultPopup('Expand', selection, 'Working…', rect || undefined);
+        const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode']).catch(() => ({} as any));
+        const modelId = st?.['desainr.settings.modelId'];
+        const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
+        const { ok, status, json, error } = await rewrite({ selection, url: location.href, task: 'expand', modelId, thinkingMode } as any);
+        if (ok && (json as any)?.result) {
+          await showResultPopup('Expand', selection, (json as any).result, rect || undefined);
+        } else {
+          const msg = (json as any)?.error || error || 'unknown';
+          await showResultPopup('Expand', selection, `Failed (${status}): ${msg}`, rect || undefined);
+        }
+      } else if (actionId === 'correct') {
+        if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
+        const { rewrite } = await import('./apiClient');
+        await showResultPopup('Correct Grammar', selection, 'Working…', rect || undefined);
+        const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode']).catch(() => ({} as any));
+        const modelId = st?.['desainr.settings.modelId'];
+        const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
+        const { ok, status, json, error } = await rewrite({ selection, url: location.href, task: 'grammar', modelId, thinkingMode } as any);
+        if (ok && (json as any)?.result) {
+          await showResultPopup('Correct Grammar', selection, (json as any).result, rect || undefined);
+        } else {
+          const msg = (json as any)?.error || error || 'unknown';
+          await showResultPopup('Correct Grammar', selection, `Failed (${status}): ${msg}`, rect || undefined);
+        }
+      } else if (actionId === 'explain') {
+        if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
+        const { actions } = await import('./apiClient');
+        await showResultPopup('Explain', selection, 'Working…', rect || undefined);
+        const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode']).catch(() => ({} as any));
+        const modelId = st?.['desainr.settings.modelId'];
+        const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
+        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Explain this clearly', modelId, thinkingMode });
+        if (ok && (json as any)?.result) {
+          await showResultPopup('Explain', selection, (json as any).result, rect || undefined);
+        } else {
+          const msg = (json as any)?.error || error || 'unknown';
+          await showResultPopup('Explain', selection, `Failed (${status}): ${msg}`, rect || undefined);
+        }
+      } else if (actionId === 'analyze') {
+        const { analyzePage } = await import('./apiClient');
+        await showResultPopup('Analyze', selection || '(No selection)', 'Working…', rect || undefined);
+        const { ok, status, json, error } = await analyzePage({ url: location.href, title: document.title });
+        if (ok) {
+          await showResultPopup('Analyze', selection || '(No selection)', ((json as any)?.summary || 'Done'), rect || undefined);
+        } else {
+          const msg = (json as any)?.error || error || 'unknown';
+          await showResultPopup('Analyze', selection || '(No selection)', `Failed (${status}): ${msg}`, rect || undefined);
+        }
+      } else if (actionId === 'chat-personal' || actionId === 'chat-pro') {
+        toggleReactOverlay();
+      } else if (actionId === 'copy') {
+        // Copy selected text
+        const selection = window.getSelection()?.toString() || '';
+        if (selection) {
+          navigator.clipboard.writeText(selection);
+          showOverlayMessage('Text copied to clipboard! 📋', 'success');
+        } else {
+          showOverlayMessage('No text selected', 'warning');
+        }
+      } else if (actionId === 'settings') {
+        showOverlayMessage('Extension settings coming soon! ⚙️', 'info');
+      } else if (actionId === 'customize') {
+        showOverlayMessage('Custom actions coming soon! 🔧', 'info');
+      } else {
+        showOverlayMessage(`Unknown action: ${actionLabel}`, 'warning');
+      }
+    } catch (error: any) {
+      showOverlayMessage(`Error: ${error?.message || error}`, 'error');
+    }
+  }
+  
   // Sanitize any leftover stub overlay from previous versions
   const prev = document.getElementById(ID) as HTMLElement | null;
   if (prev) {
@@ -10,45 +184,144 @@ import { isEditableElement, getEditableSelection, replaceEditableSelection, enha
       prev.textContent = '';
     } catch {}
   }
-  function ensureOverlay(): HTMLElement {
-    let root = document.getElementById(ID) as HTMLElement | null;
-    if (!root) {
-      root = document.createElement('div');
-      root.id = ID;
-      Object.assign(root.style, {
-        position: 'fixed', top: '20px', right: '20px', zIndex: 999999,
-        background: 'white', color: '#111', border: '1px solid #ddd',
-        borderRadius: '8px', padding: '8px 12px', boxShadow: '0 6px 20px rgba(0,0,0,0.15)',
-        display: 'none', maxWidth: '420px', fontFamily: 'Segoe UI, Arial, sans-serif',
-      } as any);
-      document.documentElement.appendChild(root);
+  // Monica-style toast notification system
+  function createMonicaToast(): HTMLElement {
+    if (monicaToast) {
+      monicaToast.remove();
     }
-    return root;
+    
+    monicaToast = document.createElement('div');
+    Object.assign(monicaToast.style, {
+      position: 'fixed',
+      top: '20px',
+      right: '20px',
+      zIndex: MonicaTheme.zIndex.toast,
+      background: MonicaTheme.colors.surface,
+      color: MonicaTheme.colors.textPrimary,
+      border: `1px solid ${MonicaTheme.colors.border}`,
+      borderRadius: MonicaTheme.borderRadius.lg,
+      padding: `${MonicaTheme.spacing.md} ${MonicaTheme.spacing.lg}`,
+      boxShadow: MonicaTheme.shadows.lg,
+      backdropFilter: 'blur(12px)',
+      maxWidth: '420px',
+      fontFamily: MonicaTheme.typography.fontFamily,
+      fontSize: MonicaTheme.typography.fontSize.sm,
+      display: 'none',
+      opacity: '0',
+      transform: 'translateY(-8px) scale(0.95)',
+      transition: `all ${MonicaTheme.animation.fast}`,
+    } as any);
+    
+    document.documentElement.appendChild(monicaToast);
+    return monicaToast;
+  }
+  
+  function ensureOverlay(): HTMLElement {
+    return createMonicaToast();
   }
 
-  // Transient toast helpers (replace previous persistent stub banner)
-  function showOverlayMessage(message: string) {
-    const el = ensureOverlay();
-    el.textContent = message;
+  // Monica-style toast helpers with smooth animations
+  function showOverlayMessage(message: string, type: 'info' | 'success' | 'error' | 'warning' = 'info') {
+    const el = createMonicaToast();
+    
+    // Create toast content with icon
+    const icons = {
+      info: '💬',
+      success: '✅', 
+      error: '❌',
+      warning: '⚠️'
+    };
+    
+    const colors = {
+      info: MonicaTheme.colors.info,
+      success: MonicaTheme.colors.success,
+      error: MonicaTheme.colors.error,
+      warning: MonicaTheme.colors.warning
+    };
+    
+    el.innerHTML = `
+      <div style="display: flex; align-items: center; gap: ${MonicaTheme.spacing.md};">
+        <div style="font-size: 18px;">${icons[type]}</div>
+        <div style="flex: 1; line-height: ${MonicaTheme.typography.lineHeight.normal};">${message}</div>
+        <div style="width: 4px; height: 40px; background: ${colors[type]}; border-radius: 2px; margin-left: ${MonicaTheme.spacing.md};"></div>
+      </div>
+    `;
+    
     el.style.display = 'block';
+    
+    // Animate in
+    requestAnimationFrame(() => {
+      el.style.opacity = '1';
+      el.style.transform = 'translateY(0) scale(1)';
+    });
+    
+    // Auto-hide after delay
+    setTimeout(() => hideOverlay(), 3000);
   }
+  
   function hideOverlay() {
-    const el = ensureOverlay();
-    el.style.display = 'none';
+    if (monicaToast) {
+      monicaToast.style.opacity = '0';
+      monicaToast.style.transform = 'translateY(-8px) scale(0.95)';
+      setTimeout(() => {
+        if (monicaToast) {
+          monicaToast.style.display = 'none';
+        }
+      }, 150);
+    }
   }
+  
   function toggle() {
-    const el = ensureOverlay();
-    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    if (monicaToast && monicaToast.style.display !== 'none') {
+      hideOverlay();
+    } else {
+      showOverlayMessage('DesAInR Assistant ready! 🚀');
+    }
   }
 
   function showUndoButton(el: HTMLElement, undo: () => boolean, ttlMs = 6000) {
     const btn = document.createElement('button');
-    btn.textContent = 'Undo';
-    Object.assign(btn.style, { marginLeft: '8px', padding: '4px 8px', border: '1px solid #ccc', borderRadius: '6px', cursor: 'pointer' } as any);
+    btn.innerHTML = `
+      <div style="display: flex; align-items: center; gap: ${MonicaTheme.spacing.xs};">
+        <span>↶</span>
+        <span>Undo</span>
+      </div>
+    `;
+    Object.assign(btn.style, {
+      marginLeft: MonicaTheme.spacing.md,
+      padding: `${MonicaTheme.spacing.xs} ${MonicaTheme.spacing.md}`,
+      background: MonicaTheme.colors.primary,
+      color: 'white',
+      border: 'none',
+      borderRadius: MonicaTheme.borderRadius.md,
+      cursor: 'pointer',
+      fontSize: MonicaTheme.typography.fontSize.sm,
+      fontWeight: MonicaTheme.typography.fontWeight.medium,
+      transition: `all ${MonicaTheme.animation.fast}`,
+      fontFamily: MonicaTheme.typography.fontFamily,
+    } as any);
+    
+    btn.onmouseenter = () => {
+      btn.style.background = MonicaTheme.colors.primaryHover;
+      btn.style.transform = 'translateY(-1px)';
+    };
+    btn.onmouseleave = () => {
+      btn.style.background = MonicaTheme.colors.primary;
+      btn.style.transform = 'translateY(0)';
+    };
+    
     const onClick = () => {
-      try { const ok = undo(); el.textContent = ok ? 'Undone ✓' : 'Undo failed'; }
-      catch { el.textContent = 'Undo failed'; }
-      finally { btn.remove(); setTimeout(() => hideOverlay(), 800); }
+      try { 
+        const ok = undo(); 
+        showOverlayMessage(ok ? 'Undone successfully! ✓' : 'Undo failed', ok ? 'success' : 'error');
+      }
+      catch { 
+        showOverlayMessage('Undo failed', 'error'); 
+      }
+      finally { 
+        btn.remove(); 
+        setTimeout(() => hideOverlay(), 800); 
+      }
     };
     btn.addEventListener('click', onClick, { once: true });
     el.appendChild(btn);
@@ -57,14 +330,43 @@ import { isEditableElement, getEditableSelection, replaceEditableSelection, enha
 
   function showCopyButton(el: HTMLElement, text: string, ttlMs = 12000) {
     const btn = document.createElement('button');
-    btn.textContent = 'Copy';
-    Object.assign(btn.style, { marginLeft: '8px', padding: '4px 8px', border: '1px solid #ccc', borderRadius: '6px', cursor: 'pointer' } as any);
+    btn.innerHTML = `
+      <div style="display: flex; align-items: center; gap: ${MonicaTheme.spacing.xs};">
+        <span>📋</span>
+        <span>Copy</span>
+      </div>
+    `;
+    Object.assign(btn.style, {
+      marginLeft: MonicaTheme.spacing.md,
+      padding: `${MonicaTheme.spacing.xs} ${MonicaTheme.spacing.md}`,
+      background: MonicaTheme.colors.surface,
+      color: MonicaTheme.colors.textPrimary,
+      border: `1px solid ${MonicaTheme.colors.border}`,
+      borderRadius: MonicaTheme.borderRadius.md,
+      cursor: 'pointer',
+      fontSize: MonicaTheme.typography.fontSize.sm,
+      fontWeight: MonicaTheme.typography.fontWeight.medium,
+      transition: `all ${MonicaTheme.animation.fast}`,
+      fontFamily: MonicaTheme.typography.fontFamily,
+    } as any);
+    
+    btn.onmouseenter = () => {
+      btn.style.background = MonicaTheme.colors.surfaceHover;
+      btn.style.borderColor = MonicaTheme.colors.primary;
+      btn.style.transform = 'translateY(-1px)';
+    };
+    btn.onmouseleave = () => {
+      btn.style.background = MonicaTheme.colors.surface;
+      btn.style.borderColor = MonicaTheme.colors.border;
+      btn.style.transform = 'translateY(0)';
+    };
+    
     const onClick = async () => {
       try {
         await navigator.clipboard.writeText(text);
-        el.textContent = 'Copied ✓';
+        showOverlayMessage('Copied to clipboard! ✓', 'success');
       } catch {
-        el.textContent = 'Copy failed';
+        showOverlayMessage('Copy failed', 'error');
       } finally {
         btn.remove();
         setTimeout(() => hideOverlay(), 800);
@@ -154,14 +456,16 @@ import { isEditableElement, getEditableSelection, replaceEditableSelection, enha
     const style = document.createElement('style');
     style.textContent = `
       :host { all: initial; }
-      .popup { min-width: 360px; max-width: 520px; max-height: 420px; overflow: auto;
+      .popup { min-width: 520px; max-width: 720px; max-height: 520px; overflow: auto;
         background: #fff; color: #111; border: 1px solid #e6e6e6; border-radius: 12px;
         box-shadow: 0 16px 40px rgba(0,0,0,0.2); font-family: Segoe UI, Arial, sans-serif;
       }
       .hdr { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid #efefef; }
       .ttl { font-weight: 700; font-size: 14px; }
-      .body { padding: 10px 12px; font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
-      .orig { color:#666; background:#fafafa; border:1px solid #f0f0f0; border-radius:8px; padding:8px; margin-bottom:8px; }
+      .body { padding: 12px; font-size: 13px; line-height: 1.5; white-space: pre-wrap; display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+      .panel { display:flex; flex-direction:column; gap:8px; }
+      .ph { font-weight: 600; color:#333; font-size: 12px; }
+      .orig { color:#444; background:#fafafa; border:1px solid #f0f0f0; border-radius:8px; padding:8px; }
       .res { background:#fff; border:1px solid #eee; border-radius:8px; padding:8px; }
       .ftr { display:flex; justify-content:flex-end; gap:8px; padding:10px 12px; border-top:1px solid #efefef; }
       button { border:1px solid #ddd; border-radius:8px; padding:6px 10px; background:#f7f7f7; cursor:pointer; }
@@ -171,8 +475,17 @@ import { isEditableElement, getEditableSelection, replaceEditableSelection, enha
     popupShadow.appendChild(style);
     const box = document.createElement('div');
     box.className = 'popup';
-    box.innerHTML = `<div class="hdr"><div class="ttl">Result</div><button id="close">✕</button></div>
-      <div class="body"><div class="orig" id="orig"></div><div class="res" id="res"></div></div>
+    box.innerHTML = `<div class="hdr"><div class="ttl">Refine Result</div><button id="close">✕</button></div>
+      <div class="body">
+        <div class="panel">
+          <div class="ph">Original Text</div>
+          <div class="orig" id="orig"></div>
+        </div>
+        <div class="panel">
+          <div class="ph">Refined Text</div>
+          <div class="res" id="res"></div>
+        </div>
+      </div>
       <div class="ftr">
         <button id="copy">Copy</button>
         <button id="cancel">Cancel</button>
@@ -421,29 +734,33 @@ import { isEditableElement, getEditableSelection, replaceEditableSelection, enha
     const mod = await import('./selection');
     const info = mod.getSelectionInfo();
     if (!info) { hideToolbar(); return; }
+    
     currentSelectionText = info.text;
     currentSelectionRect = info.rect;
-    const host = ensureToolbar();
-    host.style.display = 'block';
-    // Position near selection using viewport coordinates and clamp to edges
-    const margin = 8;
-    const rect = info.rect;
-    let x = rect.left;
-    let y = rect.top - 44; // above selection
-    // Measure toolbar size
-    const r = host.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    if (x + r.width + margin > vw) x = Math.max(margin, vw - r.width - margin);
-    if (x < margin) x = margin;
-    if (y < margin) y = Math.min(vh - r.height - margin, rect.bottom + margin);
-    host.style.left = `${Math.round(x)}px`;
-    host.style.top = `${Math.round(y)}px`;
+    
+    // Use Monica-style toolbar instead of legacy toolbar
+    if (monicaToolbar) {
+      const rect = info.rect;
+      const x = rect.left + rect.width / 2; // Center on selection
+      const y = rect.top - 8; // Slightly above selection
+      
+      monicaToolbar.show(x, y, (action: ToolbarAction) => {
+        handleMonicaAction(action.id, action.label);
+      });
+    }
   }
 
   function hideToolbar() {
-    // Do not hide the toolbar if a result popup is currently visible
-    if (popupHost && popupHost.style.display !== 'none') return;
+    // Hide Monica-style toolbar
+    if (monicaToolbar) {
+      try {
+        monicaToolbar.hide();
+      } catch (e) {
+        console.warn('Error hiding Monica toolbar:', e);
+      }
+    }
+    
+    // Legacy toolbar fallback
     if (toolbarHost) toolbarHost.style.display = 'none';
   }
 
@@ -473,16 +790,72 @@ import { isEditableElement, getEditableSelection, replaceEditableSelection, enha
     if (!inside) hideToolbar();
   }, true);
 
-  chrome.runtime.onMessage.addListener((msg: any) => {
+  // Bridge: request ID token from web app via window.postMessage
+  function requestWebAppIdToken(timeoutMs = 4000): Promise<{ ok: boolean; idToken?: string; error?: string }> {
+    return new Promise((resolve) => {
+      let settled = false;
+      const cleanup = (tid?: number) => {
+        window.removeEventListener('message', onMessage as any);
+        if (tid) clearTimeout(tid);
+      };
+      const onMessage = (event: MessageEvent) => {
+        if (event.source !== window) return;
+        const data = (event as any).data;
+        if (!data || data.type !== 'DESAINR_WEBAPP_TOKEN') return;
+        if (settled) return;
+        settled = true;
+        cleanup();
+        const { ok, idToken, error } = data || {};
+        resolve({ ok: !!ok, idToken, error: error || (ok ? undefined : 'no_token') });
+      };
+      window.addEventListener('message', onMessage as any);
+      const tid = window.setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          cleanup();
+          resolve({ ok: false, error: 'timeout' });
+        }
+      }, timeoutMs);
+      try {
+        window.postMessage({ type: 'DESAINR_EXTENSION_GET_TOKEN', from: 'desainr-extension' }, window.origin);
+      } catch {
+        settled = true;
+        cleanup(tid);
+        resolve({ ok: false, error: 'post_message_failed' });
+      }
+    });
+  }
+  chrome.runtime.onMessage.addListener((msg: any, _sender: any, sendResponse: (resp: any) => void) => {
     if (msg?.type === 'TOGGLE_OVERLAY') toggleReactOverlay();
     if (msg?.type === 'CONTEXT_MENU') {
       handleContextMenu(msg.id, msg.info);
     }
+    if (msg?.type === 'DESAINR_GET_WEBAPP_ID_TOKEN') {
+      requestWebAppIdToken().then((resp) => sendResponse(resp));
+      return true;
+    }
   });
 
   document.addEventListener('mouseup', () => {
-    // Show mini toolbar near current selection
-    showToolbarNearSelection().catch(() => {});
+    // Show Monica-style toolbar near current selection
+    setTimeout(() => {
+      showToolbarNearSelection().catch(() => {});
+    }, 100); // Small delay to ensure selection is finalized
+  });
+  
+  // Context menu integration with Monica-style menu
+  document.addEventListener('contextmenu', (e: MouseEvent) => {
+    const selection = window.getSelection();
+    if (selection && selection.toString().trim()) {
+      // Show Monica-style context menu for text selections
+      e.preventDefault();
+      
+      if (monicaContextMenu) {
+        monicaContextMenu.show(e.pageX, e.pageY, (action: MenuAction) => {
+          handleMonicaAction(action.id, action.label);
+        });
+      }
+    }
   });
 
   async function handleContextMenu(id: string, info: any) {

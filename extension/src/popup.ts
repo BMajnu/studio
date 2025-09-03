@@ -1,3 +1,4 @@
+/// <reference types="chrome" />
 import { firebaseAuth } from './firebaseClient';
 import { signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { APP_BASE_URL } from './config';
@@ -6,6 +7,150 @@ import { signOut as signOutExt } from './auth';
 // --- Dynamic Base URL Discovery (mirrors logic in background.ts) ---
 let cachedBaseUrl: string | null = null;
 let lastBaseUrlCheck = 0;
+
+// --- Messaging helpers: talk specifically to a DesAInR web app tab (open one if needed) ---
+async function requestIdTokenFromWebAppTab(timeoutMs = 8000, options?: { openIfMissing?: boolean }): Promise<{ ok: boolean; idToken?: string; error?: string }> {
+  const base = await getBestBaseUrl();
+
+  const findTab = async (): Promise<chrome.tabs.Tab | null> => {
+    return await new Promise<chrome.tabs.Tab | null>((resolve) => {
+      // url filter supports patterns like https://example.com/*
+      const pattern = base.endsWith('/') ? `${base}*` : `${base}/*`;
+      chrome.tabs.query({ url: pattern }, (tabs: chrome.tabs.Tab[]) => {
+        resolve((tabs && tabs[0]) ? tabs[0] : null);
+      });
+    });
+  };
+
+  const waitForComplete = async (tabId: number): Promise<void> => {
+    return await new Promise<void>((resolve) => {
+      const listener = (id: number, info: chrome.tabs.TabChangeInfo) => {
+        if (id === tabId && info.status === 'complete') {
+          chrome.tabs.onUpdated.removeListener(listener);
+          resolve();
+        }
+      };
+      chrome.tabs.onUpdated.addListener(listener);
+    });
+  };
+
+  const ensureTab = async (): Promise<chrome.tabs.Tab | null> => {
+    const existing = await findTab();
+    if (existing && existing.id) return existing;
+    if (options?.openIfMissing === false) return null;
+    // Open a new tab to the app root
+    const created = await new Promise<chrome.tabs.Tab>((resolve) => {
+      chrome.tabs.create({ url: `${base}/` }, (tab: chrome.tabs.Tab) => resolve(tab));
+    });
+    if (created.id) await waitForComplete(created.id);
+    return created;
+  };
+
+  const tab = await ensureTab();
+  if (!tab?.id) return { ok: false, error: 'no_webapp_tab' };
+
+  return await new Promise((resolve) => {
+    let settled = false;
+    const settle = (resp: any) => {
+      if (settled) return;
+      settled = true;
+      resolve(resp);
+    };
+
+    const trySend = (): Promise<boolean> => new Promise((res) => {
+      try {
+        chrome.tabs.sendMessage(tab.id!, { type: 'DESAINR_GET_WEBAPP_ID_TOKEN' }, (resp: any) => {
+          const err = chrome.runtime.lastError?.message;
+          if (err) {
+            return res(false);
+          }
+          settle(resp || { ok: false, error: 'no_response' });
+        });
+      } catch {
+        res(false);
+      }
+    });
+
+    (async () => {
+      let ok = await trySend();
+      if (settled) return;
+      if (!ok) {
+        try {
+          await (chrome as any).scripting.executeScript({
+            target: { tabId: tab.id! },
+            files: ['contentScript.js'],
+          });
+        } catch {}
+        ok = await trySend();
+        if (settled) return;
+      }
+      setTimeout(() => { settle({ ok: false, error: 'timeout' }); }, timeoutMs);
+    })();
+  });
+}
+
+async function autoSignInFromActiveTab(opts?: { silent?: boolean }): Promise<void> {
+  const silent = !!opts?.silent;
+  if (!silent) {
+    showLoading(true);
+    showError('');
+  }
+  try {
+    const tokenResp = await requestIdTokenFromWebAppTab(8000, { openIfMissing: !silent });
+    if (!tokenResp?.ok || !tokenResp.idToken) {
+      const reason = tokenResp?.error || 'unknown';
+      if (silent) {
+        return;
+      }
+      throw new Error(reason === 'not_signed_in'
+        ? 'Please open desainr app in a tab and sign in first.'
+        : `Token request failed (${reason}). Open desainr web app and ensure you are signed in.`);
+    }
+    const idToken = tokenResp.idToken;
+    const { ok, customToken, uid, error, diagnostics } = await exchangeIdToken(idToken);
+    if (diagnostics) { try { console.info('[DesAInR][ext][exchange] diagnostics ' + JSON.stringify(diagnostics)); } catch {} }
+    if (!ok) throw new Error(error || 'Failed to exchange token');
+    let cred;
+    try {
+      cred = await signInWithCustomToken(firebaseAuth, customToken);
+    } catch (e: any) {
+      console.error('Direct sign-in error:', e);
+      // Deep diagnostics: call REST API to inspect raw error
+      try {
+        const { FIREBASE_WEB_CONFIG } = await import('./config');
+        const apiKey = (FIREBASE_WEB_CONFIG as any)?.apiKey;
+        if (apiKey) {
+          const resp = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: customToken, returnSecureToken: true }),
+          });
+          const body = await resp.json().catch(() => null);
+          try { console.warn('[DesAInR][ext][signIn][rest] http ' + resp.status); } catch {}
+          try { console.warn('[DesAInR][ext][signIn][rest] body ' + JSON.stringify(body)); } catch {}
+        }
+      } catch {}
+      throw e;
+    }
+    const freshIdToken = await cred.user.getIdToken(true);
+    await chrome.storage.local.set({
+      'desainr.auth.uid': uid,
+      'desainr.auth.idToken': freshIdToken,
+      'desainr.auth.signedInAt': Date.now(),
+    });
+    updateUI(cred.user);
+    if (!silent) showLoading(false);
+  } catch (e: any) {
+    console.error('Direct sign-in error:', e);
+    if (silent) {
+      try { console.warn('[DesAInR][popup] Auto sign-in (silent) failed:', e?.message || e); } catch {}
+      return;
+    }
+    updateUI(null);
+    showLoading(false);
+    showError(e?.message || 'Sign-in failed');
+  }
+}
 
 async function readStoredBaseUrl(): Promise<string | null> {
   return await new Promise((resolve) => {
@@ -79,14 +224,15 @@ async function getBestBaseUrl(): Promise<string> {
 
 // Attempt to send a message to the active tab; if no receiver, try injecting contentScript.js and retry.
 async function safeSendToActiveTab(message: any): Promise<boolean> {
-  return new Promise((resolve) => {
-    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs: any[]) => {
-      const tab = tabs[0];
+  return new Promise<boolean>((resolve) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs: chrome.tabs.Tab[]) => {
+      const tab: chrome.tabs.Tab | undefined = tabs[0];
       if (!tab?.id) return resolve(false);
+      const tabId: number = tab.id;
 
-      const trySend = (): Promise<boolean> => new Promise((res) => {
+      const trySend = (): Promise<boolean> => new Promise<boolean>((res) => {
         try {
-          chrome.tabs.sendMessage(tab.id, message, () => {
+          chrome.tabs.sendMessage(tabId, message, () => {
             const err = chrome.runtime.lastError?.message;
             res(!err);
           });
@@ -101,7 +247,7 @@ async function safeSendToActiveTab(message: any): Promise<boolean> {
       // Try to inject the content script and retry once
       try {
         await (chrome as any).scripting.executeScript({
-          target: { tabId: tab.id },
+          target: { tabId },
           files: ['contentScript.js'],
         });
       } catch (e) {
@@ -131,8 +277,12 @@ async function exchangeIdToken(idToken: string) {
     body: JSON.stringify({ idToken }),
   });
   const data = await res.json().catch(() => null);
+  try { console.info('[DesAInR][ext][exchange] http ' + res.status); } catch {}
+  try { console.info('[DesAInR][ext][exchange] body ' + JSON.stringify(data)); } catch {}
   if (!res.ok) {
     const msg = (data && (data.error || data.message)) || `Exchange failed: ${res.status}`;
+    const diag = (data && (data.diagnostics || null)) || null;
+    if (diag) { try { console.warn('[DesAInR][ext][exchange] diagnostics ' + JSON.stringify(diag)); } catch {} }
     throw new Error(msg);
   }
   return data;
@@ -200,6 +350,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // Check auth state
   onAuthStateChanged(firebaseAuth, (user) => {
     updateUI(user);
+    // Silent auto sign-in attempt when popup opens and user is not signed in.
+    // This will only try if a DesAInR web app tab already exists; it will not open a new tab.
+    if (!user) {
+      setTimeout(() => {
+        try { autoSignInFromActiveTab({ silent: true }); } catch {}
+      }, 300);
+    }
   });
 
   // Open overlay button
@@ -294,61 +451,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Sign in button
   btn?.addEventListener('click', async () => {
     try {
-      showLoading(true);
-      showError('');
-      
-      const redirect = chrome.identity.getRedirectURL('extension_cb');
-      console.log('Redirect URL:', redirect);
-
       const base = await getBestBaseUrl();
-      // Chrome identity may reject http://localhost; prefer 127.0.0.1 for auth window
-      let authBase = base;
-      try {
-        const tmp = new URL(base);
-        if (tmp.hostname === 'localhost') tmp.hostname = '127.0.0.1';
-        authBase = tmp.toString().replace(/\/$/, '');
-      } catch {}
-      const authUrl = `${authBase}/extension/connect?redirect_uri=${encodeURIComponent(redirect)}`;
-      console.log('Auth URL:', authUrl);
-      
-      const finalUrl = await chrome.identity.launchWebAuthFlow({ 
-        url: authUrl, 
-        interactive: true 
-      });
-      
-      if (!finalUrl) {
-        throw new Error('Authentication was cancelled');
-      }
-
-      const frag = parseFragment(finalUrl);
-      const idToken = frag['id_token'];
-      
-      if (!idToken) {
-        console.error('No id_token in response:', frag);
-        throw new Error('No authentication token received');
-      }
-
-      const { ok, customToken, uid, error } = await exchangeIdToken(idToken);
-      if (!ok) {
-        throw new Error(error || 'Failed to exchange token');
-      }
-
-      const cred = await signInWithCustomToken(firebaseAuth, customToken);
-      const freshIdToken = await cred.user.getIdToken(true);
-
-      await chrome.storage.local.set({
-        'desainr.auth.uid': uid,
-        'desainr.auth.idToken': freshIdToken,
-        'desainr.auth.signedInAt': Date.now(),
-      });
-
-      updateUI(cred.user);
-      showLoading(false);
+      await chrome.tabs.create({ url: `${base}/login` });
+      window.close();
     } catch (e: any) {
-      console.error('Popup sign-in error:', e);
-      showLoading(false);
-      updateUI(null);
-      showError(e?.message || 'Sign-in failed. Please try again.');
+      showError(e?.message || 'Failed to open login page');
     }
   });
 

@@ -16,22 +16,15 @@ export async function POST(req: Request) {
     if (!idToken) {
       return NextResponse.json({ ok: false, error: 'idToken is required' }, { status: 400, headers: corsHeaders });
     }
-    // Development mode: If Firebase Admin is not configured, use a simple passthrough
-    const hasAdminCreds = !!(process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY);
-    if (!hasAdminCreds) {
-      console.warn('Firebase Admin not configured - using development mode passthrough');
-      return NextResponse.json(
-        { ok: true, endpoint: 'auth/exchange', customToken: idToken, uid: 'dev-user' },
-        { headers: corsHeaders }
-      );
-    }
-
-    const decoded = await getAdminAuth().verifyIdToken(idToken);
+    // Use Firebase Admin (explicit FIREBASE_* or ADC via GOOGLE_APPLICATION_CREDENTIALS)
+    const adminAuth = getAdminAuth();
+    const decoded = await adminAuth.verifyIdToken(idToken);
     const uid = decoded.uid;
-    const customToken = await getAdminAuth().createCustomToken(uid, { src: 'extension' });
+    const customToken = await adminAuth.createCustomToken(uid, { src: 'extension' });
     return NextResponse.json({ ok: true, endpoint: 'auth/exchange', customToken, uid }, { headers: corsHeaders });
   } catch (err: any) {
-    return NextResponse.json({ ok: false, error: err?.message || 'unexpected error' }, { status: 500, headers: corsHeaders });
+    console.error('Token exchange error:', err);
+    return NextResponse.json({ ok: false, error: err?.message || 'Failed to exchange token' }, { status: 500, headers: corsHeaders });
   }
 }
 

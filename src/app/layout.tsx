@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/contexts/auth-context'; // Import AuthProvider
 import { initializeLogger } from '@/lib/utils/logger-config';
 import React, { Suspense } from 'react';
+import ExtensionTokenBridge from '@/components/ExtensionTokenBridge';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -43,6 +44,10 @@ export default function RootLayout({
             <AppLayout>
               {children}
             </AppLayout>
+          </Suspense>
+          {/* Mounted globally so the extension can request Firebase ID token via postMessage */}
+          <Suspense fallback={null}>
+            <ExtensionTokenBridge />
           </Suspense>
           <Toaster />
         </AuthProvider>

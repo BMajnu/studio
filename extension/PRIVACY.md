@@ -39,9 +39,11 @@ The Extension integrates with:
 The Extension requires certain permissions:
 - **activeTab**: To interact with the current webpage
 - **storage**: To save your preferences
-- **identity**: For secure authentication
 - **contextMenus**: To provide right-click actions
 - **clipboardWrite**: To copy refined text
+- **tabs**: To open and manage DesAInR web app tabs for authentication token bridge
+- **scripting**: To inject the content script when needed for overlay and messaging
+- **alarms**: To schedule background tasks like token refresh or cleanup
 
 ## Data Security
 - All API communications use HTTPS encryption
