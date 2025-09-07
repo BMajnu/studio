@@ -58,7 +58,7 @@ export class GeminiClient {
       this.manager.reportSuccess(key);
     } catch (err: any) {
       const msg = err?.message?.toLowerCase() || '';
-       if (msg.includes('429') || msg.includes('503') || msg.includes('resource_exhausted')) {
+       if (msg.includes('429') || msg.includes('503') || msg.includes('resource_exhausted') || msg.includes('unavailable') || msg.includes('overloaded') || msg.includes('rate limit')) {
         this.manager.reportQuotaError(key);
         if (this.autoRotate) {
           // Simple retry logic: try next key once.
@@ -99,9 +99,14 @@ export class GeminiClient {
         lastError = err;
         const msg = err?.message?.toLowerCase() || '';
 
-        // Detect quota / availability errors (429, 503, RESOURCE_EXHAUSTED, UNAVAILABLE, overloaded)
-        if (msg.includes('429') || msg.includes('503') || msg.includes('500') || msg.includes('resource_exhausted') || msg.includes('unavailable') || msg.includes('overloaded') || msg.includes('internal')) {
+        // Detect quota / availability errors (429, 503, RESOURCE_EXHAUSTED, UNAVAILABLE, OVERLOADED, RATE LIMIT)
+        if (msg.includes('429') || msg.includes('503') || msg.includes('resource_exhausted') || msg.includes('unavailable') || msg.includes('overloaded') || msg.includes('rate limit') || msg.includes('quota') || msg.includes('insufficient_quota')) {
           this.manager.reportQuotaError(key);
+          // Tag exhaustion/quota-like errors for upstream handling
+          try {
+            (err as any).code = (err as any).code || 'AI_EXHAUSTED';
+            (err as any).status = (err as any).status || 503;
+          } catch {}
           if (!this.autoRotate) throw err;
           continue; // retry with next key
         }
@@ -117,6 +122,20 @@ export class GeminiClient {
         throw err;
       }
     }
-    throw lastError || new Error('All Gemini keys exhausted');
+    if (lastError) {
+      // Ensure lastError is tagged if it looks like exhaustion
+      try {
+        const lm = lastError?.message?.toLowerCase?.() || '';
+        if (lm.includes('429') || lm.includes('503') || lm.includes('resource_exhausted') || lm.includes('unavailable') || lm.includes('overloaded') || lm.includes('rate limit') || lm.includes('quota') || lm.includes('insufficient_quota') || lm.includes('all gemini keys exhausted')) {
+          (lastError as any).code = (lastError as any).code || 'AI_EXHAUSTED';
+          (lastError as any).status = (lastError as any).status || 503;
+        }
+      } catch {}
+      throw lastError;
+    }
+    const e: any = new Error('All Gemini keys exhausted');
+    e.code = 'AI_EXHAUSTED';
+    e.status = 503;
+    throw e;
   }
 } 

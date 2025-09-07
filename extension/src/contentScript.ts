@@ -44,16 +44,18 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
           await showResultPopup('Refine', selection, 'Working…', rect || undefined);
           const st = await chrome.storage?.local.get?.([
             'desainr.settings.modelId',
-            'desainr.settings.thinkingMode'
+            'desainr.settings.thinkingMode',
+            'desainr.settings.userApiKey'
           ]).catch(() => ({} as any));
           const modelId = st?.['desainr.settings.modelId'];
           const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
+          const userApiKey = st?.['desainr.settings.userApiKey'];
           const { rewrite } = await import('./apiClient');
-          const { ok, status, json, error } = await rewrite({ selection, url: location.href, task: 'clarify', modelId, thinkingMode } as any);
+          const { ok, status, json, error } = await rewrite({ selection, url: location.href, task: 'clarify', modelId, thinkingMode, userApiKey } as any);
           if (ok && (json as any)?.result) {
             await showResultPopup('Refine', selection, (json as any).result, rect || undefined);
           } else {
-            const msg = (json as any)?.error || error || 'unknown';
+            const msg = error || (json as any)?.error || 'unknown';
             await showResultPopup('Refine', selection, `Failed (${status}): ${msg}`, rect || undefined);
           }
         } catch (e: any) {
@@ -76,71 +78,93 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
         if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
         const { translateChunks } = await import('./apiClient');
         await showResultPopup('Translate', selection, 'Working…', rect || undefined);
-        const st = await chrome.storage?.local.get?.(['desainr.settings.targetLang','desainr.settings.modelId','desainr.settings.thinkingMode']).catch(() => ({} as any));
+        const st = await chrome.storage?.local.get?.([
+          'desainr.settings.targetLang',
+          'desainr.settings.modelId',
+          'desainr.settings.thinkingMode',
+          'desainr.settings.userApiKey'
+        ]).catch(() => ({} as any));
         const targetLang = st?.['desainr.settings.targetLang'] || (await import('./config')).DEFAULT_TARGET_LANG;
         const modelId = st?.['desainr.settings.modelId'];
         const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
-        const { ok, status, json, error } = await translateChunks({ selection, url: location.href, targetLang, modelId, thinkingMode });
+        const userApiKey = st?.['desainr.settings.userApiKey'];
+        const { ok, status, json, error } = await translateChunks({ selection, url: location.href, targetLang, modelId, thinkingMode, userApiKey });
         if (ok && (json as any)?.result) {
           await showResultPopup('Translate', selection, (json as any).result, rect || undefined);
         } else {
-          const msg = (json as any)?.error || error || 'unknown';
+          const msg = error || (json as any)?.error || 'unknown';
           await showResultPopup('Translate', selection, `Failed (${status}): ${msg}`, rect || undefined);
         }
       } else if (actionId === 'rewrite') {
         if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
         const { rewrite } = await import('./apiClient');
         await showResultPopup('Rewrite', selection, 'Working…', rect || undefined);
-        const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode']).catch(() => ({} as any));
+        const st = await chrome.storage?.local.get?.([
+          'desainr.settings.modelId',
+          'desainr.settings.thinkingMode',
+          'desainr.settings.userApiKey'
+        ]).catch(() => ({} as any));
         const modelId = st?.['desainr.settings.modelId'];
         const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
-        const { ok, status, json, error } = await rewrite({ selection, url: location.href, task: 'clarify', modelId, thinkingMode } as any);
+        const userApiKey = st?.['desainr.settings.userApiKey'];
+        const { ok, status, json, error } = await rewrite({ selection, url: location.href, task: 'clarify', modelId, thinkingMode, userApiKey } as any);
         if (ok && (json as any)?.result) {
           await showResultPopup('Rewrite', selection, (json as any).result, rect || undefined);
         } else {
-          const msg = (json as any)?.error || error || 'unknown';
+          const msg = error || (json as any)?.error || 'unknown';
           await showResultPopup('Rewrite', selection, `Failed (${status}): ${msg}`, rect || undefined);
         }
       } else if (actionId === 'expand') {
         if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
         const { rewrite } = await import('./apiClient');
         await showResultPopup('Expand', selection, 'Working…', rect || undefined);
-        const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode']).catch(() => ({} as any));
+        const st = await chrome.storage?.local.get?.([
+          'desainr.settings.modelId',
+          'desainr.settings.thinkingMode',
+          'desainr.settings.userApiKey'
+        ]).catch(() => ({} as any));
         const modelId = st?.['desainr.settings.modelId'];
         const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
-        const { ok, status, json, error } = await rewrite({ selection, url: location.href, task: 'expand', modelId, thinkingMode } as any);
+        const userApiKey = st?.['desainr.settings.userApiKey'];
+        const { ok, status, json, error } = await rewrite({ selection, url: location.href, task: 'expand', modelId, thinkingMode, userApiKey } as any);
         if (ok && (json as any)?.result) {
           await showResultPopup('Expand', selection, (json as any).result, rect || undefined);
         } else {
-          const msg = (json as any)?.error || error || 'unknown';
+          const msg = error || (json as any)?.error || 'unknown';
           await showResultPopup('Expand', selection, `Failed (${status}): ${msg}`, rect || undefined);
         }
       } else if (actionId === 'correct') {
         if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
         const { rewrite } = await import('./apiClient');
         await showResultPopup('Correct Grammar', selection, 'Working…', rect || undefined);
-        const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode']).catch(() => ({} as any));
+        const st = await chrome.storage?.local.get?.([
+          'desainr.settings.modelId',
+          'desainr.settings.thinkingMode',
+          'desainr.settings.userApiKey'
+        ]).catch(() => ({} as any));
         const modelId = st?.['desainr.settings.modelId'];
         const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
-        const { ok, status, json, error } = await rewrite({ selection, url: location.href, task: 'grammar', modelId, thinkingMode } as any);
+        const userApiKey = st?.['desainr.settings.userApiKey'];
+        const { ok, status, json, error } = await rewrite({ selection, url: location.href, task: 'grammar', modelId, thinkingMode, userApiKey } as any);
         if (ok && (json as any)?.result) {
           await showResultPopup('Correct Grammar', selection, (json as any).result, rect || undefined);
         } else {
-          const msg = (json as any)?.error || error || 'unknown';
+          const msg = error || (json as any)?.error || 'unknown';
           await showResultPopup('Correct Grammar', selection, `Failed (${status}): ${msg}`, rect || undefined);
         }
       } else if (actionId === 'explain') {
         if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
         const { actions } = await import('./apiClient');
         await showResultPopup('Explain', selection, 'Working…', rect || undefined);
-        const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode']).catch(() => ({} as any));
+        const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode','desainr.settings.userApiKey']).catch(() => ({} as any));
         const modelId = st?.['desainr.settings.modelId'];
         const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
-        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Explain this clearly', modelId, thinkingMode });
+        const userApiKey = st?.['desainr.settings.userApiKey'];
+        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Explain this clearly', modelId, thinkingMode, userApiKey });
         if (ok && (json as any)?.result) {
           await showResultPopup('Explain', selection, (json as any).result, rect || undefined);
         } else {
-          const msg = (json as any)?.error || error || 'unknown';
+          const msg = error || (json as any)?.error || 'unknown';
           await showResultPopup('Explain', selection, `Failed (${status}): ${msg}`, rect || undefined);
         }
       } else if (actionId === 'analyze') {
@@ -150,7 +174,7 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
         if (ok) {
           await showResultPopup('Analyze', selection || '(No selection)', ((json as any)?.summary || 'Done'), rect || undefined);
         } else {
-          const msg = (json as any)?.error || error || 'unknown';
+          const msg = error || (json as any)?.error || 'unknown';
           await showResultPopup('Analyze', selection || '(No selection)', `Failed (${status}): ${msg}`, rect || undefined);
         }
       } else if (actionId === 'chat-personal' || actionId === 'chat-pro') {
@@ -499,24 +523,25 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
 
   async function showResultPopup(title: string, original: string, result: string, selectionRect?: DOMRect) {
     const host = ensurePopup();
-    const shadow = popupShadow!;
-    const ttl = shadow.querySelector('.ttl') as HTMLElement;
-    const orig = shadow.getElementById('orig') as HTMLElement;
-    const res = shadow.getElementById('res') as HTMLElement;
-    const btnClose = shadow.getElementById('close') as HTMLButtonElement;
-    const btnCancel = shadow.getElementById('cancel') as HTMLButtonElement;
-    const btnCopy = shadow.getElementById('copy') as HTMLButtonElement;
-    const btnReplace = shadow.getElementById('replace') as HTMLButtonElement;
-    ttl.textContent = title;
-    orig.textContent = original;
-    res.textContent = result;
+    const shadow = popupShadow;
+    if (!shadow) { try { console.warn('DesAInR: popupShadow not available'); } catch {} return; }
+    const ttl = shadow.querySelector('.ttl') as HTMLElement | null;
+    const orig = shadow.getElementById('orig') as HTMLElement | null;
+    const res = shadow.getElementById('res') as HTMLElement | null;
+    const btnClose = shadow.getElementById('close') as HTMLButtonElement | null;
+    const btnCancel = shadow.getElementById('cancel') as HTMLButtonElement | null;
+    const btnCopy = shadow.getElementById('copy') as HTMLButtonElement | null;
+    const btnReplace = shadow.getElementById('replace') as HTMLButtonElement | null;
+    if (ttl) ttl.textContent = title;
+    if (orig) orig.textContent = original;
+    if (res) res.textContent = result;
 
     function position() {
       let x = 0, y = 0;
       const margin = 10;
       // Prefer near selection; otherwise center top area
       const r = (selectionRect || new DOMRect(window.innerWidth/2 - 200, 80, 400, 0));
-      const rect = (popupHost as HTMLDivElement).getBoundingClientRect();
+      const rect = host.getBoundingClientRect();
       x = Math.min(Math.max(margin, r.left), window.innerWidth - rect.width - margin);
       y = Math.min(Math.max(margin, r.top + r.height + margin), window.innerHeight - rect.height - margin);
       host.style.left = `${Math.round(x)}px`;
@@ -528,9 +553,10 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
     requestAnimationFrame(() => position());
 
     const close = () => { host.style.display = 'none'; };
-    btnClose.onclick = btnCancel.onclick = () => close();
-    btnCopy.onclick = async () => { try { await navigator.clipboard.writeText(result); } catch {} };
-    btnReplace.onclick = async () => {
+    if (btnClose) btnClose.onclick = () => close();
+    if (btnCancel) btnCancel.onclick = () => close();
+    if (btnCopy) btnCopy.onclick = async () => { try { await navigator.clipboard.writeText(result); } catch {} };
+    if (btnReplace) btnReplace.onclick = async () => {
       const { applyReplacementOrCopyWithUndo } = await import('./domReplace');
       const { outcome, undo } = await applyReplacementOrCopyWithUndo(result);
       const el = ensureOverlay();
@@ -605,125 +631,139 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
       if (text.trim()) cb(text);
     }
 
-    toolbarShadow!.getElementById('btn-refine')!.addEventListener('click', async () => {
-      withSelection(async (selection) => {
-        const { rewrite } = await import('./apiClient');
-        try {
-          // show a quick loading popup first
-          await showResultPopup('Rewrite', selection, 'Working…', currentSelectionRect || undefined);
-          // load model id and thinking mode from settings
-          const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode']).catch(() => ({} as any));
-          const modelId = st?.['desainr.settings.modelId'];
-          const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
-          const { ok, status, json, error } = await rewrite({ selection, url: location.href, task: 'clarify', modelId, thinkingMode } as any);
-          if (ok && json?.result) {
-            await showResultPopup('Rewrite', selection, json.result, currentSelectionRect || undefined);
-          } else {
-            const msg = (json as any)?.error || error || 'unknown';
-            await showResultPopup('Rewrite', selection, `Failed (${status}): ${msg}` , currentSelectionRect || undefined);
-          }
-        } catch (e: any) {
-          await showResultPopup('Rewrite', selection, `Error: ${e?.message || e}`, currentSelectionRect || undefined);
-        } finally {
-          hideToolbar();
-        }
-      });
-    });
-    // More menu handlers
-    const moreBtn = toolbarShadow!.getElementById('btn-more') as HTMLButtonElement;
-    const menu = toolbarShadow!.getElementById('menu') as HTMLDivElement;
-    moreBtn.addEventListener('click', () => {
-      suppressHideUntil = Date.now() + 350;
-      menu.classList.toggle('open');
-    });
-    menu.addEventListener('click', async (e) => {
-      suppressHideUntil = Date.now() + 350;
-      const t = e.target as HTMLElement;
-      const act = t.closest('.mi') as HTMLElement | null;
-      if (!act) return;
-      menu.classList.remove('open');
-      const label = act.getAttribute('data-act') || '';
-      if (!label) return;
-      withSelection(async (selection) => {
-        if (label === 'Analyze') {
-          const { analyzePage } = await import('./apiClient');
+    const refineBtn = toolbarShadow?.getElementById('btn-refine') as HTMLButtonElement | null;
+    if (refineBtn) {
+      refineBtn.addEventListener('click', async () => {
+        withSelection(async (selection) => {
+          const { rewrite } = await import('./apiClient');
           try {
-            await showResultPopup('Analyze', selection, 'Working…', currentSelectionRect || undefined);
-            const { ok, status, json, error } = await analyzePage({ url: location.href, title: document.title });
-            if (ok) {
-              await showResultPopup('Analyze', selection, (json?.summary || ''), currentSelectionRect || undefined);
-            } else {
-              const msg = (json as any)?.error || error || 'unknown';
-              await showResultPopup('Analyze', selection, `Failed (${status}): ${msg}`, currentSelectionRect || undefined);
-            }
-          } catch (e: any) {
-            await showResultPopup('Analyze', selection, `Error: ${e?.message || e}`, currentSelectionRect || undefined);
-          } finally { hideToolbar(); }
-          return;
-        }
-        if (label === 'Custom…' || label === 'Custom') {
-          const instruction = window.prompt('Custom instruction (e.g., "Draft a polite reply"):', '');
-          if (!instruction) { hideToolbar(); return; }
-          const { actions } = await import('./apiClient');
-          try {
-            await showResultPopup('Custom', selection, 'Working…', currentSelectionRect || undefined);
-            const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode']).catch(() => ({} as any));
+            // show a quick loading popup first
+            await showResultPopup('Rewrite', selection, 'Working…', currentSelectionRect || undefined);
+            // load model id and thinking mode from settings
+            const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode','desainr.settings.userApiKey']).catch(() => ({} as any));
             const modelId = st?.['desainr.settings.modelId'];
             const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
-            const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: instruction, modelId, thinkingMode });
+            const userApiKey = st?.['desainr.settings.userApiKey'];
+            const { ok, status, json, error } = await rewrite({ selection, url: location.href, task: 'clarify', modelId, thinkingMode, userApiKey } as any);
             if (ok && json?.result) {
-              await showResultPopup('Custom', selection, json.result, currentSelectionRect || undefined);
+              await showResultPopup('Rewrite', selection, json.result, currentSelectionRect || undefined);
             } else {
               const msg = (json as any)?.error || error || 'unknown';
-              await showResultPopup('Custom', selection, `Failed (${status}): ${msg}`, currentSelectionRect || undefined);
+              await showResultPopup('Rewrite', selection, `Failed (${status}): ${msg}` , currentSelectionRect || undefined);
             }
           } catch (e: any) {
-            await showResultPopup('Custom', selection, `Error: ${e?.message || e}`, currentSelectionRect || undefined);
+            await showResultPopup('Rewrite', selection, `Error: ${e?.message || e}`, currentSelectionRect || undefined);
+          } finally {
+            hideToolbar();
+          }
+        });
+      });
+    }
+    // More menu handlers
+    const moreBtn = toolbarShadow?.getElementById('btn-more') as HTMLButtonElement | null;
+    const menu = toolbarShadow?.getElementById('menu') as HTMLDivElement | null;
+    if (moreBtn) {
+      moreBtn.addEventListener('click', () => {
+        suppressHideUntil = Date.now() + 350;
+        if (menu) menu.classList.toggle('open');
+      });
+    }
+    if (menu) {
+      menu.addEventListener('click', async (e) => {
+        suppressHideUntil = Date.now() + 350;
+        const t = e.target as HTMLElement | null;
+        const act = t?.closest('.mi') as HTMLElement | null;
+        if (!act) return;
+        menu.classList.remove('open');
+        const label = act.getAttribute('data-act') || '';
+        if (!label) return;
+        withSelection(async (selection) => {
+          if (label === 'Analyze') {
+            const { analyzePage } = await import('./apiClient');
+            try {
+              await showResultPopup('Analyze', selection, 'Working…', currentSelectionRect || undefined);
+              const { ok, status, json, error } = await analyzePage({ url: location.href, title: document.title });
+              if (ok) {
+                await showResultPopup('Analyze', selection, (json?.summary || ''), currentSelectionRect || undefined);
+              } else {
+                const msg = (json as any)?.error || error || 'unknown';
+                await showResultPopup('Analyze', selection, `Failed (${status}): ${msg}`, currentSelectionRect || undefined);
+              }
+            } catch (e: any) {
+              await showResultPopup('Analyze', selection, `Error: ${e?.message || e}`, currentSelectionRect || undefined);
+            } finally { hideToolbar(); }
+            return;
+          }
+          if (label === 'Custom…' || label === 'Custom') {
+            const instruction = window.prompt('Custom instruction (e.g., "Draft a polite reply"):', '');
+            if (!instruction) { hideToolbar(); return; }
+            const { actions } = await import('./apiClient');
+            try {
+              await showResultPopup('Custom', selection, 'Working…', currentSelectionRect || undefined);
+              const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode','desainr.settings.userApiKey']).catch(() => ({} as any));
+              const modelId = st?.['desainr.settings.modelId'];
+              const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
+              const userApiKey = st?.['desainr.settings.userApiKey'];
+              const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: instruction, modelId, thinkingMode, userApiKey });
+              if (ok && json?.result) {
+                await showResultPopup('Custom', selection, json.result, currentSelectionRect || undefined);
+              } else {
+                const msg = (json as any)?.error || error || 'unknown';
+                await showResultPopup('Custom', selection, `Failed (${status}): ${msg}`, currentSelectionRect || undefined);
+              }
+            } catch (e: any) {
+              await showResultPopup('Custom', selection, `Error: ${e?.message || e}`, currentSelectionRect || undefined);
+            } finally { hideToolbar(); }
+            return;
+          }
+          // Refinement presets via actions endpoint
+          const { actions } = await import('./apiClient');
+          try {
+            await showResultPopup(label, selection, 'Working…', currentSelectionRect || undefined);
+            const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode','desainr.settings.userApiKey']).catch(() => ({} as any));
+            const modelId = st?.['desainr.settings.modelId'];
+            const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
+            const userApiKey = st?.['desainr.settings.userApiKey'];
+            const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: label, modelId, thinkingMode, userApiKey });
+            if (ok && json?.result) {
+              await showResultPopup(label, selection, json.result, currentSelectionRect || undefined);
+            } else {
+              const msg = (json as any)?.error || error || 'unknown';
+              await showResultPopup(label, selection, `Failed (${status}): ${msg}`, currentSelectionRect || undefined);
+            }
+          } catch (e: any) {
+            await showResultPopup(label, selection, `Error: ${e?.message || e}`, currentSelectionRect || undefined);
           } finally { hideToolbar(); }
-          return;
-        }
-        // Refinement presets via actions endpoint
-        const { actions } = await import('./apiClient');
-        try {
-          await showResultPopup(label, selection, 'Working…', currentSelectionRect || undefined);
-          const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode']).catch(() => ({} as any));
-          const modelId = st?.['desainr.settings.modelId'];
-          const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
-          const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: label, modelId, thinkingMode });
-          if (ok && json?.result) {
-            await showResultPopup(label, selection, json.result, currentSelectionRect || undefined);
-          } else {
-            const msg = (json as any)?.error || error || 'unknown';
-            await showResultPopup(label, selection, `Failed (${status}): ${msg}`, currentSelectionRect || undefined);
-          }
-        } catch (e: any) {
-          await showResultPopup(label, selection, `Error: ${e?.message || e}`, currentSelectionRect || undefined);
-        } finally { hideToolbar(); }
+        });
       });
-    });
-    toolbarShadow!.getElementById('btn-translate')!.addEventListener('click', async () => {
-      withSelection(async (selection) => {
-        const { translateChunks } = await import('./apiClient');
-        try {
-          await showResultPopup('Translate', selection, 'Working…', currentSelectionRect || undefined);
-          const st = await chrome.storage?.local.get?.(['desainr.settings.targetLang','desainr.settings.modelId','desainr.settings.thinkingMode']).catch(() => ({} as any));
-          const targetLang = st?.['desainr.settings.targetLang'] || (await import('./config')).DEFAULT_TARGET_LANG;
-          const modelId = st?.['desainr.settings.modelId'];
-          const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
-          const { ok, status, json, error } = await translateChunks({ selection, url: location.href, targetLang, modelId, thinkingMode });
-          if (ok && json?.result) {
-            await showResultPopup('Translate', selection, json.result, currentSelectionRect || undefined);
-          } else {
-            const msg = (json as any)?.error || error || 'unknown';
-            await showResultPopup('Translate', selection, `Failed (${status}): ${msg}`, currentSelectionRect || undefined);
+    }
+    const translateBtn = toolbarShadow?.getElementById('btn-translate') as HTMLButtonElement | null;
+    if (translateBtn) {
+      translateBtn.addEventListener('click', async () => {
+        withSelection(async (selection) => {
+          const { translateChunks } = await import('./apiClient');
+          try {
+            await showResultPopup('Translate', selection, 'Working…', currentSelectionRect || undefined);
+            const st = await chrome.storage?.local.get?.(['desainr.settings.targetLang','desainr.settings.modelId','desainr.settings.thinkingMode','desainr.settings.userApiKey']).catch(() => ({} as any));
+            const targetLang = st?.['desainr.settings.targetLang'] || (await import('./config')).DEFAULT_TARGET_LANG;
+            const modelId = st?.['desainr.settings.modelId'];
+            const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
+            const userApiKey = st?.['desainr.settings.userApiKey'];
+            const { ok, status, json, error } = await translateChunks({ selection, url: location.href, targetLang, modelId, thinkingMode, userApiKey });
+            if (ok && json?.result) {
+              await showResultPopup('Translate', selection, json.result, currentSelectionRect || undefined);
+            } else {
+              const msg = (json as any)?.error || error || 'unknown';
+              await showResultPopup('Translate', selection, `Failed (${status}): ${msg}`, currentSelectionRect || undefined);
+            }
+          } catch (e: any) {
+            await showResultPopup('Translate', selection, `Error: ${e?.message || e}`, currentSelectionRect || undefined);
+          } finally {
+            hideToolbar();
           }
-        } catch (e: any) {
-          await showResultPopup('Translate', selection, `Error: ${e?.message || e}`, currentSelectionRect || undefined);
-        } finally {
-          hideToolbar();
-        }
+        });
       });
-    });
+    }
     // Analyze now accessible from More menu; button removed
 
     toolbarHost = host;
@@ -868,7 +908,11 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
       if (id === 'desainr-refine') {
         el.textContent = 'Refining selection...';
         const selection = window.getSelection()?.toString() || '';
-        const { ok, status, json, error } = await rewrite({ selection, url: location.href, task: 'clarify' });
+        const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode','desainr.settings.userApiKey']).catch(() => ({} as any));
+        const modelId = st?.['desainr.settings.modelId'];
+        const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
+        const userApiKey = st?.['desainr.settings.userApiKey'];
+        const { ok, status, json, error } = await rewrite({ selection, url: location.href, task: 'clarify', modelId, thinkingMode, userApiKey });
         if (ok && json?.result) {
           const { outcome, undo } = await applyReplacementOrCopyWithUndo(json.result);
           if (outcome === 'replaced') {
@@ -885,7 +929,12 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
       } else if (id === 'desainr-translate') {
         el.textContent = 'Translating selection...';
         const selection = window.getSelection()?.toString() || '';
-        const { ok, status, json, error } = await translateChunks({ selection, url: location.href, targetLang: DEFAULT_TARGET_LANG });
+        const st = await chrome.storage?.local.get?.(['desainr.settings.targetLang','desainr.settings.modelId','desainr.settings.thinkingMode','desainr.settings.userApiKey']).catch(() => ({} as any));
+        const targetLang = st?.['desainr.settings.targetLang'] || DEFAULT_TARGET_LANG;
+        const modelId = st?.['desainr.settings.modelId'];
+        const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
+        const userApiKey = st?.['desainr.settings.userApiKey'];
+        const { ok, status, json, error } = await translateChunks({ selection, url: location.href, targetLang, modelId, thinkingMode, userApiKey });
         if (ok && json?.result) {
           const { outcome, undo } = await applyReplacementOrCopyWithUndo(json.result);
           if (outcome === 'replaced') {

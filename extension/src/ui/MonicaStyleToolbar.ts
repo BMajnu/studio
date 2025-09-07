@@ -426,6 +426,9 @@ export class MonicaStyleToolbar {
     this.shadowRoot.appendChild(toolbar);
     
     // Add to DOM
+    if (!document.body) {
+      return;
+    }
     document.body.appendChild(this.container);
     
     // Position toolbar intelligently
@@ -456,10 +459,12 @@ export class MonicaStyleToolbar {
     // Auto-hide on outside click
     const handleOutsideClick = (e: MouseEvent) => {
       // Do not hide if clicking inside the result popup host
+      const target = e.target as EventTarget | null;
+      const asNode = (target && (target as Node)) || null;
       const popupHost = document.getElementById('desainr-result-popup');
       const path = (e as any).composedPath?.() as Node[] | undefined;
-      const clickedInsidePopup = popupHost ? (path ? path.includes(popupHost) : popupHost.contains(e.target as Node)) : false;
-      if (!toolbar.contains(e.target as Node) && !clickedInsidePopup) {
+      const clickedInsidePopup = popupHost ? (path ? path.includes(popupHost) : (asNode ? popupHost.contains(asNode) : false)) : false;
+      if (!asNode || (!toolbar.contains(asNode) && !clickedInsidePopup)) {
         this.hide();
         document.removeEventListener('click', handleOutsideClick);
       }

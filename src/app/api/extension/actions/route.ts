@@ -14,6 +14,9 @@ const corsHeaders = {
 export async function POST(req: Request) {
   try {
     const uid = await getUserIdFromRequest(req);
+    const authHeader = req.headers.get('authorization') || req.headers.get('Authorization') || '';
+    const tokenParts = authHeader.split(' ');
+    const idToken = tokenParts?.length === 2 ? tokenParts[1] : undefined;
     if (!uid) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
     }
@@ -100,14 +103,29 @@ export async function POST(req: Request) {
       .replace(/\}\}/g, '} }');
 
     // Load user profile to personalize outputs
-    const profile = await getUserProfileByUid(uid);
-    const mergedProfile = profile ? {
-      ...profile,
-      selectedGenkitModelId: modelId ?? profile.selectedGenkitModelId,
-      geminiApiKeys: userApiKey ? [userApiKey] : profile.geminiApiKeys,
-      name: userName || profile.name,
-      communicationStyleNotes: communicationStyleNotes || profile.communicationStyleNotes,
-    } : undefined;
+    const profile = await getUserProfileByUid(uid, { idToken });
+    let mergedProfile: any | undefined = undefined;
+    if (profile) {
+      mergedProfile = {
+        ...profile,
+        selectedGenkitModelId: modelId ?? profile.selectedGenkitModelId,
+        geminiApiKeys: userApiKey ? [String(userApiKey)] : profile.geminiApiKeys,
+        name: userName || profile.name,
+        communicationStyleNotes: communicationStyleNotes || profile.communicationStyleNotes,
+      };
+    } else if (userApiKey) {
+      mergedProfile = {
+        userId: uid,
+        selectedGenkitModelId: modelId,
+        geminiApiKeys: [String(userApiKey)],
+        name: userName,
+        communicationStyleNotes,
+      } as any;
+    }
+    try {
+      const keyCount = Array.isArray(mergedProfile?.geminiApiKeys) ? mergedProfile.geminiApiKeys.length : 0;
+      console.info('[actions] uid=%s model=%s hasUserKey=%s keys=%d', uid || 'none', modelId || 'default', Boolean(userApiKey), keyCount);
+    } catch {}
 
     const { title, response } = await extensionAssistFlow({
       clientMessage: safeMessage,

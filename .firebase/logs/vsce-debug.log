@@ -1174,3 +1174,4 @@ Generated sources: react\esm\package.json [17B] react\index.cjs.js [0B] react\es
  {"metadata":{"emulator":{"name":"dataconnect"},"message":"I0902 13:20:58.686178   31440 dev.go:102] Listening on address (HTTP + gRPC): 127.0.0.1:50003\n"}}
 [debug] [2025-09-02T07:20:58.778Z] I0902 13:20:58.778163   31440 engine.go:171] [/emulator/studio b1bf] ExecuteGraphqlRead IntrospectionQuery: succeeded. 
  {"metadata":{"emulator":{"name":"dataconnect"},"message":"I0902 13:20:58.778163   31440 engine.go:171] [/emulator/studio b1bf] ExecuteGraphqlRead IntrospectionQuery: succeeded. \n"}}
+[info] [Firebase Plugin] Stopping Data Connect toolkit

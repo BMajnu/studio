@@ -517,6 +517,9 @@ export class MonicaStyleContextMenu {
     this.shadowRoot.appendChild(menu);
     
     // Position menu intelligently
+    if (!document.body) {
+      return;
+    }
     document.body.appendChild(this.container);
     
     // Get viewport dimensions
@@ -550,7 +553,9 @@ export class MonicaStyleContextMenu {
     
     // Auto-hide on outside click
     const handleOutsideClick = (e: MouseEvent) => {
-      if (!menu.contains(e.target as Node)) {
+      const target = e.target as EventTarget | null;
+      const asNode = (target && (target as Node)) || null;
+      if (!asNode || !menu.contains(asNode)) {
         this.hide();
         document.removeEventListener('click', handleOutsideClick);
       }

@@ -45,10 +45,7 @@ export default function RootLayout({
               {children}
             </AppLayout>
           </Suspense>
-          {/* Mounted globally so the extension can request Firebase ID token via postMessage */}
-          <Suspense fallback={null}>
-            <ExtensionTokenBridge />
-          </Suspense>
+          <ExtensionTokenBridge />
           <Toaster />
         </AuthProvider>
       </body>

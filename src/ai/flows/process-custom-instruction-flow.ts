@@ -168,8 +168,20 @@ Return strictly as JSON matching this schema:
 
     console.log(`INFO (${flowName}): AI call succeeded using key ending with ...${apiKeyUsed.slice(-4)}`);
     return output as ProcessCustomInstructionFlowOutput;
-  } catch (error) {
+  } catch (error: any) {
     console.error(`ERROR (${flowName}): Failed after rotating keys:`, error);
-    throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);
+    const e: any = new Error(`AI call failed in ${flowName}. ${error?.message || ''}`);
+    try {
+      if (error && typeof error === 'object') {
+        if (error.code) e.code = error.code;
+        if (error.status) e.status = error.status;
+        const msg = String(error?.message || '').toLowerCase();
+        if (!e.code && (msg.includes('resource_exhausted') || msg.includes('all gemini keys exhausted') || msg.includes('429') || msg.includes('503') || msg.includes('unavailable') || msg.includes('overloaded'))) {
+          e.code = 'AI_EXHAUSTED';
+          e.status = e.status || 503;
+        }
+      }
+    } catch {}
+    throw e;
   }
 }

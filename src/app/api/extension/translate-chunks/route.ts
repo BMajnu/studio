@@ -12,6 +12,9 @@ const corsHeaders = {
 export async function POST(req: Request) {
   try {
     const uid = await getUserIdFromRequest(req);
+    const authHeader = req.headers.get('authorization') || req.headers.get('Authorization') || '';
+    const tokenParts = authHeader.split(' ');
+    const idToken = tokenParts?.length === 2 ? tokenParts[1] : undefined;
     const body = await req.json().catch(() => ({}));
     const targetLang = String(body?.targetLang ?? 'en');
     const url = String(body?.url ?? '');
@@ -23,12 +26,25 @@ export async function POST(req: Request) {
     if (chunks && chunks.length) {
       const instruction = `Translate the following text into ${targetLang}. Return only the translation, no comments.`;
       const results: string[] = [];
-      const profile = uid ? await getUserProfileByUid(uid) : null;
-      const mergedProfile = profile ? {
-        ...profile,
-        selectedGenkitModelId: modelId ?? profile.selectedGenkitModelId,
-        geminiApiKeys: userApiKey ? [userApiKey] : profile.geminiApiKeys,
-      } : undefined;
+      const profile = uid ? await getUserProfileByUid(uid, { idToken }) : null;
+      let mergedProfile: any | undefined = undefined;
+      if (profile) {
+        mergedProfile = {
+          ...profile,
+          selectedGenkitModelId: modelId ?? profile.selectedGenkitModelId,
+          geminiApiKeys: userApiKey ? [String(userApiKey)] : profile.geminiApiKeys,
+        };
+      } else if (userApiKey) {
+        mergedProfile = {
+          userId: uid || 'anon',
+          selectedGenkitModelId: modelId,
+          geminiApiKeys: [String(userApiKey)],
+        } as any;
+      }
+      try {
+        const keyCount = Array.isArray(mergedProfile?.geminiApiKeys) ? mergedProfile.geminiApiKeys.length : 0;
+        console.info('[translate-chunks/batch] uid=%s model=%s hasUserKey=%s keys=%d', uid || 'none', modelId || 'default', Boolean(userApiKey), keyCount);
+      } catch {}
       for (const chunk of chunks) {
         if (!chunk) { results.push(''); continue; }
         const safeChunk = String(chunk)
@@ -58,12 +74,25 @@ export async function POST(req: Request) {
       .replace(/\{\{[^]*?\}\}/g, (m) => `«${m.slice(2, -2)}»`)
       .replace(/\{\{/g, '{ {')
       .replace(/\}\}/g, '} }');
-    const profile = uid ? await getUserProfileByUid(uid) : null;
-    const mergedProfile = profile ? {
-      ...profile,
-      selectedGenkitModelId: modelId ?? profile.selectedGenkitModelId,
-      geminiApiKeys: userApiKey ? [userApiKey] : profile.geminiApiKeys,
-    } : undefined;
+    const profile = uid ? await getUserProfileByUid(uid, { idToken }) : null;
+    let mergedProfile: any | undefined = undefined;
+    if (profile) {
+      mergedProfile = {
+        ...profile,
+        selectedGenkitModelId: modelId ?? profile.selectedGenkitModelId,
+        geminiApiKeys: userApiKey ? [String(userApiKey)] : profile.geminiApiKeys,
+      };
+    } else if (userApiKey) {
+      mergedProfile = {
+        userId: uid || 'anon',
+        selectedGenkitModelId: modelId,
+        geminiApiKeys: [String(userApiKey)],
+      } as any;
+    }
+    try {
+      const keyCount = Array.isArray(mergedProfile?.geminiApiKeys) ? mergedProfile.geminiApiKeys.length : 0;
+      console.info('[translate-chunks/single] uid=%s model=%s hasUserKey=%s keys=%d', uid || 'none', modelId || 'default', Boolean(userApiKey), keyCount);
+    } catch {}
     const { response } = await extensionAssistFlow({
       clientMessage: safeSelection,
       customInstruction: instruction,

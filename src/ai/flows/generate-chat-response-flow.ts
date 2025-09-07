@@ -68,8 +68,12 @@ export async function generateChatResponse(flowInput: GenerateChatResponseInput)
     userId: 'default',
     name: 'User',
     services: [],
-    userApiKeys: userApiKey ? [userApiKey] : [],
+    geminiApiKeys: userApiKey ? [String(userApiKey)] : [],
   };
+  try {
+    const keyCount = Array.isArray(profileStub.geminiApiKeys) ? profileStub.geminiApiKeys.length : 0;
+    logDebug('profile stub prepared', { hasUserKey: Boolean(userApiKey), keyCount });
+  } catch {}
 
   const client = new GeminiClient({ profile: profileStub });
   

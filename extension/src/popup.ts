@@ -1,8 +1,5 @@
 /// <reference types="chrome" />
-import { firebaseAuth } from './firebaseClient';
-import { signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { APP_BASE_URL } from './config';
-import { signOut as signOutExt } from './auth';
 
 // --- Dynamic Base URL Discovery (mirrors logic in background.ts) ---
 let cachedBaseUrl: string | null = null;
@@ -89,67 +86,9 @@ async function requestIdTokenFromWebAppTab(timeoutMs = 8000, options?: { openIfM
   });
 }
 
-async function autoSignInFromActiveTab(opts?: { silent?: boolean }): Promise<void> {
-  const silent = !!opts?.silent;
-  if (!silent) {
-    showLoading(true);
-    showError('');
-  }
-  try {
-    const tokenResp = await requestIdTokenFromWebAppTab(8000, { openIfMissing: !silent });
-    if (!tokenResp?.ok || !tokenResp.idToken) {
-      const reason = tokenResp?.error || 'unknown';
-      if (silent) {
-        return;
-      }
-      throw new Error(reason === 'not_signed_in'
-        ? 'Please open desainr app in a tab and sign in first.'
-        : `Token request failed (${reason}). Open desainr web app and ensure you are signed in.`);
-    }
-    const idToken = tokenResp.idToken;
-    const { ok, customToken, uid, error, diagnostics } = await exchangeIdToken(idToken);
-    if (diagnostics) { try { console.info('[DesAInR][ext][exchange] diagnostics ' + JSON.stringify(diagnostics)); } catch {} }
-    if (!ok) throw new Error(error || 'Failed to exchange token');
-    let cred;
-    try {
-      cred = await signInWithCustomToken(firebaseAuth, customToken);
-    } catch (e: any) {
-      console.error('Direct sign-in error:', e);
-      // Deep diagnostics: call REST API to inspect raw error
-      try {
-        const { FIREBASE_WEB_CONFIG } = await import('./config');
-        const apiKey = (FIREBASE_WEB_CONFIG as any)?.apiKey;
-        if (apiKey) {
-          const resp = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: customToken, returnSecureToken: true }),
-          });
-          const body = await resp.json().catch(() => null);
-          try { console.warn('[DesAInR][ext][signIn][rest] http ' + resp.status); } catch {}
-          try { console.warn('[DesAInR][ext][signIn][rest] body ' + JSON.stringify(body)); } catch {}
-        }
-      } catch {}
-      throw e;
-    }
-    const freshIdToken = await cred.user.getIdToken(true);
-    await chrome.storage.local.set({
-      'desainr.auth.uid': uid,
-      'desainr.auth.idToken': freshIdToken,
-      'desainr.auth.signedInAt': Date.now(),
-    });
-    updateUI(cred.user);
-    if (!silent) showLoading(false);
-  } catch (e: any) {
-    console.error('Direct sign-in error:', e);
-    if (silent) {
-      try { console.warn('[DesAInR][popup] Auto sign-in (silent) failed:', e?.message || e); } catch {}
-      return;
-    }
-    updateUI(null);
-    showLoading(false);
-    showError(e?.message || 'Sign-in failed');
-  }
+async function autoSignInFromActiveTab(_opts?: { silent?: boolean }): Promise<void> {
+  // Auth removed: no-op
+  return;
 }
 
 async function readStoredBaseUrl(): Promise<string | null> {
@@ -269,23 +208,9 @@ function parseFragment(url: string): Record<string, string> {
   return out;
 }
 
-async function exchangeIdToken(idToken: string) {
-  const base = await getBestBaseUrl();
-  const res = await fetch(`${base}/api/extension/auth/exchange`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ idToken }),
-  });
-  const data = await res.json().catch(() => null);
-  try { console.info('[DesAInR][ext][exchange] http ' + res.status); } catch {}
-  try { console.info('[DesAInR][ext][exchange] body ' + JSON.stringify(data)); } catch {}
-  if (!res.ok) {
-    const msg = (data && (data.error || data.message)) || `Exchange failed: ${res.status}`;
-    const diag = (data && (data.diagnostics || null)) || null;
-    if (diag) { try { console.warn('[DesAInR][ext][exchange] diagnostics ' + JSON.stringify(diag)); } catch {} }
-    throw new Error(msg);
-  }
-  return data;
+async function exchangeIdToken(_idToken: string) {
+  // Auth removed: stub response
+  return { ok: false, error: 'auth_removed' } as any;
 }
 
 function showError(message: string) {
@@ -311,53 +236,114 @@ function showLoading(show: boolean) {
   }
 }
 
-function updateUI(user: any) {
-  const signinSection = document.getElementById('signin-section');
-  const signoutSection = document.getElementById('signout-section');
-  const statusDot = document.getElementById('status-dot');
-  const statusText = document.getElementById('status-text');
-  const loadingEl = document.getElementById('loading');
-  
-  if (loadingEl) loadingEl.style.display = 'none';
-  
-  if (user) {
-    if (signinSection) signinSection.style.display = 'none';
-    if (signoutSection) signoutSection.style.display = 'block';
-    if (statusDot) statusDot.classList.add('active');
-    if (statusText) statusText.textContent = `Signed in as ${user.email || 'User'}`;
-  } else {
-    if (signinSection) signinSection.style.display = 'block';
-    if (signoutSection) signoutSection.style.display = 'none';
-    if (statusDot) statusDot.classList.remove('active');
-    if (statusText) statusText.textContent = 'Not signed in';
+function clearProfile() {
+  const nameEl = document.getElementById('user-name');
+  const emailEl = document.getElementById('user-email');
+  const avatarEl = document.getElementById('user-avatar') as HTMLImageElement | null;
+  const sessionEl = document.getElementById('user-session');
+  if (nameEl) nameEl.textContent = '';
+  if (emailEl) emailEl.textContent = '';
+  if (avatarEl) {
+    avatarEl.src = '';
+    avatarEl.style.display = 'none';
+  }
+  if (sessionEl) sessionEl.textContent = '';
+}
+
+function renderProfile(profile: any) {
+  const nameEl = document.getElementById('user-name');
+  const emailEl = document.getElementById('user-email');
+  const avatarEl = document.getElementById('user-avatar') as HTMLImageElement | null;
+  const sessionEl = document.getElementById('user-session');
+  if (nameEl) nameEl.textContent = profile?.name || profile?.email || 'Signed account';
+  if (emailEl) emailEl.textContent = profile?.email || '';
+  if (avatarEl) {
+    if (profile?.picture) {
+      avatarEl.src = profile.picture;
+      avatarEl.style.display = '';
+    } else {
+      avatarEl.src = '';
+      avatarEl.style.display = 'none';
+    }
+  }
+  if (sessionEl) sessionEl.textContent = profile?.expired ? 'Expired' : 'Active';
+}
+
+async function fetchAndRenderProfile(): Promise<void> {
+  try {
+    chrome.runtime.sendMessage({ type: 'AUTH_GET_PROFILE' }, (resp: any) => {
+      const err = chrome.runtime.lastError?.message;
+      if (err) {
+        clearProfile();
+        return;
+      }
+      if (resp?.ok && resp.profile) {
+        renderProfile(resp.profile);
+        const statusText = document.getElementById('status-text');
+        if (statusText) statusText.textContent = resp.profile.expired ? 'Signed in (expired)' : 'Signed in';
+      } else {
+        clearProfile();
+        const statusText = document.getElementById('status-text');
+        if (statusText) statusText.textContent = 'Not signed in';
+      }
+    });
+  } catch {
+    clearProfile();
   }
 }
 
+function updateUI(signedIn: boolean) {
+  const statusDot = document.getElementById('status-dot');
+  const statusText = document.getElementById('status-text');
+  const loadingEl = document.getElementById('loading');
+  const signinSection = document.getElementById('signin-section');
+  const signoutSection = document.getElementById('signout-section');
+  if (loadingEl) loadingEl.style.display = 'none';
+  if (statusDot) statusDot.classList.add('active');
+  if (statusText) statusText.textContent = signedIn ? 'Signed in' : 'Not signed in';
+  if (signinSection) signinSection.style.display = signedIn ? 'none' : 'block';
+  if (signoutSection) signoutSection.style.display = signedIn ? 'block' : 'none';
+  if (signedIn) {
+    fetchAndRenderProfile();
+  } else {
+    clearProfile();
+  }
+}
 document.addEventListener('DOMContentLoaded', () => {
-  const btn = document.getElementById('signin') as HTMLButtonElement | null;
-  const btnOut = document.getElementById('signout') as HTMLButtonElement | null;
   const btnOverlay = document.getElementById('open-overlay') as HTMLButtonElement | null;
   const btnOpenWebApp = document.getElementById('open-webapp') as HTMLButtonElement | null;
   const btnOpenDesigner = document.getElementById('open-designer') as HTMLButtonElement | null;
   const btnToggleSettings = document.getElementById('toggle-settings') as HTMLButtonElement | null;
   const settingsPanel = document.getElementById('settings-panel') as HTMLDivElement | null;
-  const inputTargetLang = document.getElementById('setting-target-lang') as HTMLSelectElement | null;
-  const inputModelId = document.getElementById('setting-model-id') as HTMLSelectElement | null;
-  const inputThinkingMode = document.getElementById('setting-thinking-mode') as HTMLSelectElement | null;
+  const inputTargetLang = document.getElementById('setting-target-lang') as (HTMLSelectElement | HTMLInputElement | null);
+  const inputModelId = document.getElementById('setting-model-id') as (HTMLSelectElement | HTMLInputElement | null);
+  const inputThinkingMode = document.getElementById('setting-thinking-mode') as (HTMLSelectElement | HTMLInputElement | null);
+  const inputUserApiKey = document.getElementById('setting-user-api-key') as (HTMLInputElement | null);
   const btnSaveSettings = document.getElementById('save-settings') as HTMLButtonElement | null;
   const btnCloseSettings = document.getElementById('close-settings') as HTMLButtonElement | null;
 
-  // Check auth state
-  onAuthStateChanged(firebaseAuth, (user) => {
-    updateUI(user);
-    // Silent auto sign-in attempt when popup opens and user is not signed in.
-    // This will only try if a DesAInR web app tab already exists; it will not open a new tab.
-    if (!user) {
-      setTimeout(() => {
-        try { autoSignInFromActiveTab({ silent: true }); } catch {}
-      }, 300);
+  const btnSignin = document.getElementById('signin') as HTMLButtonElement | null;
+  const btnSignout = document.getElementById('signout') as HTMLButtonElement | null;
+
+  // Initialize UI based on existing token
+  (async () => {
+    try {
+      // Default to signed-out so the Sign In button is visible immediately.
+      updateUI(false);
+      chrome.runtime.sendMessage({ type: 'AUTH_HAS_TOKEN' }, (resp: any) => {
+        const err = chrome.runtime.lastError?.message;
+        if (err) {
+          // Keep signed-out if background didn't respond
+          updateUI(false);
+          return;
+        }
+        const has = !!(resp && resp.hasToken);
+        updateUI(has);
+      });
+    } catch {
+      updateUI(false);
     }
-  });
+  })();
 
   // Open overlay button
   btnOverlay?.addEventListener('click', async () => {
@@ -372,7 +358,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Open Web App
   btnOpenWebApp?.addEventListener('click', async () => {
     try {
-      await chrome.tabs.create({ url: `${APP_BASE_URL}/` });
+      const base = await getBestBaseUrl();
+      await chrome.tabs.create({ url: `${base}/` });
       window.close();
     } catch (e: any) {
       showError(e?.message || 'Failed to open web app');
@@ -382,8 +369,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Open Designer Page
   btnOpenDesigner?.addEventListener('click', async () => {
     try {
-      // Default to /designer; adjust as needed
-      await chrome.tabs.create({ url: `${APP_BASE_URL}/designer` });
+      const base = await getBestBaseUrl();
+      await chrome.tabs.create({ url: `${base}/designer` });
       window.close();
     } catch (e: any) {
       showError(e?.message || 'Failed to open designer page');
@@ -402,16 +389,22 @@ document.addEventListener('DOMContentLoaded', () => {
           'desainr.settings.targetLang',
           'desainr.settings.modelId',
           'desainr.settings.thinkingMode',
+          'desainr.settings.userApiKey',
         ]);
-        if (inputTargetLang) inputTargetLang.value = data['desainr.settings.targetLang'] || inputTargetLang.value || 'en';
+        if (inputTargetLang) (inputTargetLang as any).value = data['desainr.settings.targetLang'] || (inputTargetLang as any).value || 'en';
         if (inputModelId) {
           const saved = data['desainr.settings.modelId'];
-          const exists = saved && Array.from(inputModelId.options).some((o) => o.value === saved);
-          inputModelId.value = exists ? saved : (inputModelId.value || 'googleai/gemini-1.5-flash-latest');
+          // Works for both <select> and <input>
+          const options = (inputModelId as HTMLSelectElement).options as any;
+          const exists = saved && options && Array.from(options).some((o: any) => o.value === saved);
+          (inputModelId as any).value = exists ? saved : ((inputModelId as any).value || 'googleai/gemini-1.5-flash-latest');
         }
         if (inputThinkingMode) {
           const tm = data['desainr.settings.thinkingMode'];
-          inputThinkingMode.value = (tm === 'default' || tm === 'none') ? tm : (inputThinkingMode.value || 'none');
+          (inputThinkingMode as any).value = (tm === 'default' || tm === 'none') ? tm : ((inputThinkingMode as any).value || 'none');
+        }
+        if (inputUserApiKey) {
+          inputUserApiKey.value = data['desainr.settings.userApiKey'] || '';
         }
       } catch {}
     }
@@ -420,13 +413,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // Save settings
   btnSaveSettings?.addEventListener('click', async () => {
     try {
-      const targetLang = (inputTargetLang?.value || '').trim();
-      const modelId = (inputModelId?.value || '').trim();
-      const thinkingMode = (inputThinkingMode?.value || '').trim();
+      const targetLang = ((inputTargetLang as any)?.value || '').trim();
+      const modelId = ((inputModelId as any)?.value || '').trim();
+      const thinkingMode = ((inputThinkingMode as any)?.value || '').trim();
+      const userApiKey = (inputUserApiKey?.value || '').trim();
       await chrome.storage.local.set({
         'desainr.settings.targetLang': targetLang,
         'desainr.settings.modelId': modelId,
         'desainr.settings.thinkingMode': thinkingMode || 'none',
+        'desainr.settings.userApiKey': userApiKey,
       });
       showError('');
       // Give quick feedback by briefly showing a message in error area styled subtlely
@@ -448,28 +443,36 @@ document.addEventListener('DOMContentLoaded', () => {
     if (settingsPanel) settingsPanel.style.display = 'none';
   });
 
-  // Sign in button
-  btn?.addEventListener('click', async () => {
+  // Sign in: request token from web app via background
+  btnSignin?.addEventListener('click', async () => {
+    showLoading(true);
     try {
-      const base = await getBestBaseUrl();
-      await chrome.tabs.create({ url: `${base}/login` });
-      window.close();
-    } catch (e: any) {
-      showError(e?.message || 'Failed to open login page');
+      chrome.runtime.sendMessage({ type: 'AUTH_REQUEST_TOKEN' }, async (resp: any) => {
+        if (resp && resp.ok) {
+          updateUI(true);
+          window.close();
+          return;
+        }
+        // If token could not be obtained, open login page explicitly
+        try {
+          const base = await getBestBaseUrl();
+          await chrome.tabs.create({ url: `${base}/login?next=/` });
+        } catch {}
+        updateUI(false);
+      });
+    } catch {
+      updateUI(false);
     }
   });
 
-  // Sign out button
-  btnOut?.addEventListener('click', async () => {
+  // Sign out: clear token in background
+  btnSignout?.addEventListener('click', async () => {
     try {
-      showLoading(true);
-      await signOutExt();
-      updateUI(null);
-      showLoading(false);
-    } catch (e: any) {
-      console.error('Popup sign-out error:', e);
-      showLoading(false);
-      showError(e?.message || 'Sign-out failed');
+      chrome.runtime.sendMessage({ type: 'AUTH_CLEAR_TOKEN' }, () => {
+        updateUI(false);
+      });
+    } catch {
+      updateUI(false);
     }
   });
 });

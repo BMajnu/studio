@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
 import { TemplateCard } from './TemplateCard';
 import { TemplateEditor } from './TemplateEditor';
 
@@ -15,11 +13,7 @@ interface Template {
   updatedAt?: any;
 }
 
-interface TemplateManagerProps {
-  userId: string;
-}
-
-export function TemplateManager({ userId }: TemplateManagerProps) {
+export function TemplateManager() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
@@ -27,35 +21,64 @@ export function TemplateManager({ userId }: TemplateManagerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
+  const STORAGE_KEY = 'desainr.templates';
+
+  function generateId() {
+    try {
+      // Prefer Web Crypto if available
+      return crypto?.randomUUID?.() || `tpl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    } catch {
+      return `tpl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    }
+  }
+
+  async function loadTemplatesFromStorage(): Promise<Template[]> {
+    const result = await chrome.storage.sync.get([STORAGE_KEY]);
+    const arr = Array.isArray(result[STORAGE_KEY]) ? result[STORAGE_KEY] : [];
+    return arr as Template[];
+  }
+
+  async function saveTemplatesToStorage(next: Template[]) {
+    await chrome.storage.sync.set({ [STORAGE_KEY]: next });
+  }
+
   useEffect(() => {
-    if (!userId) return;
-
-    const templatesRef = collection(db, 'users', userId, 'prompts');
-    const q = query(templatesRef, orderBy('createdAt', 'desc'));
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const templatesData: Template[] = [];
-      snapshot.forEach((doc) => {
-        templatesData.push({
-          id: doc.id,
-          ...doc.data()
-        } as Template);
-      });
-      setTemplates(templatesData);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [userId]);
+    let mounted = true;
+    (async () => {
+      try {
+        const data = await loadTemplatesFromStorage();
+        if (!mounted) return;
+        setTemplates(data);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    const onChange = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
+      if (areaName !== 'sync') return;
+      if (STORAGE_KEY in changes) {
+        const next = Array.isArray(changes[STORAGE_KEY].newValue) ? changes[STORAGE_KEY].newValue : [];
+        setTemplates(next as Template[]);
+      }
+    };
+    chrome.storage.onChanged.addListener(onChange);
+    return () => {
+      mounted = false;
+      chrome.storage.onChanged.removeListener(onChange);
+    };
+  }, []);
 
   const handleCreate = async (templateData: Omit<Template, 'id' | 'createdAt'>) => {
     try {
-      const templatesRef = collection(db, 'users', userId, 'prompts');
-      await addDoc(templatesRef, {
+      const now = Date.now();
+      const newTemplate: Template = {
+        id: generateId(),
+        createdAt: now,
         ...templateData,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
+        updatedAt: now,
+      };
+      const next = [newTemplate, ...templates];
+      setTemplates(next);
+      await saveTemplatesToStorage(next);
       setIsCreating(false);
     } catch (error) {
       console.error('Error creating template:', error);
@@ -65,11 +88,12 @@ export function TemplateManager({ userId }: TemplateManagerProps) {
 
   const handleUpdate = async (templateId: string, templateData: Partial<Template>) => {
     try {
-      const templateRef = doc(db, 'users', userId, 'prompts', templateId);
-      await updateDoc(templateRef, {
-        ...templateData,
-        updatedAt: serverTimestamp()
-      });
+      const now = Date.now();
+      const next = templates.map(t =>
+        t.id === templateId ? { ...t, ...templateData, updatedAt: now } : t
+      );
+      setTemplates(next);
+      await saveTemplatesToStorage(next);
       setEditingTemplate(null);
     } catch (error) {
       console.error('Error updating template:', error);
@@ -79,10 +103,10 @@ export function TemplateManager({ userId }: TemplateManagerProps) {
 
   const handleDelete = async (templateId: string) => {
     if (!confirm('Are you sure you want to delete this template?')) return;
-    
     try {
-      const templateRef = doc(db, 'users', userId, 'prompts', templateId);
-      await deleteDoc(templateRef);
+      const next = templates.filter(t => t.id !== templateId);
+      setTemplates(next);
+      await saveTemplatesToStorage(next);
     } catch (error) {
       console.error('Error deleting template:', error);
       alert('Failed to delete template. Please try again.');
@@ -91,16 +115,20 @@ export function TemplateManager({ userId }: TemplateManagerProps) {
 
   const handleDuplicate = async (template: Template) => {
     try {
-      const templatesRef = collection(db, 'users', userId, 'prompts');
-      await addDoc(templatesRef, {
+      const now = Date.now();
+      const dup: Template = {
+        id: generateId(),
         title: `${template.title} (Copy)`,
         instruction: template.instruction,
         description: template.description,
         variables: template.variables,
         tags: template.tags,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
+        createdAt: now,
+        updatedAt: now,
+      };
+      const next = [dup, ...templates];
+      setTemplates(next);
+      await saveTemplatesToStorage(next);
     } catch (error) {
       console.error('Error duplicating template:', error);
       alert('Failed to duplicate template. Please try again.');
