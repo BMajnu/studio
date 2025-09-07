@@ -128,37 +128,11 @@ async function getBestBaseUrl(): Promise<string> {
   if (cachedBaseUrl && now - lastBaseUrlCheck < 60_000) {
     return cachedBaseUrl;
   }
-  const candidatesPref: string[] = [];
-  const stored = await readStoredBaseUrl();
-  if (stored) candidatesPref.push(stored);
-  if (APP_BASE_URL) candidatesPref.push(APP_BASE_URL);
-  const candidates = [
-    ...candidatesPref,
-    'http://localhost:9010',
-    'http://127.0.0.1:9010',
-    'http://localhost:9003',
-    'http://127.0.0.1:9003',
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'http://localhost:8080',
-    'http://127.0.0.1:8080',
-  ];
-  const seen = new Set<string>();
-  for (const cand of candidates) {
-    if (!cand || seen.has(cand)) continue;
-    seen.add(cand);
-    if (await isServerReachable(cand)) {
-      cachedBaseUrl = cand;
-      lastBaseUrlCheck = now;
-      await writeStoredBaseUrl(cand);
-      return cand;
-    }
-  }
-  cachedBaseUrl = candidatesPref[0] || 'http://localhost:9010';
+  // Prefer production app link (desainr.vercel.app)
+  cachedBaseUrl = APP_BASE_URL;
   lastBaseUrlCheck = now;
-  return cachedBaseUrl;
+  await writeStoredBaseUrl(APP_BASE_URL);
+  return APP_BASE_URL;
 }
 
 // Attempt to send a message to the active tab; if no receiver, try injecting contentScript.js and retry.

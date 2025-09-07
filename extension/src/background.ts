@@ -5,6 +5,21 @@ import { APP_BASE_URL } from './config';
 let cachedBaseUrl: string | null = null;
 let lastBaseUrlCheck = 0;
 
+// Migrate any stored localhost base URL to production at startup
+async function migrateBaseUrl(): Promise<void> {
+  try {
+    const stored = await readStoredBaseUrl();
+    if (stored && /^(https?:\/\/)?(localhost|127\.0\.0\.1)/i.test(stored)) {
+      await writeStoredBaseUrl(APP_BASE_URL);
+      cachedBaseUrl = APP_BASE_URL;
+      lastBaseUrlCheck = Date.now();
+    }
+
+// Run migration immediately on service worker start as well
+migrateBaseUrl();
+  } catch {}
+}
+
 async function readStoredBaseUrl(): Promise<string | null> {
   return await new Promise((resolve) => {
     try {
@@ -25,72 +40,55 @@ async function writeStoredBaseUrl(url: string): Promise<void> {
   }
 }
 
-async function isServerReachable(base: string): Promise<boolean> {
+async function isServerReachable(base: string, timeoutMs = 1200): Promise<boolean> {
   try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), timeoutMs);
     const res = await fetch(`${base}/api/extension/rewrite`, {
       method: 'OPTIONS',
       headers: { 'Content-Type': 'application/json' },
+      signal: ctrl.signal,
     });
+    clearTimeout(tid);
     return res.ok || res.status === 204;
   } catch {
     return false;
   }
 }
 
-async function getBestBaseUrl(): Promise<string> {
-  const now = Date.now();
-  if (cachedBaseUrl && now - lastBaseUrlCheck < 60_000) {
-    return cachedBaseUrl;
-  }
-
-  const candidatesPref: string[] = [];
-  const stored = await readStoredBaseUrl();
-  if (stored) candidatesPref.push(stored);
-
-  const localCandidates = [
+async function findLocalFast(): Promise<string | null> {
+  const locals = [
     'http://localhost:9010',
     'http://127.0.0.1:9010',
-    'https://localhost:9010',
-    'https://127.0.0.1:9010',
     'http://localhost:9003',
     'http://127.0.0.1:9003',
-    'https://localhost:9003',
-    'https://127.0.0.1:9003',
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'https://localhost:3000',
-    'https://127.0.0.1:3000',
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'https://localhost:5173',
-    'https://127.0.0.1:5173',
-    'http://localhost:8080',
-    'http://127.0.0.1:8080',
-    'https://localhost:8080',
-    'https://127.0.0.1:8080',
   ];
+  // Fire checks concurrently with a tight timeout; return first reachable, else null
+  const checks = locals.map(async (u) => (await isServerReachable(u, 800)) ? u : null);
+  const results = await Promise.all(checks);
+  return results.find((v) => !!v) as string | null;
+}
 
-  const candidates = [
-    ...candidatesPref,
-    ...localCandidates,
-    APP_BASE_URL,
-  ];
-
-  const seen = new Set<string>();
-  for (const cand of candidates) {
-    if (!cand || seen.has(cand)) continue;
-    seen.add(cand);
-    if (await isServerReachable(cand)) {
-      cachedBaseUrl = cand;
+async function getBestBaseUrl(): Promise<string> {
+  const now = Date.now();
+  if (cachedBaseUrl) {
+    const isLocal = /^(https?:\/\/)?(localhost|127\.0\.0\.1)/i.test(cachedBaseUrl);
+    if (isLocal) {
+      cachedBaseUrl = APP_BASE_URL;
       lastBaseUrlCheck = now;
-      await writeStoredBaseUrl(cand);
-      return cand;
+      await writeStoredBaseUrl(APP_BASE_URL);
+      return APP_BASE_URL;
+    }
+    if (now - lastBaseUrlCheck < 60_000) {
+      return cachedBaseUrl;
     }
   }
 
-  cachedBaseUrl = candidatesPref[0] || 'http://localhost:9010';
+  // Prefer the production web app immediately (do not prioritize localhost)
+  cachedBaseUrl = APP_BASE_URL;
   lastBaseUrlCheck = now;
-  return cachedBaseUrl;
+  await writeStoredBaseUrl(APP_BASE_URL);
+  return APP_BASE_URL;
 }
 
 // --- Token storage helpers ---
@@ -163,7 +161,7 @@ async function waitForComplete(tabId: number): Promise<void> {
 }
 
 async function ensureWebAppTab(options?: { openIfMissing?: boolean }): Promise<chrome.tabs.Tab | null> {
-  const base = await getBestBaseUrl();
+  const base = APP_BASE_URL;
   const existing = await findWebAppTab(base);
   if (existing && existing.id) return existing;
   if (options?.openIfMissing === false) return null;
@@ -210,7 +208,7 @@ async function requestIdTokenFromWebApp(timeoutMs = 8000, options?: { openIfMiss
 
   if (resp && !resp.ok && resp.error === 'not_signed_in' && options?.promptLoginIfUnauthorized) {
     try {
-      const base = await getBestBaseUrl();
+      const base = APP_BASE_URL;
       await new Promise<void>((resolve) => {
         chrome.tabs.update(tab.id!, { url: `${base}/login?next=/` }, () => resolve());
       });
@@ -271,6 +269,12 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({ id: 'desainr-analyze', title: 'DesAInR: Analyze Page', contexts: ['page'] });
   chrome.contextMenus.create({ id: 'desainr-translate-page', title: 'DesAInR: Translate Page', contexts: ['page'] });
   chrome.contextMenus.create({ id: 'desainr-toggle-parallel', title: 'DesAInR: Toggle Parallel Translate', contexts: ['page'] });
+  migrateBaseUrl();
+});
+
+// Also migrate at browser startup
+chrome.runtime.onStartup?.addListener(() => {
+  migrateBaseUrl();
 });
 
 // Auth removed: no token observers or refresh timers
