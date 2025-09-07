@@ -11,7 +11,7 @@ export interface ToolbarAction {
   category?: string;
 }
 
-const DEFAULT_PINNED_IDS = ['refine', 'translate', 'rewrite', 'explain'];
+const DEFAULT_PINNED_IDS = ['refine', 'translate', 'rephrase', 'summarize'];
 const AllActions: ToolbarAction[] = MenuDefaultActions.map(a => ({
   id: a.id,
   label: a.label.replace(' Selection', ''),

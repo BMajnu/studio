@@ -167,6 +167,96 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
           const msg = error || (json as any)?.error || 'unknown';
           await showResultPopup('Explain', selection, `Failed (${status}): ${msg}`, rect || undefined);
         }
+      } else if (actionId === 'rephrase') {
+        if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
+        const { actions } = await import('./apiClient');
+        await showResultPopup('Rephrase', selection, 'Working…', rect || undefined);
+        const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode','desainr.settings.userApiKey']).catch(() => ({} as any));
+        const modelId = st?.['desainr.settings.modelId'];
+        const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
+        const userApiKey = st?.['desainr.settings.userApiKey'];
+        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Rephrase the following text to be clearer and more natural while preserving meaning. Return only the rephrased text.', modelId, thinkingMode, userApiKey });
+        if (ok && (json as any)?.result) {
+          await showResultPopup('Rephrase', selection, (json as any).result, rect || undefined);
+        } else {
+          const msg = error || (json as any)?.error || 'unknown';
+          await showResultPopup('Rephrase', selection, `Failed (${status}): ${msg}`, rect || undefined);
+        }
+      } else if (actionId === 'summarize') {
+        if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
+        const { actions } = await import('./apiClient');
+        await showResultPopup('Summarize', selection, 'Working…', rect || undefined);
+        const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode','desainr.settings.userApiKey']).catch(() => ({} as any));
+        const modelId = st?.['desainr.settings.modelId'];
+        const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
+        const userApiKey = st?.['desainr.settings.userApiKey'];
+        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Summarize the following text concisely in 1-3 sentences. Return only the summary.', modelId, thinkingMode, userApiKey });
+        if (ok && (json as any)?.result) {
+          await showResultPopup('Summarize', selection, (json as any).result, rect || undefined);
+        } else {
+          const msg = error || (json as any)?.error || 'unknown';
+          await showResultPopup('Summarize', selection, `Failed (${status}): ${msg}`, rect || undefined);
+        }
+      } else if (actionId === 'add-details') {
+        if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
+        const { actions } = await import('./apiClient');
+        await showResultPopup('Add Details', selection, 'Working…', rect || undefined);
+        const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode','desainr.settings.userApiKey']).catch(() => ({} as any));
+        const modelId = st?.['desainr.settings.modelId'];
+        const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
+        const userApiKey = st?.['desainr.settings.userApiKey'];
+        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Add helpful, concrete details to the following text while preserving tone and meaning. Return only the improved text.', modelId, thinkingMode, userApiKey });
+        if (ok && (json as any)?.result) {
+          await showResultPopup('Add Details', selection, (json as any).result, rect || undefined);
+        } else {
+          const msg = error || (json as any)?.error || 'unknown';
+          await showResultPopup('Add Details', selection, `Failed (${status}): ${msg}`, rect || undefined);
+        }
+      } else if (actionId === 'more-informative') {
+        if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
+        const { actions } = await import('./apiClient');
+        await showResultPopup('More Informative', selection, 'Working…', rect || undefined);
+        const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode','desainr.settings.userApiKey']).catch(() => ({} as any));
+        const modelId = st?.['desainr.settings.modelId'];
+        const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
+        const userApiKey = st?.['desainr.settings.userApiKey'];
+        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Make the following text more informative by adding succinct, factual context. Keep it concise. Return only the revised text.', modelId, thinkingMode, userApiKey });
+        if (ok && (json as any)?.result) {
+          await showResultPopup('More Informative', selection, (json as any).result, rect || undefined);
+        } else {
+          const msg = error || (json as any)?.error || 'unknown';
+          await showResultPopup('More Informative', selection, `Failed (${status}): ${msg}`, rect || undefined);
+        }
+      } else if (actionId === 'simplify') {
+        if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
+        const { actions } = await import('./apiClient');
+        await showResultPopup('Simplify', selection, 'Working…', rect || undefined);
+        const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode','desainr.settings.userApiKey']).catch(() => ({} as any));
+        const modelId = st?.['desainr.settings.modelId'];
+        const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
+        const userApiKey = st?.['desainr.settings.userApiKey'];
+        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Simplify the following text to be easier to understand, using plain language. Return only the simplified text.', modelId, thinkingMode, userApiKey });
+        if (ok && (json as any)?.result) {
+          await showResultPopup('Simplify', selection, (json as any).result, rect || undefined);
+        } else {
+          const msg = error || (json as any)?.error || 'unknown';
+          await showResultPopup('Simplify', selection, `Failed (${status}): ${msg}`, rect || undefined);
+        }
+      } else if (actionId === 'emojify') {
+        if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
+        const { actions } = await import('./apiClient');
+        await showResultPopup('Emojify', selection, 'Working…', rect || undefined);
+        const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode','desainr.settings.userApiKey']).catch(() => ({} as any));
+        const modelId = st?.['desainr.settings.modelId'];
+        const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
+        const userApiKey = st?.['desainr.settings.userApiKey'];
+        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Rewrite the following text with a friendly, engaging tone and add relevant emojis where appropriate; do not overuse them. Return only the revised text.', modelId, thinkingMode, userApiKey });
+        if (ok && (json as any)?.result) {
+          await showResultPopup('Emojify', selection, (json as any).result, rect || undefined);
+        } else {
+          const msg = error || (json as any)?.error || 'unknown';
+          await showResultPopup('Emojify', selection, `Failed (${status}): ${msg}`, rect || undefined);
+        }
       } else if (actionId === 'analyze') {
         const { analyzePage } = await import('./apiClient');
         await showResultPopup('Analyze', selection || '(No selection)', 'Working…', rect || undefined);
@@ -177,7 +267,7 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
           const msg = error || (json as any)?.error || 'unknown';
           await showResultPopup('Analyze', selection || '(No selection)', `Failed (${status}): ${msg}`, rect || undefined);
         }
-      } else if (actionId === 'chat-personal' || actionId === 'chat-pro') {
+      } else if (actionId === 'designer-chat') {
         toggleReactOverlay();
       } else if (actionId === 'copy') {
         // Copy selected text

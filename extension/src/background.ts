@@ -46,10 +46,8 @@ async function getBestBaseUrl(): Promise<string> {
   const candidatesPref: string[] = [];
   const stored = await readStoredBaseUrl();
   if (stored) candidatesPref.push(stored);
-  if (APP_BASE_URL) candidatesPref.push(APP_BASE_URL);
 
-  const candidates = [
-    ...candidatesPref,
+  const localCandidates = [
     'http://localhost:9010',
     'http://127.0.0.1:9010',
     'https://localhost:9010',
@@ -70,6 +68,12 @@ async function getBestBaseUrl(): Promise<string> {
     'http://127.0.0.1:8080',
     'https://localhost:8080',
     'https://127.0.0.1:8080',
+  ];
+
+  const candidates = [
+    ...candidatesPref,
+    ...localCandidates,
+    APP_BASE_URL,
   ];
 
   const seen = new Set<string>();

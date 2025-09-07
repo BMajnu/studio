@@ -5,30 +5,27 @@ export interface MenuAction {
   id: string;
   label: string;
   icon: string;
-  category: string;
+  category?: string;
   shortcut?: string;
   isPinned?: boolean;
 }
 
 export const DefaultActions: MenuAction[] = [
-  // Quick Actions (Monica-style)
-  { id: 'refine', label: 'Refine Selection', category: 'Quick Actions', icon: FeatureIcons.refine, shortcut: 'R', isPinned: true },
-  { id: 'translate', label: 'Translate Selection', category: 'Quick Actions', icon: FeatureIcons.translate, shortcut: 'T', isPinned: true },
-  { id: 'rewrite', label: 'Rewrite Selection', category: 'Quick Actions', icon: FeatureIcons.rewrite, shortcut: 'W', isPinned: true },
-  
-  // Content Tools
-  { id: 'analyze', label: 'Analyze Page', category: 'Content Tools', icon: FeatureIcons.analyze, shortcut: 'A', isPinned: false },
-  { id: 'explain', label: 'Explain Selection', category: 'Content Tools', icon: FeatureIcons.explain, shortcut: 'E', isPinned: false },
-  { id: 'correct', label: 'Correct Grammar', category: 'Content Tools', icon: FeatureIcons.grammar, shortcut: 'C', isPinned: false },
-  { id: 'expand', label: 'Expand Text', category: 'Content Tools', icon: FeatureIcons.expand, shortcut: 'X', isPinned: false },
-  
-  // AI Chat
-  { id: 'chat-personal', label: 'Personal Chat', category: 'AI Chat', icon: FeatureIcons.chat, shortcut: 'P', isPinned: false },
-  { id: 'chat-pro', label: 'Pro Chat', category: 'AI Chat', icon: FeatureIcons.question, shortcut: 'O', isPinned: false },
-  
-  // Advanced
-  { id: 'settings', label: 'Extension Settings', category: 'Advanced', icon: FeatureIcons.custom, shortcut: 'S', isPinned: false },
-  { id: 'customize', label: 'Customize Actions', category: 'Advanced', icon: FeatureIcons.custom, shortcut: 'M', isPinned: false },
+  // Flat list - no categories
+  { id: 'refine', label: 'Refine', icon: FeatureIcons.refine, shortcut: 'R', isPinned: true },
+  { id: 'translate', label: 'Translate', icon: FeatureIcons.translate, shortcut: 'T', isPinned: true },
+  { id: 'rephrase', label: 'Rephrase', icon: FeatureIcons.rewrite, isPinned: false },
+  { id: 'summarize', label: 'Summarize', icon: FeatureIcons.summarize, isPinned: false },
+  { id: 'add-details', label: 'Add Details', icon: FeatureIcons.plusCircle, isPinned: false },
+  { id: 'more-informative', label: 'More Informative', icon: FeatureIcons.info, isPinned: false },
+  { id: 'simplify', label: 'Simplify', icon: FeatureIcons.simplify, isPinned: false },
+  { id: 'emojify', label: 'Emojify', icon: FeatureIcons.emoji, isPinned: false },
+  { id: 'analyze', label: 'Analyze', icon: FeatureIcons.analyze, shortcut: 'A', isPinned: false },
+  { id: 'explain', label: 'Explain', icon: FeatureIcons.explain, shortcut: 'E', isPinned: false },
+  { id: 'correct', label: 'Correct Grammar', icon: FeatureIcons.grammar, shortcut: 'C', isPinned: false },
+  { id: 'expand', label: 'Expand Text', icon: FeatureIcons.expand, shortcut: 'X', isPinned: false },
+  { id: 'designer-chat', label: 'Designer', icon: FeatureIcons.chat, shortcut: 'D', isPinned: false },
+  { id: 'customize', label: 'Customize Actions', icon: FeatureIcons.custom, shortcut: 'M', isPinned: false },
 ];
 
 export class MonicaStyleContextMenu {
@@ -424,72 +421,50 @@ export class MonicaStyleContextMenu {
     const menu = document.createElement('div');
     menu.className = 'monica-menu';
     
-    // Group actions by category
-    const groupedActions = this.actions.reduce((groups, action) => {
-      const categoryInfo = MonicaTheme.featureCategories[action.category as keyof typeof MonicaTheme.featureCategories];
-      if (!groups[action.category]) groups[action.category] = [];
-      groups[action.category].push(action);
-      return groups;
-    }, {} as Record<string, MenuAction[]>);
+    // No grouping - flat list of all actions
+    const allActions = this.actions.filter(action => action.isPinned || !this.actions.some(a => a.isPinned && a.id === action.id));
 
-    // Render categories
-    Object.entries(groupedActions).forEach(([categoryId, actions]) => {
-      const categoryDiv = document.createElement('div');
-      categoryDiv.className = 'menu-category';
-      
-      // Category header
-      const header = document.createElement('div');
-      header.className = 'category-header';
-      header.innerHTML = `
-        <div class="category-icon">${MonicaTheme.featureCategories[categoryId as keyof typeof MonicaTheme.featureCategories]?.icon || ''}</div>
-        <div class="category-title">${MonicaTheme.featureCategories[categoryId as keyof typeof MonicaTheme.featureCategories]?.title || categoryId}</div>
+    // Render all actions in a flat list
+    allActions.forEach(action => {
+      const item = document.createElement('div');
+      item.className = `menu-item ${action.isPinned ? 'pinned' : ''}`;
+      // Use Heroicons-style memo icon for pin/unpin to match previous Copy Selection icon
+      const pinSvg = FeatureIcons.memo;
+      item.innerHTML = `
+        <div class="item-icon">${action.icon}</div>
+        <div class="item-label">${action.label}</div>
+        ${action.shortcut ? `<div class="item-shortcut">${action.shortcut}</div>` : ''}
+        <button class="item-pin" title="${action.isPinned ? 'Unpin' : 'Pin'}" aria-label="${action.isPinned ? 'Unpin' : 'Pin'}">
+          ${pinSvg}
+        </button>
+        <div class="pin-indicator"></div>
       `;
-      categoryDiv.appendChild(header);
       
-      // Category actions
-      actions.forEach((action, index) => {
-        const item = document.createElement('div');
-        item.className = `menu-item ${action.isPinned ? 'pinned' : ''} ${index === 0 && categoryId === 'Quick Actions' ? 'featured' : ''}`;
-        // Use Heroicons-style memo icon for pin/unpin to match previous Copy Selection icon
-        const pinSvg = FeatureIcons.memo;
-        item.innerHTML = `
-          <div class="item-icon">${action.icon}</div>
-          <div class="item-label">${action.label}</div>
-          ${action.shortcut ? `<div class="item-shortcut">${action.shortcut}</div>` : ''}
-          <button class="item-pin" title="${action.isPinned ? 'Unpin' : 'Pin'}" aria-label="${action.isPinned ? 'Unpin' : 'Pin'}">
-            ${pinSvg}
-          </button>
-          <div class="pin-indicator"></div>
-        `;
-        
-        item.addEventListener('click', () => {
-          this.hide();
-          this.onActionClick?.(action);
-        });
-        const pinBtn = item.querySelector('.item-pin') as HTMLButtonElement | null;
-        if (pinBtn) {
-          // Reflect pinned state for accessibility and visuals
-          pinBtn.setAttribute('aria-pressed', action.isPinned ? 'true' : 'false');
-          const pinSvgEl = pinBtn.querySelector('svg');
-          if (pinSvgEl) {
-            if (action.isPinned) {
-              pinSvgEl.classList.add('filled');
-            } else {
-              pinSvgEl.classList.remove('filled');
-            }
-          }
-
-          pinBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            this.togglePin(action.id);
-          });
-        }
-        
-        categoryDiv.appendChild(item);
+      item.addEventListener('click', () => {
+        this.hide();
+        this.onActionClick?.(action);
       });
+      const pinBtn = item.querySelector('.item-pin') as HTMLButtonElement | null;
+      if (pinBtn) {
+        // Reflect pinned state for accessibility and visuals
+        pinBtn.setAttribute('aria-pressed', action.isPinned ? 'true' : 'false');
+        const pinSvgEl = pinBtn.querySelector('svg');
+        if (pinSvgEl) {
+          if (action.isPinned) {
+            pinSvgEl.classList.add('filled');
+          } else {
+            pinSvgEl.classList.remove('filled');
+          }
+        }
+
+        pinBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.togglePin(action.id);
+        });
+      }
       
-      menu.appendChild(categoryDiv);
+      menu.appendChild(item);
     });
 
     // Add footer
