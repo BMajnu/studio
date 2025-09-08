@@ -21,6 +21,11 @@ export type ExtensionAssistFlowInput = {
 export async function extensionAssistFlow(input: ExtensionAssistFlowInput): Promise<ProcessCustomInstructionFlowOutput> {
   const { clientMessage, customInstruction, language, chatHistory, attachedFiles, profile } = input;
 
+  const envKey = process.env.GEMINI_API_KEY || (process as any).env?.GOOGLE_API_KEY || (process as any).env?.GOOGLE_AI_API_KEY;
+  const effectiveUserKey = Array.isArray(profile?.geminiApiKeys) && profile!.geminiApiKeys!.length > 0
+    ? profile!.geminiApiKeys![0]
+    : (envKey || undefined);
+
   return await processCustomInstructionFlow({
     clientMessage,
     customInstruction,
@@ -31,8 +36,6 @@ export async function extensionAssistFlow(input: ExtensionAssistFlowInput): Prom
     professionalTitle: profile?.professionalTitle,
     communicationStyleNotes: profile?.communicationStyleNotes,
     modelId: profile?.selectedGenkitModelId,
-    userApiKey: Array.isArray(profile?.geminiApiKeys) && profile!.geminiApiKeys!.length > 0
-      ? profile!.geminiApiKeys![0]
-      : undefined,
+    userApiKey: effectiveUserKey,
   });
 }

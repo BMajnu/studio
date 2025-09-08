@@ -14,11 +14,11 @@ async function migrateBaseUrl(): Promise<void> {
       cachedBaseUrl = APP_BASE_URL;
       lastBaseUrlCheck = Date.now();
     }
-
-// Run migration immediately on service worker start as well
-migrateBaseUrl();
   } catch {}
 }
+
+// Run migration immediately on service worker start as well
+migrateBaseUrl().catch(() => {});
 
 async function readStoredBaseUrl(): Promise<string | null> {
   return await new Promise((resolve) => {
@@ -375,23 +375,44 @@ chrome.runtime.onMessage.addListener((msg: any, sender: any, sendResponse: (resp
         const base = await getBestBaseUrl();
         const url = `${base}/api/extension/${msg.path}`;
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        const stored = await readStoredToken();
+        let stored = await readStoredToken();
+        // Proactively obtain a token before first attempt if missing
+        if (!msg.token && !stored) {
+          try {
+            const tokenResp = await requestIdTokenFromWebApp(8000, { openIfMissing: true, promptLoginIfUnauthorized: true });
+            if (tokenResp?.ok && tokenResp.idToken) {
+              await writeStoredToken(tokenResp.idToken);
+              stored = tokenResp.idToken;
+            }
+          } catch {}
+        }
         if (msg.token) headers['Authorization'] = `Bearer ${msg.token}`;
         else if (stored) headers['Authorization'] = `Bearer ${stored}`;
+
+        // Merge userApiKey from extension settings to ensure server can run even without stored profile
+        let mergedBody = msg.body ?? {};
+        try {
+          const st = await chrome.storage?.local.get?.(['desainr.settings.userApiKey']).catch(() => ({} as any));
+          const keyFromSettings = st?.['desainr.settings.userApiKey'];
+          if (keyFromSettings && !mergedBody.userApiKey) {
+            mergedBody = { ...mergedBody, userApiKey: keyFromSettings };
+          }
+        } catch {}
 
         const doFetch = async () => {
           return await fetch(url, {
             method: 'POST',
             headers,
-            body: JSON.stringify(msg.body ?? {}),
+            body: JSON.stringify(mergedBody),
           });
         };
 
         let res = await doFetch();
+        try { console.log('[DesAInR][bg] API_CALL', { path: msg.path, base, hasAuth: !!headers['Authorization'] }); } catch {}
 
         // If unauthorized, try to obtain fresh token and retry once
         if (res.status === 401) {
-          const tokenResp = await requestIdTokenFromWebApp(8000, { openIfMissing: true, promptLoginIfUnauthorized: true });
+          const tokenResp = await requestIdTokenFromWebApp(10000, { openIfMissing: true, promptLoginIfUnauthorized: true });
           if (tokenResp?.ok && tokenResp.idToken) {
             await writeStoredToken(tokenResp.idToken);
             headers['Authorization'] = `Bearer ${tokenResp.idToken}`;
@@ -405,6 +426,7 @@ chrome.runtime.onMessage.addListener((msg: any, sender: any, sendResponse: (resp
         } catch {
           try { text = await res.text(); } catch {}
         }
+        try { console.log('[DesAInR][bg] API_CALL response', { status: res.status, hasJson: !!json, hasText: !!text }); } catch {}
         if (!res.ok && (!json || typeof json !== 'object')) {
           // Surface text body as error when JSON is unavailable
           sendResponse({ ok: false, status: res.status, error: text || 'HTTP error' });

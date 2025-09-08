@@ -3,6 +3,8 @@ import { getUserIdFromRequest } from '@/lib/middleware/verifyFirebaseToken';
 import { extensionAssistFlow } from '@/ai/flows/extension-assist-flow';
 import { getUserProfileByUid } from '@/lib/server/getUserProfile';
 
+export const runtime = 'nodejs';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -11,15 +13,20 @@ const corsHeaders = {
 
 export async function POST(req: Request) {
   try {
-    const uid = await getUserIdFromRequest(req);
     const authHeader = req.headers.get('authorization') || req.headers.get('Authorization') || '';
     const tokenParts = authHeader.split(' ');
     const idToken = tokenParts?.length === 2 ? tokenParts[1] : undefined;
     const body = await req.json().catch(() => ({}));
+    const userApiKey: string | undefined = body?.userApiKey;
+    let uid: string | null = null;
+    if (!userApiKey) {
+      uid = await getUserIdFromRequest(req);
+    } else {
+      try { uid = await getUserIdFromRequest(req); } catch { uid = null; }
+    }
     const targetLang = String(body?.targetLang ?? 'en');
     const url = String(body?.url ?? '');
     const modelId: string | undefined = body?.modelId;
-    const userApiKey: string | undefined = body?.userApiKey;
 
     // Support both single selection and batch chunks
     const chunks = Array.isArray(body?.chunks) ? body.chunks as string[] : null;

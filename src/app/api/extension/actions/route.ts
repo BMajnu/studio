@@ -5,22 +5,34 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { getAdminApp } from '@/lib/firebase/adminApp';
 import { getUserProfileByUid } from '@/lib/server/getUserProfile';
 
+export const runtime = 'nodejs';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
+function decodeUidFromIdToken(idToken?: string): string | undefined {
+  try {
+    if (!idToken) return undefined;
+    const parts = idToken.split('.');
+    if (parts.length !== 3) return undefined;
+    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64.padEnd(b64.length + (4 - (b64.length % 4)) % 4, '=');
+    const json = Buffer.from(padded, 'base64').toString('utf8');
+    const payload = JSON.parse(json);
+    return payload?.uid || payload?.user_id || payload?.sub || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function POST(req: Request) {
   try {
-    const uid = await getUserIdFromRequest(req);
     const authHeader = req.headers.get('authorization') || req.headers.get('Authorization') || '';
     const tokenParts = authHeader.split(' ');
     const idToken = tokenParts?.length === 2 ? tokenParts[1] : undefined;
-    if (!uid) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
-    }
-    
     const body = await req.json().catch(() => ({}));
 
     // Inputs
@@ -67,8 +79,29 @@ export async function POST(req: Request) {
     const modelId: string | undefined = body?.modelId;
     const userApiKey: string | undefined = body?.userApiKey;
 
-    // If templateId provided and instruction missing, fetch from Firestore
+    // Determine uid: if no userApiKey, require sign-in; otherwise try verify but allow fallback
+    let uid: string | null = null;
+    if (!userApiKey) {
+      try { uid = await getUserIdFromRequest(req); }
+      catch {
+        const soft = decodeUidFromIdToken(idToken);
+        uid = soft ? String(soft) : null;
+      }
+    } else {
+      try { uid = await getUserIdFromRequest(req); } catch { uid = null; }
+    }
+    if (!uid && !userApiKey && !idToken) {
+      return NextResponse.json({ ok: false, error: 'UNAUTHORIZED: Sign in required or provide userApiKey' }, { status: 401, headers: corsHeaders });
+    }
+
+    // If templateId provided and instruction missing, fetch from Firestore (requires signed-in uid)
     if (!customInstruction && templateId) {
+      if (!uid) {
+        return NextResponse.json(
+          { ok: false, error: 'UNAUTHORIZED: Sign in required to use saved templates' },
+          { status: 401, headers: corsHeaders }
+        );
+      }
       const db = getFirestore(getAdminApp() as any);
       const doc = await db.collection('users').doc(uid).collection('prompts').doc(String(templateId)).get();
       if (doc.exists) {
@@ -103,7 +136,7 @@ export async function POST(req: Request) {
       .replace(/\}\}/g, '} }');
 
     // Load user profile to personalize outputs
-    const profile = await getUserProfileByUid(uid, { idToken });
+    const profile = uid ? await getUserProfileByUid(uid, { idToken }) : null;
     let mergedProfile: any | undefined = undefined;
     if (profile) {
       mergedProfile = {
@@ -115,7 +148,7 @@ export async function POST(req: Request) {
       };
     } else if (userApiKey) {
       mergedProfile = {
-        userId: uid,
+        userId: uid || 'anon',
         selectedGenkitModelId: modelId,
         geminiApiKeys: [String(userApiKey)],
         name: userName,

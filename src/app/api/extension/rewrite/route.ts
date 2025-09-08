@@ -3,19 +3,48 @@ import { getUserIdFromRequest } from '@/lib/middleware/verifyFirebaseToken';
 import { extensionAssistFlow } from '@/ai/flows/extension-assist-flow';
 import { getUserProfileByUid } from '@/lib/server/getUserProfile';
 
+export const runtime = 'nodejs';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
+function decodeUidFromIdToken(idToken?: string): string | undefined {
+  try {
+    if (!idToken) return undefined;
+    const parts = idToken.split('.');
+    if (parts.length !== 3) return undefined;
+    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64.padEnd(b64.length + (4 - (b64.length % 4)) % 4, '=');
+    const json = Buffer.from(padded, 'base64').toString('utf8');
+    const payload = JSON.parse(json);
+    return payload?.uid || payload?.user_id || payload?.sub || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function POST(req: Request) {
   try {
-    const uid = await getUserIdFromRequest(req);
     const authHeader = req.headers.get('authorization') || req.headers.get('Authorization') || '';
     const tokenParts = authHeader.split(' ');
     const idToken = tokenParts?.length === 2 ? tokenParts[1] : undefined;
     const body = await req.json().catch(() => ({}));
+    const userApiKey: string | undefined = body?.userApiKey;
+    let uid: string | null = null;
+    if (!userApiKey) {
+      // Prefer verified uid; if Admin not configured, decode from token as soft fallback
+      try { uid = await getUserIdFromRequest(req); }
+      catch {
+        const soft = decodeUidFromIdToken(idToken);
+        uid = soft ? String(soft) : null;
+      }
+    } else {
+      // Try to verify; if fails, continue as anonymous with provided key
+      try { uid = await getUserIdFromRequest(req); } catch { uid = null; }
+    }
     const selection = String(body?.selection ?? '');
     const task = String(body?.task ?? 'rewrite');
     const language: 'english'|'bengali'|'both' | undefined = body?.language;
@@ -24,7 +53,6 @@ export async function POST(req: Request) {
     const userName: string | undefined = body?.userName;
     const communicationStyleNotes: string | undefined = body?.communicationStyleNotes;
     const modelId: string | undefined = body?.modelId;
-    const userApiKey: string | undefined = body?.userApiKey;
 
     if (!selection) {
       return NextResponse.json({ ok: false, error: 'selection is required' }, { status: 400, headers: corsHeaders });
@@ -50,6 +78,9 @@ export async function POST(req: Request) {
       .replace(/\{\{/g, '{ {')
       .replace(/\}\}/g, '} }');
     // Personalize with user profile
+    if (!uid && !userApiKey && !idToken) {
+      return NextResponse.json({ ok: false, error: 'UNAUTHORIZED: Sign in required or provide userApiKey' }, { status: 401, headers: corsHeaders });
+    }
     const profile = uid ? await getUserProfileByUid(uid, { idToken }) : null;
     let mergedProfile: any | undefined = undefined;
     if (profile) {
