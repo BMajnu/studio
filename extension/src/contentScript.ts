@@ -9,6 +9,36 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
   let monicaContextMenu: MonicaStyleContextMenu | null = null;
   let monicaToolbar: MonicaStyleToolbar | null = null;
   let monicaToast: HTMLElement | null = null;
+  // Keep a snapshot of the last non-empty selection to survive toolbar/context clicks
+  let lastSelectionText: string = '';
+  let lastSelectionRange: Range | null = null;
+  function captureSelectionSnapshot() {
+    try {
+      const sel = window.getSelection();
+      const text = sel?.toString() || '';
+      if (text && text.trim()) {
+        lastSelectionText = text;
+        try { lastSelectionRange = sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null; } catch { lastSelectionRange = null; }
+      }
+    } catch {}
+  }
+  document.addEventListener('selectionchange', captureSelectionSnapshot, true);
+  function getSelectionTextAndRect(): { text: string; rect: DOMRect | null } {
+    let text = '';
+    let rect: DOMRect | null = null;
+    try {
+      const sel = window.getSelection();
+      text = sel?.toString() || '';
+      if (sel && sel.rangeCount) {
+        try { rect = sel.getRangeAt(0).getBoundingClientRect(); } catch {}
+      }
+    } catch {}
+    if (!text.trim() && lastSelectionText.trim()) {
+      text = lastSelectionText;
+      try { rect = lastSelectionRange ? lastSelectionRange.getBoundingClientRect() : rect; } catch {}
+    }
+    return { text, rect };
+  }
   
   // Initialize Monica-style components
   const initMonicaComponents = () => {
@@ -28,18 +58,11 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
     try {
       // For Refine: show split popup (Original vs Refined) near selection
       if (actionId === 'refine') {
-        const selection = window.getSelection()?.toString() || '';
+        const { text: selection, rect } = getSelectionTextAndRect();
         if (!selection.trim()) {
           showOverlayMessage('No text selected', 'warning');
           return;
         }
-        const rect = (() => {
-          try {
-            const sel = window.getSelection();
-            if (sel && sel.rangeCount) return sel.getRangeAt(0).getBoundingClientRect();
-          } catch {}
-          return null;
-        })();
         try {
           await showResultPopup('Refine', selection, 'Working…', rect || undefined);
           const st = await chrome.storage?.local.get?.([
@@ -64,55 +87,41 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
         return;
       }
 
-      // Compute selection & rect for popup positioning
-      const selection = window.getSelection()?.toString() || '';
-      const rect = (() => {
-        try {
-          const sel = window.getSelection();
-          if (sel && sel.rangeCount) return sel.getRangeAt(0).getBoundingClientRect();
-        } catch {}
-        return null;
-      })();
+      // Compute selection & rect for popup positioning (use snapshot if current selection cleared by clicks)
+      const { text: selection, rect } = getSelectionTextAndRect();
 
       if (actionId === 'translate') {
         if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
-        const { translateChunks } = await import('./apiClient');
-        await showResultPopup('Translate', selection, 'Working…', rect || undefined);
-        const st = await chrome.storage?.local.get?.([
-          'desainr.settings.targetLang',
-          'desainr.settings.modelId',
-          'desainr.settings.thinkingMode',
-          'desainr.settings.userApiKey'
-        ]).catch(() => ({} as any));
-        const targetLang = st?.['desainr.settings.targetLang'] || (await import('./config')).DEFAULT_TARGET_LANG;
-        const modelId = st?.['desainr.settings.modelId'];
-        const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
-        const userApiKey = st?.['desainr.settings.userApiKey'];
-        const { ok, status, json, error } = await translateChunks({ selection, url: location.href, targetLang, modelId, thinkingMode, userApiKey });
-        if (ok && (json as any)?.result) {
-          await showResultPopup('Translate', selection, (json as any).result, rect || undefined);
-        } else {
-          const msg = error || (json as any)?.error || 'unknown';
-          await showResultPopup('Translate', selection, `Failed (${status}): ${msg}`, rect || undefined);
-        }
-      } else if (actionId === 'rewrite') {
-        if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
-        const { rewrite } = await import('./apiClient');
-        await showResultPopup('Rewrite', selection, 'Working…', rect || undefined);
-        const st = await chrome.storage?.local.get?.([
-          'desainr.settings.modelId',
-          'desainr.settings.thinkingMode',
-          'desainr.settings.userApiKey'
-        ]).catch(() => ({} as any));
-        const modelId = st?.['desainr.settings.modelId'];
-        const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
-        const userApiKey = st?.['desainr.settings.userApiKey'];
-        const { ok, status, json, error } = await rewrite({ selection, url: location.href, task: 'clarify', modelId, thinkingMode, userApiKey } as any);
-        if (ok && (json as any)?.result) {
-          await showResultPopup('Rewrite', selection, (json as any).result, rect || undefined);
-        } else {
-          const msg = error || (json as any)?.error || 'unknown';
-          await showResultPopup('Rewrite', selection, `Failed (${status}): ${msg}`, rect || undefined);
+        try {
+          await showResultPopup('Translate', selection, 'Working…', rect || undefined);
+          const st = await chrome.storage?.local.get?.([
+            'desainr.settings.targetLang',
+            'desainr.settings.modelId',
+            'desainr.settings.thinkingMode',
+            'desainr.settings.userApiKey'
+          ]).catch(() => ({} as any));
+          const targetLang = st?.['desainr.settings.targetLang'] || (await import('./config')).DEFAULT_TARGET_LANG;
+          const modelId = st?.['desainr.settings.modelId'];
+          const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
+          const userApiKey = st?.['desainr.settings.userApiKey'];
+          const { translateChunks } = await import('./apiClient');
+          let resp = await translateChunks({ selection, url: location.href, targetLang, modelId, thinkingMode, userApiKey });
+          if (resp.ok && (resp.json as any)?.result) {
+            await showResultPopup('Translate', selection, (resp.json as any).result, rect || undefined);
+          } else {
+            // Fallback via actions endpoint
+            const { actions } = await import('./apiClient');
+            const instruction = `Translate the following text into ${targetLang}. Return only the translation, no comments.`;
+            const alt = await actions({ selection, clientMessage: selection, customInstruction: instruction, modelId, thinkingMode, userApiKey });
+            if (alt.ok && (alt.json as any)?.result) {
+              await showResultPopup('Translate', selection, (alt.json as any).result, rect || undefined);
+            } else {
+              const msg = alt.error || (alt.json as any)?.error || resp.error || (resp.json as any)?.error || 'unknown';
+              await showResultPopup('Translate', selection, `Failed (${alt.status || resp.status}): ${msg}`, rect || undefined);
+            }
+          }
+        } catch (e: any) {
+          await showResultPopup('Translate', selection, `Error: ${e?.message || e}`, rect || undefined);
         }
       } else if (actionId === 'expand') {
         if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
@@ -267,6 +276,8 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
           const msg = error || (json as any)?.error || 'unknown';
           await showResultPopup('Analyze', selection || '(No selection)', `Failed (${status}): ${msg}`, rect || undefined);
         }
+      } else if (actionId === 'designer') {
+        toggleReactOverlay();
       } else if (actionId === 'designer-chat') {
         toggleReactOverlay();
       } else if (actionId === 'copy') {
@@ -362,8 +373,6 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
     `;
     
     el.style.display = 'block';
-    
-    // Animate in
     requestAnimationFrame(() => {
       el.style.opacity = '1';
       el.style.transform = 'translateY(0) scale(1)';
@@ -566,102 +575,479 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
     Object.assign(host.style, {
       position: 'fixed', zIndex: 1000000, top: '0px', left: '0px', display: 'none'
     } as any);
+    // Prevent page handlers from hijacking clicks (avoids unwanted redirects)
+    try {
+      const stopOnly = (e: Event) => { try { e.stopPropagation(); } catch {} };
+    const stopAndPrevent = (e: Event) => { try { e.preventDefault(); } catch {} try { e.stopPropagation(); } catch {} };
+    // Use bubble-phase so target handlers run, then block page listeners
+    host.addEventListener('click', stopOnly);
+    host.addEventListener('mousedown', stopOnly);
+    host.addEventListener('mouseup', stopOnly);
+    host.addEventListener('pointerdown', stopOnly);
+    host.addEventListener('pointerup', stopOnly);
+    host.addEventListener('touchstart', stopOnly);
+    host.addEventListener('touchend', stopOnly);
+    host.addEventListener('auxclick', stopAndPrevent);
+    host.addEventListener('contextmenu', stopAndPrevent);
+  } catch {}
     popupShadow = host.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
     style.textContent = `
       :host { all: initial; }
-      .popup { min-width: 520px; max-width: 720px; max-height: 520px; overflow: auto;
-        background: #fff; color: #111; border: 1px solid #e6e6e6; border-radius: 12px;
-        box-shadow: 0 16px 40px rgba(0,0,0,0.2); font-family: Segoe UI, Arial, sans-serif;
+      .popup { 
+        width: clamp(640px, 80vw, 1040px); max-width: 96vw; max-height: 86vh; overflow: visible;
+        background: linear-gradient(180deg, #ffffff 0%, #fcfcff 100%); color: #1f2937;
+        border: 1px solid rgba(99,102,241,0.18);
+        border-radius: 16px; box-shadow: 0 20px 50px rgba(17,24,39,0.18);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 13px; line-height: 1.45;
+        opacity: 0; transform: translateY(6px) scale(0.98);
+        transition: transform .18s ease, opacity .18s ease;
+        position: relative;
       }
-      .hdr { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid #efefef; }
-      .ttl { font-weight: 700; font-size: 14px; }
-      .body { padding: 12px; font-size: 13px; line-height: 1.5; white-space: pre-wrap; display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
-      .panel { display:flex; flex-direction:column; gap:8px; }
-      .ph { font-weight: 600; color:#333; font-size: 12px; }
-      .orig { color:#444; background:#fafafa; border:1px solid #f0f0f0; border-radius:8px; padding:8px; }
-      .res { background:#fff; border:1px solid #eee; border-radius:8px; padding:8px; }
-      .ftr { display:flex; justify-content:flex-end; gap:8px; padding:10px 12px; border-top:1px solid #efefef; }
-      button { border:1px solid #ddd; border-radius:8px; padding:6px 10px; background:#f7f7f7; cursor:pointer; }
-      button.primary { background:#6f6cff; color:#fff; border-color:#6f6cff; }
-      button:hover { filter: brightness(0.97); }
+      .popup.show { opacity: 1; transform: translateY(0) scale(1); }
+      .toolbar { 
+        display: none;
+      }
+      .body { 
+        display: grid; grid-template-columns: 1fr 10px 1fr; gap: 0;
+        border-top-left-radius: 14px; border-top-right-radius: 14px;
+        overflow: hidden;
+        background: transparent;
+      }
+      .split-scroll { position: relative; background: #eef2ff; border-left: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb; }
+      .split-scroll .thumb { position: absolute; left: 2px; right: 2px; top: 0; height: 60px; border-radius: 6px; background: linear-gradient(180deg,#a5b4fc,#6366f1); box-shadow: inset 0 0 0 2px rgba(255,255,255,.6); cursor: grab; }
+      .split-scroll .thumb:active { cursor: grabbing; }
+      .text-area { 
+        background: #ffffff; padding: 12px; white-space: pre-wrap; 
+        min-height: 96px; max-height: 70vh;
+        overflow-y: auto; font-size: 12.5px; line-height: 1.5;
+        border: none; position: relative;
+      }
+      .text-area.result { 
+        background: linear-gradient(180deg, #fafbff 0%, #f7faff 100%);
+      }
+      .footer { 
+        display: flex; justify-content: space-between; align-items: center; gap: 8px; 
+        padding: 10px 12px; background: #fafbfc;
+        border-top: 1px solid #f0f0f0; overflow: visible;
+        border-bottom-left-radius: 14px; border-bottom-right-radius: 14px;
+      }
+      .footer-left {
+        display: flex; align-items: center; gap: 6px;
+      }
+      .action-switcher { 
+        display: inline-flex; align-items: center; gap: 8px; position: relative; 
+      }
+      .action-switcher.open { border-color: #a5b4fc; box-shadow: 0 2px 8px rgba(99,102,241,.18); }
+      .dropdown-arrow { opacity: 0.6; }
+      .btn { 
+        border: 1px solid #d1d5db; border-radius: 3px; 
+        padding: 4px 8px; background: #fff; 
+        cursor: pointer; font-size: 11px; color: #666;
+        transition: transform .12s ease, background .12s ease, border-color .12s ease, box-shadow .12s ease;
+      }
+      .btn:hover { 
+        background: #f9f9ff; border-color: #a5b4fc; box-shadow: 0 2px 8px rgba(99,102,241,.18);
+        transform: translateY(-1px);
+      }
+      .btn.primary { 
+        background: linear-gradient(180deg, #6366f1 0%, #4f46e5 100%); color: #fff; border-color: #4f46e5;
+      }
+      .btn.primary:hover { 
+        background: linear-gradient(180deg, #4f46e5 0%, #4338ca 100%);
+      }
+      .action-dropdown {
+        position: absolute; bottom: 100%; left: 0;
+        background: #fff; border: 1px solid rgba(99,102,241,0.2);
+        border-radius: 12px; box-shadow: 0 12px 32px rgba(17,24,39,0.18);
+        max-height: 260px; overflow-y: auto; width: max-content; min-width: 220px; max-width: 60vw;
+        z-index: 1000; display: none; margin-bottom: 8px;
+      }
+      .action-dropdown.show { display: block; }
+      .dropdown-item {
+        padding: 6px 10px; cursor: pointer; transition: background .12s ease, transform .12s ease; 
+        font-size: 12.5px; color: #1f2937; display: flex; align-items: center; gap: 8px;
+        border-bottom: 1px solid #f3f4f6;
+      }
+      .dropdown-item:last-child { border-bottom: none; }
+      .dropdown-item:hover { 
+        background: #eef2ff; transform: translateX(2px);
+      }
+      .dropdown-item.active { 
+        background: #e0e7ff; color: #4f46e5;
+      }
+
+      /* Hide side scrollbars (we use center scrollbar) */
+      .text-area::-webkit-scrollbar { width: 0; height: 0; }
+      .text-area { scrollbar-width: none; }
+      /* Keep dropdown scrollbar minimal */
+      .action-dropdown::-webkit-scrollbar { width: 10px; }
+      .action-dropdown::-webkit-scrollbar-track { background: #f8fafc; border-radius: 12px; }
+      .action-dropdown::-webkit-scrollbar-thumb { background: #c7d2fe; border-radius: 12px; }
+      .action-dropdown { scrollbar-width: thin; scrollbar-color: #c7d2fe #f8fafc; }
+
+      /* Processing overlay */
+      .processing { position: absolute; inset: 0; display:flex; align-items:center; justify-content:center; backdrop-filter: blur(2px); background: rgba(255,255,255,0.65); z-index: 2; }
+      .processing .spinner { width: 40px; height: 40px; border: 4px solid #e5e7eb; border-top-color: #6366f1; border-radius: 50%; animation: spin 1s linear infinite; }
+      .processing .msg { margin-top: 10px; font-size: 12px; color: #4b5563; text-align:center; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .processing-wrap { display:flex; flex-direction:column; align-items:center; gap:6px; }
+
+      /* Dropdown single-line fit */
+      .dropdown-item { white-space: nowrap; }
     `;
     popupShadow.appendChild(style);
     const box = document.createElement('div');
     box.className = 'popup';
-    box.innerHTML = `<div class="hdr"><div class="ttl">Refine Result</div><button id="close">✕</button></div>
+    box.innerHTML = `
       <div class="body">
-        <div class="panel">
-          <div class="ph">Original Text</div>
-          <div class="orig" id="orig"></div>
+        <div class="text-area" id="orig"></div>
+        <div class="split-scroll" id="split-scroll"><div class="thumb" id="split-thumb"></div></div>
+        <div class="text-area result" id="res"></div>
+      </div>
+      <div class="footer">
+        <div class="left">
+          <div class="action-switcher btn" id="action-switcher">
+            <span id="action-label">Refine</span>
+            <span class="dropdown-arrow"></span>
+            <div class="action-dropdown" id="action-dropdown">
+              <div class="dropdown-item active" data-action="refine"> Refine</div>
+              <div class="dropdown-item" data-action="translate"> Translate</div>
+              <div class="dropdown-item" data-action="rephrase"> Rephrase</div>
+              <div class="dropdown-item" data-action="summarize"> Summarize</div>
+              <div class="dropdown-item" data-action="expand"> Expand</div>
+              <div class="dropdown-item" data-action="correct"> Correct Grammar</div>
+              <div class="dropdown-item" data-action="explain"> Explain</div>
+              <div class="dropdown-item" data-action="add-details"> Add Details</div>
+              <div class="dropdown-item" data-action="more-informative"> More Informative</div>
+              <div class="dropdown-item" data-action="simplify"> Simplify</div>
+              <div class="dropdown-item" data-action="emojify"> Emojify</div>
+              <div class="dropdown-item" data-action="analyze"> Analyze</div>
+              <div class="dropdown-item" data-action="designer"> Designer</div>
+              <div class="dropdown-item" data-action="customize"> Customize Actions</div>
+            </div>
+          </div>
+          <button class="btn" id="regen" title="Regenerate">↻</button>
         </div>
-        <div class="panel">
-          <div class="ph">Refined Text</div>
-          <div class="res" id="res"></div>
+        <div class="right" style="display:flex; gap:6px;">
+          <button class="btn" id="copy">Copy</button>
+          <button class="btn primary" id="replace">Replace</button>
+          <button class="btn" id="close">Close</button>
         </div>
       </div>
-      <div class="ftr">
-        <button id="copy">Copy</button>
-        <button id="cancel">Cancel</button>
-        <button id="replace" class="primary">Replace</button>
-      </div>`;
+    `;
     popupShadow.appendChild(box);
     document.documentElement.appendChild(host);
     popupHost = host;
     return host;
   }
 
+  // Store current popup state for action switching
+  let currentPopupOriginal = '';
+  let currentPopupRect: DOMRect | undefined;
+  let currentPopupAction = 'refine';
+
   async function showResultPopup(title: string, original: string, result: string, selectionRect?: DOMRect) {
     const host = ensurePopup();
     const shadow = popupShadow;
     if (!shadow) { try { console.warn('DesAInR: popupShadow not available'); } catch {} return; }
-    const ttl = shadow.querySelector('.ttl') as HTMLElement | null;
+    
+    // Store current state
+    currentPopupOriginal = original;
+    currentPopupRect = selectionRect;
+    currentPopupAction = title.toLowerCase();
+    
+    const popup = shadow.querySelector('.popup') as HTMLElement;
+    const actionSwitcher = shadow.getElementById('action-switcher') as HTMLElement | null;
+    const actionDropdown = shadow.getElementById('action-dropdown') as HTMLElement | null;
     const orig = shadow.getElementById('orig') as HTMLElement | null;
     const res = shadow.getElementById('res') as HTMLElement | null;
+    const split = shadow.getElementById('split-scroll') as HTMLElement | null;
+    const thumb = shadow.getElementById('split-thumb') as HTMLElement | null;
     const btnClose = shadow.getElementById('close') as HTMLButtonElement | null;
-    const btnCancel = shadow.getElementById('cancel') as HTMLButtonElement | null;
     const btnCopy = shadow.getElementById('copy') as HTMLButtonElement | null;
     const btnReplace = shadow.getElementById('replace') as HTMLButtonElement | null;
-    if (ttl) ttl.textContent = title;
+    const btnRegen = shadow.getElementById('regen') as HTMLButtonElement | null;
+    
+    // Set content
     if (orig) orig.textContent = original;
     if (res) res.textContent = result;
 
+    // Processing overlay (for initial Working… state)
+    const ensureProcessing = (on: boolean) => {
+      const host = shadow.querySelector('.processing') as HTMLElement | null;
+      if (on) {
+        if (host) return;
+        const wrap = document.createElement('div');
+        wrap.className = 'processing';
+        wrap.innerHTML = `<div class="processing-wrap"><div class="spinner"></div><div class="msg">Preparing…</div></div>`;
+        const body = shadow.querySelector('.body') as HTMLElement | null;
+        if (body) body.appendChild(wrap);
+      } else if (host) {
+        try { host.remove(); } catch {}
+      }
+    };
+    ensureProcessing(result === 'Working…');
+
+    // Synchronize scrolling between the two panes (proportional)
+    if (orig && res) {
+      let syncing: 0 | 1 | 2 = 0; // 1 = from left, 2 = from right
+      const sync = (from: HTMLElement, to: HTMLElement) => {
+        const fromMax = Math.max(1, from.scrollHeight - from.clientHeight);
+        const toMax = Math.max(1, to.scrollHeight - to.clientHeight);
+        const p = from.scrollTop / fromMax;
+        to.scrollTop = p * toMax;
+      };
+      orig.onscroll = () => {
+        if (syncing === 2) return;
+        syncing = 1;
+        sync(orig, res);
+        syncing = 0;
+        updateThumb();
+      };
+      res.onscroll = () => {
+        if (syncing === 1) return;
+        syncing = 2;
+        sync(res, orig);
+        syncing = 0;
+        updateThumb();
+      };
+
+      const updateThumb = () => {
+        if (!split || !thumb) return;
+        const maxLeft = Math.max(1, orig.scrollHeight - orig.clientHeight);
+        const maxRight = Math.max(1, res.scrollHeight - res.clientHeight);
+        const p = Math.max(orig.scrollTop / maxLeft, res.scrollTop / maxRight);
+        const trackH = split.clientHeight;
+        const viewRatio = Math.min(orig.clientHeight / orig.scrollHeight, res.clientHeight / res.scrollHeight);
+        const thumbH = Math.max(40, Math.floor(trackH * viewRatio));
+        const top = Math.floor((trackH - thumbH) * p);
+        thumb.style.height = `${thumbH}px`;
+        thumb.style.top = `${top}px`;
+      };
+
+      // Mouse wheel on center track controls both
+      if (split) {
+        split.onwheel = (e: WheelEvent) => {
+          e.preventDefault();
+          const delta = (e.deltaY || e.deltaX);
+          orig.scrollTop += delta;
+          res.scrollTop += delta;
+        };
+        // Drag thumb
+        if (thumb) {
+          let dragging = false; let startY = 0; let startTop = 0;
+          thumb.addEventListener('mousedown', (e) => { dragging = true; startY = e.clientY; startTop = thumb.offsetTop; e.preventDefault(); });
+          window.addEventListener('mousemove', (e) => {
+            if (!dragging || !split) return;
+            const trackH = split.clientHeight;
+            const thumbH = thumb.offsetHeight;
+            const maxTop = trackH - thumbH;
+            const newTop = Math.max(0, Math.min(maxTop, startTop + (e.clientY - startY)));
+            const p = maxTop ? newTop / maxTop : 0;
+            const maxLeft = Math.max(1, orig.scrollHeight - orig.clientHeight);
+            const maxRight = Math.max(1, res.scrollHeight - res.clientHeight);
+            orig.scrollTop = p * maxLeft;
+            res.scrollTop = p * maxRight;
+          });
+          window.addEventListener('mouseup', () => { dragging = false; });
+        }
+        // Initial thumb
+        setTimeout(updateThumb, 0);
+      }
+    }
+    
+    // Update action display
+    const actionMap: Record<string, string> = {
+      'refine': ' Refine',
+      'translate': ' Translate', 
+      'rephrase': ' Rephrase',
+      'summarize': ' Summarize',
+      'expand': ' Expand',
+      'correct grammar': ' Correct Grammar',
+      'explain': ' Explain',
+      'add details': ' Add Details'
+    };
+    
+    const actionLabelText = actionMap[currentPopupAction] || 'Refine';
+    const actionLabelEl = shadow.getElementById('action-label');
+    if (actionLabelEl) actionLabelEl.textContent = actionLabelText;
+    
+    // Update active state in dropdown
+    const dropdownItems = shadow.querySelectorAll('.dropdown-item');
+    dropdownItems.forEach(item => {
+      const action = (item as HTMLElement).dataset.action;
+      if (action === currentPopupAction) {
+        item.classList.add('active');
+      } else {
+        item.classList.remove('active');
+      }
+    });
+
     function position() {
-      let x = 0, y = 0;
-      const margin = 10;
-      // Prefer near selection; otherwise center top area
-      const r = (selectionRect || new DOMRect(window.innerWidth/2 - 200, 80, 400, 0));
+      const margin = 15;
       const rect = host.getBoundingClientRect();
-      x = Math.min(Math.max(margin, r.left), window.innerWidth - rect.width - margin);
-      y = Math.min(Math.max(margin, r.top + r.height + margin), window.innerHeight - rect.height - margin);
+      let x = 0, y = 0;
+      
+      if (selectionRect) {
+        // Position near selection, but ensure it fits in viewport
+        x = selectionRect.left;
+        y = selectionRect.bottom + margin;
+        
+        // Adjust if popup would go off screen horizontally
+        if (x + rect.width > window.innerWidth - margin) {
+          x = window.innerWidth - rect.width - margin;
+        }
+        if (x < margin) {
+          x = margin;
+        }
+        
+        // Adjust if popup would go off screen vertically
+        if (y + rect.height > window.innerHeight - margin) {
+          y = selectionRect.top - rect.height - margin;
+          if (y < margin) {
+            y = margin;
+          }
+        }
+      } else {
+        // Center in viewport
+        x = (window.innerWidth - rect.width) / 2;
+        y = (window.innerHeight - rect.height) / 2;
+      }
+      
       host.style.left = `${Math.round(x)}px`;
       host.style.top = `${Math.round(y)}px`;
     }
 
     host.style.display = 'block';
-    // Allow layout to compute, then position
-    requestAnimationFrame(() => position());
+    // Show animation
+    requestAnimationFrame(() => {
+      if (popup) popup.classList.add('show');
+      position();
+    });
 
-    const close = () => { host.style.display = 'none'; };
-    if (btnClose) btnClose.onclick = () => close();
-    if (btnCancel) btnCancel.onclick = () => close();
-    if (btnCopy) btnCopy.onclick = async () => { try { await navigator.clipboard.writeText(result); } catch {} };
-    if (btnReplace) btnReplace.onclick = async () => {
-      const { applyReplacementOrCopyWithUndo } = await import('./domReplace');
-      const { outcome, undo } = await applyReplacementOrCopyWithUndo(result);
-      const el = ensureOverlay();
-      if (outcome === 'replaced') {
-        el.textContent = 'Replaced ✓';
-        if (undo) showUndoButton(el, undo);
-      } else if (outcome === 'copied') {
-        el.textContent = 'Copied ✓';
-        showCopyButton(el, result);
-      } else {
-        el.textContent = 'Done';
+    const close = () => { 
+      if (popup) popup.classList.remove('show');
+      setTimeout(() => host.style.display = 'none', 300);
+    };
+    
+    // Action switcher functionality
+    if (actionSwitcher && actionDropdown) {
+      actionSwitcher.onclick = (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        actionDropdown.classList.toggle('show');
+        actionSwitcher.classList.toggle('open');
+      };
+      
+      // Close dropdown when clicking outside
+      document.addEventListener('click', () => {
+        actionDropdown.classList.remove('show');
+        actionSwitcher.classList.remove('open');
+      }, { once: true });
+      
+      // Handle action selection
+      dropdownItems.forEach(item => {
+        (item as HTMLElement).onclick = async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const action = (item as HTMLElement).dataset.action;
+          if (action && action !== currentPopupAction) {
+            actionDropdown.classList.remove('show');
+            actionSwitcher.classList.remove('open');
+            
+            // Show loading state
+            if (res) res.textContent = 'Processing...';
+            
+            // Call the corresponding action
+            await handleMonicaAction(action, action);
+            
+            // The result will be updated by the action handler
+            // which will call showResultPopup again
+          }
+        };
+      });
+    }
+    
+    if (btnClose) btnClose.onclick = (e) => { e.preventDefault(); e.stopPropagation(); close(); };
+    if (btnCopy) btnCopy.onclick = async (e) => {
+      e?.preventDefault?.(); e?.stopPropagation?.();
+      try {
+        await navigator.clipboard.writeText(result);
+        showOverlayMessage('Copied! ✓', 'success');
+      } catch {
+        showOverlayMessage('Copy failed', 'error');
       }
-      el.style.display = 'block';
-      setTimeout(() => hideOverlay(), 900);
-      close();
+    };
+    if (btnRegen) btnRegen.onclick = async (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (res) res.textContent = 'Processing...';
+      await handleMonicaAction(currentPopupAction, currentPopupAction);
+    };
+    if (btnReplace) btnReplace.onclick = async (e) => {
+      e?.preventDefault?.(); e?.stopPropagation?.();
+      const el = ensureOverlay();
+      try {
+        const { applyReplacementOrCopyWithUndo } = await import('./domReplace');
+        // Primary path: smart replacer (handles many cases)
+        let { outcome, undo } = await applyReplacementOrCopyWithUndo(result);
+
+        // Fallback 1: focused editable input/textarea/contentEditable
+        if (outcome !== 'replaced') {
+          try {
+            const { getEditableSelection, isEditableElement, replaceEditableSelection } = await import('./formSupport');
+            const sel = getEditableSelection();
+            if (sel && sel.element && isEditableElement(sel.element)) {
+              const u0 = replaceEditableSelection(sel.element as any, result, sel.start, sel.end);
+              const u = () => { try { u0(); return true; } catch { return false; } };
+              if (u) { outcome = 'replaced' as any; undo = u; }
+            }
+          } catch {}
+        }
+
+        // Fallback 2: lastSelectionRange in DOM
+        if (outcome !== 'replaced' && lastSelectionRange) {
+          try {
+            const range = lastSelectionRange;
+            const before = range.cloneRange();
+            // Capture old contents for undo
+            const frag = range.cloneContents();
+            range.deleteContents();
+            const textNode = document.createTextNode(result);
+            range.insertNode(textNode);
+            // Prepare undo
+            const u = () => {
+              try {
+                const r = before;
+                // Remove inserted node
+                textNode.parentNode && textNode.parentNode.removeChild(textNode);
+                r.insertNode(frag);
+                return true;
+              } catch { return false; }
+            };
+            outcome = 'replaced' as any; undo = u;
+          } catch {}
+        }
+
+        if (outcome === 'replaced') {
+          el.textContent = 'Replaced ✓';
+          if (undo) showUndoButton(el, undo);
+        } else if (outcome === 'copied') {
+          el.textContent = 'Copied ✓';
+          showCopyButton(el, result);
+        } else {
+          // As a last resort, copy
+          try { await navigator.clipboard.writeText(result); el.textContent = 'Copied ✓'; }
+          catch { el.textContent = 'Done'; }
+        }
+      } catch (e) {
+        el.textContent = `Replace failed: ${(e as any)?.message || e}`;
+      } finally {
+        el.style.display = 'block';
+        setTimeout(() => hideOverlay(), 1000);
+        close();
+      }
     };
   }
 

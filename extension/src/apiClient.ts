@@ -23,7 +23,10 @@ function hasGeminiExhaustionSignal(status: number, json?: any, error?: string): 
 
 // Detect invalid/missing API key or permission issues distinct from capacity
 function hasInvalidKeySignal(status: number, json?: any, error?: string): boolean {
-  const msg = `${(json && (json.error || (json.message ?? ''))) || ''} ${error || ''}`.toLowerCase();
+  const raw = (json && (json.error || (json.message ?? ''))) || '';
+  const msg = `${raw} ${error || ''}`.toLowerCase();
+  // If the server explicitly says UNAUTHORIZED (auth/session issue), do not mark as invalid key
+  if (typeof raw === 'string' && raw.startsWith('UNAUTHORIZED')) return false;
   if (status === 401 || status === 403) return true;
   const patterns = [
     'invalid api key',
@@ -53,6 +56,10 @@ function hasBillingIssueSignal(_status: number, json?: any, error?: string): boo
 }
 
 function makeFriendlyError(status: number, json?: any, error?: string): string | undefined {
+  const raw = (json && (json.error || (json.message ?? ''))) || '';
+  if (typeof raw === 'string' && raw.startsWith('UNAUTHORIZED')) {
+    return 'Sign in is required or provide a Gemini API key in Settings (userApiKey).';
+  }
   if (hasInvalidKeySignal(status, json, error)) {
     return 'Invalid or unauthorized API key. Update your Gemini API key in Settings or sign in again.';
   }

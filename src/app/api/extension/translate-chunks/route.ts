@@ -11,6 +11,21 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
+function decodeUidFromIdToken(idToken?: string): string | undefined {
+  try {
+    if (!idToken) return undefined;
+    const parts = idToken.split('.');
+    if (parts.length !== 3) return undefined;
+    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64.padEnd(b64.length + (4 - (b64.length % 4)) % 4, '=');
+    const json = Buffer.from(padded, 'base64').toString('utf8');
+    const payload = JSON.parse(json);
+    return payload?.uid || payload?.user_id || payload?.sub || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const authHeader = req.headers.get('authorization') || req.headers.get('Authorization') || '';
@@ -20,13 +35,22 @@ export async function POST(req: Request) {
     const userApiKey: string | undefined = body?.userApiKey;
     let uid: string | null = null;
     if (!userApiKey) {
-      uid = await getUserIdFromRequest(req);
+      try { uid = await getUserIdFromRequest(req); }
+      catch {
+        const soft = decodeUidFromIdToken(idToken);
+        uid = soft ? String(soft) : null;
+      }
     } else {
       try { uid = await getUserIdFromRequest(req); } catch { uid = null; }
     }
     const targetLang = String(body?.targetLang ?? 'en');
     const url = String(body?.url ?? '');
     const modelId: string | undefined = body?.modelId;
+
+    // If neither verified uid nor userApiKey nor idToken is available, reject
+    if (!uid && !userApiKey && !idToken) {
+      return NextResponse.json({ ok: false, error: 'UNAUTHORIZED: Sign in required or provide userApiKey' }, { status: 401, headers: corsHeaders });
+    }
 
     // Support both single selection and batch chunks
     const chunks = Array.isArray(body?.chunks) ? body.chunks as string[] : null;
