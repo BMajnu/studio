@@ -72,6 +72,8 @@ import { AdsGeneratorModal, type AdsGenerationParams } from '@/components/video-
 import { ViralVideoModal, type ViralVideoGenerationParams } from '@/components/video-tools/ViralVideoModal';
 import { VideoToolsSelector } from '@/components/video-tools/VideoToolsSelector';
 import { VideoToolType } from '@/lib/video/types';
+import { OnboardingModal } from '@/components/setup/onboarding-modal';
+import { needsOnboarding } from '@/lib/utils/onboarding-check';
 
 // Insert after state declarations, before readFileAsDataURL
 const debugLogAiRequest = (action: ActionType, message: string, attachments: AttachedFile[]) => {
@@ -529,6 +531,27 @@ ${params.language ? `Language: ${params.language}` : ''}`;
       setCurrentModelId(profile.selectedGenkitModelId);
     }
   }, [profile]);
+
+  // Onboarding state - force new users to set up API key and profile
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  
+  useEffect(() => {
+    if (!profileLoading && profile && !hasCompletedOnboarding) {
+      const needsSetup = needsOnboarding(profile);
+      setIsOnboardingOpen(needsSetup);
+    }
+  }, [profile, profileLoading, hasCompletedOnboarding]);
+  
+  const handleOnboardingComplete = () => {
+    setHasCompletedOnboarding(true);
+    setIsOnboardingOpen(false);
+    safeToast({
+      title: 'সেটআপ সম্পন্ন!',
+      description: 'এখন আপনি DesAInR এর সব ফিচার ব্যবহার করতে পারবেন।',
+      duration: 3000,
+    });
+  };
 
   /**
    * Button Selection Logic
@@ -3775,6 +3798,12 @@ ${params.language ? `Language: ${params.language}` : ''}`;
           isLoading={isVideoGenerating}
         />
       )}
+      
+      {/* Onboarding Modal - Force new users to set up API key and profile */}
+      <OnboardingModal 
+        isOpen={isOnboardingOpen} 
+        onComplete={handleOnboardingComplete}
+      />
     </div>
   );
 }

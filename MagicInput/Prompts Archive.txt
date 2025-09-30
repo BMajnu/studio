@@ -1,3 +1,41 @@
+[2025-09-30 14:03:29] (from previous session)
+Prompt:
+page design is not match with the app. Make it update morder colorful same as the main app.
+--------------------------------------------------
+[2025-09-30 13:58:39] (from previous session)
+Prompt:
+একটি কোড বেস এনালাইজ করার পর বলি। এবং তুমি এখানে বিশেষ করে যখন কোন নিউ ইউজার এই অ্যাপের মধ্যে প্রবেশ করে, তো ইউজারকে প্রথমেই একটি পেজে নিয়ে যাবে যেখানে বলা হবে যে তার জেমিনি এপিআই কি অথবা ওপেন রাউটার থেকে এপিআই কি অথবা এপিআই কি এবং সেটিং, পার্সোনাল সেটিং অর্থাৎ প্রোফাইল প্রথমে সেট করতে হবে। সেট করার জন্য ফোর্স করতে হবে। অর্থাৎ যেন তার নিজস্ব এপিআই কি এবং সেটিংগুলো কাস্টমাইজ করে সেট করা। তো এই জন্য একটি পপআপ সহকারে একটি প্রোফাইল পেজের মধ্যে নিয়ে যাওয়ার একটি বাটন যোগ হবে। তো এটি ইমপ্লিমেন্ট করো। যেন তার জেনুইন রিয়েল এপিআই কি এখানে সেট করা হয়। পাশাপাশি নতুন ইউজারের জন্য কোন ধরনের ফেক এপিআই কি এখানে থাকবে না। যেটির কারণে জেনারেট কোড যে প্রবলেমটি নিচে দেওয়া আছে, এই প্রবলেমটি যেন শোনা হয়, সেটি নিশ্চিত করার জন্য।
+
+error:
+Error: AI call failed in processClientMessage. [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent: [400 Bad Request] API key not valid. Please pass a valid API key. [{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"API_KEY_INVALID","domain":"googleapis.com","metadata":{"service":"generativelanguage.googleapis.com"}},{"@type":"type.googleapis.com/google.rpc.LocalizedMessage","locale":"en-US","message":"API key not valid. Please pass a valid API key."}]
+    at processClientMessage (rsc://React/Server/webpack-internal:///(action-browser)/./src/ai/flows/process-client-message.ts?7:204:15)
+    at resolveErrorDev (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:1845:46)
+    at processFullStringRow (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2225:17)
+    at processFullBinaryRow (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2213:7)
+    at progress (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2459:17)
+--------------------------------------------------
+[2025-09-30 13:31:52] (from previous session)
+Prompt:
+kill the proccess and run it again
+--------------------------------------------------
+[2025-09-30 12:07:31] (from previous session)
+Prompt:
+I can see still not running the app (run the blocking command).
+--------------------------------------------------
+[2025-09-30 12:06:30] (from previous session)
+Prompt:
+PS E:\Developing Projects\DesAInR> npm run dev
+
+> nextn@0.1.0 dev
+> cross-env NODE_ENV=development next dev -p 9003
+
+'cross-env' is not recognized as an internal or external command,
+operable program or batch file.
+--------------------------------------------------
+[2025-09-30 11:57:23] (from previous session)
+Prompt:
+run the app
+--------------------------------------------------
 [2025-09-02 22:38:58] (from previous session)
 Prompt:
 - রিপোর্ট করুন: কোন বাটন কাজ করেছে/করেনি (/)

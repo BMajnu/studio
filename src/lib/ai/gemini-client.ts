@@ -1,11 +1,10 @@
 import { GeminiKeyManager } from './gemini-key-manager';
 import { UserProfile, ThinkingMode } from '@/lib/types';
 import {
-  GoogleGenerativeAI,
-  GenerateContentRequest,
-  Content,
-  GenerateContentResponse,
-} from '@google/generative-ai';
+  GoogleGenAI,
+  type GenerateContentStreamRequest,
+  type GenerateContentResponse,
+} from '@google/genai';
 
 export type GeminiRequestFn<T> = (apiKey: string) => Promise<T>;
 
@@ -32,7 +31,7 @@ export class GeminiClient {
    */
   async *generateContentStream(
     modelId: string,
-    request: Omit<GenerateContentRequest, 'model'>,
+    request: Omit<GenerateContentStreamRequest, 'model'>,
     thinkingMode: ThinkingMode = 'default'
   ): AsyncGenerator<GenerateContentResponse> {
     const key = this.manager.getActiveKey();
@@ -40,7 +39,7 @@ export class GeminiClient {
       throw new Error('No active Gemini API key available.');
     }
 
-    const ai = new GoogleGenerativeAI(key);
+    const ai = new GoogleGenAI({ apiKey: key });
     
     const config: any = {};
     if (thinkingMode === 'none') {
@@ -48,11 +47,15 @@ export class GeminiClient {
     }
     // For 'default', we send no thinkingConfig to use the model's default.
 
-    const model = ai.getGenerativeModel({ model: modelId });
-
     try {
-      const result = await model.generateContentStream({ ...request, ...config });
-      for await (const chunk of result.stream) {
+      const response = await ai.models.generateContentStream({
+        model: modelId,
+        config,
+        contents: request.contents || [],
+        ...request
+      });
+      
+      for await (const chunk of response) {
         yield chunk;
       }
       this.manager.reportSuccess(key);

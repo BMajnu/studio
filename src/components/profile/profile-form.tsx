@@ -18,10 +18,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import type { UserProfile } from "@/lib/types";
 import { DEFAULT_USER_PROFILE, AVAILABLE_MODELS, DEFAULT_MODEL_ID } from "@/lib/constants";
-import { PlusCircle, Trash2 } from "lucide-react";
+import { PlusCircle, Trash2, Eye, EyeOff } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useActiveGeminiKey } from "@/lib/hooks/use-active-gemini-key";
 import { Badge } from "@/components/ui/badge";
 
@@ -56,6 +56,14 @@ interface ProfileFormProps {
 export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
   const { toast } = useToast();
   const { activeKey, refreshActiveKey } = useActiveGeminiKey(initialProfile?.userId);
+  const [showApiKeys, setShowApiKeys] = useState<{ [key: number]: boolean }>({});
+
+  const toggleApiKeyVisibility = (index: number) => {
+    setShowApiKeys(prev => ({
+      ...prev,
+      [index]: !prev[index]
+    }));
+  };
   
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -330,22 +338,43 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
                     render={({ field: itemField }) => (
                       <FormItem className="mb-2">
                         <div className="flex items-center gap-2">
-                          <FormControl>
-                            <Input placeholder="Enter your Gemini API Key" type="password" {...itemField} />
-                          </FormControl>
+                          <div className="relative flex-1">
+                            <FormControl>
+                              <Input 
+                                placeholder="Enter your Gemini API Key" 
+                                type={showApiKeys[index] ? "text" : "password"}
+                                className="pr-10"
+                                {...itemField} 
+                              />
+                            </FormControl>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="absolute right-0 top-0 h-full hover:bg-transparent"
+                              onClick={() => toggleApiKeyVisibility(index)}
+                              aria-label={showApiKeys[index] ? "Hide API key" : "Show API key"}
+                            >
+                              {showApiKeys[index] ? (
+                                <EyeOff className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <Eye className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </Button>
+                          </div>
                           {activeKey === itemField.value && (
                             <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-white animate-pulse">ACTIVE</Badge>
                           )}
-                            <Button 
-                              type="button" 
-                              variant="ghost" 
-                              size="icon" 
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="icon" 
                             onClick={() => removeApiKey(index)} 
-                              className="shrink-0"
+                            className="shrink-0"
                             aria-label="Remove API Key"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                         <FormMessage />
                       </FormItem>
