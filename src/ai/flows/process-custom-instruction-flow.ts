@@ -82,11 +82,18 @@ export async function processCustomInstructionFlow(flowInput: ProcessCustomInstr
   };
 
   const promptText = `You are a creative AI assistant for designers. You'll receive:
-1) A client message (original request)
-2) A custom instruction from the designer (how to respond)
-3) Any attached files and recent chat history for context
+1) A client message or text content
+2) A custom instruction (what to do with that text)
+3) Optional chat history and attached files for context
 
-Your job is to follow the designer's instruction precisely and produce a helpful response about the client's message.
+IMPORTANT: Follow the custom instruction PRECISELY. 
+- If asked to TRANSLATE, translate the ENTIRE text completely (do not summarize or shorten)
+- If asked to REFINE/REWRITE, transform the text directly (do not respond about it)
+- If asked to SUMMARIZE, create a concise summary
+- If asked to EXPLAIN, provide an explanation
+- The "Client Message" is the INPUT TEXT to process, not a conversation message to respond to
+
+Your job is to execute the instruction on the provided text and return the processed result.
 
 If language preference is provided (english/bengali/both), write accordingly. If both, you may include both languages in sections.
 
@@ -97,12 +104,14 @@ Attached files may include images referenced via «media url=…» tokens and/or
 
 Respond with a concise title and the main response content. Do not include any extra metadata besides the required JSON fields.
 
-Context:
-- Client Message:\n{{{clientMessage}}}
-- Designer Instruction:\n{{{customInstruction}}}
+Input Text:
+{{{clientMessage}}}
+
+Instruction to Follow:
+{{{customInstruction}}}
 
 {{#if chatHistory.length}}
-Recent conversation (latest first or relevant subset):
+Recent conversation (for context only):
 {{#each chatHistory}}
 {{this.role}}: {{{this.text}}}
 ---

@@ -55,56 +55,94 @@ export async function generateImages(flowInput: GenerateImagesInput): Promise<Ge
   const client = new GeminiClient({ profile: profileStub });
 
   try {
-    console.log(`INFO (${flowName}): Making Gemini image generation request...`);
+    console.log(`INFO (${flowName}): Making Gemini image generation request using @google/genai SDK...`);
 
-    async function callGeminiWithKey(apiKey: string): Promise<string> {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${apiKey}`;
+    async function callGeminiWithKey(apiKey: string): Promise<{ dataUri: string; alt: string }[]> {
+      const { GoogleGenAI } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey });
+      
+      const model = 'gemini-2.5-flash-image-preview';
       const promptWithDirectives = `Generate ${numImages} image${numImages > 1 ? 's' : ''}. Return the images only – no additional text. Description: ${prompt}`;
-      const body = {
-        contents: [ { parts: [{ text: promptWithDirectives }] } ],
-        generationConfig: { responseModalities: ["TEXT","IMAGE"], temperature }
+      
+      const config = {
+        responseModalities: ['IMAGE', 'TEXT'],
+        temperature,
       };
-      const res = await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      
+      const contents = [
+        {
+          role: 'user',
+          parts: [
+            {
+              text: promptWithDirectives,
+            },
+          ],
+        },
+      ];
 
-      if(!res.ok){throw new Error(`Gemini image API error: ${res.status} - ${await res.text()}`);}      
-      const data = await res.json();
-      const part = data?.candidates?.[0]?.content?.parts?.find((p:any)=>p.inlineData?.data||p.url);
-      if(!part) throw new Error('Gemini image API returned no image part');
-      if(part.inlineData?.data) return `data:image/png;base64,${part.inlineData.data}`;
-      if(part.url) return part.url;
-      throw new Error('Gemini image part had no data');
+      const response = await ai.models.generateContentStream({
+        model,
+        config,
+        contents,
+      });
+
+      const collectedImages: { dataUri: string; alt: string }[] = [];
+      let imageIndex = 0;
+
+      for await (const chunk of response) {
+        if (!chunk.candidates || !chunk.candidates[0]?.content || !chunk.candidates[0].content.parts) {
+          continue;
+        }
+        
+        // Check for inline image data
+        for (const part of chunk.candidates[0].content.parts) {
+          if (part.inlineData && part.inlineData.data) {
+            const mimeType = part.inlineData.mimeType || 'image/png';
+            const base64Data = part.inlineData.data;
+            const dataUri = `data:${mimeType};base64,${base64Data}`;
+            
+            collectedImages.push({
+              dataUri,
+              alt: `Generated image ${imageIndex + 1}`
+            });
+            
+            imageIndex++;
+            console.log(`✓ Received image ${imageIndex} from stream`);
+          }
+        }
+      }
+
+      if (collectedImages.length === 0) {
+        throw new Error('No images returned from Gemini API stream');
+      }
+
+      return collectedImages;
     }
 
-    async function callGeminiOnce(maxRetries:number=3): Promise<string>{
-      let attempts=0;
-      while(attempts<maxRetries){
-        try{
-          const { data } = await client.request<string>(callGeminiWithKey);
+    async function callGeminiOnce(maxRetries: number = 3): Promise<{ dataUri: string; alt: string }[]> {
+      let attempts = 0;
+      while (attempts < maxRetries) {
+        try {
+          const { data } = await client.request<{ dataUri: string; alt: string }[]>(callGeminiWithKey);
           return data;
-        }catch(err){
+        } catch (err) {
           attempts++;
-          if(attempts>=maxRetries) throw err;
+          console.warn(`Image generation attempt ${attempts}/${maxRetries} failed:`, err);
+          if (attempts >= maxRetries) throw err;
         }
       }
       throw new Error('All retries exhausted');
     }
 
-    // Gemini preview currently supports only one image per call. Call it N times.
-    const images: { dataUri: string; alt: string }[] = [];
-    for (let i = 0; i < numImages; i++) {
-      try {
-        const dataUri = await callGeminiOnce();
-        images.push({ dataUri, alt: `Generated image ${images.length + 1}` });
-      } catch (err) {
-        console.warn(`generateImages: failed to generate image ${i + 1}/${numImages}`, err);
-        // continue to next image attempt
-      }
-    }
+    // Generate images using the new SDK
+    console.log(`Requesting ${numImages} images from Gemini...`);
+    const images = await callGeminiOnce();
 
     if (images.length === 0) {
       throw new Error('All image generation attempts failed');
     }
 
+    console.log(`✓ Successfully generated ${images.length} image(s)`);
     return { images, prompt };
   } catch (error) {
     console.error(`ERROR (${flowName}): Image generation failed. Error:`, error);

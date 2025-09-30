@@ -56,6 +56,44 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
   // Monica-style action handler
   async function handleMonicaAction(actionId: string, actionLabel: string) {
     try {
+      // Handle Customize Actions - open modal
+      if (actionId === 'customize') {
+        const { CustomActionModal } = await import('./ui/CustomActionModal');
+        const modal = new CustomActionModal();
+        modal.show((newAction) => {
+          showOverlayMessage(`✨ Custom action "${newAction.label}" created!`, 'success');
+          // Reload menu to show new action
+          if (monicaContextMenu) {
+            (monicaContextMenu as any).loadCustomActions?.();
+          }
+          if (monicaToolbar) {
+            (monicaToolbar as any).loadCustomActions?.();
+          }
+        });
+        return;
+      }
+
+      // Handle custom actions (actions starting with 'custom-')
+      if (actionId.startsWith('custom-')) {
+        const { text: selection, rect } = getSelectionTextAndRect();
+        if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
+        
+        try {
+          await showResultPopup(actionLabel, selection, 'Working…', rect || undefined);
+          const { executeCustomAction } = await import('./customActions');
+          const result = await executeCustomAction(actionId, selection);
+          
+          if (result.ok && result.result) {
+            await showResultPopup(actionLabel, selection, result.result, rect || undefined);
+          } else {
+            await showResultPopup(actionLabel, selection, `Failed: ${result.error || 'unknown'}`, rect || undefined);
+          }
+        } catch (e: any) {
+          await showResultPopup(actionLabel, selection, `Error: ${e?.message || e}`, rect || undefined);
+        }
+        return;
+      }
+      
       // For Refine: show split popup (Original vs Refined) near selection
       if (actionId === 'refine') {
         const { text: selection, rect } = getSelectionTextAndRect();
@@ -74,7 +112,7 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
           const userApiKey = st?.['desainr.settings.userApiKey'];
           const out = st?.['desainr.settings.outputLang'] || 'auto';
           const dir = out==='auto' ? ' Respond in the same language as the input.' : ` Respond in ${out}.`;
-          const instruction = 'Improve clarity and fluency while preserving the original meaning. Return only the refined text.' + dir;
+          const instruction = `Refine this text professionally: enhance clarity, grammar, flow, and readability. Make it more polished and impactful while maintaining the original message, tone, and voice. Fix any errors and improve word choice. Return ONLY the refined text.${dir}`;
           const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: instruction, modelId, thinkingMode, userApiKey });
           if (ok && (json as any)?.result) {
             await showResultPopup('Refine', selection, (json as any).result, rect || undefined);
@@ -115,7 +153,7 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
           } else {
             // Fallback via actions endpoint
             const { actions } = await import('./apiClient');
-            const instruction = `Translate the following text into ${targetLang}. Return only the translation, no comments.`;
+            const instruction = `CRITICAL: Translate EVERY word of the provided text to ${targetLang}. Do NOT summarize or shorten. Translate the COMPLETE text maintaining original length and structure. Return ONLY the full translation of ALL provided text.`;
             const alt = await actions({ selection, clientMessage: selection, customInstruction: instruction, modelId, thinkingMode, userApiKey });
             if (alt.ok && (alt.json as any)?.result) {
               await showResultPopup('Translate', selection, (alt.json as any).result, rect || undefined);
@@ -139,7 +177,7 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
         const userApiKey = st?.['desainr.settings.userApiKey'];
         const out = st?.['desainr.settings.outputLang'] || 'auto';
         const dir = out==='auto' ? ' Respond in the same language as the input.' : ` Respond in ${out}.`;
-        const instruction = 'Expand the following text to be more detailed and comprehensive while preserving tone and meaning. Return only the expanded text.' + dir;
+        const instruction = `Expand this text thoughtfully with relevant details, examples, and context. Add depth and substance while maintaining the original tone, style, and core message. Make it more comprehensive and informative. Return ONLY the expanded text.${dir}`;
         const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: instruction, modelId, thinkingMode, userApiKey });
         if (ok && (json as any)?.result) {
           await showResultPopup('Expand', selection, (json as any).result, rect || undefined);
@@ -159,7 +197,7 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
         const userApiKey = st?.['desainr.settings.userApiKey'];
         const out = st?.['desainr.settings.outputLang'] || 'auto';
         const dir = out==='auto' ? ' Respond in the same language as the input.' : ` Respond in ${out}.`;
-        const instruction = 'Correct grammar, spelling and punctuation while preserving meaning. Return only the corrected text.' + dir;
+        const instruction = `Fix all grammar, spelling, punctuation, and syntax errors. Ensure perfect language mechanics while preserving the original meaning and style. Return ONLY the corrected text.${dir}`;
         const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: instruction, modelId, thinkingMode, userApiKey });
         if (ok && (json as any)?.result) {
           await showResultPopup('Correct Grammar', selection, (json as any).result, rect || undefined);
@@ -182,7 +220,8 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
         const userApiKey = st?.['desainr.settings.userApiKey'];
         const out = st?.['desainr.settings.outputLang'] || 'auto';
         const dir = out==='auto' ? ' Respond in the same language as the input.' : ` Respond in ${out}.`;
-        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Explain this clearly.' + dir, modelId, thinkingMode, userApiKey });
+        const instruction = `Provide a clear, easy-to-understand explanation of this text. Break down complex concepts, clarify meanings, and add helpful context. Make it accessible to a general audience. Return ONLY the explanation.${dir}`;
+        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: instruction, modelId, thinkingMode, userApiKey });
         if (ok && (json as any)?.result) {
           await showResultPopup('Explain', selection, (json as any).result, rect || undefined);
         } else {
@@ -226,7 +265,8 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
         const userApiKey = st?.['desainr.settings.userApiKey'];
         const out = st?.['desainr.settings.outputLang'] || 'auto';
         const dir = out==='auto' ? ' Respond in the same language as the input.' : ` Respond in ${out}.`;
-        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Summarize the following text concisely in 1-3 sentences. Return only the summary.' + dir, modelId, thinkingMode, userApiKey });
+        const instruction = `Create a concise, well-written summary in 1-3 sentences. Capture the core message, key insights, and most important details. Make it clear and engaging. Return ONLY the summary.${dir}`;
+        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: instruction, modelId, thinkingMode, userApiKey });
         if (ok && (json as any)?.result) {
           await showResultPopup('Summarize', selection, (json as any).result, rect || undefined);
         } else {
@@ -248,7 +288,8 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
         const userApiKey = st?.['desainr.settings.userApiKey'];
         const out = st?.['desainr.settings.outputLang'] || 'auto';
         const dir = out==='auto' ? ' Respond in the same language as the input.' : ` Respond in ${out}.`;
-        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Add helpful, concrete details to the following text while preserving tone and meaning. Return only the improved text.' + dir, modelId, thinkingMode, userApiKey });
+        const instruction = `Enhance this text by adding specific, helpful details, concrete examples, and relevant context. Make it more complete and valuable while maintaining the original tone and message. Return ONLY the improved text.${dir}`;
+        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: instruction, modelId, thinkingMode, userApiKey });
         if (ok && (json as any)?.result) {
           await showResultPopup('Add Details', selection, (json as any).result, rect || undefined);
         } else {
@@ -270,7 +311,8 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
         const userApiKey = st?.['desainr.settings.userApiKey'];
         const out = st?.['desainr.settings.outputLang'] || 'auto';
         const dir = out==='auto' ? ' Respond in the same language as the input.' : ` Respond in ${out}.`;
-        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Make the following text more informative by adding succinct, factual context. Keep it concise. Return only the revised text.' + dir, modelId, thinkingMode, userApiKey });
+        const instruction = `Make this more informative by adding relevant facts, data, and context. Increase the educational value while staying concise and focused. Ensure accuracy and credibility. Return ONLY the enhanced text.${dir}`;
+        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: instruction, modelId, thinkingMode, userApiKey });
         if (ok && (json as any)?.result) {
           await showResultPopup('More Informative', selection, (json as any).result, rect || undefined);
         } else {
@@ -292,7 +334,8 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
         const userApiKey = st?.['desainr.settings.userApiKey'];
         const out = st?.['desainr.settings.outputLang'] || 'auto';
         const dir = out==='auto' ? ' Respond in the same language as the input.' : ` Respond in ${out}.`;
-        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Simplify the following text to be easier to understand, using plain language. Return only the simplified text.' + dir, modelId, thinkingMode, userApiKey });
+        const instruction = `Simplify this text using clear, plain language. Remove jargon and complexity. Make it easy to understand for anyone. Keep the core message intact but more accessible. Return ONLY the simplified text.${dir}`;
+        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: instruction, modelId, thinkingMode, userApiKey });
         if (ok && (json as any)?.result) {
           await showResultPopup('Simplify', selection, (json as any).result, rect || undefined);
         } else {
@@ -314,12 +357,36 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
         const userApiKey = st?.['desainr.settings.userApiKey'];
         const out = st?.['desainr.settings.outputLang'] || 'auto';
         const dir = out==='auto' ? ' Respond in the same language as the input.' : ` Respond in ${out}.`;
-        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Rewrite the following text with a friendly, engaging tone and add relevant emojis where appropriate; do not overuse them. Return only the revised text.' + dir, modelId, thinkingMode, userApiKey });
+        const instruction = `Add relevant, appropriate emojis to make this text more expressive and engaging. Use emojis thoughtfully to enhance meaning and emotion, not excessively. Keep the text professional yet friendly. Return ONLY the emojified text.${dir}`;
+        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: instruction, modelId, thinkingMode, userApiKey });
         if (ok && (json as any)?.result) {
           await showResultPopup('Emojify', selection, (json as any).result, rect || undefined);
         } else {
           const msg = error || (json as any)?.error || 'unknown';
           await showResultPopup('Emojify', selection, `Failed (${status}): ${msg}`, rect || undefined);
+        }
+      } else if (actionId === 'humanize') {
+        if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
+        const { actions } = await import('./apiClient');
+        await showResultPopup('Humanize', selection, 'Working…', rect || undefined);
+        const st = await chrome.storage?.local.get?.([
+          'desainr.settings.modelId',
+          'desainr.settings.thinkingMode',
+          'desainr.settings.userApiKey',
+          'desainr.settings.outputLang'
+        ]).catch(() => ({} as any));
+        const modelId = st?.['desainr.settings.modelId'];
+        const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
+        const userApiKey = st?.['desainr.settings.userApiKey'];
+        const out = st?.['desainr.settings.outputLang'] || 'auto';
+        const dir = out==='auto' ? ' Respond in the same language as the input.' : ` Respond in ${out}.`;
+        const instruction = `Humanize this text by making it sound natural and conversational, as if written by a real person. Use everyday language and common words that people actually use. Avoid overly formal or complex vocabulary, technical jargon, and uncommon words. Remove special characters, underscores, asterisks, and AI-typical formatting. Make sentences flow naturally with varied structure. Keep it authentic, relatable, and engaging. Preserve the core message but make it feel genuinely human-written. Return ONLY the humanized text.${dir}`;
+        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: instruction, modelId, thinkingMode, userApiKey });
+        if (ok && (json as any)?.result) {
+          await showResultPopup('Humanize', selection, (json as any).result, rect || undefined);
+        } else {
+          const msg = error || (json as any)?.error || 'unknown';
+          await showResultPopup('Humanize', selection, `Failed (${status}): ${msg}`, rect || undefined);
         }
       } else if (actionId === 'analyze') {
         const { analyzePage } = await import('./apiClient');
@@ -780,7 +847,6 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
             <div class="action-dropdown" id="action-dropdown">
               <div class="dropdown-item active" data-action="refine"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg></span> Refine</div>
               <div class="dropdown-item" data-action="translate"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 19.5l15-15M9 7.5h6M9 12h3"/></svg></span> Translate</div>
-              <div class="dropdown-item" data-action="rephrase"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 8h16M4 12h10M4 16h8"/></svg></span> Rephrase</div>
               <div class="dropdown-item" data-action="summarize"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M3 12h12M3 18h8"/></svg></span> Summarize</div>
               <div class="dropdown-item" data-action="expand"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16M4 12h16"/></svg></span> Expand</div>
               <div class="dropdown-item" data-action="correct"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4"/></svg></span> Correct Grammar</div>
@@ -789,7 +855,7 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
               <div class="dropdown-item" data-action="more-informative"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25h1.5v6h-1.5zM12 6.75h.008v.008H12z"/></svg></span> More Informative</div>
               <div class="dropdown-item" data-action="simplify"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12h12"/></svg></span> Simplify</div>
               <div class="dropdown-item" data-action="emojify"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14.121 14.121a3 3 0 01-4.242 0M9 9h.01M15 9h.01M12 21a9 9 0 100-18 9 9 0 000 18z"/></svg></span> Emojify</div>
-              <div class="dropdown-item" data-action="analyze"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11 19l-7-7 4-4 3 3 7-7"/></svg></span> Analyze</div>
+              <div class="dropdown-item" data-action="humanize"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg></span> Humanize</div>
               <div class="dropdown-item" data-action="designer"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4 4 12-12"/></svg></span> Designer</div>
               <div class="dropdown-item" data-action="customize"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h3M4.5 12h15M8.25 18h7.5"/></svg></span> Customize Actions</div>
             </div>

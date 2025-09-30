@@ -46,10 +46,10 @@ interface BilingualSplitViewProps {
     bengali: DesignListItem[];
   };
   imageAnalysis?: BilingualContent;
-  // Optional: generated editing prompts to display in the Editing Prompt tab
-  editingPrompts?: { type: string; prompt: string }[];
-  // Optional: one prompt per design when available
-  editingPromptsByDesign?: { designId: string; designTitle?: string; imageIndex?: number; prompt: string }[];
+  // Optional: complete AI image generation prompts organized by category
+  generatedPromptsByCategory?: { category: string; prompts: string[] }[];
+  // Optional: one complete generation prompt per design when available
+  generatedPromptsByDesign?: { designId: string; designTitle?: string; category: string; prompt: string }[];
   onSelectDesign?: (designItem: DesignListItem, options: GenerationOptions) => void;
 }
 
@@ -59,8 +59,8 @@ export function BilingualSplitView({
   simplifiedRequirements,
   designItems,
   imageAnalysis,
-  editingPrompts,
-  editingPromptsByDesign,
+  generatedPromptsByCategory,
+  generatedPromptsByDesign,
   onSelectDesign
 }: BilingualSplitViewProps) {
   const [activeTab, setActiveTab] = useState('keyPoints');

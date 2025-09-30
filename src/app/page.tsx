@@ -1276,6 +1276,7 @@ ${params.language ? `Language: ${params.language}` : ''}`;
     const MAX_IMAGE_SIZE_BYTES = 3_000_000; // 3 MB each
     const MAX_TOTAL_INLINE_BYTES = 10_000_000; // 10 MB overall
     const MAX_INLINE_IMAGES = files.filter(f=>f.type.startsWith('image/')).length; // allow all images
+    const MAX_DOCUMENT_TEXT_LENGTH = 50_000; // Maximum characters from documents
 
     let totalInlineBytes = 0;
     let inlineImageCount = 0;
@@ -1284,7 +1285,9 @@ ${params.language ? `Language: ${params.language}` : ''}`;
 
     for (const file of files) {
       const base: AttachedFile = { name: file.name, type: file.type, size: file.size };
+      const fileName = file.name.toLowerCase();
 
+      // Handle images
       if (file.type.startsWith('image/')) {
         if (
           file.size <= MAX_IMAGE_SIZE_BYTES &&
@@ -1302,16 +1305,61 @@ ${params.language ? `Language: ${params.language}` : ''}`;
         } else {
           console.warn(`processFilesForAI: not inlining ${file.name}`);
         }
-      } else if (
-        file.type === 'text/plain' ||
-        file.type === 'text/markdown' ||
-        file.type === 'application/json'
+      }
+      // Handle document files (PDF, DOCX, DOC)
+      else if (
+        file.type === 'application/pdf' ||
+        fileName.endsWith('.pdf') ||
+        file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        fileName.endsWith('.docx') ||
+        file.type === 'application/msword' ||
+        fileName.endsWith('.doc')
       ) {
         try {
-          base.textContent = await readFileAsText(file);
+          // Dynamic import to avoid bundling issues
+          const { extractTextFromDocument } = await import('@/lib/utils/document-parser');
+          let extractedText = await extractTextFromDocument(file);
+          
+          // Truncate if too long
+          if (extractedText.length > MAX_DOCUMENT_TEXT_LENGTH) {
+            extractedText = extractedText.substring(0, MAX_DOCUMENT_TEXT_LENGTH) + '\n\n... (text truncated due to length)';
+          }
+          
+          base.textContent = extractedText;
+          console.log(`✓ Extracted ${extractedText.length} characters from ${file.name}`);
+        } catch (err) {
+          console.error(`Error extracting text from ${file.name}:`, err);
+          base.textContent = `[Error: Could not extract text from ${file.name}. ${(err as Error).message}]`;
+        }
+      }
+      // Handle plain text files
+      else if (
+        file.type === 'text/plain' ||
+        file.type === 'text/markdown' ||
+        file.type === 'application/json' ||
+        fileName.endsWith('.txt') ||
+        fileName.endsWith('.md') ||
+        fileName.endsWith('.json')
+      ) {
+        try {
+          let textContent = await readFileAsText(file);
+          
+          // Truncate if too long
+          if (textContent.length > MAX_DOCUMENT_TEXT_LENGTH) {
+            textContent = textContent.substring(0, MAX_DOCUMENT_TEXT_LENGTH) + '\n\n... (text truncated due to length)';
+          }
+          
+          base.textContent = textContent;
+          console.log(`✓ Read ${textContent.length} characters from ${file.name}`);
         } catch (err) {
           console.error('readFileAsText error', err);
+          base.textContent = `[Error: Could not read text from ${file.name}]`;
         }
+      }
+      // Unsupported file type
+      else {
+        console.warn(`Unsupported file type: ${file.type} (${file.name})`);
+        base.textContent = `[Note: File ${file.name} attached but content cannot be read. Supported formats: PDF, DOCX, DOC, TXT, MD, JSON, and images]`;
       }
 
       result.push(base);

@@ -33,18 +33,24 @@ export class MonicaStyleToolbar {
     this.container = this.createContainer();
     this.shadowRoot = this.container.attachShadow({ mode: 'closed' });
     this.injectStyles();
-    this.loadPinnedActions();
+    
+    // Load actions in correct order
+    this.initializeActions();
+    
     try {
       chrome.runtime.onMessage.addListener((msg) => {
         if (msg?.type === 'SAVE_PINNED_ACTIONS') {
-          this.loadPinnedActions().then(() => this.refreshToolbarUI());
+          this.initializeActions().then(() => this.refreshToolbarUI());
+        }
+        if (msg?.type === 'CUSTOM_ACTIONS_UPDATED') {
+          this.initializeActions().then(() => this.refreshToolbarUI());
         }
       });
     } catch {}
     try {
       chrome.storage.onChanged.addListener((changes, areaName) => {
         if (areaName === 'sync' && changes['desainr.pinnedActions']) {
-          this.loadPinnedActions().then(() => this.refreshToolbarUI());
+          this.initializeActions().then(() => this.refreshToolbarUI());
         }
       });
     } catch {}
@@ -53,6 +59,13 @@ export class MonicaStyleToolbar {
     MonicaTheme.watchThemeChanges(() => {
       this.updateTheme();
     });
+  }
+  
+  private async initializeActions(): Promise<void> {
+    // Load pinned state first
+    await this.loadPinnedActions();
+    // Then load and merge custom actions (preserving pin state)
+    await this.loadCustomActions();
   }
   
   private updateTheme(): void {
@@ -314,6 +327,45 @@ export class MonicaStyleToolbar {
       }));
     } catch (error) {
       console.warn('Failed to load pinned actions:', error);
+    }
+  }
+
+  private async loadCustomActions(): Promise<void> {
+    try {
+      const { getCustomActions } = await import('../customActions');
+      const customActions = await getCustomActions();
+      
+      // Get current pin state from storage first
+      const result = await chrome.storage.sync.get(['desainr.pinnedActions']);
+      const pinnedIds: string[] = result['desainr.pinnedActions'] || [];
+      
+      // Convert custom actions to ToolbarAction format
+      const customToolbarActions: ToolbarAction[] = customActions.map(ca => ({
+        id: ca.id,
+        label: ca.label,
+        icon: ca.icon,
+        shortcut: ca.shortcut,
+        isPinned: pinnedIds.includes(ca.id) || ca.isPinned, // Check both sources
+        category: 'custom'
+      }));
+      
+      // Merge with default actions (remove old custom actions first)
+      // IMPORTANT: Preserve pin state of existing actions
+      const existingPinState = new Map(this.actions.map(a => [a.id, a.isPinned]));
+      const defaultOnly = AllActions.map(action => ({
+        ...action,
+        isPinned: existingPinState.get(action.id) ?? pinnedIds.includes(action.id) ?? false,
+        category: (action as any).category
+      }));
+      
+      this.actions = [...defaultOnly, ...customToolbarActions];
+      
+      // Refresh UI if visible
+      if (this.isVisible) {
+        this.refreshToolbarUI();
+      }
+    } catch (error) {
+      console.warn('Failed to load custom actions:', error);
     }
   }
 

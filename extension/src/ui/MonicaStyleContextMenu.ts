@@ -14,13 +14,12 @@ export const DefaultActions: MenuAction[] = [
   // Flat list - no categories
   { id: 'refine', label: 'Refine', icon: FeatureIcons.refine, shortcut: 'R', isPinned: true },
   { id: 'translate', label: 'Translate', icon: FeatureIcons.translate, shortcut: 'T', isPinned: true },
-  { id: 'rephrase', label: 'Rephrase', icon: FeatureIcons.rewrite, isPinned: false },
+  { id: 'humanize', label: 'Humanize', icon: FeatureIcons.humanize, shortcut: 'H', isPinned: false },
   { id: 'summarize', label: 'Summarize', icon: FeatureIcons.summarize, isPinned: false },
   { id: 'add-details', label: 'Add Details', icon: FeatureIcons.plusCircle, isPinned: false },
   { id: 'more-informative', label: 'More Informative', icon: FeatureIcons.info, isPinned: false },
   { id: 'simplify', label: 'Simplify', icon: FeatureIcons.simplify, isPinned: false },
   { id: 'emojify', label: 'Emojify', icon: FeatureIcons.emoji, isPinned: false },
-  { id: 'analyze', label: 'Analyze', icon: FeatureIcons.analyze, shortcut: 'A', isPinned: false },
   { id: 'explain', label: 'Explain', icon: FeatureIcons.explain, shortcut: 'E', isPinned: false },
   { id: 'correct', label: 'Correct Grammar', icon: FeatureIcons.grammar, shortcut: 'C', isPinned: false },
   { id: 'expand', label: 'Expand Text', icon: FeatureIcons.expand, shortcut: 'X', isPinned: false },
@@ -39,12 +38,33 @@ export class MonicaStyleContextMenu {
     this.container = this.createContainer();
     this.shadowRoot = this.container.attachShadow({ mode: 'closed' });
     this.injectStyles();
-    this.loadPinnedActions();
+    
+    // Load actions in correct order: pinnedActions first, then merge with custom
+    this.initializeActions();
     
     // Listen for theme changes
     MonicaTheme.watchThemeChanges(() => {
       this.updateTheme();
     });
+    
+    // Listen for custom actions updates
+    try {
+      chrome.runtime.onMessage.addListener((msg) => {
+        if (msg?.type === 'CUSTOM_ACTIONS_UPDATED') {
+          this.initializeActions();
+        }
+        if (msg?.type === 'SAVE_PINNED_ACTIONS') {
+          this.initializeActions();
+        }
+      });
+    } catch {}
+  }
+  
+  private async initializeActions(): Promise<void> {
+    // Load pinned state first
+    await this.loadPinnedActions();
+    // Then load and merge custom actions (preserving pin state)
+    await this.loadCustomActions();
   }
   
   private updateTheme(): void {
@@ -370,6 +390,45 @@ export class MonicaStyleContextMenu {
     }
   }
 
+  private async loadCustomActions(): Promise<void> {
+    try {
+      const { getCustomActions } = await import('../customActions');
+      const customActions = await getCustomActions();
+      
+      // Get current pin state from storage first
+      const result = await chrome.storage.sync.get(['desainr.pinnedActions']);
+      const pinnedIds = result['desainr.pinnedActions'] || [];
+      
+      // Convert custom actions to MenuAction format
+      const customMenuActions: MenuAction[] = customActions.map(ca => ({
+        id: ca.id,
+        label: ca.label,
+        icon: ca.icon,
+        shortcut: ca.shortcut,
+        isPinned: pinnedIds.includes(ca.id) || ca.isPinned, // Check both sources
+        category: 'custom'
+      }));
+      
+      // Merge with default actions (remove old custom actions first)
+      // IMPORTANT: Preserve pin state of existing actions
+      const existingPinState = new Map(this.actions.map(a => [a.id, a.isPinned]));
+      const defaultOnly = DefaultActions.map(action => ({
+        ...action,
+        isPinned: existingPinState.get(action.id) ?? pinnedIds.includes(action.id) ?? action.isPinned ?? false,
+        category: action.category
+      }));
+      
+      this.actions = [...defaultOnly, ...customMenuActions];
+      
+      // Refresh UI if visible
+      if (this.shadowRoot?.querySelector('.monica-menu.show')) {
+        this.refreshMenuUI();
+      }
+    } catch (error) {
+      console.warn('Failed to load custom actions:', error);
+    }
+  }
+
   private async savePinnedActions(): Promise<void> {
     try {
       const pinnedIds = this.actions.filter(a => a.isPinned).map(a => a.id).slice(0, this.maxPinned);
@@ -384,10 +443,11 @@ export class MonicaStyleContextMenu {
     }
   }
 
-  private togglePin(actionId: string): void {
+  private async togglePin(actionId: string): Promise<void> {
     const idx = this.actions.findIndex(a => a.id === actionId);
     if (idx === -1) return;
     const action = this.actions[idx];
+    
     if (action.isPinned) {
       action.isPinned = false;
     } else {
@@ -398,8 +458,17 @@ export class MonicaStyleContextMenu {
       }
       action.isPinned = true;
     }
+    
+    // If it's a custom action, update it in storage
+    if (action.category === 'custom') {
+      try {
+        const { updateCustomAction } = await import('../customActions');
+        await updateCustomAction(actionId, { isPinned: action.isPinned });
+      } catch {}
+    }
+    
     // Persist and refresh UI
-    void this.savePinnedActions();
+    await this.savePinnedActions();
     this.refreshMenuUI();
   }
 
