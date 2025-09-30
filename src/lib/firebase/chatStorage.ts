@@ -1,5 +1,5 @@
 // src/lib/firebase/chatStorage.ts
-import { firebaseApp } from './clientApp';
+import { app as firebaseApp } from '../firebase';
 import { 
   getFirestore, 
   collection, 

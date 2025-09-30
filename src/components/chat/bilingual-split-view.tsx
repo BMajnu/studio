@@ -46,10 +46,10 @@ interface BilingualSplitViewProps {
     bengali: DesignListItem[];
   };
   imageAnalysis?: BilingualContent;
-  // Optional: complete AI image generation prompts organized by category
-  generatedPromptsByCategory?: { category: string; prompts: string[] }[];
   // Optional: one complete generation prompt per design when available
-  generatedPromptsByDesign?: { designId: string; designTitle?: string; category: string; prompt: string }[];
+  generatedPromptsByDesign?: { designId: string; designTitle?: string; category?: string; prompt: string; imageIndex?: number }[];
+  // Generated Prompts: Complete AI image generation prompts for each design
+  generatedPrompts?: { designId: string; designTitle: string; prompt: string }[];
   onSelectDesign?: (designItem: DesignListItem, options: GenerationOptions) => void;
 }
 
@@ -59,8 +59,8 @@ export function BilingualSplitView({
   simplifiedRequirements,
   designItems,
   imageAnalysis,
-  generatedPromptsByCategory,
   generatedPromptsByDesign,
+  generatedPrompts,
   onSelectDesign
 }: BilingualSplitViewProps) {
   const [activeTab, setActiveTab] = useState('keyPoints');
@@ -68,7 +68,6 @@ export function BilingualSplitView({
   const bengaliScrollRef = useRef<HTMLDivElement>(null);
   const [syncingEnglish, setSyncingEnglish] = useState(false);
   const [syncingBengali, setSyncingBengali] = useState(false);
-  const [generatedPrompts, setGeneratedPrompts] = useState<{ category: string; prompts: string[] }[] | null>(null);
 
   const hasImages = !!imageAnalysis; // if image analysis exists, images were attached
 
@@ -161,7 +160,7 @@ export function BilingualSplitView({
     const handler: any = (event: any) => {
       const data = event?.detail?.promptsData;
       if (Array.isArray(data)) {
-        setGeneratedPrompts(data);
+        // Generated prompts are now passed as props
         setActiveTab('generatedPrompt');
       }
     };
@@ -327,17 +326,17 @@ export function BilingualSplitView({
       case 'editingPrompt':
         return (
           <div className="space-y-3">
-            {Array.isArray(editingPromptsByDesign) && editingPromptsByDesign.length > 0 ? (
-              <div className="border border-border rounded-md p-3 bg-card/40">
-                <div className="text-sm font-semibold mb-2">Editing Prompts by Design</div>
+            {Array.isArray(generatedPromptsByDesign) && generatedPromptsByDesign.length > 0 ? (
+              <div>
+                <div className="text-sm font-semibold mb-3">Editing Prompts by Design</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {editingPromptsByDesign.map((item, idx) => (
-                    <div key={idx} className="p-3 rounded-md border border-muted/30 bg-background/50">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                  {generatedPromptsByDesign.map((item, idx) => (
+                    <div key={idx} className="p-3 rounded-md border border-border bg-card/50">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
                           {item.designTitle || item.designId}
                           {typeof item.imageIndex === 'number' ? (
-                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded bg-muted/50 text-[10px] text-muted-foreground">Image #{item.imageIndex}</span>
+                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded bg-primary/10 text-[10px] text-primary">IMAGE #{item.imageIndex}</span>
                           ) : null}
                         </div>
                         <Button
@@ -354,34 +353,7 @@ export function BilingualSplitView({
                           {copiedIndex === idx ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />} Copy
                         </Button>
                       </div>
-                      <pre className="whitespace-pre-wrap text-sm leading-snug m-0">{item.prompt}</pre>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : Array.isArray(editingPrompts) && editingPrompts.length > 0 ? (
-              <div className="border border-border rounded-md p-3 bg-card/40">
-                <div className="text-sm font-semibold mb-2">Generated Editing Prompts</div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {editingPrompts.map((ep, idx) => (
-                    <div key={idx} className="p-3 rounded-md border border-muted/30 bg-background/50">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="text-xs uppercase tracking-wide text-muted-foreground">{ep.type}</div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 px-2 text-xs"
-                          onClick={() => {
-                            navigator.clipboard.writeText(ep.prompt).then(() => {
-                              setCopiedIndex(idx);
-                              setTimeout(() => setCopiedIndex(null), 1200);
-                            });
-                          }}
-                        >
-                          {copiedIndex === idx ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />} Copy
-                        </Button>
-                      </div>
-                      <pre className="whitespace-pre-wrap text-sm leading-snug m-0">{ep.prompt}</pre>
+                      <p className="text-sm leading-relaxed">{item.prompt}</p>
                     </div>
                   ))}
                 </div>
@@ -397,52 +369,38 @@ export function BilingualSplitView({
       case 'generatedPrompt':
         return (
           <div className="space-y-3">
-            {(() => {
-              const groups = (Array.isArray(generatedPrompts) && generatedPrompts.length > 0)
-                ? generatedPrompts
-                : fallbackGeneratedGroups;
-              if (Array.isArray(groups) && groups.length > 0) {
-                return groups.map((group, gIdx) => (
-                  <div key={gIdx} className="border border-border rounded-md p-3 bg-card/40">
+            {Array.isArray(generatedPrompts) && generatedPrompts.length > 0 ? (
+              <div>
+                <div className="text-sm font-semibold mb-3">From Design Ideas <span className="text-xs text-muted-foreground font-normal ml-2">{generatedPrompts.length} prompts</span></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {generatedPrompts.map((item, idx) => (
+                    <div key={idx} className="p-3 rounded-md border border-border bg-card/50">
                     <div className="flex items-center justify-between mb-2">
-                      <div className="text-sm font-semibold">{group.category}</div>
-                      <div className="text-xs text-muted-foreground">{group.prompts.length} prompts</div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {group.prompts.map((p, pIdx) => {
-                        const key = `gen-${gIdx}-${pIdx}`;
-                        return (
-                          <div key={key} className="p-3 rounded-md border border-muted/30 bg-background/50">
-                            <div className="flex items-center justify-between mb-1">
-                              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Prompt</div>
+                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">PROMPT</div>
                               <Button
                                 size="sm"
                                 variant="ghost"
                                 className="h-7 px-2 text-xs"
                                 onClick={() => {
-                                  navigator.clipboard.writeText(p).then(() => {
-                                    setCopiedKey(key);
+                            navigator.clipboard.writeText(item.prompt).then(() => {
+                              setCopiedKey(`gen-${idx}`);
                                     setTimeout(() => setCopiedKey(null), 1200);
                                   });
                                 }}
                               >
-                                {copiedKey === key ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />} Copy
+                          {copiedKey === `gen-${idx}` ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />} Copy
                               </Button>
                             </div>
-                            <pre className="whitespace-pre-wrap text-sm leading-snug m-0">{p}</pre>
+                      <p className="text-sm leading-relaxed mb-2">{item.prompt}</p>
                           </div>
-                        );
-                      })}
+                  ))}
                     </div>
                   </div>
-                ));
-              }
-              return (
+            ) : (
                 <div className="text-sm text-muted-foreground">
-                  No prompts yet. Select a design idea and click "Generate Prompts" to see AI image prompts here.
+                Generated prompts will appear here automatically after requirements analysis is complete.
                 </div>
-              );
-            })()}
+            )}
           </div>
         );
       

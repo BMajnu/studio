@@ -5,7 +5,7 @@ import type { ChatSessionMetadata, ChatSession } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { PlusCircle, Trash2, MessageSquare, Loader2, XIcon, PencilIcon, CheckIcon, RefreshCw, GalleryHorizontal, PanelLeftClose, Search, Edit, PanelLeftOpen, Image, X } from 'lucide-react';
+import { PlusCircle, Trash2, MessageSquare, Loader2, XIcon, PencilIcon, CheckIcon, RefreshCw, GalleryHorizontal, PanelLeftClose, Search, Edit, PanelLeftOpen, Image, X, Beaker } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
@@ -776,6 +776,22 @@ export function HistoryPanel({
         >
           <Image className="h-4 w-4" />
           <span>Gallery</span>
+        </Button>
+      </div>
+      
+      {/* Lab Button - Image Generation/Editing */}
+      <div className="px-3 pb-2">
+        <Button 
+          variant="outline" 
+          className="w-full justify-start gap-2 border-0"
+          style={{ 
+            color: 'hsl(var(--sidebar-foreground) / 0.8)',
+            borderColor: 'hsl(var(--sidebar-border))'
+          }}
+          onClick={() => router.push('/lab')}
+        >
+          <Beaker className="h-4 w-4" />
+          <span>Lab</span>
         </Button>
       </div>
 

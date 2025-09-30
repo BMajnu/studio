@@ -41,9 +41,6 @@ export type ProcessCustomInstructionInput = {
   communicationStyleNotes?: string;
   userApiKey?: string;
   modelId?: string;
-  useAlternativeImpl?: boolean;
-  useFirebaseAI?: boolean; // Add useFirebaseAI
-  firebaseApp?: FirebaseApp; // Add firebaseApp
   profile?: UserProfile; // Add full profile
 };
 
@@ -121,9 +118,6 @@ export async function processCustomInstruction(input: ProcessCustomInstructionIn
     language = 'english', 
     userApiKey,
     modelId,
-    useAlternativeImpl = false,
-    useFirebaseAI = false, // Destructure useFirebaseAI
-    firebaseApp, // Destructure firebaseApp
     profile, // Destructure profile
   } = input;
   
@@ -205,14 +199,10 @@ Please follow the custom instruction precisely in relation to the client message
     
     // Initialize the AI service with the appropriate configuration
     const aiService = new GoogleAIService({
-      apiKey: apiKey || undefined, // Pass undefined if apiKey is null/empty
       modelId: formattedModelId,
       temperature: 0.7,
       maxOutputTokens: 1000,
       responseMimeType: 'text/plain',
-      useAlternativeImpl,
-      useFirebaseAI: false, // Force off to avoid using developer Firebase credentials
-      firebaseApp, // Pass firebaseApp
       profile, // Pass the full profile
       thinkingMode: profile?.thinkingMode, // Pass the thinking mode
     });

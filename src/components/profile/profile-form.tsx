@@ -37,8 +37,6 @@ const profileFormSchema = z.object({
       z.string().min(1, "API Key cannot be empty.").max(100, "API Key is too long.")
     ).min(1, "At least one Gemini API Key is required."),
   selectedGenkitModelId: z.string().optional().nullable(),
-  useAlternativeAiImpl: z.boolean().optional().default(false),
-  useFirebaseAI: z.boolean().optional(),
   customSellerFeedbackTemplate: z.string().max(1000).optional().nullable(),
   customClientFeedbackResponseTemplate: z.string().max(1000).optional().nullable(),
   rawPersonalStatement: z.string().max(2000).optional().nullable(),
@@ -77,8 +75,6 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
       fiverrUsername: initialProfile?.fiverrUsername || DEFAULT_USER_PROFILE.fiverrUsername || "",
       geminiApiKeys: initialProfile?.geminiApiKeys && initialProfile.geminiApiKeys.length > 0 ? initialProfile.geminiApiKeys : DEFAULT_USER_PROFILE.geminiApiKeys || [''],
       selectedGenkitModelId: initialProfile?.selectedGenkitModelId || DEFAULT_USER_PROFILE.selectedGenkitModelId || DEFAULT_MODEL_ID,
-      useAlternativeAiImpl: initialProfile?.useAlternativeAiImpl !== undefined ? initialProfile.useAlternativeAiImpl : DEFAULT_USER_PROFILE.useAlternativeAiImpl,
-      useFirebaseAI: initialProfile?.useFirebaseAI !== undefined ? initialProfile.useFirebaseAI : false,
       customSellerFeedbackTemplate: initialProfile?.customSellerFeedbackTemplate || DEFAULT_USER_PROFILE.customSellerFeedbackTemplate || "",
       customClientFeedbackResponseTemplate: initialProfile?.customClientFeedbackResponseTemplate || DEFAULT_USER_PROFILE.customClientFeedbackResponseTemplate || "",
       rawPersonalStatement: initialProfile?.rawPersonalStatement || DEFAULT_USER_PROFILE.rawPersonalStatement || "",
@@ -111,8 +107,6 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
       fiverrUsername: data.fiverrUsername === null ? undefined : data.fiverrUsername,
       geminiApiKeys: data.geminiApiKeys.filter(key => key.trim() !== ''),
       selectedGenkitModelId: data.selectedGenkitModelId === null ? undefined : data.selectedGenkitModelId || DEFAULT_MODEL_ID,
-      useAlternativeAiImpl: data.useAlternativeAiImpl,
-      useFirebaseAI: data.useFirebaseAI === null ? undefined : data.useFirebaseAI,
       customSellerFeedbackTemplate: data.customSellerFeedbackTemplate === null ? undefined : data.customSellerFeedbackTemplate,
       customClientFeedbackResponseTemplate: data.customClientFeedbackResponseTemplate === null ? undefined : data.customClientFeedbackResponseTemplate,
       rawPersonalStatement: data.rawPersonalStatement === null ? undefined : data.rawPersonalStatement,
@@ -140,8 +134,6 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
         fiverrUsername: initialProfile.fiverrUsername || DEFAULT_USER_PROFILE.fiverrUsername || "",
         geminiApiKeys: initialProfile.geminiApiKeys && initialProfile.geminiApiKeys.length > 0 ? initialProfile.geminiApiKeys : DEFAULT_USER_PROFILE.geminiApiKeys || [''],
         selectedGenkitModelId: initialProfile.selectedGenkitModelId || DEFAULT_USER_PROFILE.selectedGenkitModelId || DEFAULT_MODEL_ID,
-        useAlternativeAiImpl: initialProfile.useAlternativeAiImpl !== undefined ? initialProfile.useAlternativeAiImpl : DEFAULT_USER_PROFILE.useAlternativeAiImpl,
-        useFirebaseAI: initialProfile.useFirebaseAI !== undefined ? initialProfile.useFirebaseAI : false,
         customSellerFeedbackTemplate: initialProfile.customSellerFeedbackTemplate || DEFAULT_USER_PROFILE.customSellerFeedbackTemplate || "",
         customClientFeedbackResponseTemplate: initialProfile.customClientFeedbackResponseTemplate || DEFAULT_USER_PROFILE.customClientFeedbackResponseTemplate || "",
         rawPersonalStatement: initialProfile.rawPersonalStatement || DEFAULT_USER_PROFILE.rawPersonalStatement || "",
@@ -155,9 +147,8 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
   const currentThinkingMode = form.watch("thinkingMode");
   const selectedModel = AVAILABLE_MODELS.find(m => m.id === selectedModelId);
 
-  const modelsToShow = currentThinkingMode === 'default'
-    ? AVAILABLE_MODELS.filter(m => m.supportsThinking)
-    : AVAILABLE_MODELS;
+  // Show all models - thinking mode is now handled in the client
+  const modelsToShow = AVAILABLE_MODELS;
 
   // When component mounts or user changes, get the active key.
   useEffect(() => {
@@ -457,50 +448,6 @@ export function ProfileForm({ initialProfile, onSave }: ProfileFormProps) {
                   )}
                 />
               )}
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="useAlternativeAiImpl"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between p-3 rounded-lg border">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-base">Use Alternative AI</FormLabel>
-                        <FormDescription>
-                          Enable experimental AI features
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="useFirebaseAI"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between p-3 rounded-lg border">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-base">Use Firebase AI</FormLabel>
-                        <FormDescription>
-                          Process AI through Firebase
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              </div>
             </div>
           </div>
 

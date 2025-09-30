@@ -3,29 +3,37 @@ import type { UserProfile } from './types';
 export const DEFAULT_USER_ID = 'default-user';
 
 export const AVAILABLE_MODELS = [
+  // 🆕 New Models (Top Priority)
+  { id: 'gemini-flash-latest', name: '🆕 Gemini Flash (Latest)', supportsThinking: true, tag: 'New' },
+  { id: 'gemini-2.5-pro', name: '🆕 Gemini 2.5 Pro', supportsThinking: true, tag: 'New' },
+  { id: 'gemini-2.5-flash-image-preview', name: '🆕 Gemini 2.5 Flash (Image Gen/Edit)', supportsThinking: true, supportsImageGen: true, tag: 'New' },
+  { id: 'gemini-flash-lite-latest', name: '🆕 Gemini Flash Lite (Latest)', supportsThinking: true, tag: 'New' },
+
   // Most Accurate (Slower)
-  { id: 'googleai/gemini-1.5-pro-latest', name: 'Gemini 1.5 Pro (Latest)', supportsThinking: true },
-  { id: 'googleai/gemini-2.5-pro-preview-05-06', name: 'Gemini 2.5 Pro Preview (05-06)', supportsThinking: true },
-  { id: 'googleai/gemini-2.0-pro-exp', name: 'Gemini 2.0 Pro Experimental', supportsThinking: false },
-  { id: 'googleai/gemini-2.5-pro-exp-03-25', name: 'Gemini 2.5 Pro Experimental (03-25)', supportsThinking: true },
-  { id: 'googleai/gemini-pro', name: 'Gemini 1.0 Pro', supportsThinking: false },
-  { id: 'googleai/gemini-2.5-pro', name: 'Gemini 2.5 Pro', supportsThinking: true },
+  { id: 'gemini-1.5-pro-latest', name: 'Gemini 1.5 Pro (Latest)', supportsThinking: true },
+  { id: 'gemini-2.5-pro-preview-05-06', name: 'Gemini 2.5 Pro Preview (05-06)', supportsThinking: true },
+  { id: 'gemini-2.0-pro-exp', name: 'Gemini 2.0 Pro Experimental', supportsThinking: false },
+  { id: 'gemini-2.5-pro-exp-03-25', name: 'Gemini 2.5 Pro Experimental (03-25)', supportsThinking: true },
+  { id: 'gemini-pro', name: 'Gemini 1.0 Pro', supportsThinking: false },
 
-  // Fast (Lower Accuracy) – Flash models
-  { id: 'googleai/gemini-1.5-flash-latest', name: 'Gemini 1.5 Flash (Latest)', supportsThinking: false },
-  { id: 'googleai/gemini-2.5-flash', name: 'Gemini 2.5 Flash', supportsThinking: true },
-  { id: 'googleai/gemini-2.5-flash-preview-04-17', name: 'Gemini 2.5 Flash Preview (04-17)', supportsThinking: false },
-  { id: 'googleai/gemini-2.5-flash-preview-05-20', name: 'Gemini 2.5 Flash Preview (05-20)', supportsThinking: true },
-  { id: 'googleai/gemini-2.0-flash', name: 'Gemini 2.0 Flash', supportsThinking: false },
-  { id: 'googleai/gemini-2.0-flash-preview-image-generation', name: 'Gemini 2.0 Flash Preview (Image Gen)', supportsThinking: false },
+  // Fast (Balanced) – Flash models
+  { id: 'gemini-1.5-flash-latest', name: 'Gemini 1.5 Flash (Latest)', supportsThinking: false },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', supportsThinking: true },
+  { id: 'gemini-2.5-flash-preview-04-17', name: 'Gemini 2.5 Flash Preview (04-17)', supportsThinking: false },
+  { id: 'gemini-2.5-flash-preview-05-20', name: 'Gemini 2.5 Flash Preview (05-20)', supportsThinking: true },
+  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', supportsThinking: false },
+  { id: 'gemini-2.0-flash-preview-image-generation', name: 'Gemini 2.0 Flash (Image Gen)', supportsThinking: false },
 
-  // Fastest (Lowest Accuracy) – Flash Lite & Gemma models
-  { id: 'googleai/gemini-2.5-flash-lite-preview-06-17', name: 'Gemini 2.5 Flash-Lite Preview 06-17', supportsThinking: true },
-  { id: 'googleai/gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite', supportsThinking: false },
+  // Fastest (Lowest Cost) – Flash Lite & Gemma models
+  { id: 'gemini-2.5-flash-lite-preview-06-17', name: 'Gemini 2.5 Flash-Lite Preview 06-17', supportsThinking: true },
+  { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite', supportsThinking: false },
   { id: 'gemma-3n-e4b', name: 'Gemma 3n E4B', supportsThinking: false },
   { id: 'gemma-3n-e2b', name: 'Gemma 3n E2B', supportsThinking: false },
 ];
-export const DEFAULT_MODEL_ID = 'googleai/gemini-1.5-flash-latest';
+
+// Image Generation Models - separate reference for image-specific features
+export const IMAGE_GENERATION_MODELS = AVAILABLE_MODELS.filter(m => (m as any).supportsImageGen);
+export const DEFAULT_MODEL_ID = 'gemini-flash-latest';
 
 
 export const DEFAULT_USER_PROFILE: UserProfile = {
@@ -43,8 +51,6 @@ export const DEFAULT_USER_PROFILE: UserProfile = {
   fiverrUsername: "",
   geminiApiKeys: [], // Empty by default - users must add their own API key
   selectedGenkitModelId: DEFAULT_MODEL_ID,
-  useAlternativeAiImpl: false,
-  useFirebaseAI: false,
   customSellerFeedbackTemplate: "Great client, outstanding experience, easy requirement. [AI to suggest adding a short description about the project/order]. I love working with you and looking forward to working with you again🥰.",
   customClientFeedbackResponseTemplate: "Thanks for your great feedback. I hope we will continue doing more and more.",
   rawPersonalStatement: "",

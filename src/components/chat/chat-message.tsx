@@ -1314,8 +1314,8 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
             simplifiedRequirements={part.simplifiedRequirements ? { english: part.simplifiedRequirements.english, bengali: part.simplifiedRequirements.bengali } : undefined}
             imageAnalysis={part.imageAnalysis ? { english: part.imageAnalysis.english, bengali: part.imageAnalysis.bengali } : undefined}
             designItems={{ english: part.designItems.english, bengali: part.designItems.bengali }}
-            editingPrompts={part.editingPrompts}
-            editingPromptsByDesign={part.editingPromptsByDesign}
+            generatedPromptsByDesign={part.editingPromptsByDesign}
+            generatedPrompts={part.generatedPrompts}
             onSelectDesign={(designItem: any, options: any) => {
               // Create a custom event that page.tsx can listen for, including user-selected options
               const event = new CustomEvent('design-item-selected', {

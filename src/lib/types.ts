@@ -9,8 +9,6 @@ export interface UserProfile {
   fiverrUsername?: string;
   geminiApiKeys?: string[]; 
   selectedGenkitModelId?: string;
-  useAlternativeAiImpl?: boolean;
-  useFirebaseAI?: boolean;
   customSellerFeedbackTemplate?: string;
   customClientFeedbackResponseTemplate?: string;
   rawPersonalStatement?: string;
@@ -92,10 +90,10 @@ export type ChatMessageContentPart =
         english: DesignListItem[];
         bengali: DesignListItem[];
       };
-      // Newly added: generated editing prompts to render in the Editing Prompt tab
-      editingPrompts?: { type: string; prompt: string }[];
-      // Optional new structure: one prompt per design when available
+      // Image-specific editing prompts: one prompt per design
       editingPromptsByDesign?: { designId: string; designTitle?: string; imageIndex?: number; prompt: string }[];
+      // Generated Prompts: Complete AI image generation prompts for each design
+      generatedPrompts?: { designId: string; designTitle: string; prompt: string }[];
     }
   | { type: 'search_keywords'; title?: string; keywords: Array<string | { text: string; url?: string }> }
   | { type: 'generated_images'; title?: string; prompt: string; images: GeneratedImage[] }

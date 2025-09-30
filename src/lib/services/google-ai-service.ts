@@ -1,41 +1,28 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { GoogleGenAI } from '@google/genai';
-import { FirebaseApp } from 'firebase/app';
-// Trying a more direct Firebase AI import, assuming firebase v10+
-import { getGenerativeModel as getFirebaseAISdkModel, getAI as getFirebaseAIInstance } from "firebase/ai"; // Simpler import path if available
-import type { VertexAI } from "firebase/ai"; // Type import
-import { GeminiClient } from '../ai/gemini-client'; // New import
-import { UserProfile, ThinkingMode } from '@/lib/types'; // New import
+import { GeminiClient } from '../ai/gemini-client';
+import { UserProfile, ThinkingMode } from '@/lib/types';
 
 // Configuration type for AI service
 export type AIServiceConfig = {
-  apiKey?: string; // Optional: Still needed for direct Google SDK fallbacks
   modelId: string;
   temperature?: number;
   maxOutputTokens?: number;
   responseMimeType?: string;
-  useFirebaseAI?: boolean;
-  useAlternativeImpl?: boolean; // For @google/genai as a fallback
-  firebaseApp?: FirebaseApp; // Optional: Needed if useFirebaseAI is true
-  profile?: UserProfile | null; // Add profile to config
-  thinkingMode?: ThinkingMode; // Add thinkingMode
+  profile?: UserProfile | null;
+  thinkingMode?: ThinkingMode;
 };
 
-// Common response format regardless of implementation used
+// Common response format
 export type AIResponse = {
   text: string;
 };
 
 /**
- * Google AI Service that handles multiple implementation versions with fallbacks:
- * 1. Firebase AI (if configured and firebaseApp provided)
- * 2. @google/genai (alternative Google SDK)
- * 3. @google/generative-ai (original Google SDK)
+ * Google AI Service that uses GeminiClient with auto-retry and key rotation.
+ * Simplified to use only @google/genai SDK through GeminiClient.
  */
 export class GoogleAIService {
   private readonly config: AIServiceConfig;
-  private firebaseAI?: any; // Using any for now due to import issues, will cast later
-  private readonly client: GeminiClient; // Add GeminiClient instance
+  private readonly client: GeminiClient;
 
   constructor(config: AIServiceConfig) {
     this.config = {
@@ -45,141 +32,63 @@ export class GoogleAIService {
       ...config,
     };
     
-    // Instantiate the new GeminiClient
+    // Instantiate GeminiClient with profile for API key management
     this.client = new GeminiClient({ profile: this.config.profile ?? null });
-
-    if (this.config.useFirebaseAI && this.config.firebaseApp) {
-      try {
-        this.firebaseAI = getFirebaseAIInstance(this.config.firebaseApp);
-      } catch (error) {
-        console.error("Failed to initialize Firebase AI SDK:", error);
-        // Proceed without Firebase AI if initialization fails
-        this.config.useFirebaseAI = false; 
-      }
-    }
   }
 
   /**
-   * Generate content using the provided prompt with fallback logic.
+   * Generate content using the provided prompt.
    */
   async generateContent(prompt: string): Promise<AIResponse> {
-    if (this.config.useFirebaseAI && this.firebaseAI) {
-      try {
-        console.log(`Attempting content generation with Firebase AI (model: ${this.config.modelId})`);
-        return await this.generateWithFirebaseAI(prompt, this.firebaseAI as VertexAI);
-      } catch (error) {
-        console.warn(`Firebase AI generation failed (model: ${this.config.modelId}). Error: ${error}. Falling back...`);
-        // Fallback proceeds in the order defined below
-      }
+    if (!this.config.profile) {
+      throw new Error("AI Service requires a user profile for API key management.");
     }
 
-    if (this.config.useAlternativeImpl && this.config.apiKey) {
-      try {
-        console.log(`Attempting content generation with @google/genai (model: ${this.config.modelId})`);
-        return await this.generateWithAlternativeGoogle(prompt);
-      } catch (error) {
-        console.warn(`@google/genai generation failed (model: ${this.config.modelId}). Error: ${error}. Falling back...`);
-      }
+    try {
+      console.log(`Generating content with model: ${this.config.modelId}`);
+      
+      // Use GeminiClient request method for non-streaming
+      const { data } = await this.client.request(async (apiKey) => {
+        const { GoogleGenAI } = await import('@google/genai');
+        const ai = new GoogleGenAI({ apiKey });
+        
+        const config: any = {
+          temperature: this.config.temperature,
+          maxOutputTokens: this.config.maxOutputTokens,
+          responseMimeType: this.config.responseMimeType,
+        };
+        
+        if (this.config.thinkingMode === 'none') {
+          config.thinkingConfig = { thinkingBudget: 0 };
+        } else if (this.config.thinkingMode === 'default') {
+          config.thinkingConfig = { thinkingBudget: -1 };
+        }
+        
+        const result = await ai.models.generateContent({
+          model: this.config.modelId,
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          config,
+        });
+        
+        return result.text || '';
+      });
+      
+      return { text: data };
+    } catch (error) {
+      console.error(`AI generation failed (model: ${this.config.modelId}):`, error);
+      throw error;
     }
-
-    if (this.config.apiKey) {
-      try {
-        console.log(`Attempting content generation with @google/generative-ai (model: ${this.config.modelId})`);
-        return await this.generateWithOriginalGoogle(prompt);
-      } catch (error) {
-        console.error(`All AI generation methods failed (model: ${this.config.modelId}). Last error with @google/generative-ai: ${error}`);
-        throw error; // Re-throw the last error if all fallbacks fail
-      }
-    }
-    
-    console.error(`AI Service: No valid API key or Firebase setup provided for model ${this.config.modelId}.`);
-    throw new Error("AI Service not configured. No API key or Firebase app.");
   }
 
   /**
-   * Generate content with Firebase AI.
-   */
-  private async generateWithFirebaseAI(prompt: string, firebaseAIInstance: VertexAI): Promise<AIResponse> {
-    // Note: The modelId for Firebase AI might need to be just the name, e.g., 'gemini-1.5-flash'
-    // Ensure your modelId in constants.ts is compatible or transformed before this call if needed.
-    const model = getFirebaseAISdkModel(firebaseAIInstance, {
-      model: this.config.modelId, // This model ID needs to be compatible with Firebase Vertex AI
-      generationConfig: {
-        temperature: this.config.temperature,
-        maxOutputTokens: this.config.maxOutputTokens,
-        responseMimeType: this.config.responseMimeType,
-      },
-    });
-
-    const chat = model.startChat({ history: [] }); 
-    const result = await chat.sendMessage(prompt);
-    return {
-      text: result.response.text() || '',
-    };
-  }
-
-  /**
-   * Generate content with the @google/genai (alternative) implementation.
-   */
-  private async generateWithAlternativeGoogle(prompt: string): Promise<AIResponse> {
-    if (!this.config.apiKey) throw new Error("API Key missing for @google/genai");
-    const ai = new GoogleGenAI({ apiKey: this.config.apiKey });
-    
-    // Define the config object for @google/genai
-    const genAIConfig = {
-        temperature: this.config.temperature,
-        maxOutputTokens: this.config.maxOutputTokens,
-        responseMimeType: this.config.responseMimeType,
-        // safetySettings: [] // Add if needed
-    };
-
-    const result = await ai.models.generateContent({
-      model: this.config.modelId,
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      config: genAIConfig, // Pass the config object here
-    });
-    return { text: result.text || '' }; // Access text as a property
-  }
-
-  /**
-   * Generate content with the original @google/generative-ai implementation.
-   */
-  private async generateWithOriginalGoogle(prompt: string): Promise<AIResponse> {
-    if (!this.config.apiKey) throw new Error("API Key missing for @google/generative-ai");
-    const genAI = new GoogleGenerativeAI(this.config.apiKey);
-    const model = genAI.getGenerativeModel({
-      model: this.config.modelId,
-      generationConfig: {
-        temperature: this.config.temperature,
-        maxOutputTokens: this.config.maxOutputTokens,
-        responseMimeType: this.config.responseMimeType || 'text/plain',
-      },
-    });
-
-    const result = await model.generateContent(
-      {contents: [{ role: 'user', parts: [{ text: prompt }] }]}
-    );
-    return { text: result.response.text() }; // This SDK has response.text()
-  }
-
-  /**
-   * Generate content using streaming with fallback logic.
-   * Note: Streaming is primarily implemented for @google/genai.
-   * Firebase AI streaming is different; direct Google SDK streaming is also different.
-   * This function will prioritize @google/genai if useAlternativeImpl is true.
-   * Otherwise, it falls back to a non-streaming call via the main generateContent method.
+   * Generate content using streaming with auto-retry and key rotation.
    */
   async generateContentStream(
     prompt: string,
     onChunk: (chunk: string) => void
   ): Promise<void> {
-    // We will now primarily use our new GeminiClient for streaming
     if (!this.config.profile) {
-      console.error("GeminiClient requires a user profile for API key management.");
-      // Fallback or throw error
-      const response = await this.generateContent(prompt);
-      onChunk(response.text);
-        return;
+      throw new Error("AI Service requires a user profile for API key management.");
     }
 
     try {
@@ -195,10 +104,9 @@ export class GoogleAIService {
           onChunk(text);
         }
       }
-        } catch (error) {
-      console.error(`Error during streaming with GeminiClient (model: ${this.config.modelId}):`, error);
-      // Optional: implement a fallback to the older methods if needed
-            throw error;
+    } catch (error) {
+      console.error(`Error during streaming (model: ${this.config.modelId}):`, error);
+      throw error;
     }
   }
-} 
+}

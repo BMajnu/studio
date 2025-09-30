@@ -1,3 +1,550 @@
+[2025-10-01 02:18:31] (from previous session)
+Prompt:
+continue. And remember "never think about token limits" and not need to aleart me about it. Becouse I am the Reach Man.
+--------------------------------------------------
+[2025-10-01 02:14:56] (from previous session)
+Prompt:
+in the sidebar add another button name as Lab. Here manly will be the image genarator/image editor page. Here they will be all the ai image genaration and editing fuctionality user the image genarating and editing models.
+Please take a screenshot of the current page to understand properly my requirements. After analyzing it, start implementing.
+--------------------------------------------------
+[2025-10-01 02:10:53] (from previous session)
+Prompt:
+continue to complete all
+--------------------------------------------------
+[2025-10-01 02:08:37] (from previous session)
+Prompt:
+continue
+--------------------------------------------------
+[2025-10-01 02:06:57] (from previous session)
+Prompt:
+continue. don't ask my input again untill completing all the taks.
+--------------------------------------------------
+[2025-10-01 02:06:04] (from previous session)
+Prompt:
+Yes its big but I want you to continue but first make a proper plan then then make a todo list in detailed then continue to implementing.
+--------------------------------------------------
+[2025-10-01 02:01:52] (from previous session)
+Prompt:
+I want to completely redesign the profile page. Now it's very laggy and not also covering the full page in the web view. Check the ss. Also I want to properly reordering everythings. Also there is not back to home button also. So I want to completely rewirte the codes for profile/settings page. 
+
+Analysis:
+Overview:
+The user wants a complete redesign and rewrite of the current "User Profile" page. The existing page is described as "laggy," not utilizing the full page width, and lacking a "back to home" navigation option. The goal is to reorder existing elements, improve the layout to cover the full page, enhance performance, and add a clear path back to the main application interface.
+
+Describe Image:
+Image 1 displays the "User Profile" page (`localhost:5003/profile`) within a dark-themed web application. The page features a main content area with a fixed maximum width, centered horizontally, and does not expand to fill the entire browser width, especially on wider screens. The header includes the title "User Profile" and a subtitle "Manage your professional details to personalize AI interactions." Below the header, there's a green banner indicating "Email Verified" with the user's email address. The page is structured into two main sections:
+1.  **Personal Information:** This section contains four input fields:
+    *   "Name *": Displays "B. Manru".
+    *   "Professional Title": Displays "Professional Graphic Designer".
+    *   "Years of Experience": Displays "5".
+    *   "Portfolio Link": Displays "https://fiverr.com/manru796".
+    Each field has a label above it.
+2.  **Professional Services:** This section is titled "Services Offered" and presents a list of nine distinct services. Each service item includes an icon or emoji (e.g., a T-shirt for "T-Shirt and Hoodie Designs," a coffee mug for "Mug Designs"), the service name, and an "Edit" icon (pencil) on the right, suggesting individual editability. The services listed are: "T-Shirt and Hoodie Designs," "Mug Designs," "Logo Design & Brand Guidelines," "Business Cards & Stationary," "Flyers & Web Banners, YouTube Ads," "Portrait Drawing, Line Art, Vintage Drawings," "Cartoon Characters, Coloring Book Art, Sticker Designs," and "Word Cloud Art & Typography."
+
+The page currently lacks a dedicated "back to home" button within its main content area. The top application bar, visible in both images, includes general navigation icons (home, folder, trash, settings, user profile) on the left and a user initial 'B' icon on the right, which, as seen in Image 2, reveals a dropdown with "View Profile" and "Logout" options. The 'N' icon in the bottom-left of the sidebar is partially visible.
+
+Image 2 shows the main application interface (`localhost:5003`), likely the "home" page, featuring a left-hand navigation sidebar (with "New Chat," "Gallery," "Search chats...", and a list of chat conversations) and a central content area displaying "Requirements Analysis" for a selected chat. This image provides context for the "home" destination the user wishes to easily return to.
+
+Content requirements:
+-   **UI/UX Improvements:**
+    *   **Layout and Responsiveness:** The profile page needs a modern, responsive layout that intelligently utilizes the full available browser width, rather than a fixed-width, centered container. This could involve using a multi-column layout on larger screens and collapsing to a single column on smaller viewports.
+    *   **Information Architecture:** Reorder the sections and fields within the profile page for improved logical flow and visual hierarchy. For example, essential personal information could be grouped more prominently, followed by professional details and then specific services.
+    *   **Navigation:** Integrate a clear and prominent "Back to Home" or "Back to Dashboard" button or link. This could be placed within a newly designed page header for the profile, or as part of a persistent left sidebar if the overall application design supports it.
+    *   **Performance Optimization:** Address the reported "laggy" performance by ensuring efficient rendering of components, optimizing data fetching, and minimizing unnecessary re-renders during the code rewrite.
+    *   **Visual Design:** While maintaining the application's dark theme, update the visual aesthetics with improved spacing, consistent typography, and modern component designs to enhance usability and visual appeal.
+-   **Functional Enhancements (as part of code rewrite):**
+    *   **Editability:** Clearly distinguish between display-only and editable fields, and provide explicit save/cancel actions for any changes made to profile information or service selections.
+    *   **Scalability for Services:** If the list of "Professional Services" is expected to grow, consider a design that handles numerous items efficiently (e.g., with pagination or virtualized lists if the number of services becomes very large).
+    *   **Data Handling:** Ensure robust data handling for profile updates, including validation, error feedback, and successful save confirmations.
+    *   **Code Structure:** The complete code rewrite should follow modern frontend development best practices, using a clear component structure and state management.
+--------------------------------------------------
+[2025-10-01 01:57:36] (from previous session)
+Prompt:
+Now I can see they are at the top but not shows the tag
+--------------------------------------------------
+[2025-10-01 01:56:06] (from previous session)
+Prompt:
+okay now I can see the all models but I can't see tags on any models. (new tag). Also I and the new models always will be at the top (new 4 models)
+--------------------------------------------------
+[2025-10-01 01:47:59] (from previous session)
+Prompt:
+still same.
+--------------------------------------------------
+[2025-10-01 01:46:49] (from previous session)
+Prompt:
+still the new three models are not showing anywhere.
+
+Gemini Flash (Latest) - New tag ⭐ (Default)
+Gemini 2.5 Flash (Image Gen/Edit) - New tag ⭐ (Image generation সহ!)
+Gemini Flash Lite (Latest) - New tag ⭐
+--------------------------------------------------
+[2025-10-01 01:43:24] (from previous session)
+Prompt:
+no where shwos the models new 4 models (what you added the new tags) so maybe problem with the tags or find what.
+--------------------------------------------------
+[2025-10-01 01:41:27] (from previous session)
+Prompt:
+I can't see the newly added model in the dropdown model lists
+Please take a screenshot of the current page to understand properly my requirements. After analyzing it, start implementing.
+--------------------------------------------------
+[2025-10-01 01:37:34] (from previous session)
+Prompt:
+Add the tag as 'New" to the two new models inclouding the gemini 2.5 pro. Also add this mode (also add this model for image genarating and editing (add the model roating option for image editing) also add the new tag here also):
+
+// To run this code you need to install the following dependencies:
+// npm install @google/genai mime
+// npm install -D @types/node
+
+import {
+  GoogleGenAI,
+} from '@google/genai';
+import mime from 'mime';
+import { writeFile } from 'fs';
+
+function saveBinaryFile(fileName: string, content: Buffer) {
+  writeFile(fileName, content, 'utf8', (err) => {
+    if (err) {
+      console.error(`Error writing file ${fileName}:`, err);
+      return;
+    }
+    console.log(`File ${fileName} saved to file system.`);
+  });
+}
+
+async function main() {
+  const ai = new GoogleGenAI({
+    apiKey: process.env.GEMINI_API_KEY,
+  });
+  const config = {
+    responseModalities: [
+        'IMAGE',
+        'TEXT',
+    ],
+  };
+  const model = 'gemini-2.5-flash-image-preview';
+  const contents = [
+    {
+      role: 'user',
+      parts: [
+        {
+          text: `INSERT_INPUT_HERE`,
+        },
+      ],
+    },
+  ];
+
+  const response = await ai.models.generateContentStream({
+    model,
+    config,
+    contents,
+  });
+  let fileIndex = 0;
+  for await (const chunk of response) {
+    if (!chunk.candidates || !chunk.candidates[0].content || !chunk.candidates[0].content.parts) {
+      continue;
+    }
+    if (chunk.candidates?.[0]?.content?.parts?.[0]?.inlineData) {
+      const fileName = `ENTER_FILE_NAME_${fileIndex++}`;
+      const inlineData = chunk.candidates[0].content.parts[0].inlineData;
+      const fileExtension = mime.getExtension(inlineData.mimeType || '');
+      const buffer = Buffer.from(inlineData.data || '', 'base64');
+      saveBinaryFile(`${fileName}.${fileExtension}`, buffer);
+    }
+    else {
+      console.log(chunk.text);
+    }
+  }
+}
+
+main();
+--------------------------------------------------
+[2025-10-01 01:10:28] (from previous session)
+Prompt:
+Add the fuctionality when it see this error it will try with different models or different api keys. Key and model auto rotating fuctionality. 
+
+also remove all the old endpoint functionality and this this api endpoind functionaltiy.:
+
+// To run this code you need to install the following dependencies:
+// npm install @google/genai mime
+// npm install -D @types/node
+
+import {
+  GoogleGenAI,
+} from '@google/genai';
+
+async function main() {
+  const ai = new GoogleGenAI({
+    apiKey: process.env.GEMINI_API_KEY,
+  });
+  const config = {
+    thinkingConfig: {
+      thinkingBudget: -1,
+    },
+  };
+  const model = 'gemini-flash-latest';
+  const contents = [
+    {
+      role: 'user',
+      parts: [
+        {
+          text: `INSERT_INPUT_HERE`,
+        },
+      ],
+    },
+  ];
+
+  const response = await ai.models.generateContentStream({
+    model,
+    config,
+    contents,
+  });
+  let fileIndex = 0;
+  for await (const chunk of response) {
+    console.log(chunk.text);
+  }
+}
+
+main();
+
+
+Also don't forget to add the this "gemini-flash-latest" and const model = 'gemini-flash-lite-latest' models to the apps model list. 
+
+Remove the "user alternative AI" and User Firebase AI api points as well. Just keep the new one.
+Please take a screenshot of the current page to understand properly my requirements. After analyzing it, start implementing.
+--------------------------------------------------
+[2025-10-01 00:57:37] (from previous session)
+Prompt:
+Fix it:
+ERROR (analyzeClientRequirements): Failed after rotating keys: Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent: [503 Service Unavailable] The model is overloaded. Please try again later.
+    at async eval (src\ai\flows\analyze-client-requirements.ts:259:25)
+    at async GeminiClient.request (src\lib\ai\gemini-client.ts:88:21)
+    at async analyzeClientRequirements (src\ai\flows\analyze-client-requirements.ts:251:41)
+  257 |         prompt: promptText
+  258 |       });
+> 259 |       const { output } = await promptDef(actualPromptInputData, { model: modelToUse });
+      |                         ^
+  260 |       if (!output) throw new Error('AI returned empty output');
+  261 |       return output;
+  262 |     }); {
+  status: 503,
+  statusText: 'Service Unavailable',
+  errorDetails: undefined,
+  traceId: '884e039f396823f4bd5f70187a0e1ffc',
+  ignoreFailedSpan: true,
+  code: 'AI_EXHAUSTED'
+}
+ ⨯ Error: AI call failed in analyzeClientRequirements. [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent: [503 Service Unavailable] The model is overloaded. Please try again later.
+    at analyzeClientRequirements (src\ai\flows\analyze-client-requirements.ts:269:10)
+  267 |   } catch (error) {
+  268 |     console.error(`ERROR (${flowName}): Failed after rotating keys:`, error);
+> 269 |     throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);
+      |          ^
+  270 |   }
+  271 | } {
+  digest: '1017870297'
+}
+ POST / 500 in 9241ms
+--------------------------------------------------
+[2025-10-01 00:55:35] (from previous session)
+Prompt:
+Editing prompts not showing in the UI. it sayis: Editing prompts will be generated automatically after the requirements are analyzed.
+
+Fix it.
+Please take a screenshot of the current page to understand properly my requirements. After analyzing it, start implementing.
+--------------------------------------------------
+[2025-10-01 00:50:35] (from previous session)
+Prompt:
+পূর্বের ফাংশনটি অর্থাৎ যেটি রয়েছে পূর্ব থেকে, যেমন মাস্ট, নিড, এডিট, অল এডিট, ইত্যাদি। এগুলো তুমি কমপ্লিটলি রিমুভ করে দাও, যেন এই ধরনের কোনো ধরনের কোনো কোড এখানে না থাকে একেবারে। তো, এটি কমপ্লিটলি রিমুভ করে দাও, যেন পরবর্তীতে কোনো সময় ফ্রি না আসে। এবং এটি যেহেতু ইউজ হচ্ছে না, তবে এটার কোনো প্রয়োজন নেই। কমপ্লিটলি রিমুভ করে দাও।
+--------------------------------------------------
+[2025-10-01 00:36:51] (from previous session)
+Prompt:
+fix the problems:
+[{
+	"resource": "/e:/Developing Projects/DesAInR/studio/src/components/chat/chat-message.tsx",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type '{ designId: string; designTitle?: string | undefined; imageIndex?: number | undefined; prompt: string; }[] | undefined' is not assignable to type '{ designId: string; designTitle?: string | undefined; category: string; prompt: string; imageIndex?: number | undefined; }[] | undefined'.\n  Type '{ designId: string; designTitle?: string | undefined; imageIndex?: number | undefined; prompt: string; }[]' is not assignable to type '{ designId: string; designTitle?: string | undefined; category: string; prompt: string; imageIndex?: number | undefined; }[]'.\n    Property 'category' is missing in type '{ designId: string; designTitle?: string | undefined; imageIndex?: number | undefined; prompt: string; }' but required in type '{ designId: string; designTitle?: string | undefined; category: string; prompt: string; imageIndex?: number | undefined; }'.",
+	"source": "ts",
+	"startLineNumber": 1318,
+	"startColumn": 13,
+	"endLineNumber": 1318,
+	"endColumn": 37,
+	"relatedInformation": [
+		{
+			"startLineNumber": 52,
+			"startColumn": 72,
+			"endLineNumber": 52,
+			"endColumn": 80,
+			"message": "'category' is declared here.",
+			"resource": "/e:/Developing Projects/DesAInR/studio/src/components/chat/bilingual-split-view.tsx"
+		},
+		{
+			"startLineNumber": 52,
+			"startColumn": 3,
+			"endLineNumber": 52,
+			"endColumn": 27,
+			"message": "The expected type comes from property 'generatedPromptsByDesign' which is declared here on type 'IntrinsicAttributes & BilingualSplitViewProps'",
+			"resource": "/e:/Developing Projects/DesAInR/studio/src/components/chat/bilingual-split-view.tsx"
+		}
+	],
+	"modelVersionId": 3
+},{
+	"resource": "/e:/Developing Projects/DesAInR/studio/src/components/chat/chat-message.tsx",
+	"owner": "typescript",
+	"code": "2339",
+	"severity": 8,
+	"message": "Property 'generatedPrompts' does not exist on type '{ type: \"bilingual_analysis\"; title?: string | undefined; keyPoints: BilingualContent; detailedRequirements: BilingualContent; simplifiedRequirements?: BilingualContent | undefined; imageAnalysis?: BilingualContent | undefined; designItems: { ...; }; editingPrompts?: { ...; }[] | undefined; editingPromptsByDesign?: ...'.",
+	"source": "ts",
+	"startLineNumber": 1319,
+	"startColumn": 36,
+	"endLineNumber": 1319,
+	"endColumn": 52,
+	"modelVersionId": 3
+}]
+--------------------------------------------------
+[2025-10-01 00:34:46] (from previous session)
+Prompt:
+স্ক্রিনশটটি লক্ষ্য করো এখানে ফুললি একটি প্রম্পট জেনারেট করা হচ্ছে।   ফুললি রি-জেনারেট করার একটা প্রম্পট। ঠিক আছে? কমপ্লিটলি নতুন করে একটা ডিজাইন জেনারেট করার প্রম্পট। এখানে অবশ্যই সেই ধরনের ডিজাইন জেনারেট করার মতো একটা ফরম্যাট হবে। এখানে কোন ধরনের লিংক, কোন ধরনের ইমেজ রেফারেন্স বা এই জাতীয় কোন কিছু থাকা উচিত নয়। জাস্ট একটি কমপ্লিটলি নতুন ইমেজ জেনারেট করে ফুললি ডিটেইলড এবং ইউজারের চাহিদা অনুসারে, রিকোয়ারমেন্ট অনুসারে ফুললি একটি কমপ্লিট প্রম্পট জেনারেট করবে এবং প্রম্পটের ফরম্যাট অনুসারে। আমি নিচে একটি প্রম্পট সংযোজিত করে দিচ্ছি স্যাম্পল হিসাবে, যে কেমন হওয়া উচিত। তো, পাশাপাশি এআই প্রম্পট রিকোয়ারমেন্ট সরি, প্রম্পট জেনারেট এআই ফ্লো ফাইলটি আমি এটাচ করে দিচ্ছি। সেখানে প্রম্পট জেনারেট করার ফুল গাইডলাইন দেওয়া আছে। তো সেটি অনুসরণ করে এই জেনারেট প্রম্পট ট্যাবের রেসপন্সটুকু রি-ফাইন করো। ইনস্ট্রাকশন টুকু প্রোপারলি রি-ফাইন করো। যেন প্রোপারলি এআই জেনারেটেড বা প্রোপারলি একটি এআই জেনারেশনের জন্য প্রোপার এবং ওয়েল্ড প্রম্পট ইঞ্জিনিয়ারিং একটি প্রম্পট জেনারেট করা হয়। This is complete different from the editing prompt and the Design Idea. It will generate complete newly image generating prompt with prompt structure. You can see in the fist ss it just copied everything from the design idea tab (2nd ss). and all in same struction add the must follow as requriements. This is not struction of a proper prompting. So fix it. 
+
+follow the file for Genarating prompt guidline (just use it for guidline).
+src\ai\flows\generate-design-prompts-flow.ts
+
+Analysis:
+Overview:
+The user is requesting a refinement of the AI prompt generation feature within a "Requirements Analysis" interface. The provided screenshots display "Design Idea" content in English and Bengali, along with associated "Must follow" requirements and UI elements for generating prompts. The core issue is that the current prompt generation, as described by the user, incorrectly copies content from the "Design Idea" tab and adds generic "must follow" statements, rather than producing a properly structured, detailed, and new AI-engineered prompt specifically for image generation, without external references.
+
+Describe Image:
+The first screenshot, titled "From Design Ideas," shows two detailed design concepts: "Official Seal Emblem Logo" and "Modern Minimalist Wordmark with Abstract Icon." These descriptions outline visual elements, typography, color palettes, and overall design intent. The second screenshot, "Requirements Analysis," displays a comprehensive interface for managing design requirements. On the left, under "English," two main sections are visible: "Official Seal Emblem Logo" and "Modern Minimalist Wordmark with Abstract Icon," mirroring the content from the first screenshot. Each of these sections includes a descriptive paragraph and a "Must follow" list of additional requirements, such as "No reference images were provided," "Business name: 'Let's Seal It'," and "Design should convey trustworthiness, professionalism, and the concept of 'sealing'." Below these, there are checkboxes for "Include original prompt," "Include attached images," and "Include full analysis." At the bottom, two prominent buttons are present: "Generate Prompts" and "Edit & Generate Prompts." The right side of the "Requirements Analysis" screen shows corresponding Bengali translations. The user's request pertains to the output generated when clicking "Generate Prompts" for the "Generated Prompt" tab (not visible in the screenshot), indicating that this output should be a completely new, image-generating prompt, distinct from the "Design Idea" content, and engineered according to specific guidelines.
+
+Content requirements:
+- **Overview**: The system needs to generate a brand-new, detailed AI image generation prompt. This prompt should be distinct from the design ideas and editing prompts, fully adhering to user requirements, and structured in a format suitable for direct input into an AI image model.
+- The generated prompt must not include any links, image references, or similar external content; it should be a purely textual description for image generation.
+- The `src\ai\flows\generate-design-prompts-flow.ts` file should serve as the guideline for transforming the high-level design ideas (e.g., "Official Seal Emblem Logo" or "Modern Minimalist Wordmark") and their associated "Must follow" requirements into a well-engineered AI prompt for image generation.
+- For example, if "Official Seal Emblem Logo" is selected, the generated prompt should translate the description ("A classic and authoritative emblem logo, featuring a stylized, professional notary seal or a stamp icon...") and the "Must follow" requirements ("Colors should evoke trust, such as deep blues, greens, or metallic accents...", "legible serif font for 'Let's Seal It'") into concrete, actionable instructions for an AI image model. This would involve specifying elements like subject, style, colors, typography, composition, and other descriptive attributes in a format optimized for AI generation, rather than just copying and rephrasing the original design brief. The output format for the generated prompt should be a detailed, single-block text suitable for an image generation API.
+
+Constraints:
+- The content for the generated prompt must be derived solely from the visible "Design Idea" sections and their "Must follow" requirements shown in the provided images.
+- The specific contents of `src\ai\flows\generate-design-prompts-flow.ts` are unknown, but its role as a guideline for prompt generation flow is acknowledged.
+--------------------------------------------------
+[2025-10-01 00:25:13] (from previous session)
+Prompt:
+it's not genarating the Editing prompt find out the prompt and fix it. 
+
+Analysis:
+### Overview:
+The image presents a web application interface displaying a conversation thread followed by a "Requirements Analysis" section. The "Editing Prompt" tab within this section is selected but does not show a generated prompt; instead, it displays a message indicating that prompts will be generated automatically after the requirements are analyzed. The user is asking why the "Editing Prompt" is not generating and seeks a solution.
+
+### Describe Image:
+The interface features a dark aesthetic with various UI components. At the top, a section labeled "Natashamodeste" presents a chat or message history. The key messages outline a request for a logo:
+- The initial message from "Natashamodeste" at "Sep 25, 2:16 AM" states: "hi i looking for a logo for my notary business. the name is let's seal it. mobile notary services & more".
+- A follow-up message from "N natashamodeste" at "Sep 25, 3:55 PM" confirms the business name, asks to include "mobile notary services and more," and specifies a budget of "$20.00" with a "deadline 2 days."
+Below this chat, a large panel titled "Requirements Analysis" is visible. This panel contains multiple tabs: "Key Points," "Details," "Simplize Requirement," "Editing Prompt," "Generated Prompt," and "Designs Idea." The "Editing Prompt" tab is visually active, highlighted with a purple-pink gradient. The content area below this tab explicitly states: "Editing prompts will be generated automatically after the requirements are analyzed." This message strongly suggests that the generation of the "Editing Prompt" is contingent upon a prior, uncompleted "requirements analysis" phase. A footer bar at the bottom of the screen includes a "Regenerate" button on the right, which might be a control for re-triggering the analysis or generation process, though its precise functionality is not detailed.
+
+### Content requirements:
+- **Overview:** The image clearly shows that the "Editing Prompt" is not being generated because a prerequisite step, "requirements analysis," has not been completed. The system explicitly states that the prompt will be generated "after the requirements are analyzed." Therefore, the immediate issue is the unfulfilled dependency on the analysis process.
+- **Describe Image:** The visible chat messages provide the raw requirements for a logo design: business name ("Let's Seal It"), services ("mobile notary services & more"), budget ($20.00), and deadline (2 days). The "Editing Prompt" is intended to be a structured representation of these requirements. The fact that the prompt is not generated indicates that the system has not yet processed these chat messages to extract and synthesize the core requirements into an editable prompt. The "fix" for the non-generation is to ensure the "requirements analysis" process is completed, which would then automatically trigger the generation of the "Editing Prompt" based on the provided user messages.
+--------------------------------------------------
+[2025-10-01 00:14:25] (from previous session)
+Prompt:
+I want you back the src\ai\flows\analyze-client-requirements.ts file to f1fbcf1062751bfa6b51a29de23731b7b7883dbd this commit.
+Please take a screenshot of the current page to understand properly my requirements. After analyzing it, start implementing.
+--------------------------------------------------
+[2025-10-01 00:02:59] (from previous session)
+Prompt:
+still same:
+
+ReferenceError: editingPrompts is not defined
+    at renderContent (webpack-internal:///(app-pages-browser)/./src/components/chat/bilingual-split-view.tsx:723:46)
+    at BilingualSplitView (webpack-internal:///(app-pages-browser)/./src/components/chat/bilingual-split-view.tsx:1053:35)
+    at eval (webpack-internal:///(app-pages-browser)/./src/app/page.tsx:3768:128)
+    at Array.map (<anonymous>)
+    at ChatPage (webpack-internal:///(app-pages-browser)/./src/app/page.tsx:3768:42)
+    at ClientPageRoot (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/client-page.js:20:50)
+
+ReferenceError: editingPrompts is not defined
+    at renderContent (webpack-internal:///(app-pages-browser)/./src/components/chat/bilingual-split-view.tsx:723:46)
+    at BilingualSplitView (webpack-internal:///(app-pages-browser)/./src/components/chat/bilingual-split-view.tsx:1053:35)
+    at RenderContentPart (webpack-internal:///(app-pages-browser)/./src/components/chat/chat-message.tsx:3611:102)
+    at eval (webpack-internal:///(app-pages-browser)/./src/components/chat/chat-message.tsx:5693:141)
+    at Array.map (<anonymous>)
+    at ChatMessageDisplay (webpack-internal:///(app-pages-browser)/./src/components/chat/chat-message.tsx:5693:47)
+    at eval (webpack-internal:///(app-pages-browser)/./src/app/page.tsx:3769:126)
+    at Array.map (<anonymous>)
+    at ChatPage (webpack-internal:///(app-pages-browser)/./src/app/page.tsx:3768:42)
+    at ClientPageRoot (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/client-page.js:20:50)
+--------------------------------------------------
+[2025-10-01 00:00:28] (from previous session)
+Prompt:
+fix these errrors:
+
+ReferenceError: editingPromptsByDesign is not defined
+    at renderContent (webpack-internal:///(app-pages-browser)/./src/components/chat/bilingual-split-view.tsx:622:45)
+    at BilingualSplitView (webpack-internal:///(app-pages-browser)/./src/components/chat/bilingual-split-view.tsx:1053:35)
+    at eval (webpack-internal:///(app-pages-browser)/./src/app/page.tsx:3768:128)
+    at Array.map (<anonymous>)
+    at ChatPage (webpack-internal:///(app-pages-browser)/./src/app/page.tsx:3768:42)
+    at ClientPageRoot (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/client-page.js:20:50)
+
+
+ReferenceError: editingPromptsByDesign is not defined
+    at renderContent (webpack-internal:///(app-pages-browser)/./src/components/chat/bilingual-split-view.tsx:622:45)
+    at BilingualSplitView (webpack-internal:///(app-pages-browser)/./src/components/chat/bilingual-split-view.tsx:1053:35)
+    at RenderContentPart (webpack-internal:///(app-pages-browser)/./src/components/chat/chat-message.tsx:3611:102)
+    at eval (webpack-internal:///(app-pages-browser)/./src/components/chat/chat-message.tsx:5693:141)
+    at Array.map (<anonymous>)
+    at ChatMessageDisplay (webpack-internal:///(app-pages-browser)/./src/components/chat/chat-message.tsx:5693:47)
+    at eval (webpack-internal:///(app-pages-browser)/./src/app/page.tsx:3769:126)
+    at Array.map (<anonymous>)
+    at ChatPage (webpack-internal:///(app-pages-browser)/./src/app/page.tsx:3768:42)
+    at ClientPageRoot (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/client-page.js:20:50)
+--------------------------------------------------
+[2025-09-30 23:59:04] (from previous session)
+Prompt:
+fix this error:
+Error: AI title fetch failed 404 "<!DOCTYPE html><html lang=\"en\"><head><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><link rel=\"stylesheet\" href=\"/_next/static/css/app/layout.css?v=1759255052123\" data-precedence=\"next_static/css/app/layout.css\"/><link rel=\"preload\" as=\"script\" fetchPriority=\"low\" href=\"/_next/static/chunks/webpack.js?v=1759255052123\"/><script src=\"/_next/static/chunks/main-app.js?v=1759255052123\" async=\"\"></script><script src=\"/_next/static/chunks/app-pages-internals.js\" async=\"\"></script><script src=\"/_next/static/chunks/app/layout.js\" async=\"\"></script><meta name=\"robots\" content=\"noindex\"/><title>404: This page could not be found.</title><title>DesAInR - AI Designer Assistant</title><meta name=\"description\" content=\"AI-powered assistant for graphics designers\"/><script>document.querySelectorAll('body link[rel=\"icon\"], body link[rel=\"apple-touch-icon\"]').forEach(el => document.head.appendChild(el))</script><script src=\"/_next/static/chunks/polyfills.js\" noModule=\"\"></script></head><body class=\"__variable_5cfdac __variable_9a8899 font-sans antialiased\"> <!--$--><div class=\"relative flex h-[100dvh] flex-col\"><div class=\"absolute top-4 right-4 z-50 flex items-center gap-2\"><button class=\"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 h-10 px-4 py-2 rounded-full btn-glow animate-fade-in hover:scale-105 font-medium transition-all duration-300 ease-in-out hover:text-primary hover:bg-primary/10 shadow-sm\" type=\"button\" aria-haspopup=\"dialog\" aria-expanded=\"false\" aria-controls=\"radix-«Riil7»\" data-state=\"closed\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-circle-help h-6 w-6\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle><path d=\"M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3\"></path><path d=\"M12 17h.01\"></path></svg></button><button class=\"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-input bg-background h-10 px-4 py-2 rounded-full btn-glow animate-fade-in hover:scale-105 font-medium transition-all duration-300 ease-in-out hover:text-primary hover:bg-primary/10 shadow-sm\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-log-in h-6 w-6\"><path d=\"M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4\"></path><polyline points=\"10 17 15 12 10 7\"></polyline><line x1=\"15\" x2=\"3\" y1=\"12\" y2=\"12\"></line></svg><span class=\"ml-2\">Login</span></button><button class=\"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 h-10 px-4 py-2 hover:shadow-md rounded-full btn-glow animate-fade-in hover:scale-105 font-medium transition-all duration-300 ease-in-out bg-primary text-primary-foreground shadow-md\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-log-in h-6 w-6\"><path d=\"M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4\"></path><polyline points=\"10 17 15 12 10 7\"></polyline><line x1=\"15\" x2=\"3\" y1=\"12\" y2=\"12\"></line></svg><span class=\"ml-2\">Sign Up</span></button><button class=\"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 px-4 py-2 font-medium hover:text-accent-foreground h-10 w-10 ml-1 rounded-full btn-glow animate-fade-in hover:scale-105 backdrop-blur-sm border border-border/20 shadow-sm hover:shadow-md hover:bg-primary/10 transition-all duration-300 ease-in-out\" aria-label=\"Change language\" type=\"button\" id=\"radix-«R4il7»\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-state=\"closed\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-languages h-6 w-6 text-foreground/80 hover:text-primary transition-colors\"><path d=\"m5 8 6 6\"></path><path d=\"m4 14 6-6 2-3\"></path><path d=\"M2 5h12\"></path><path d=\"M7 2h1\"></path><path d=\"m22 22-5-10-5 10\"></path><path d=\"M14 18h6\"></path></svg></button><button class=\"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 px-4 py-2 font-medium hover:text-accent-foreground h-10 w-10 ml-1 rounded-full btn-glow animate-fade-in hover:scale-105 backdrop-blur-sm border border-border/20 shadow-sm hover:shadow-md hover:bg-primary/10 transition-all duration-300 ease-in-out\" aria-label=\"Toggle theme\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-sun h-6 w-6 text-foreground/80 hover:text-primary transition-colors\"><circle cx=\"12\" cy=\"12\" r=\"4\"></circle><path d=\"M12 2v2\"></path><path d=\"M12 20v2\"></path><path d=\"m4.93 4.93 1.41 1.41\"></path><path d=\"m17.66 17.66 1.41 1.41\"></path><path d=\"M2 12h2\"></path><path d=\"M20 12h2\"></path><path d=\"m6.34 17.66-1.41 1.41\"></path><path d=\"m19.07 4.93-1.41 1.41\"></path></svg></button></div><main class=\"flex-1 flex flex-col overflow-y-auto\"><div style=\"font-family:system-ui,&quot;Segoe UI&quot;,Roboto,Helvetica,Arial,sans-serif,&quot;Apple Color Emoji&quot;,&quot;Segoe UI Emoji&quot;;height:100vh;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center\"><div><style>body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}</style><h1 class=\"next-error-h1\" style=\"display:inline-block;margin:0 20px 0 0;padding:0 23px 0 0;font-size:24px;font-weight:500;vertical-align:top;line-height:49px\">404</h1><div style=\"display:inline-block\"><h2 style=\"font-size:14px;font-weight:400;line-height:49px;margin:0\">This page could not be found.</h2></div></div></div><!--$--><!--/$--><!--$--><!--/$--></main></div><!--/$--><div role=\"region\" aria-label=\"Notifications (F8)\" tabindex=\"-1\" style=\"pointer-events:none\"><ol tabindex=\"-1\" class=\"fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]\"></ol></div><script src=\"/_next/static/chunks/webpack.js?v=1759255052123\" async=\"\"></script><script>(self.__next_f=self.__next_f||[]).push([0])</script><script>self.__next_f.push([1,\"3:\\\"$Sreact.fragment\\\"\\n5:I[\\\"(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"\\\"]\\n6:I[\\\"(app-pages-browser)/./node_modules/next/dist/client/components/render-from-template-context.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"\\\"]\\n8:I[\\\"(app-pages-browser)/./src/contexts/auth-context.tsx\\\",[\\\"app/layout\\\",\\\"static/chunks/app/layout.js\\\"],\\\"AuthProvider\\\"]\\n9:\\\"$Sreact.suspense\\\"\\na:I[\\\"(app-pages-browser)/./src/components/layout/app-layout.tsx\\\",[\\\"app/layout\\\",\\\"static/chunks/app/layout.js\\\"],\\\"AppLayout\\\"]\\ne:I[\\\"(app-pages-browser)/./src/components/ExtensionTokenBridge.tsx\\\",[\\\"app/layout\\\",\\\"static/chunks/app/layout.js\\\"],\\\"default\\\"]\\nf:I[\\\"(app-pages-browser)/./src/components/ui/toaster.tsx\\\",[\\\"app/layout\\\",\\\"static/chunks/app/layout.js\\\"],\\\"Toaster\\\"]\\n16:I[\\\"(app-pages-browser)/./node_modules/next/dist/client/components/metadata/metadata-boundary.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"MetadataBoundary\\\"]\\n19:I[\\\"(app-pages-browser)/./node_modules/next/dist/client/components/metadata/metadata-boundary.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"OutletBoundary\\\"]\\n20:I[\\\"(app-pages-browser)/./node_modules/next/dist/client/components/metadata/async-metadata.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"AsyncMetadataOutlet\\\"]\\n23:I[\\\"(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"\\\"]\\n24:I[\\\"(app-pages-browser)/./node_modules/next/dist/client/components/client-page.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"ClientPageRoot\\\"]\\n25:I[\\\"(app-pages-browser)/./node_modules/next/dist/client/components/client-segment.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"ClientSegmentRoot\\\"]\\n26:I[\\\"(app-pages-browser)/./node_modules/next/dist/client/components/http-access-fallback/error-boundary.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internal\"])</script><script>self.__next_f.push([1,\"s.js\\\"],\\\"HTTPAccessFallbackBoundary\\\"]\\n27:I[\\\"(app-pages-browser)/./node_modules/next/dist/client/components/metadata/metadata-boundary.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"ViewportBoundary\\\"]\\n30:I[\\\"(app-pages-browser)/./node_modules/next/dist/client/components/metadata/async-metadata.js\\\",[\\\"app-pages-internals\\\",\\\"static/chunks/app-pages-internals.js\\\"],\\\"AsyncMetadata\\\"]\\n:HL[\\\"/_next/static/css/app/layout.css?v=1759255052123\\\",\\\"style\\\"]\\n2:{\\\"name\\\":\\\"Preloads\\\",\\\"env\\\":\\\"Server\\\",\\\"key\\\":null,\\\"owner\\\":null,\\\"stack\\\":[],\\\"props\\\":{\\\"preloadCallbacks\\\":[\\\"$E(()=\\u003e{ctx.componentMod.preloadStyle(fullHref,ctx.renderOpts.crossOrigin,ctx.nonce)})\\\"]}}\\n1:D\\\"$2\\\"\\n1:null\\n7:{\\\"name\\\":\\\"RootLayout\\\",\\\"env\\\":\\\"Server\\\",\\\"key\\\":null,\\\"owner\\\":null,\\\"stack\\\":[],\\\"props\\\":{\\\"children\\\":[\\\"$\\\",\\\"$L5\\\",null,{\\\"parallelRouterKey\\\":\\\"children\\\",\\\"error\\\":\\\"$undefined\\\",\\\"errorStyles\\\":\\\"$undefined\\\",\\\"errorScripts\\\":\\\"$undefined\\\",\\\"template\\\":[\\\"$\\\",\\\"$3\\\",null,{\\\"children\\\":[\\\"$\\\",\\\"$L6\\\",null,{},null,[],1]},null,[],0],\\\"templateStyles\\\":\\\"$undefined\\\",\\\"templateScripts\\\":\\\"$undefined\\\",\\\"notFound\\\":\\\"$Y\\\",\\\"forbidden\\\":\\\"$undefined\\\",\\\"unauthorized\\\":\\\"$undefined\\\"},null,[],1],\\\"params\\\":\\\"$Y\\\"}}\\n4:D\\\"$7\\\"\\nc:{\\\"name\\\":\\\"NotFound\\\",\\\"env\\\":\\\"Server\\\",\\\"key\\\":null,\\\"owner\\\":null,\\\"stack\\\":[],\\\"props\\\":{}}\\nb:D\\\"$c\\\"\\nd:{\\\"name\\\":\\\"HTTPAccessErrorFallback\\\",\\\"env\\\":\\\"Server\\\",\\\"key\\\":null,\\\"owner\\\":\\\"$c\\\",\\\"stack\\\":[],\\\"props\\\":{\\\"status\\\":404,\\\"message\\\":\\\"This page could not be found.\\\"}}\\nb:D\\\"$d\\\"\\nb:[[\\\"$\\\",\\\"title\\\",null,{\\\"children\\\":\\\"404: This page could not be found.\\\"},\\\"$d\\\",[],1],[\\\"$\\\",\\\"div\\\",null,{\\\"style\\\":{\\\"fontFamily\\\":\\\"system-ui,\\\\\\\"Segoe UI\\\\\\\",Roboto,Helvetica,Arial,sans-serif,\\\\\\\"Apple Color Emoji\\\\\\\",\\\\\\\"Segoe UI Emoji\\\\\\\"\\\",\\\"height\\\":\\\"100vh\\\",\\\"textAlign\\\":\\\"center\\\",\\\"display\\\":\\\"flex\\\",\\\"flexDirection\\\":\\\"column\\\",\\\"alignItems\\\":\\\"center\\\",\\\"justifyContent\\\":\\\"center\\\"},\\\"children\\\":[\\\"$\\\",\\\"div\\\",null,{\\\"children\\\":[[\\\"$\\\",\\\"style\\\",null,{\\\"dangerouslySetInnerHTML\\\":{\\\"__html\\\":\\\"body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}\"])</script><script>self.__next_f.push([1,\"}\\\"}},\\\"$d\\\",[],1],[\\\"$\\\",\\\"h1\\\",null,{\\\"className\\\":\\\"next-error-h1\\\",\\\"style\\\":{\\\"display\\\":\\\"inline-block\\\",\\\"margin\\\":\\\"0 20px 0 0\\\",\\\"padding\\\":\\\"0 23px 0 0\\\",\\\"fontSize\\\":24,\\\"fontWeight\\\":500,\\\"verticalAlign\\\":\\\"top\\\",\\\"lineHeight\\\":\\\"49px\\\"},\\\"children\\\":404},\\\"$d\\\",[],1],[\\\"$\\\",\\\"div\\\",null,{\\\"style\\\":{\\\"display\\\":\\\"inline-block\\\"},\\\"children\\\":[\\\"$\\\",\\\"h2\\\",null,{\\\"style\\\":{\\\"fontSize\\\":14,\\\"fontWeight\\\":400,\\\"lineHeight\\\":\\\"49px\\\",\\\"margin\\\":0},\\\"children\\\":\\\"This page could not be found.\\\"},\\\"$d\\\",[],1]},\\\"$d\\\",[],1]]},\\\"$d\\\",[],1]},\\\"$d\\\",[],1]]\\n4:[\\\"$\\\",\\\"html\\\",null,{\\\"lang\\\":\\\"en\\\",\\\"suppressHydrationWarning\\\":true,\\\"children\\\":[\\\"$\\\",\\\"body\\\",null,{\\\"className\\\":\\\"__variable_5cfdac __variable_9a8899 font-sans antialiased\\\",\\\"suppressHydrationWarning\\\":true,\\\"children\\\":[\\\"$\\\",\\\"$L8\\\",null,{\\\"children\\\":[\\\" \\\",[\\\"$\\\",\\\"$9\\\",null,{\\\"fallback\\\":null,\\\"children\\\":[\\\"$\\\",\\\"$La\\\",null,{\\\"children\\\":[\\\"$\\\",\\\"$L5\\\",null,{\\\"parallelRouterKey\\\":\\\"children\\\",\\\"error\\\":\\\"$undefined\\\",\\\"errorStyles\\\":\\\"$undefined\\\",\\\"errorScripts\\\":\\\"$undefined\\\",\\\"template\\\":[\\\"$\\\",\\\"$L6\\\",null,{},null,[],1],\\\"templateStyles\\\":\\\"$undefined\\\",\\\"templateScripts\\\":\\\"$undefined\\\",\\\"notFound\\\":[\\\"$b\\\",[]],\\\"forbidden\\\":\\\"$undefined\\\",\\\"unauthorized\\\":\\\"$undefined\\\"},null,[],1]},\\\"$7\\\",[[\\\"RootLayout\\\",\\\"webpack-internal:///(rsc)/./src/app/layout.tsx\\\",48,110]],1]},\\\"$7\\\",[[\\\"RootLayout\\\",\\\"webpack-internal:///(rsc)/./src/app/layout.tsx\\\",46,96]],1],[\\\"$\\\",\\\"$Le\\\",null,{},\\\"$7\\\",[[\\\"RootLayout\\\",\\\"webpack-internal:///(rsc)/./src/app/layout.tsx\\\",60,96]],1],[\\\"$\\\",\\\"$Lf\\\",null,{},\\\"$7\\\",[[\\\"RootLayout\\\",\\\"webpack-internal:///(rsc)/./src/app/layout.tsx\\\",65,96]],1]]},\\\"$7\\\",[[\\\"RootLayout\\\",\\\"webpack-internal:///(rsc)/./src/app/layout.tsx\\\",43,98]],1]},\\\"$7\\\",[[\\\"RootLayout\\\",\\\"webpack-internal:///(rsc)/./src/app/layout.tsx\\\",40,94]],1]},\\\"$7\\\",[[\\\"RootLayout\\\",\\\"webpack-internal:///(rsc)/./src/app/layout.tsx\\\",37,87]],1]\\n11:{\\\"name\\\":\\\"NotFound\\\",\\\"env\\\":\\\"Server\\\",\\\"key\\\":null,\\\"owner\\\":null,\\\"stack\\\":[],\\\"props\\\":{\\\"params\\\":\\\"$@\\\",\\\"searchParams\\\":\\\"$@\\\"}}\\n10:D\\\"$11\\\"\\n12:{\\\"name\\\":\\\"HTTPAccessErrorFallback\\\",\\\"env\\\":\\\"Server\\\",\\\"key\\\":null,\\\"owner\\\":\\\"$11\\\",\\\"stack\\\":[],\\\"props\\\":{\\\"status\\\":404,\\\"message\\\":\\\"This page could not be found.\\\"}}\\n10:D\\\"$12\\\"\\n10:[[\\\"$\\\",\\\"title\\\",null,{\\\"children\\\":\\\"404: This\"])</script><script>self.__next_f.push([1,\" page could not be found.\\\"},\\\"$12\\\",[],1],[\\\"$\\\",\\\"div\\\",null,{\\\"style\\\":\\\"$b:1:props:style\\\",\\\"children\\\":[\\\"$\\\",\\\"div\\\",null,{\\\"children\\\":[[\\\"$\\\",\\\"style\\\",null,{\\\"dangerouslySetInnerHTML\\\":{\\\"__html\\\":\\\"body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}\\\"}},\\\"$12\\\",[],1],[\\\"$\\\",\\\"h1\\\",null,{\\\"className\\\":\\\"next-error-h1\\\",\\\"style\\\":\\\"$b:1:props:children:props:children:1:props:style\\\",\\\"children\\\":404},\\\"$12\\\",[],1],[\\\"$\\\",\\\"div\\\",null,{\\\"style\\\":\\\"$b:1:props:children:props:children:2:props:style\\\",\\\"children\\\":[\\\"$\\\",\\\"h2\\\",null,{\\\"style\\\":\\\"$b:1:props:children:props:children:2:props:children:props:style\\\",\\\"children\\\":\\\"This page could not be found.\\\"},\\\"$12\\\",[],1]},\\\"$12\\\",[],1]]},\\\"$12\\\",[],1]},\\\"$12\\\",[],1]]\\n14:{\\\"name\\\":\\\"\\\",\\\"env\\\":\\\"Server\\\",\\\"key\\\":null,\\\"owner\\\":null,\\\"stack\\\":[],\\\"props\\\":{}}\\n13:D\\\"$14\\\"\\n15:{\\\"name\\\":\\\"MetadataTree\\\",\\\"env\\\":\\\"Server\\\",\\\"key\\\":null,\\\"owner\\\":null,\\\"stack\\\":[],\\\"props\\\":{}}\\n13:D\\\"$15\\\"\\n18:{\\\"name\\\":\\\"__next_metadata_boundary__\\\",\\\"env\\\":\\\"Server\\\",\\\"key\\\":null,\\\"owner\\\":\\\"$15\\\",\\\"stack\\\":[],\\\"props\\\":{}}\\n17:D\\\"$18\\\"\\n13:[\\\"$\\\",\\\"$L16\\\",null,{\\\"children\\\":\\\"$L17\\\"},\\\"$15\\\",[],1]\\n1b:{\\\"name\\\":\\\"__next_outlet_boundary__\\\",\\\"env\\\":\\\"Server\\\",\\\"key\\\":null,\\\"owner\\\":null,\\\"stack\\\":[],\\\"props\\\":{\\\"ready\\\":\\\"$E(async function getViewportReady() {\\\\n        await viewport();\\\\n        return undefined;\\\\n    })\\\"}}\\n1a:D\\\"$1b\\\"\\n1d:{\\\"name\\\":\\\"__next_outlet_boundary__\\\",\\\"env\\\":\\\"Server\\\",\\\"key\\\":null,\\\"owner\\\":null,\\\"stack\\\":[],\\\"props\\\":{\\\"ready\\\":\\\"$E(async function getMetadataReady() {\\\\n        // Only warm up metadata() call when it's blocking metadata,\\\\n        // otherwise it will be fully managed by AsyncMetadata component.\\\\n        if (!serveStreamingMetadata) {\\\\n            await metadata();\\\\n        }\\\\n        return undefined;\\\\n    })\\\"}}\\n1c:D\\\"$1d\\\"\\n1f:{\\\"name\\\":\\\"StreamingMetadataOutlet\\\",\\\"env\\\":\\\"Server\\\",\\\"key\\\":null,\\\"owner\\\":null,\\\"stack\\\":[],\\\"props\\\":{}}\\n1e:D\\\"$1f\\\"\\n1e:[\\\"$\\\",\\\"$L20\\\",null,{\\\"promise\\\":\\\"$@21\\\"},\\\"$1f\\\",[],1]\\n\"])</script><script>self.__next_f.push([1,\"28:{\\\"name\\\":\\\"NonIndex\\\",\\\"env\\\":\\\"Server\\\",\\\"key\\\":null,\\\"owner\\\":null,\\\"stack\\\":[],\\\"props\\\":{\\\"ctx\\\":{\\\"componentMod\\\":{\\\"GlobalError\\\":\\\"$23\\\",\\\"__next_app__\\\":{\\\"require\\\":\\\"$E(function __webpack_require__(moduleId) {\\\\n/******/ \\\\t\\\\t// Check if module is in cache\\\\n/******/ \\\\t\\\\tvar cachedModule = __webpack_module_cache__[moduleId];\\\\n/******/ \\\\t\\\\tif (cachedModule !== undefined) {\\\\n/******/ \\\\t\\\\t\\\\treturn cachedModule.exports;\\\\n/******/ \\\\t\\\\t}\\\\n/******/ \\\\t\\\\t// Create a new module (and put it into the cache)\\\\n/******/ \\\\t\\\\tvar module = __webpack_module_cache__[moduleId] = {\\\\n/******/ \\\\t\\\\t\\\\tid: moduleId,\\\\n/******/ \\\\t\\\\t\\\\tloaded: false,\\\\n/******/ \\\\t\\\\t\\\\texports: {}\\\\n/******/ \\\\t\\\\t};\\\\n/******/ \\\\t\\\\n/******/ \\\\t\\\\t// Execute the module function\\\\n/******/ \\\\t\\\\tvar threw = true;\\\\n/******/ \\\\t\\\\ttry {\\\\n/******/ \\\\t\\\\t\\\\t__webpack_modules__[moduleId].call(module.exports, module, module.exports, __webpack_require__);\\\\n/******/ \\\\t\\\\t\\\\tthrew = false;\\\\n/******/ \\\\t\\\\t} finally {\\\\n/******/ \\\\t\\\\t\\\\tif(threw) delete __webpack_module_cache__[moduleId];\\\\n/******/ \\\\t\\\\t}\\\\n/******/ \\\\t\\\\n/******/ \\\\t\\\\t// Flag the module as loaded\\\\n/******/ \\\\t\\\\tmodule.loaded = true;\\\\n/******/ \\\\t\\\\n/******/ \\\\t\\\\t// Return the exports of the module\\\\n/******/ \\\\t\\\\treturn module.exports;\\\\n/******/ \\\\t})\\\",\\\"loadChunk\\\":\\\"$E(() =\\u003e Promise.resolve())\\\"},\\\"pages\\\":[],\\\"routeModule\\\":{\\\"userland\\\":{\\\"loaderTree\\\":[\\\"\\\",\\\"$Y\\\",\\\"$Y\\\"]},\\\"definition\\\":\\\"$Y\\\"},\\\"tree\\\":\\\"$Y\\\",\\\"ClientPageRoot\\\":\\\"$24\\\",\\\"ClientSegmentRoot\\\":\\\"$25\\\",\\\"HTTPAccessFallbackBoundary\\\":\\\"$26\\\",\\\"LayoutRouter\\\":\\\"$5\\\",\\\"MetadataBoundary\\\":\\\"$16\\\",\\\"OutletBoundary\\\":\\\"$19\\\",\\\"Postpone\\\":\\\"$E(function Postpone({ reason, route }) {\\\\n    const prerenderStore = _workunitasyncstorageexternal.workUnitAsyncStorage.getStore();\\\\n    const dynamicTracking = prerenderStore \\u0026\\u0026 prerenderStore.type === 'prerender-ppr' ? prerenderStore.dynamicTracking : null;\\\\n    postponeWithTracking(route, reason, dynamicTracking);\\\\n})\\\",\\\"RenderFromTemplateContext\\\":\\\"$6\\\",\\\"ViewportBoundary\\\":\\\"$27\\\",\\\"actionAsyncStorage\\\":\\\"$Y\\\",\\\"collectSegmentData\\\":\\\"$E(async function collectSegmentData(shouldAssumePartialData, fullPageDataBuffer, staleTime, clientModules, serverConsumerManifest, fallbackRouteParams) {\\\\n    // Traverse the router tree and generate a prefetch response for each segment.\\\\n    // A mutable map to collect the results as we traverse the route tree.\\\\n    const resultMap = new Map();\\\\n    // Before we start, warm up the module cache by decoding the page data once.\\\\n    // Then we can assume that any remaining async tasks that occur the next time\\\\n    // are due to hanging promises caused by dynamic data access. Note we only\\\\n    // have to do this once per page, not per individual segment.\\\\n    //\\\\n    try {\\\\n        await (0, _clientedge.createFromReadableStream)((0, _nodewebstreamshelper.streamFromBuffer)(fullPageDataBuffer), {\\\\n            serverConsumerManifest\\\\n        });\\\\n        await (0, _scheduler.waitAtLeastOneReactRenderTask)();\\\\n    } catch  {}\\\\n    // Create an abort controller that we'll use to stop the stream.\\\\n    const abortController = new AbortController();\\\\n    const onCompletedProcessingRouteTree = async ()=\\u003e{\\\\n        // Since all we're doing is decoding and re-encoding a cached prerender, if\\\\n        // serializing the stream takes longer than a microtask, it must because of\\\\n        // hanging promises caused by dynamic data.\\\\n        await (0, _scheduler.waitAtLeastOneReactRenderTask)();\\\\n        abortController.abort();\\\\n    };\\\\n    // Generate a stream for the route tree prefetch. While we're walking the\\\\n    // tree, we'll also spawn additional tasks to generate the segment prefetches.\\\\n    // The promises for these tasks are pushed to a mutable array that we will\\\\n    // await once the route tree is fully rendered.\\\\n    const segmentTasks = [];\\\\n    const { prelude: treeStream } = await (0, _staticedge.unstable_prerender)(// RootTreePrefetch is not a valid return type for a React component, but\\\\n    // we need to use a component so that when we decode the original stream\\\\n    // inside of it, the side effects are transferred to the new stream.\\\\n    // @ts-expect-error\\\\n    /*#__PURE__*/ (0, _jsxruntime.jsx)(PrefetchTreeData, {\\\\n        shouldAssumePartialData: shouldAssumePartialData,\\\\n        fullPageDataBuffer: fullPageDataBuffer,\\\\n        fallbackRouteParams: fallbackRouteParams,\\\\n        serverConsumerManifest: serverConsumerManifest,\\\\n        clientModules: clientModules,\\\\n        staleTime: staleTime,\\\\n        segmentTasks: segmentTasks,\\\\n        onCompletedProcessingRouteTree: onCompletedProcessingRouteTree\\\\n    }), clientModules, {\\\\n        signal: abortController.signal,\\\\n        onError: onSegmentPrerenderError\\\\n    });\\\\n    // Write the route tree to a special `/_tree` segment.\\\\n    const treeBuffer = await (0, _nodewebstreamshelper.streamToBuffer)(treeStream);\\\\n    resultMap.set('/_tree', treeBuffer);\\\\n    // Now that we've finished rendering the route tree, all the segment tasks\\\\n    // should have been spawned. Await them in parallel and write the segment\\\\n    // prefetches to the result map.\\\\n    for (const [segmentPath, buffer] of (await Promise.all(segmentTasks))){\\\\n        resultMap.set(segmentPath, buffer);\\\\n    }\\\\n    return resultMap;\\\\n})\\\",\\\"createMetadataComponents\\\":\\\"$E(function createMetadataComponents({ tree, searchParams, metadataContext, getDynamicParamFromSegment, appUsingSizeAdjustment, errorType, createServerParamsForMetadata, workStore, MetadataBoundary, ViewportBoundary, serveStreamingMetadata }) {\\\\n    function ViewportTree() {\\\\n        return /*#__PURE__*/ (0, _jsxruntime.jsxs)(_jsxruntime.Fragment, {\\\\n            children: [\\\\n                /*#__PURE__*/ (0, _jsxruntime.jsx)(ViewportBoundary, {\\\\n                    children: /*#__PURE__*/ (0, _jsxruntime.jsx)(Viewport, {})\\\\n                }),\\\\n                appUsingSizeAdjustment ? /*#__PURE__*/ (0, _jsxruntime.jsx)(\\\\\\\"meta\\\\\\\", {\\\\n                    name: \\\\\\\"next-size-adjust\\\\\\\",\\\\n                    content: \\\\\\\"\\\\\\\"\\\\n                }) : null\\\\n            ]\\\\n        });\\\\n    }\\\\n    function MetadataTree() {\\\\n        return /*#__PURE__*/ (0, _jsxruntime.jsx)(MetadataBoundary, {\\\\n            children: /*#__PURE__*/ (0, _jsxruntime.jsx)(Metadata, {})\\\\n        });\\\\n    }\\\\n    function viewport() {\\\\n        return getResolvedViewport(tree, searchParams, getDynamicParamFromSegment, createServerParamsForMetadata, workStore, errorType);\\\\n    }\\\\n    async function Viewport() {\\\\n        try {\\\\n            return await viewport();\\\\n        } catch (error) {\\\\n            if (!errorType \\u0026\\u0026 (0, _httpaccessfallback.isHTTPAccessFallbackError)(error)) {\\\\n                try {\\\\n                    return await getNotFoundViewport(tree, searchParams, getDynamicParamFromSegment, createServerParamsForMetadata, workStore);\\\\n                } catch  {}\\\\n            }\\\\n            // We don't actually want to error in this component. We will\\\\n            // also error in the MetadataOutlet which causes the error to\\\\n            // bubble from the right position in the page to be caught by the\\\\n            // appropriate boundaries\\\\n            return null;\\\\n        }\\\\n    }\\\\n    Viewport.displayName = _metadataconstants.VIEWPORT_BOUNDARY_NAME;\\\\n    function metadata() {\\\\n        return getResolvedMetadata(tree, searchParams, getDynamicParamFromSegment, metadataContext, createServerParamsForMetadata, workStore, errorType);\\\\n    }\\\\n    async function resolveFinalMetadata() {\\\\n        let result;\\\\n        let error = null;\\\\n        try {\\\\n            result = await metadata();\\\\n            return {\\\\n                metadata: result,\\\\n                error: null,\\\\n                digest: undefined\\\\n            };\\\\n        } catch (metadataErr) {\\\\n            error = metadataErr;\\\\n            if (!errorType \\u0026\\u0026 (0, _httpaccessfallback.isHTTPAccessFallbackError)(metadataErr)) {\\\\n                try {\\\\n                    result = await getNotFoundMetadata(tree, searchParams, getDynamicParamFromSegment, metadataContext, createServerParamsForMetadata, workStore);\\\\n                    return {\\\\n                        metadata: result,\\\\n                        error,\\\\n                        digest: error == null ? void 0 : error.digest\\\\n                    };\\\\n                } catch (notFoundMetadataErr) {\\\\n                    error = notFoundMetadataErr;\\\\n                    // In PPR rendering we still need to throw the postpone error.\\\\n                    // If metadata is postponed, React needs to be aware of the location of error.\\\\n                    if (serveStreamingMetadata \\u0026\\u0026 (0, _ispostpone.isPostpone)(notFoundMetadataErr)) {\\\\n                        throw notFoundMetadataErr;\\\\n                    }\\\\n                }\\\\n            }\\\\n            // In PPR rendering we still need to throw the postpone error.\\\\n            // If metadata is postponed, React needs to be aware of the location of error.\\\\n            if (serveStreamingMetadata \\u0026\\u0026 (0, _ispostpone.isPostpone)(metadataErr)) {\\\\n                throw metadataErr;\\\\n            }\\\\n            // We don't actually want to error in this component. We will\\\\n            // also error in the MetadataOutlet which causes the error to\\\\n            // bubble from the right position in the page to be caught by the\\\\n            // appropriate boundaries\\\\n            return {\\\\n                metadata: result,\\\\n                error,\\\\n                digest: error == null ? void 0 : error.digest\\\\n            };\\\\n        }\\\\n    }\\\\n    async function Metadata() {\\\\n        const promise = resolveFinalMetadata();\\\\n        if (serveStreamingMetadata) {\\\\n            return /*#__PURE__*/ (0, _jsxruntime.jsx)(_react.Suspense, {\\\\n                fallback: null,\\\\n                children: /*#__PURE__*/ (0, _jsxruntime.jsx)(_asyncmetadata.AsyncMetadata, {\\\\n                    promise: promise\\\\n                })\\\\n            });\\\\n        }\\\\n        const metadataState = await promise;\\\\n        return metadataState.metadata;\\\\n    }\\\\n    Metadata.displayName = _metadataconstants.METADATA_BOUNDARY_NAME;\\\\n    async function getMetadataReady() {\\\\n        // Only warm up metadata() call when it's blocking metadata,\\\\n        // otherwise it will be fully managed by AsyncMetadata component.\\\\n        if (!serveStreamingMetadata) {\\\\n            await metadata();\\\\n        }\\\\n        return undefined;\\\\n    }\\\\n    async function getViewportReady() {\\\\n        await viewport();\\\\n        return undefined;\\\\n    }\\\\n    function StreamingMetadataOutlet() {\\\\n        if (serveStreamingMetadata) {\\\\n            return /*#__PURE__*/ (0, _jsxruntime.jsx)(_asyncmetadata.AsyncMetadataOutlet, {\\\\n                promise: resolveFinalMetadata()\\\\n            });\\\\n        }\\\\n        return null;\\\\n    }\\\\n    return {\\\\n        ViewportTree,\\\\n        MetadataTree,\\\\n        getViewportReady,\\\\n        getMetadataReady,\\\\n        StreamingMetadataOutlet\\\\n    };\\\\n})\\\",\\\"createPrerenderParamsForClientSegment\\\":\\\"$E(function createPrerenderParamsForClientSegment(underlyingParams, workStore) {\\\\n    const prerenderStore = _workunitasyncstorageexternal.workUnitAsyncStorage.getStore();\\\\n    if (prerenderStore \\u0026\\u0026 prerenderStore.type === 'prerender') {\\\\n        const fallbackParams = workStore.fallbackRouteParams;\\\\n        if (fallbackParams) {\\\\n            for(let key in underlyingParams){\\\\n                if (fallbackParams.has(key)) {\\\\n                    // This params object has one of more fallback params so we need to consider\\\\n                    // the awaiting of this params object \\\\\\\"dynamic\\\\\\\". Since we are in dynamicIO mode\\\\n                    // we encode this as a promise that never resolves\\\\n                    return (0, _dynamicrenderingutils.makeHangingPromise)(prerenderStore.renderSignal, '`params`');\\\\n                }\\\\n            }\\\\n        }\\\\n    }\\\\n    // We're prerendering in a mode that does not abort. We resolve the promise without\\\\n    // any tracking because we're just transporting a value from server to client where the tracking\\\\n    // will be applied.\\\\n    return Promise.resolve(underlyingParams);\\\\n})\\\",\\\"createPrerenderSearchParamsForClientPage\\\":\\\"$E(function createPrerenderSearchParamsForClientPage(workStore) {\\\\n    if (workStore.forceStatic) {\\\\n        // When using forceStatic we override all other logic and always just return an empty\\\\n        // dictionary object.\\\\n        return Promise.resolve({});\\\\n    }\\\\n    const prerenderStore = _workunitasyncstorageexternal.workUnitAsyncStorage.getStore();\\\\n    if (prerenderStore \\u0026\\u0026 prerenderStore.type === 'prerender') {\\\\n        // dynamicIO Prerender\\\\n        // We're prerendering in a mode that aborts (dynamicIO) and should stall\\\\n        // the promise to ensure the RSC side is considered dynamic\\\\n        return (0, _dynamicrenderingutils.makeHangingPromise)(prerenderStore.renderSignal, '`searchParams`');\\\\n    }\\\\n    // We're prerendering in a mode that does not aborts. We resolve the promise without\\\\n    // any tracking because we're just transporting a value from server to client where the tracking\\\\n    // will be applied.\\\\n    return Promise.resolve({});\\\\n})\\\",\\\"createServerParamsForMetadata\\\":\\\"$E(function createServerParamsForServerSegment(underlyingParams, workStore) {\\\\n    const workUnitStore = _workunitasyncstorageexternal.workUnitAsyncStorage.getStore();\\\\n    if (workUnitStore) {\\\\n        switch(workUnitStore.type){\\\\n            case 'prerender':\\\\n            case 'prerender-ppr':\\\\n            case 'prerender-legacy':\\\\n                return createPrerenderParams(underlyingParams, workStore, workUnitStore);\\\\n            default:\\\\n        }\\\\n    }\\\\n    return createRenderParams(underlyingParams, workStore);\\\\n})\\\",\\\"createServerParamsForServerSegment\\\":\\\"$E(function createServerParamsForServerSegment(underlyingParams, workStore) {\\\\n    const workUnitStore = _workunitasyncstorageexternal.workUnitAsyncStorage.getStore();\\\\n    if (workUnitStore) {\\\\n        switch(workUnitStore.type){\\\\n            case 'prerender':\\\\n            case 'prerender-ppr':\\\\n            case 'prerender-legacy':\\\\n                return createPrerenderParams(underlyingParams, workStore, workUnitStore);\\\\n            default:\\\\n        }\\\\n    }\\\\n    return createRenderParams(underlyingParams, workStore);\\\\n})\\\",\\\"createServerSearchParamsForMetadata\\\":\\\"$E(function createServerSearchParamsForServerPage(underlyingSearchParams, workStore) {\\\\n    const workUnitStore = _workunitasyncstorageexternal.workUnitAsyncStorage.getStore();\\\\n    if (workUnitStore) {\\\\n        switch(workUnitStore.type){\\\\n            case 'prerender':\\\\n            case 'prerender-ppr':\\\\n            case 'prerender-legacy':\\\\n                return createPrerenderSearchParams(workStore, workUnitStore);\\\\n            default:\\\\n        }\\\\n    }\\\\n    return createRenderSearchParams(underlyingSearchParams, workStore);\\\\n})\\\",\\\"createServerSearchParamsForServerPage\\\":\\\"$E(function createServerSearchParamsForServerPage(underlyingSearchParams, workStore) {\\\\n    const workUnitStore = _workunitasyncstorageexternal.workUnitAsyncStorage.getStore();\\\\n    if (workUnitStore) {\\\\n        switch(workUnitStore.type){\\\\n            case 'prerender':\\\\n            case 'prerender-ppr':\\\\n            case 'prerender-legacy':\\\\n                return createPrerenderSearchParams(workStore, workUnitStore);\\\\n            default:\\\\n        }\\\\n    }\\\\n    return createRenderSearchParams(underlyingSearchParams, workStore);\\\\n})\\\",\\\"createTemporaryReferenceSet\\\":\\\"$E(function(){return new WeakMap})\\\",\\\"decodeAction\\\":\\\"$E(function(body,serverManifest){var formData=new FormData,action=null;return body.forEach(function(value1,key){key.startsWith(\\\\\\\"$ACTION_\\\\\\\")?key.startsWith(\\\\\\\"$ACTION_REF_\\\\\\\")?(value1=decodeBoundActionMetaData(body,serverManifest,value1=\\\\\\\"$ACTION_\\\\\\\"+key.slice(12)+\\\\\\\":\\\\\\\"),action=loadServerReference(serverManifest,value1.id,value1.bound)):key.startsWith(\\\\\\\"$ACTION_ID_\\\\\\\")\\u0026\\u0026(action=loadServerReference(serverManifest,value1=key.slice(11),null)):formData.append(key,value1)}),null===action?null:action.then(function(fn){return fn.bind(null,formData)})})\\\",\\\"decodeFormState\\\":\\\"$E(function(actionResult,body,serverManifest){var keyPath=body.get(\\\\\\\"$ACTION_KEY\\\\\\\");if(\\\\\\\"string\\\\\\\"!=typeof keyPath)return Promise.resolve(null);var metaData=null;if(body.forEach(function(value1,key){key.startsWith(\\\\\\\"$ACTION_REF_\\\\\\\")\\u0026\\u0026(metaData=decodeBoundActionMetaData(body,serverManifest,\\\\\\\"$ACTION_\\\\\\\"+key.slice(12)+\\\\\\\":\\\\\\\"))}),null===metaData)return Promise.resolve(null);var referenceId=metaData.id;return Promise.resolve(metaData.bound).then(function(bound){return null===bound?null:[actionResult,keyPath,referenceId,bound.length-1]})})\\\",\\\"decodeReply\\\":\\\"$E(function(body,webpackMap,options){if(\\\\\\\"string\\\\\\\"==typeof body){var form=new FormData;form.append(\\\\\\\"0\\\\\\\",body),body=form}return webpackMap=getChunk(body=createResponse(webpackMap,\\\\\\\"\\\\\\\",options?options.temporaryReferences:void 0,body),0),close(body),webpackMap})\\\",\\\"patchFetch\\\":\\\"$E(function patchFetch() {\\\\n    return (0, _patchfetch.patchFetch)({\\\\n        workAsyncStorage: _workasyncstorageexternal.workAsyncStorage,\\\\n        workUnitAsyncStorage: _workunitasyncstorageexternal.workUnitAsyncStorage\\\\n    });\\\\n})\\\",\\\"preconnect\\\":\\\"$E(function preconnect(href, crossOrigin, nonce) {\\\\n    const opts = {};\\\\n    if (typeof crossOrigin === 'string') {\\\\n        opts.crossOrigin = crossOrigin;\\\\n    }\\\\n    if (typeof nonce === 'string') {\\\\n        opts.nonce = nonce;\\\\n    }\\\\n    ;\\\\n    _reactdom.default.preconnect(href, opts);\\\\n})\\\",\\\"preloadFont\\\":\\\"$E(function preloadFont(href, type, crossOrigin, nonce) {\\\\n    const opts = {\\\\n        as: 'font',\\\\n        type\\\\n    };\\\\n    if (typeof crossOrigin === 'string') {\\\\n        opts.crossOrigin = crossOrigin;\\\\n    }\\\\n    if (typeof nonce === 'string') {\\\\n        opts.nonce = nonce;\\\\n    }\\\\n    _reactdom.default.preload(href, opts);\\\\n})\\\",\\\"preloadStyle\\\":\\\"$E(function preloadStyle(href, crossOrigin, nonce) {\\\\n    const opts = {\\\\n        as: 'style'\\\\n    };\\\\n    if (typeof crossOrigin === 'string') {\\\\n        opts.crossOrigin = crossOrigin;\\\\n    }\\\\n    if (typeof nonce === 'string') {\\\\n        opts.nonce = nonce;\\\\n    }\\\\n    _reactdom.default.preload(href, opts);\\\\n})\\\",\\\"prerender\\\":\\\"$E(function(model,webpackMap,options){return new Promise(function(resolve,reject){var request=new RequestInstance(PRERENDER,model,webpackMap,options?options.onError:void 0,options?options.identifierPrefix:void 0,options?options.onPostpone:void 0,options?options.temporaryReferences:void 0,options?options.environmentName:void 0,options?options.filterStackFrame:void 0,function(){resolve({prelude:new ReadableStream({type:\\\\\\\"bytes\\\\\\\",start:function(){startWork(request)},pull:function(controller){startFlowing(request,controller)},cancel:function(reason){request.destination=null,abort(request,reason)}},{highWaterMark:0})})},reject);if(options\\u0026\\u0026options.signal){var signal=options.signal;if(signal.aborted)abort(request,signal.reason);else{var listener=function(){abort(request,signal.reason),signal.removeEventListener(\\\\\\\"abort\\\\\\\",listener)};signal.addEventListener(\\\\\\\"abort\\\\\\\",listener)}}startWork(request)})})\\\",\\\"renderToReadableStream\\\":\\\"$E(function(model,webpackMap,options){var request=new RequestInstance(20,model,webpackMap,options?options.onError:void 0,options?options.identifierPrefix:void 0,options?options.onPostpone:void 0,options?options.temporaryReferences:void 0,options?options.environmentName:void 0,options?options.filterStackFrame:void 0,noop,noop);if(options\\u0026\\u0026options.signal){var signal=options.signal;if(signal.aborted)abort(request,signal.reason);else{var listener=function(){abort(request,signal.reason),signal.removeEventListener(\\\\\\\"abort\\\\\\\",listener)};signal.addEventListener(\\\\\\\"abort\\\\\\\",listener)}}return new ReadableStream({type:\\\\\\\"bytes\\\\\\\",start:function(){startWork(request)},pull:function(controller){startFlowing(request,controller)},cancel:function(reason){request.destination=null,abort(request,reason)}},{highWaterMark:0})})\\\",\\\"serverHooks\\\":\\\"$Y\\\",\\\"taintObjectReference\\\":\\\"$E(function notImplemented() {\\\\n    throw Object.defineProperty(new Error('Taint can only be used with the taint flag.'), \\\\\\\"__NEXT_ERROR_CODE\\\\\\\", {\\\\n        value: \\\\\\\"E354\\\\\\\",\\\\n        enumerable: false,\\\\n        configurable: true\\\\n    });\\\\n})\\\",\\\"workAsyncStorage\\\":\\\"$Y\\\",\\\"workUnitAsyncStorage\\\":\\\"$Y\\\"},\\\"url\\\":\\\"$Y\\\",\\\"renderOpts\\\":\\\"$Y\\\",\\\"workStore\\\":\\\"$Y\\\",\\\"parsedRequestHeaders\\\":\\\"$Y\\\",\\\"getDynamicParamFromSegment\\\":\\\"$E(function(segment){let segmentParam=getSegmentParam(segment);if(!segmentParam)return null;let key=segmentParam.param,value1=params[key];if(fallbackRouteParams\\u0026\\u0026fallbackRouteParams.has(segmentParam.param)?value1=fallbackRouteParams.get(segmentParam.param):Array.isArray(value1)?value1=value1.map(i=\\u003eencodeURIComponent(i)):\\\\\\\"string\\\\\\\"==typeof value1\\u0026\\u0026(value1=encodeURIComponent(value1)),!value1){let isCatchall=\\\\\\\"catchall\\\\\\\"===segmentParam.type,isOptionalCatchall=\\\\\\\"optional-catchall\\\\\\\"===segmentParam.type;if(isCatchall||isOptionalCatchall){let dynamicParamType=dynamicParamTypes[segmentParam.type];return isOptionalCatchall?{param:key,value:null,type:dynamicParamType,treeSegment:[key,\\\\\\\"\\\\\\\",dynamicParamType]}:{param:key,value:value1=pagePath.split(\\\\\\\"/\\\\\\\").slice(1).flatMap(pathSegment=\\u003e{let param=function(param){let match=param.match(PARAMETER_PATTERN);return match?parseMatchedParameter(match[2]):parseMatchedParameter(param)}(pathSegment);return params[param.key]??param.key}),type:dynamicParamType,treeSegment:[key,value1.join(\\\\\\\"/\\\\\\\"),dynamicParamType]}}}let type=function(type){let short=dynamicParamTypes[type];if(!short)throw Object.defineProperty(Error(\\\\\\\"Unknown dynamic param type\\\\\\\"),\\\\\\\"__NEXT_ERROR_CODE\\\\\\\",{value:\\\\\\\"E378\\\\\\\",enumerable:!1,configurable:!0});return short}(segmentParam.type);return{param:key,value:value1,treeSegment:[key,Array.isArray(value1)?value1.join(\\\\\\\"/\\\\\\\"):value1,type],type:type}})\\\",\\\"query\\\":\\\"$Y\\\",\\\"isPrefetch\\\":false,\\\"isAction\\\":false,\\\"requestTimestamp\\\":1759255052123,\\\"appUsingSizeAdjustment\\\":false,\\\"flightRouterState\\\":\\\"$undefined\\\",\\\"requestId\\\":\\\"7ZHXF0IAvTaYWPd9RV3qM\\\",\\\"pagePath\\\":\\\"/404\\\",\\\"clientReferenceManifest\\\":\\\"$Y\\\",\\\"assetPrefix\\\":\\\"\\\",\\\"isNotFoundPath\\\":true,\\\"nonce\\\":\\\"$undefined\\\",\\\"res\\\":\\\"$Y\\\",\\\"sharedContext\\\":\\\"$Y\\\"}}}\\n\"])</script><script>self.__next_f.push([1,\"22:D\\\"$28\\\"\\n22:[\\\"$\\\",\\\"meta\\\",null,{\\\"name\\\":\\\"robots\\\",\\\"content\\\":\\\"noindex\\\"},null,[],1]\\n2a:{\\\"name\\\":\\\"ViewportTree\\\",\\\"env\\\":\\\"Server\\\",\\\"key\\\":\\\"7ZHXF0IAvTaYWPd9RV3qM\\\",\\\"owner\\\":null,\\\"stack\\\":[],\\\"props\\\":{}}\\n29:D\\\"$2a\\\"\\n2c:{\\\"name\\\":\\\"__next_viewport_boundary__\\\",\\\"env\\\":\\\"Server\\\",\\\"key\\\":null,\\\"owner\\\":\\\"$2a\\\",\\\"stack\\\":[],\\\"props\\\":{}}\\n2b:D\\\"$2c\\\"\\n29:[\\\"$\\\",\\\"$3\\\",\\\"7ZHXF0IAvTaYWPd9RV3qM\\\",{\\\"children\\\":[[\\\"$\\\",\\\"$L27\\\",null,{\\\"children\\\":\\\"$L2b\\\"},\\\"$2a\\\",[],1],null]},null,null,0]\\n2e:{\\\"name\\\":\\\"\\\",\\\"env\\\":\\\"Server\\\",\\\"key\\\":null,\\\"owner\\\":null,\\\"stack\\\":[],\\\"props\\\":{}}\\n2d:D\\\"$2e\\\"\\n2d:null\\n2f:[]\\n0:{\\\"P\\\":\\\"$1\\\",\\\"b\\\":\\\"development\\\",\\\"p\\\":\\\"\\\",\\\"c\\\":[\\\"\\\",\\\"api\\\",\\\"generate-chat-title\\\"],\\\"i\\\":false,\\\"f\\\":[[[\\\"\\\",{\\\"children\\\":[\\\"/_not-found\\\",{\\\"children\\\":[\\\"__PAGE__\\\",{}]}]},\\\"$undefined\\\",\\\"$undefined\\\",true],[\\\"\\\",[\\\"$\\\",\\\"$3\\\",\\\"c\\\",{\\\"children\\\":[[[\\\"$\\\",\\\"link\\\",\\\"0\\\",{\\\"rel\\\":\\\"stylesheet\\\",\\\"href\\\":\\\"/_next/static/css/app/layout.css?v=1759255052123\\\",\\\"precedence\\\":\\\"next_static/css/app/layout.css\\\",\\\"crossOrigin\\\":\\\"$undefined\\\",\\\"nonce\\\":\\\"$undefined\\\"},null,[],0]],\\\"$4\\\"]},null,[],0],{\\\"children\\\":[\\\"/_not-found\\\",[\\\"$\\\",\\\"$3\\\",\\\"c\\\",{\\\"children\\\":[null,[\\\"$\\\",\\\"$L5\\\",null,{\\\"parallelRouterKey\\\":\\\"children\\\",\\\"error\\\":\\\"$undefined\\\",\\\"errorStyles\\\":\\\"$undefined\\\",\\\"errorScripts\\\":\\\"$undefined\\\",\\\"template\\\":[\\\"$\\\",\\\"$L6\\\",null,{},null,[],1],\\\"templateStyles\\\":\\\"$undefined\\\",\\\"templateScripts\\\":\\\"$undefined\\\",\\\"notFound\\\":\\\"$undefined\\\",\\\"forbidden\\\":\\\"$undefined\\\",\\\"unauthorized\\\":\\\"$undefined\\\"},null,[],1]]},null,[],0],{\\\"children\\\":[\\\"__PAGE__\\\",[\\\"$\\\",\\\"$3\\\",\\\"c\\\",{\\\"children\\\":[\\\"$10\\\",\\\"$13\\\",null,[\\\"$\\\",\\\"$L19\\\",null,{\\\"children\\\":[\\\"$L1a\\\",\\\"$L1c\\\",\\\"$1e\\\"]},null,[],1]]},null,[],0],{},null,false]},null,false]},null,false],[\\\"$\\\",\\\"$3\\\",\\\"h\\\",{\\\"children\\\":[\\\"$22\\\",\\\"$29\\\",\\\"$2d\\\"]},null,[],0],false]],\\\"m\\\":\\\"$W2f\\\",\\\"G\\\":[\\\"$23\\\",\\\"$undefined\\\"],\\\"s\\\":false,\\\"S\\\":false}\\n17:[\\\"$\\\",\\\"$9\\\",null,{\\\"fallback\\\":null,\\\"children\\\":[\\\"$\\\",\\\"$L30\\\",null,{\\\"promise\\\":\\\"$@31\\\"},\\\"$18\\\",[],1]},\\\"$18\\\",[],1]\\n1c:null\\n31:{\\\"metadata\\\":[[\\\"$\\\",\\\"title\\\",\\\"0\\\",{\\\"children\\\":\\\"DesAInR - AI Designer Assistant\\\"},\\\"$18\\\",[],0],[\\\"$\\\",\\\"meta\\\",\\\"1\\\",{\\\"name\\\":\\\"description\\\",\\\"content\\\":\\\"AI-powered assistant for graphics designers\\\"},\\\"$18\\\",[],0]],\\\"error\\\":null,\\\"digest\\\":\\\"$undefined\\\"}\\n21:{\\\"metadata\\\":\\\"$31:metadata\\\",\\\"error\\\":n\"])</script><script>self.__next_f.push([1,\"ull,\\\"digest\\\":\\\"$undefined\\\"}\\n2b:[[\\\"$\\\",\\\"meta\\\",\\\"0\\\",{\\\"charSet\\\":\\\"utf-8\\\"},\\\"$1b\\\",[],0],[\\\"$\\\",\\\"meta\\\",\\\"1\\\",{\\\"name\\\":\\\"viewport\\\",\\\"content\\\":\\\"width=device-width, initial-scale=1\\\"},\\\"$1b\\\",[],0]]\\n1a:null\\n\"])</script></body></html>"
+    at createUnhandledError (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/errors/console-error.js:27:71)
+    at handleClientError (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/errors/use-error-handler.js:45:56)
+    at console.error (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/globals/intercept-console-error.js:47:56)
+    at useChatHistory.useEffect (webpack-internal:///(app-pages-browser)/./src/lib/hooks/use-chat-history.ts:2479:41)
+--------------------------------------------------
+[2025-09-30 23:55:37] (from previous session)
+Prompt:
+still I can see few errors:
+
+PS E:\Developing Projects\DesAInR\studio> npm run dev
+
+> nextn@0.1.0 dev
+> cross-env NODE_ENV=development next dev -p 9003
+
+   ▲ Next.js 15.2.3
+   - Local:        http://localhost:9003
+   - Network:      http://192.168.1.101:9003
+   - Environments: .env.local, .env
+   - Experiments (use with caution):
+     · allowedDevOrigins
+
+ ✓ Starting...
+ ⚠ Found lockfile missing swc dependencies, patching...
+ ⚠ Lockfile was successfully patched, please run "npm install" to ensure @next/swc dependencies are downloaded
+ ✓ Ready in 4s
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 10.6s (1564 modules)
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /_next/static/webpack/53bf0c77ca6cbf6f.webpack.hot-update.json 404 in 12228ms
+ ○ Compiling / ...
+ ✓ Compiled / in 22.7s (5711 modules)
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+Firebase app already initialized
+ GET / 200 in 23425ms
+ GET /_next/static/webpack/53bf0c77ca6cbf6f.webpack.hot-update.json 404 in 22975ms
+ GET / 200 in 139ms
+--------------------------------------------------
+[2025-09-30 23:52:22] (from previous session)
+Prompt:
+still same.
+--------------------------------------------------
+[2025-09-30 23:51:19] (from previous session)
+Prompt:
+I am getting same error again
+--------------------------------------------------
+[2025-09-30 23:50:52] (from previous session)
+Prompt:
+> nextn@0.1.0 dev
+> cross-env NODE_ENV=development next dev -p 9003
+
+   ▲ Next.js 15.2.3
+   - Local:        http://localhost:9003
+   - Network:      http://192.168.1.101:9003
+   - Environments: .env.local, .env
+   - Experiments (use with caution):
+     · allowedDevOrigins
+
+ ✓ Starting...
+ ✓ Ready in 3.2s
+ ○ Compiling / ...
+ ⨯ ./src/lib/utils/document-parser.ts:6:1
+Module not found: Can't resolve 'pdfjs-dist'
+  4 |  */
+  5 |
+> 6 | import * as pdfjsLib from 'pdfjs-dist';
+    | ^
+  7 |
+  8 | // Configure PDF.js worker
+  9 | if (typeof window !== 'undefined') {
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/app/page.tsx
+./app/page.tsx
+ ⨯ ./src/lib/utils/document-parser.ts:6:1
+Module not found: Can't resolve 'pdfjs-dist'
+  4 |  */
+  5 |
+> 6 | import * as pdfjsLib from 'pdfjs-dist';
+    | ^
+  7 |
+  8 | // Configure PDF.js worker
+  9 | if (typeof window !== 'undefined') {
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/app/page.tsx
+./app/page.tsx
+Warning: useLayoutEffect does nothing on the server, because its effect cannot be encoded into the server renderer's output format. This will lead to a mismatch between the initial, non-hydrated UI and the intended UI. To avoid this, useLayoutEffect should only be used in components that render exclusively on the client. See https://reactjs.org/link/uselayouteffect-ssr for common fixes.
+    at ShadowPortal (E:\Developing Projects\DesAInR\studio\node_modules\next\src\client\components\react-dev-overlay\ui\components\shadow-portal.tsx:5:32)
+    at DevOverlay (E:\Developing Projects\DesAInR\studio\node_modules\next\src\client\components\react-dev-overlay\ui\dev-overlay.tsx:14:3)
+    at ReactDevOverlay (E:\Developing Projects\DesAInR\studio\node_modules\next\src\server\dev\next-dev-server.ts:82:10)
+    at div
+    at Body (E:\Developing Projects\DesAInR\studio\node_modules\next\src\server\render.tsx:1263:19)
+Warning: useLayoutEffect does nothing on the server, because its effect cannot be encoded into the server renderer's output format. This will lead to a mismatch between the initial, non-hydrated UI and the intended UI. To avoid this, useLayoutEffect should only be used in components that render exclusively on the client. See https://reactjs.org/link/uselayouteffect-ssr for common fixes.
+    at ShadowPortal (E:\Developing Projects\DesAInR\studio\node_modules\next\src\client\components\react-dev-overlay\ui\components\shadow-portal.tsx:5:32)
+    at DevOverlay (E:\Developing Projects\DesAInR\studio\node_modules\next\src\client\components\react-dev-overlay\ui\dev-overlay.tsx:14:3)
+    at ReactDevOverlay (E:\Developing Projects\DesAInR\studio\node_modules\next\src\server\dev\next-dev-server.ts:82:10)
+    at div
+    at Body (E:\Developing Projects\DesAInR\studio\node_modules\next\src\server\render.tsx:1263:19)
+ GET /_next/static/webpack/53bf0c77ca6cbf6f.webpack.hot-update.json 500 in 30679ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+Warning: useLayoutEffect does nothing on the server, because its effect cannot be encoded into the server renderer's output format. This will lead to a mismatch between the initial, non-hydrated UI and the intended UI. To avoid this, useLayoutEffect should only be used in components that render exclusively on the client. See https://reactjs.org/link/uselayouteffect-ssr for common fixes.
+    at ShadowPortal (E:\Developing Projects\DesAInR\studio\node_modules\next\src\client\components\react-dev-overlay\ui\components\shadow-portal.tsx:5:32)
+    at DevOverlay (E:\Developing Projects\DesAInR\studio\node_modules\next\src\client\components\react-dev-overlay\ui\dev-overlay.tsx:14:3)
+    at ReactDevOverlay (E:\Developing Projects\DesAInR\studio\node_modules\next\src\server\dev\next-dev-server.ts:82:10)
+    at div
+    at Body (E:\Developing Projects\DesAInR\studio\node_modules\next\src\server\render.tsx:1263:19)
+Warning: useLayoutEffect does nothing on the server, because its effect cannot be encoded into the server renderer's output format. This will lead to a mismatch between the initial, non-hydrated UI and the intended UI. To avoid this, useLayoutEffect should only be used in components that render exclusively on the client. See https://reactjs.org/link/uselayouteffect-ssr for common fixes.
+    at ShadowPortal (E:\Developing Projects\DesAInR\studio\node_modules\next\src\client\components\react-dev-overlay\ui\components\shadow-portal.tsx:5:32)
+    at DevOverlay (E:\Developing Projects\DesAInR\studio\node_modules\next\src\client\components\react-dev-overlay\ui\dev-overlay.tsx:14:3)
+    at ReactDevOverlay (E:\Developing Projects\DesAInR\studio\node_modules\next\src\server\dev\next-dev-server.ts:82:10)
+    at div
+    at Body (E:\Developing Projects\DesAInR\studio\node_modules\next\src\server\render.tsx:1263:19)
+Warning: useLayoutEffect does nothing on the server, because its effect cannot be encoded into the server renderer's output format. This will lead to a mismatch between the initial, non-hydrated UI and the intended UI. To avoid this, useLayoutEffect should only be used in components that render exclusively on the client. See https://reactjs.org/link/uselayouteffect-ssr for common fixes.
+    at ShadowPortal (E:\Developing Projects\DesAInR\studio\node_modules\next\src\client\components\react-dev-overlay\ui\components\shadow-portal.tsx:5:32)
+    at DevOverlay (E:\Developing Projects\DesAInR\studio\node_modules\next\src\client\components\react-dev-overlay\ui\dev-overlay.tsx:14:3)
+    at ReactDevOverlay (E:\Developing Projects\DesAInR\studio\node_modules\next\src\server\dev\next-dev-server.ts:82:10)
+    at div
+    at Body (E:\Developing Projects\DesAInR\studio\node_modules\next\src\server\render.tsx:1263:19)
+Warning: useLayoutEffect does nothing on the server, because its effect cannot be encoded into the server renderer's output format. This will lead to a mismatch between the initial, non-hydrated UI and the intended UI. To avoid this, useLayoutEffect should only be used in components that render exclusively on the client. See https://reactjs.org/link/uselayouteffect-ssr for common fixes.
+    at ShadowPortal (E:\Developing Projects\DesAInR\studio\node_modules\next\src\client\components\react-dev-overlay\ui\components\shadow-portal.tsx:5:32)
+    at DevOverlay (E:\Developing Projects\DesAInR\studio\node_modules\next\src\client\components\react-dev-overlay\ui\dev-overlay.tsx:14:3)
+    at ReactDevOverlay (E:\Developing Projects\DesAInR\studio\node_modules\next\src\server\dev\next-dev-server.ts:82:10)
+    at div
+    at Body (E:\Developing Projects\DesAInR\studio\node_modules\next\src\server\render.tsx:1263:19)
+Warning: useLayoutEffect does nothing on the server, because its effect cannot be encoded into the server renderer's output format. This will lead to a mismatch between the initial, non-hydrated UI and the intended UI. To avoid this, useLayoutEffect should only be used in components that render exclusively on the client. See https://reactjs.org/link/uselayouteffect-ssr for common fixes.
+    at ShadowPortal (E:\Developing Projects\DesAInR\studio\node_modules\next\src\client\components\react-dev-overlay\ui\components\shadow-portal.tsx:5:32)
+    at DevOverlay (E:\Developing Projects\DesAInR\studio\node_modules\next\src\client\components\react-dev-overlay\ui\dev-overlay.tsx:14:3)
+    at ReactDevOverlay (E:\Developing Projects\DesAInR\studio\node_modules\next\src\server\dev\next-dev-server.ts:82:10)
+    at div
+    at Body (E:\Developing Projects\DesAInR\studio\node_modules\next\src\server\render.tsx:1263:19)
+Warning: useLayoutEffect does nothing on the server, because its effect cannot be encoded into the server renderer's output format. This will lead to a mismatch between the initial, non-hydrated UI and the intended UI. To avoid this, useLayoutEffect should only be used in components that render exclusively on the client. See https://reactjs.org/link/uselayouteffect-ssr for common fixes.
+    at ShadowPortal (E:\Developing Projects\DesAInR\studio\node_modules\next\src\client\components\react-dev-overlay\ui\components\shadow-portal.tsx:5:32)
+    at DevOverlay (E:\Developing Projects\DesAInR\studio\node_modules\next\src\client\components\react-dev-overlay\ui\dev-overlay.tsx:14:3)
+    at ReactDevOverlay (E:\Developing Projects\DesAInR\studio\node_modules\next\src\server\dev\next-dev-server.ts:82:10)
+    at div
+    at Body (E:\Developing Projects\DesAInR\studio\node_modules\next\src\server\render.tsx:1263:19)
+ GET / 500 in 46ms
+--------------------------------------------------
 [2025-09-30 22:46:05] (from previous session)
 Prompt:
 continue

@@ -1,57 +1,43 @@
 'use client';
 
+import { useState, useCallback } from 'react';
 import { ProfileForm } from '@/components/profile/profile-form';
+import { ProfileHeader } from '@/components/profile/profile-header';
+import { ProfileQuickStats } from '@/components/profile/profile-quick-stats';
 import { useUserProfile } from '@/lib/hooks/use-user-profile';
-import { useAuth } from '@/contexts/auth-context'; // Import useAuth
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/contexts/auth-context';
+import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button'; // Import Button
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Import Alert components
-import { MailWarning, MailCheck, Trash2, Settings, RefreshCw } from 'lucide-react'; // Added RefreshCw icon
-import { useChatHistory } from '@/lib/hooks/use-chat-history'; // Import useChatHistory
-import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Trash2, Settings, RefreshCw } from 'lucide-react';
+import { useChatHistory } from '@/lib/hooks/use-chat-history';
 import { useToast } from '@/hooks/use-toast';
-import { LoggerSettings } from '@/components/ui/logger-settings'; // Import LoggerSettings component
-import { Switch } from '@/components/ui/switch'; // Import Switch component
+import { LoggerSettings } from '@/components/ui/logger-settings';
+import { Switch } from '@/components/ui/switch';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 export default function ProfilePage() {
   const { profile, updateProfile, isLoading: profileLoading } = useUserProfile();
-  const { user, loading: authLoading, sendVerificationEmail } = useAuth(); // Get user and sendVerificationEmail from useAuth
-  const { cleanLocalStorage, isAutoRefreshEnabled, setAutoRefreshEnabled } = useChatHistory(user?.uid); // Add new functions
+  const { user, loading: authLoading, sendVerificationEmail } = useAuth();
+  const { cleanLocalStorage, isAutoRefreshEnabled, setAutoRefreshEnabled } = useChatHistory(user?.uid);
   const { toast } = useToast();
   const [cleanupInProgress, setCleanupInProgress] = useState(false);
+  const [scrollToForm, setScrollToForm] = useState(false);
 
   const isLoading = profileLoading || authLoading;
 
-  if (isLoading || !profile || !user) { // Check for user as well
-    return (
-      <div className="flex justify-center w-full px-4 py-6 overflow-y-auto">
-        <Card className="w-full max-w-4xl">
-          <CardHeader>
-            <Skeleton className="h-8 w-1/3 mb-2" />
-            <Skeleton className="h-4 w-2/3" />
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <Skeleton className="h-6 w-1/2 mb-4" /> {/* For verification status area */}
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="space-y-2">
-                <Skeleton className="h-4 w-1/4" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-            ))}
-            <Skeleton className="h-10 w-32 mt-6" />
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const handleEditProfile = useCallback(() => {
+    setScrollToForm(true);
+    // Scroll to form
+    setTimeout(() => {
+      const formElement = document.getElementById('profile-form-section');
+      if (formElement) {
+        formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  }, []);
 
-  const handleResendVerification = async () => {
-    await sendVerificationEmail();
-  };
-  
-  // Handle localStorage cleanup
-  const handleCleanupStorage = async () => {
+  const handleCleanupStorage = useCallback(async () => {
     try {
       setCleanupInProgress(true);
       cleanLocalStorage();
@@ -71,10 +57,9 @@ export default function ProfilePage() {
     } finally {
       setCleanupInProgress(false);
     }
-  };
+  }, [cleanLocalStorage, toast]);
 
-  // Add toggle function for auto-refresh
-  const toggleAutoRefresh = () => {
+  const toggleAutoRefresh = useCallback(() => {
     if (setAutoRefreshEnabled) {
       setAutoRefreshEnabled(!isAutoRefreshEnabled);
       toast({
@@ -85,129 +70,134 @@ export default function ProfilePage() {
         duration: 3000
       });
     }
-  };
+  }, [isAutoRefreshEnabled, setAutoRefreshEnabled, toast]);
+
+  if (isLoading || !profile || !user) {
+    return (
+      <div className="w-full h-full overflow-y-auto">
+        <div className="container mx-auto px-4 py-6 max-w-7xl">
+          <Skeleton className="h-10 w-48 mb-6" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <Skeleton className="h-32 w-full" />
+              <Skeleton className="h-96 w-full" />
+            </div>
+            <div className="space-y-6">
+              <Skeleton className="h-48 w-full" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full flex justify-center overflow-y-auto">
-      <div className="w-full max-w-4xl px-4">
-        <Card className="mb-6">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-2xl font-bold">User Profile</CardTitle>
-            <CardDescription>
-              Manage your professional details to personalize AI interactions.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Email Verification Status */}
-            {user && (
-              <div className="mb-2">
-                {user.emailVerified ? (
-                  <Alert variant="default" className="bg-green-50 border-green-300 dark:bg-green-900/30 dark:border-green-700">
-                    <MailCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
-                    <AlertTitle className="font-semibold text-green-700 dark:text-green-300">Email Verified</AlertTitle>
-                    <AlertDescription className="text-green-600 dark:text-green-400">
-                      Your email address ({user.email}) has been successfully verified.
-                    </AlertDescription>
-                  </Alert>
-                ) : (
-                  <Alert variant="destructive" className="bg-yellow-50 border-yellow-300 dark:bg-yellow-900/30 dark:border-yellow-700">
-                    <MailWarning className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
-                    <AlertTitle className="font-semibold text-yellow-700 dark:text-yellow-300">Email Not Verified</AlertTitle>
-                    <AlertDescription className="text-yellow-600 dark:text-yellow-400 flex flex-wrap items-center">
-                      <span>Your email address ({user.email}) is not verified. Please check your inbox for a verification link, or</span>
-                      <Button 
-                        onClick={handleResendVerification} 
-                        variant="link" 
-                        className="p-0 h-auto ml-1 text-yellow-700 dark:text-yellow-300 hover:text-yellow-800 dark:hover:text-yellow-200"
-                      >
-                        resend it.
-                      </Button>
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </div>
-            )}
+    <div className="w-full h-full overflow-y-auto bg-background">
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
+        {/* Header Section */}
+        <ProfileHeader user={user} onResendVerification={sendVerificationEmail} />
 
-            {/* Profile Form */}
-            <ProfileForm initialProfile={profile} onSave={updateProfile} />
-            
-            {/* Advanced Settings Section */}
-            <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold mb-4">Advanced Settings</h3>
-              
-              <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-md mb-4">
-                <div className="flex items-start">
-                  <Trash2 className="w-5 h-5 mr-2 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
-                  <div>
-                    <h4 className="font-medium text-red-600 dark:text-red-400 mb-2">
-                      Storage Cleanup
-                    </h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                      If you're experiencing issues with chat history or data storage, use this option to clear any corrupted data. 
-                      This doesn't delete your chats, only fixes storage issues.
-                    </p>
-                    <Button 
-                      variant="destructive" 
-                      size="sm" 
-                      onClick={handleCleanupStorage}
-                      disabled={cleanupInProgress}
-                    >
-                      {cleanupInProgress ? "Cleaning..." : "Clean Storage Data"}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Auto-refresh Settings */}
-              <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-md mb-4">
-                <div className="flex items-start">
-                  <RefreshCw className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
-                  <div className="w-full">
-                    <h4 className="font-medium text-blue-600 dark:text-blue-400 mb-2">
-                      History Auto-Refresh
-                    </h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                      Control how chat history refreshes when you navigate between pages. 
-                      Turning this off may improve performance on slower devices.
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">
-                        {isAutoRefreshEnabled ? "Automatic (Default)" : "Manual Only"}
-                      </span>
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          id="auto-refresh"
-                          checked={!!isAutoRefreshEnabled}
-                          onCheckedChange={toggleAutoRefresh}
-                        />
-                        <span className="text-xs text-gray-500">
-                          {isAutoRefreshEnabled ? "On" : "Off"}
-                        </span>
+        {/* Main Content Grid */}
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column - Main Content */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Quick Stats */}
+            <ProfileQuickStats profile={profile} onEdit={handleEditProfile} />
+
+            {/* Profile Form Section */}
+            <Card id="profile-form-section">
+              <CardContent className="pt-6">
+                <ProfileForm initialProfile={profile} onSave={updateProfile} />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Column - Settings */}
+          <div className="space-y-6">
+            {/* Advanced Settings */}
+            <Card>
+              <CardContent className="pt-6">
+                <h3 className="text-lg font-semibold mb-4">Advanced Settings</h3>
+                
+                <Accordion type="single" collapsible className="w-full">
+                  {/* Storage Cleanup */}
+                  <AccordionItem value="storage">
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center gap-2">
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                        <span className="font-medium">Storage Cleanup</span>
                       </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Logger Settings */}
-              <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-md">
-                <div className="flex items-start">
-                  <Settings className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
-                  <div>
-                    <h4 className="font-medium text-blue-600 dark:text-blue-400 mb-2">
-                      Developer Logging
-                    </h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                      Configure console logging for troubleshooting and development purposes.
-                      Only enable if you need to debug application issues.
-                    </p>
-                    <LoggerSettings />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-3 pt-2">
+                        <p className="text-sm text-muted-foreground">
+                          If you're experiencing issues with chat history or data storage, use this option to clear any corrupted data. 
+                          This doesn't delete your chats, only fixes storage issues.
+                        </p>
+                        <Button 
+                          variant="destructive" 
+                          size="sm" 
+                          onClick={handleCleanupStorage}
+                          disabled={cleanupInProgress}
+                          className="w-full"
+                        >
+                          {cleanupInProgress ? "Cleaning..." : "Clean Storage Data"}
+                        </Button>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* Auto-Refresh */}
+                  <AccordionItem value="refresh">
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center gap-2">
+                        <RefreshCw className="w-4 h-4 text-blue-500" />
+                        <span className="font-medium">History Auto-Refresh</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-3 pt-2">
+                        <p className="text-sm text-muted-foreground">
+                          Control how chat history refreshes when you navigate between pages. 
+                          Turning this off may improve performance on slower devices.
+                        </p>
+                        <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                          <span className="text-sm font-medium">
+                            {isAutoRefreshEnabled ? "Automatic (Default)" : "Manual Only"}
+                          </span>
+                          <Switch
+                            id="auto-refresh"
+                            checked={!!isAutoRefreshEnabled}
+                            onCheckedChange={toggleAutoRefresh}
+                          />
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* Logger Settings */}
+                  <AccordionItem value="logging">
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center gap-2">
+                        <Settings className="w-4 h-4 text-blue-500" />
+                        <span className="font-medium">Developer Logging</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-3 pt-2">
+                        <p className="text-sm text-muted-foreground">
+                          Configure console logging for troubleshooting and development purposes.
+                          Only enable if you need to debug application issues.
+                        </p>
+                        <LoggerSettings />
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     </div>
   );

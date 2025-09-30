@@ -40,8 +40,10 @@ export class GeminiClient {
     const config: any = {};
     if (thinkingMode === 'none') {
       config.thinkingConfig = { thinkingBudget: 0 };
+    } else if (thinkingMode === 'default') {
+      config.thinkingConfig = { thinkingBudget: -1 }; // Maximum thinking budget
     }
-    // For 'default', we send no thinkingConfig to use the model's default.
+    // For other modes, use model's default
 
     try {
       const response = await ai.models.generateContentStream({

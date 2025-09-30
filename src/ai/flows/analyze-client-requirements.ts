@@ -84,9 +84,14 @@ const AnalyzeClientRequirementsOutputSchema = z.object({
   imageAnalysisBengali: z.string().describe('Detailed description of any attached image(s) and how they relate to the requirements in Bengali'),
   shortImageSummaryEnglish: z.string().optional().describe('A directive summarizing the visual style from reference images to be applied to the new design. Example: "The new design must follow the reference images \'.........[describe what got from the iamge to design the new design, like style, design, color, typogrpahy style, design theme, etc]......\'"'),
   shortImageSummaryBengali: z.string().optional().describe('A directive summarizing the visual style from reference images, translated to Bengali.'),
-  editingPrompts: z.array(EditingPromptSchema).describe('Exactly 5 editing prompts for image editing models; generate in prompt-only mode if no image is available.'),
-  // New optional: when multiple distinct designs exist, also return one prompt per design for clarity
-  editingPromptsByDesign: z.array(DesignEditingPromptPerDesignSchema).optional().describe('When multiple designs are present, provide one explicit editing prompt per design, referencing image order and specific changes.')
+  // Image-specific editing prompts: ALWAYS generate one prompt per design
+  editingPromptsByDesign: z.array(DesignEditingPromptPerDesignSchema).describe('For each design item, generate one explicit editing prompt that references the design and lists specific changes needed. This is REQUIRED, not optional.'),
+  // Generated Prompts: Complete AI image generation prompts based on design items
+  generatedPrompts: z.array(z.object({
+    designId: z.string().describe('The ID of the design this prompt is for'),
+    designTitle: z.string().describe('Title of the design'),
+    prompt: z.string().describe('A complete, detailed AI image generation prompt following professional prompt engineering standards')
+  })).optional().describe('For each design item, generate a complete AI image generation prompt (not editing prompt). Follow these rules: 1) Start with "Make a" or "Design a" or "Create a", 2) Use professional design terminology, 3) Include all visual details (concept, style, visual elements, color palette, typography, text incorporation, mood), 4) Specify solid background (black, white, or gray), 5) Avoid product-specific terms like T-shirt, Mug, etc., 6) Write as a rich descriptive paragraph ready for AI image generators.')
 });
 export type AnalyzeClientRequirementsOutput = z.infer<typeof AnalyzeClientRequirementsOutputSchema>;
 
@@ -172,15 +177,38 @@ Based on all the above information (latest message, attachments, and full histor
    - English: Provide a concise, one-sentence directive summarizing the key visual style from the reference images that MUST be applied. Start with "The reference images indicate a clear preference for..." and describe the style (e.g., "bold, dynamic, and often layered typographic designs with strong outlines and subtle textures."). This will be added to the 'Must follow' list.
    - Bengali: Translate this directive to Bengali.
 
-7. **Editing Prompts (Multi-Design Aware; Image-based if image available; otherwise Prompt-Only)**
-   - Detect if multiple distinct designs are present from the "List of Required Designs" section.
-    - If multiple designs exist, for each design generate ONE consolidated editing prompt that explicitly references the related image by order (e.g., "First image", "Second image", "Third image") and lists the specific edits for that design.
-      - Output these per-design prompts in a separate array named 'editingPromptsByDesign', where each item contains: { designId, designTitle, imageIndex (1-based, optional), prompt }.
-      - The prompt MUST clearly mention the image order and the exact changes needed for that specific design.
-   - Additionally, always generate exactly 5 generic prompts suitable for editing tools:
-     - Types: "must_need_edits", "all_edits", "make_standout", "make_colorful", "new_variations".
-     - If an image is attached, word them as revisions of the existing image (e.g., "Revise this image to...", "Modify the existing design by...").
-     - If no image is available, operate in PROMPT-ONLY mode (still 5 prompts) and avoid referencing a specific existing image; describe the desired output clearly.
+7. **Editing Prompts (Image-Specific, Per Design) - MANDATORY**
+   - **IMPORTANT**: You MUST generate editing prompts for EVERY design item in the "List of Required Designs" section.
+   - For EACH design (even if there's only one), generate ONE editing prompt specifically for image editing AI models (ChatGPT-4o, Qwen Edit, Gemini 2.5 Flash Edit, etc.)
+   - Each prompt should:
+     * Reference the design by name/order (e.g., "For the First image (Official Seal Emblem)", "For the Second image (Modern Minimalist)")
+     * List specific edits, refinements, or changes that would improve the design
+     * Mention visual elements to adjust (typography, colors, layout, graphics, spacing, etc.)
+     * Be actionable for AI models that can edit/refine existing images
+   - Output in 'editingPromptsByDesign' array with: { designId, designTitle, imageIndex (1-based index starting from 1), prompt }
+   - Example format: "For the First image (Official Seal Emblem Logo), refine the seal icon to have more intricate detailing, adjust the text 'Let's Seal It' to use a more elegant serif font with better kerning, and ensure 'mobile notary services & more' is clearly legible with improved spacing."
+   - **YOU MUST GENERATE AT LEAST ONE EDITING PROMPT PER DESIGN** - this field cannot be empty or optional!
+
+8. **Generated Prompts (Complete AI Image Generation Prompts)**
+   - For EACH design item in the "List of Required Designs", generate a complete, professional AI image generation prompt.
+   - These are NOT editing prompts - they are for generating completely new designs from scratch.
+   - Follow these MANDATORY prompt engineering rules:
+     a. **Start with Action Verb**: Begin with "Make a", "Design a", or "Create a"
+     b. **Professional Terminology**: Use design terminology (typography design, vector illustration, vintage poster, etc.)
+     c. **NO Product Terms**: NEVER mention T-shirt, Mug, POD, product, merchandise, etc.
+     d. **Solid Background**: Always specify solid black, white, or gray background
+     e. **Complete Details**: Include ALL these elements in the prompt:
+        - Design concept and narrative
+        - Artistic style (e.g., vintage, minimalist, illustrative, hand-drawn, retro, modern)
+        - Visual elements (objects, characters, symbols, composition)
+        - Color palette (specific colors and combinations)
+        - Typography (font style, size, placement if text is included)
+        - Text incorporation method (how text integrates with graphics)
+        - Overall mood/feeling (playful, professional, nostalgic, bold, etc.)
+     f. **Rich Paragraph Format**: Write as ONE detailed, descriptive paragraph ready for AI image generators
+     g. **Use "Must Follow" Requirements**: Incorporate all the "mustFollow" points from the design item naturally into the prompt
+   - Example format: "Make a vintage illustration design featuring [visual elements]. The style should evoke [style description] with [details]. Use [color palette] on a solid [background color] background. Typography is [font description], [placement]. The composition is [layout]. Overall mood is [feeling]."
+   - Output these in 'generatedPrompts' array with { designId, designTitle, prompt }
 
 Important Notes:
 - Give each design item a unique ID so it can be referenced later
@@ -208,16 +236,13 @@ Output Format (ensure your entire response is a single JSON object):
   "imageAnalysisBengali": "ছবির বর্ণনা এবং এর সম্পর্ক...",
   "shortImageSummaryEnglish": "The reference images indicate a clear preference for bold, dynamic, and often layered typographic designs.",
   "shortImageSummaryBengali": "রেফারেন্স চিত্রগুলি গাঢ়, গতিশীল এবং প্রায়শই স্তরযুক্ত টাইপোগ্রাফিক ডিজাইনের জন্য একটি স্পষ্ট পছন্দ নির্দেশ করে।",
-  "editingPrompts": [
-    { "type": "must_need_edits", "prompt": "Revise this image to ... OR (if no image) Create a design that ..." },
-    { "type": "all_edits", "prompt": "..." },
-    { "type": "make_standout", "prompt": "..." },
-    { "type": "make_colorful", "prompt": "..." },
-    { "type": "new_variations", "prompt": "..." }
-  ],
   "editingPromptsByDesign": [
     { "designId": "design_1", "designTitle": "Poster A", "imageIndex": 1, "prompt": "For the First image (design_1), ... [explicit edits for this design]" },
     { "designId": "design_2", "designTitle": "Poster B", "imageIndex": 2, "prompt": "For the Second image (design_2), ... [explicit edits for this design]" }
+  ],
+  "generatedPrompts": [
+    { "designId": "design_1", "designTitle": "Poster A", "prompt": "Make a ... [complete AI image generation prompt]" },
+    { "designId": "design_2", "designTitle": "Poster B", "prompt": "Design a ... [complete AI image generation prompt]" }
   ]
 }
 `;

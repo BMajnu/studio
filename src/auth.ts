@@ -1,5 +1,5 @@
 import { onAuthStateChanged } from 'firebase/auth';
-import { firebaseAuth } from './firebaseClient';
+import { auth as firebaseAuth } from './lib/firebase';
 
 // Keep an ID token in chrome.storage.local under 'desainr.idToken'
 export function initAuthObservers() {

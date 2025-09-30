@@ -1,4 +1,4 @@
-import { firebaseApp } from './clientApp';
+import { app as firebaseApp } from '../firebase';
 import { 
   getFirestore, collection, doc, setDoc,
   getDocs, query, where, orderBy, limit, onSnapshot, type Unsubscribe, getDoc

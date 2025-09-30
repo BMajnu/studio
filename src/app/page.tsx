@@ -1711,8 +1711,8 @@ ${params.language ? `Language: ${params.language}` : ''}`;
                   english: requirementsOutput.designItemsEnglish,
                   bengali: requirementsOutput.designItemsBengali,
                 },
-                editingPrompts: requirementsOutput.editingPrompts,
                 editingPromptsByDesign: requirementsOutput.editingPromptsByDesign,
+                generatedPrompts: requirementsOutput.generatedPrompts,
               });
             } catch (error) {
               console.error("Error in analyzeClientRequirements flow:", error);
