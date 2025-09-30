@@ -50,8 +50,8 @@ export class GeminiImageGenClient {
       try {
         const ai = new GoogleGenAI({ apiKey: key });
         
-        const config = {
-          responseModalities: ['IMAGE', 'TEXT'] as const,
+        const config: any = {
+          responseModalities: ['IMAGE', 'TEXT'],
         };
 
         const contents = [
@@ -151,8 +151,8 @@ export class GeminiImageGenClient {
 
     const ai = new GoogleGenAI({ apiKey: key });
 
-    const config = {
-      responseModalities: ['IMAGE', 'TEXT'] as const,
+    const config: any = {
+      responseModalities: ['IMAGE', 'TEXT'],
     };
 
     const contents = [

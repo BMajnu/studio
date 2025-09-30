@@ -65,8 +65,19 @@ export async function generateChatTitle(input: GenerateChatTitleInput): Promise<
   // Build prompt
   const promptText = buildPrompt(messages);
 
+  // Create a minimal profile for GoogleAIService
+  const profile = userApiKey ? { 
+    userId: 'temp', 
+    name: 'temp',
+    services: [],
+    geminiApiKeys: [userApiKey] 
+  } : null;
+
   // Call GoogleAIService directly (simpler and avoids Genkit parsing quirks)
-  const service = new GoogleAIService({ apiKey: userApiKey || process.env.GOOGLE_API_KEY, modelId: modelToUse, useAlternativeImpl: true });
+  const service = new GoogleAIService({ 
+    modelId: modelToUse,
+    profile 
+  });
   const { text } = await service.generateContent(promptText);
 
   return text.replace(/\n/g, ' ').trim();
