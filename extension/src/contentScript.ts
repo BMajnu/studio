@@ -59,22 +59,23 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
       // For Refine: show split popup (Original vs Refined) near selection
       if (actionId === 'refine') {
         const { text: selection, rect } = getSelectionTextAndRect();
-        if (!selection.trim()) {
-          showOverlayMessage('No text selected', 'warning');
-          return;
-        }
+        if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
         try {
           await showResultPopup('Refine', selection, 'Working…', rect || undefined);
+          const { actions } = await import('./apiClient');
           const st = await chrome.storage?.local.get?.([
             'desainr.settings.modelId',
             'desainr.settings.thinkingMode',
-            'desainr.settings.userApiKey'
+            'desainr.settings.userApiKey',
+            'desainr.settings.outputLang'
           ]).catch(() => ({} as any));
           const modelId = st?.['desainr.settings.modelId'];
           const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
           const userApiKey = st?.['desainr.settings.userApiKey'];
-          const { rewrite } = await import('./apiClient');
-          const { ok, status, json, error } = await rewrite({ selection, url: location.href, task: 'clarify', modelId, thinkingMode, userApiKey } as any);
+          const out = st?.['desainr.settings.outputLang'] || 'auto';
+          const dir = out==='auto' ? ' Respond in the same language as the input.' : ` Respond in ${out}.`;
+          const instruction = 'Improve clarity and fluency while preserving the original meaning. Return only the refined text.' + dir;
+          const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: instruction, modelId, thinkingMode, userApiKey });
           if (ok && (json as any)?.result) {
             await showResultPopup('Refine', selection, (json as any).result, rect || undefined);
           } else {
@@ -98,9 +99,12 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
             'desainr.settings.targetLang',
             'desainr.settings.modelId',
             'desainr.settings.thinkingMode',
-            'desainr.settings.userApiKey'
+            'desainr.settings.userApiKey',
+            'desainr.settings.outputLang'
           ]).catch(() => ({} as any));
-          const targetLang = st?.['desainr.settings.targetLang'] || (await import('./config')).DEFAULT_TARGET_LANG;
+          let targetLang = st?.['desainr.settings.targetLang'] || (await import('./config')).DEFAULT_TARGET_LANG;
+          const outputLang = st?.['desainr.settings.outputLang'] || 'auto';
+          if (outputLang && outputLang !== 'auto') targetLang = outputLang;
           const modelId = st?.['desainr.settings.modelId'];
           const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
           const userApiKey = st?.['desainr.settings.userApiKey'];
@@ -125,17 +129,18 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
         }
       } else if (actionId === 'expand') {
         if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
-        const { rewrite } = await import('./apiClient');
+        const { actions } = await import('./apiClient');
         await showResultPopup('Expand', selection, 'Working…', rect || undefined);
         const st = await chrome.storage?.local.get?.([
-          'desainr.settings.modelId',
-          'desainr.settings.thinkingMode',
-          'desainr.settings.userApiKey'
+          'desainr.settings.modelId','desainr.settings.thinkingMode','desainr.settings.userApiKey','desainr.settings.outputLang'
         ]).catch(() => ({} as any));
         const modelId = st?.['desainr.settings.modelId'];
         const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
         const userApiKey = st?.['desainr.settings.userApiKey'];
-        const { ok, status, json, error } = await rewrite({ selection, url: location.href, task: 'expand', modelId, thinkingMode, userApiKey } as any);
+        const out = st?.['desainr.settings.outputLang'] || 'auto';
+        const dir = out==='auto' ? ' Respond in the same language as the input.' : ` Respond in ${out}.`;
+        const instruction = 'Expand the following text to be more detailed and comprehensive while preserving tone and meaning. Return only the expanded text.' + dir;
+        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: instruction, modelId, thinkingMode, userApiKey });
         if (ok && (json as any)?.result) {
           await showResultPopup('Expand', selection, (json as any).result, rect || undefined);
         } else {
@@ -144,17 +149,18 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
         }
       } else if (actionId === 'correct') {
         if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
-        const { rewrite } = await import('./apiClient');
+        const { actions } = await import('./apiClient');
         await showResultPopup('Correct Grammar', selection, 'Working…', rect || undefined);
         const st = await chrome.storage?.local.get?.([
-          'desainr.settings.modelId',
-          'desainr.settings.thinkingMode',
-          'desainr.settings.userApiKey'
+          'desainr.settings.modelId','desainr.settings.thinkingMode','desainr.settings.userApiKey','desainr.settings.outputLang'
         ]).catch(() => ({} as any));
         const modelId = st?.['desainr.settings.modelId'];
         const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
         const userApiKey = st?.['desainr.settings.userApiKey'];
-        const { ok, status, json, error } = await rewrite({ selection, url: location.href, task: 'grammar', modelId, thinkingMode, userApiKey } as any);
+        const out = st?.['desainr.settings.outputLang'] || 'auto';
+        const dir = out==='auto' ? ' Respond in the same language as the input.' : ` Respond in ${out}.`;
+        const instruction = 'Correct grammar, spelling and punctuation while preserving meaning. Return only the corrected text.' + dir;
+        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: instruction, modelId, thinkingMode, userApiKey });
         if (ok && (json as any)?.result) {
           await showResultPopup('Correct Grammar', selection, (json as any).result, rect || undefined);
         } else {
@@ -165,11 +171,18 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
         if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
         const { actions } = await import('./apiClient');
         await showResultPopup('Explain', selection, 'Working…', rect || undefined);
-        const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode','desainr.settings.userApiKey']).catch(() => ({} as any));
+        const st = await chrome.storage?.local.get?.([
+          'desainr.settings.modelId',
+          'desainr.settings.thinkingMode',
+          'desainr.settings.userApiKey',
+          'desainr.settings.outputLang'
+        ]).catch(() => ({} as any));
         const modelId = st?.['desainr.settings.modelId'];
         const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
         const userApiKey = st?.['desainr.settings.userApiKey'];
-        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Explain this clearly', modelId, thinkingMode, userApiKey });
+        const out = st?.['desainr.settings.outputLang'] || 'auto';
+        const dir = out==='auto' ? ' Respond in the same language as the input.' : ` Respond in ${out}.`;
+        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Explain this clearly.' + dir, modelId, thinkingMode, userApiKey });
         if (ok && (json as any)?.result) {
           await showResultPopup('Explain', selection, (json as any).result, rect || undefined);
         } else {
@@ -180,11 +193,18 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
         if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
         const { actions } = await import('./apiClient');
         await showResultPopup('Rephrase', selection, 'Working…', rect || undefined);
-        const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode','desainr.settings.userApiKey']).catch(() => ({} as any));
+        const st = await chrome.storage?.local.get?.([
+          'desainr.settings.modelId',
+          'desainr.settings.thinkingMode',
+          'desainr.settings.userApiKey',
+          'desainr.settings.outputLang'
+        ]).catch(() => ({} as any));
         const modelId = st?.['desainr.settings.modelId'];
         const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
         const userApiKey = st?.['desainr.settings.userApiKey'];
-        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Rephrase the following text to be clearer and more natural while preserving meaning. Return only the rephrased text.', modelId, thinkingMode, userApiKey });
+        const out = st?.['desainr.settings.outputLang'] || 'auto';
+        const dir = out==='auto' ? ' Respond in the same language as the input.' : ` Respond in ${out}.`;
+        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Rephrase the following text to be clearer and more natural while preserving meaning. Return only the rephrased text.' + dir, modelId, thinkingMode, userApiKey });
         if (ok && (json as any)?.result) {
           await showResultPopup('Rephrase', selection, (json as any).result, rect || undefined);
         } else {
@@ -195,11 +215,18 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
         if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
         const { actions } = await import('./apiClient');
         await showResultPopup('Summarize', selection, 'Working…', rect || undefined);
-        const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode','desainr.settings.userApiKey']).catch(() => ({} as any));
+        const st = await chrome.storage?.local.get?.([
+          'desainr.settings.modelId',
+          'desainr.settings.thinkingMode',
+          'desainr.settings.userApiKey',
+          'desainr.settings.outputLang'
+        ]).catch(() => ({} as any));
         const modelId = st?.['desainr.settings.modelId'];
         const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
         const userApiKey = st?.['desainr.settings.userApiKey'];
-        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Summarize the following text concisely in 1-3 sentences. Return only the summary.', modelId, thinkingMode, userApiKey });
+        const out = st?.['desainr.settings.outputLang'] || 'auto';
+        const dir = out==='auto' ? ' Respond in the same language as the input.' : ` Respond in ${out}.`;
+        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Summarize the following text concisely in 1-3 sentences. Return only the summary.' + dir, modelId, thinkingMode, userApiKey });
         if (ok && (json as any)?.result) {
           await showResultPopup('Summarize', selection, (json as any).result, rect || undefined);
         } else {
@@ -210,11 +237,18 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
         if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
         const { actions } = await import('./apiClient');
         await showResultPopup('Add Details', selection, 'Working…', rect || undefined);
-        const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode','desainr.settings.userApiKey']).catch(() => ({} as any));
+        const st = await chrome.storage?.local.get?.([
+          'desainr.settings.modelId',
+          'desainr.settings.thinkingMode',
+          'desainr.settings.userApiKey',
+          'desainr.settings.outputLang'
+        ]).catch(() => ({} as any));
         const modelId = st?.['desainr.settings.modelId'];
         const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
         const userApiKey = st?.['desainr.settings.userApiKey'];
-        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Add helpful, concrete details to the following text while preserving tone and meaning. Return only the improved text.', modelId, thinkingMode, userApiKey });
+        const out = st?.['desainr.settings.outputLang'] || 'auto';
+        const dir = out==='auto' ? ' Respond in the same language as the input.' : ` Respond in ${out}.`;
+        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Add helpful, concrete details to the following text while preserving tone and meaning. Return only the improved text.' + dir, modelId, thinkingMode, userApiKey });
         if (ok && (json as any)?.result) {
           await showResultPopup('Add Details', selection, (json as any).result, rect || undefined);
         } else {
@@ -225,11 +259,18 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
         if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
         const { actions } = await import('./apiClient');
         await showResultPopup('More Informative', selection, 'Working…', rect || undefined);
-        const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode','desainr.settings.userApiKey']).catch(() => ({} as any));
+        const st = await chrome.storage?.local.get?.([
+          'desainr.settings.modelId',
+          'desainr.settings.thinkingMode',
+          'desainr.settings.userApiKey',
+          'desainr.settings.outputLang'
+        ]).catch(() => ({} as any));
         const modelId = st?.['desainr.settings.modelId'];
         const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
         const userApiKey = st?.['desainr.settings.userApiKey'];
-        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Make the following text more informative by adding succinct, factual context. Keep it concise. Return only the revised text.', modelId, thinkingMode, userApiKey });
+        const out = st?.['desainr.settings.outputLang'] || 'auto';
+        const dir = out==='auto' ? ' Respond in the same language as the input.' : ` Respond in ${out}.`;
+        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Make the following text more informative by adding succinct, factual context. Keep it concise. Return only the revised text.' + dir, modelId, thinkingMode, userApiKey });
         if (ok && (json as any)?.result) {
           await showResultPopup('More Informative', selection, (json as any).result, rect || undefined);
         } else {
@@ -240,11 +281,18 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
         if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
         const { actions } = await import('./apiClient');
         await showResultPopup('Simplify', selection, 'Working…', rect || undefined);
-        const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode','desainr.settings.userApiKey']).catch(() => ({} as any));
+        const st = await chrome.storage?.local.get?.([
+          'desainr.settings.modelId',
+          'desainr.settings.thinkingMode',
+          'desainr.settings.userApiKey',
+          'desainr.settings.outputLang'
+        ]).catch(() => ({} as any));
         const modelId = st?.['desainr.settings.modelId'];
         const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
         const userApiKey = st?.['desainr.settings.userApiKey'];
-        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Simplify the following text to be easier to understand, using plain language. Return only the simplified text.', modelId, thinkingMode, userApiKey });
+        const out = st?.['desainr.settings.outputLang'] || 'auto';
+        const dir = out==='auto' ? ' Respond in the same language as the input.' : ` Respond in ${out}.`;
+        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Simplify the following text to be easier to understand, using plain language. Return only the simplified text.' + dir, modelId, thinkingMode, userApiKey });
         if (ok && (json as any)?.result) {
           await showResultPopup('Simplify', selection, (json as any).result, rect || undefined);
         } else {
@@ -255,11 +303,18 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
         if (!selection.trim()) { showOverlayMessage('No text selected', 'warning'); return; }
         const { actions } = await import('./apiClient');
         await showResultPopup('Emojify', selection, 'Working…', rect || undefined);
-        const st = await chrome.storage?.local.get?.(['desainr.settings.modelId','desainr.settings.thinkingMode','desainr.settings.userApiKey']).catch(() => ({} as any));
+        const st = await chrome.storage?.local.get?.([
+          'desainr.settings.modelId',
+          'desainr.settings.thinkingMode',
+          'desainr.settings.userApiKey',
+          'desainr.settings.outputLang'
+        ]).catch(() => ({} as any));
         const modelId = st?.['desainr.settings.modelId'];
         const thinkingMode = st?.['desainr.settings.thinkingMode'] || 'none';
         const userApiKey = st?.['desainr.settings.userApiKey'];
-        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Rewrite the following text with a friendly, engaging tone and add relevant emojis where appropriate; do not overuse them. Return only the revised text.', modelId, thinkingMode, userApiKey });
+        const out = st?.['desainr.settings.outputLang'] || 'auto';
+        const dir = out==='auto' ? ' Respond in the same language as the input.' : ` Respond in ${out}.`;
+        const { ok, status, json, error } = await actions({ selection, clientMessage: selection, customInstruction: 'Rewrite the following text with a friendly, engaging tone and add relevant emojis where appropriate; do not overuse them. Return only the revised text.' + dir, modelId, thinkingMode, userApiKey });
         if (ok && (json as any)?.result) {
           await showResultPopup('Emojify', selection, (json as any).result, rect || undefined);
         } else {
@@ -677,6 +732,8 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
       .dropdown-item.active { 
         background: #e0e7ff; color: #4f46e5;
       }
+      .dropdown-item .ico { display:inline-flex; width:16px; height:16px; }
+      .dropdown-item .ico svg { width:16px; height:16px; stroke:#4b5563; }
 
       /* Hide side scrollbars (we use center scrollbar) */
       .text-area::-webkit-scrollbar { width: 0; height: 0; }
@@ -696,6 +753,15 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
 
       /* Dropdown single-line fit */
       .dropdown-item { white-space: nowrap; }
+      
+      /* Language switcher */
+      .lang-wrap { position: relative; display:inline-flex; }
+      .lang-switcher { display:inline-flex; align-items:center; gap:6px; }
+      .lang-dropdown { position:absolute; bottom:100%; left:0; background:#fff; border:1px solid #e5e7eb; border-radius:10px; box-shadow: 0 12px 32px rgba(17,24,39,0.18); max-height:260px; overflow:auto; display:none; margin-bottom:8px; z-index:1000; min-width:160px; }
+      .lang-dropdown.show { display:block; }
+      .lang-item { padding:6px 10px; display:flex; align-items:center; gap:8px; cursor:pointer; font-size:12.5px; border-bottom:1px solid #f3f4f6; }
+      .lang-item:last-child { border-bottom:none; }
+      .lang-item:hover { background:#eef2ff; }
     `;
     popupShadow.appendChild(style);
     const box = document.createElement('div');
@@ -710,25 +776,44 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
         <div class="left">
           <div class="action-switcher btn" id="action-switcher">
             <span id="action-label">Refine</span>
-            <span class="dropdown-arrow"></span>
+            <span class="dropdown-arrow">▼</span>
             <div class="action-dropdown" id="action-dropdown">
-              <div class="dropdown-item active" data-action="refine"> Refine</div>
-              <div class="dropdown-item" data-action="translate"> Translate</div>
-              <div class="dropdown-item" data-action="rephrase"> Rephrase</div>
-              <div class="dropdown-item" data-action="summarize"> Summarize</div>
-              <div class="dropdown-item" data-action="expand"> Expand</div>
-              <div class="dropdown-item" data-action="correct"> Correct Grammar</div>
-              <div class="dropdown-item" data-action="explain"> Explain</div>
-              <div class="dropdown-item" data-action="add-details"> Add Details</div>
-              <div class="dropdown-item" data-action="more-informative"> More Informative</div>
-              <div class="dropdown-item" data-action="simplify"> Simplify</div>
-              <div class="dropdown-item" data-action="emojify"> Emojify</div>
-              <div class="dropdown-item" data-action="analyze"> Analyze</div>
-              <div class="dropdown-item" data-action="designer"> Designer</div>
-              <div class="dropdown-item" data-action="customize"> Customize Actions</div>
+              <div class="dropdown-item active" data-action="refine"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg></span> Refine</div>
+              <div class="dropdown-item" data-action="translate"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 19.5l15-15M9 7.5h6M9 12h3"/></svg></span> Translate</div>
+              <div class="dropdown-item" data-action="rephrase"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 8h16M4 12h10M4 16h8"/></svg></span> Rephrase</div>
+              <div class="dropdown-item" data-action="summarize"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M3 12h12M3 18h8"/></svg></span> Summarize</div>
+              <div class="dropdown-item" data-action="expand"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16M4 12h16"/></svg></span> Expand</div>
+              <div class="dropdown-item" data-action="correct"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4"/></svg></span> Correct Grammar</div>
+              <div class="dropdown-item" data-action="explain"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 6.75h1.5v1.5h-1.5zM12 17.25v-6"/></svg></span> Explain</div>
+              <div class="dropdown-item" data-action="add-details"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12M6 12h12"/></svg></span> Add Details</div>
+              <div class="dropdown-item" data-action="more-informative"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25h1.5v6h-1.5zM12 6.75h.008v.008H12z"/></svg></span> More Informative</div>
+              <div class="dropdown-item" data-action="simplify"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12h12"/></svg></span> Simplify</div>
+              <div class="dropdown-item" data-action="emojify"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14.121 14.121a3 3 0 01-4.242 0M9 9h.01M15 9h.01M12 21a9 9 0 100-18 9 9 0 000 18z"/></svg></span> Emojify</div>
+              <div class="dropdown-item" data-action="analyze"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11 19l-7-7 4-4 3 3 7-7"/></svg></span> Analyze</div>
+              <div class="dropdown-item" data-action="designer"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4 4 12-12"/></svg></span> Designer</div>
+              <div class="dropdown-item" data-action="customize"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h3M4.5 12h15M8.25 18h7.5"/></svg></span> Customize Actions</div>
             </div>
           </div>
-          <button class="btn" id="regen" title="Regenerate">↻</button>
+          <button class="btn" id="regen" title="Regenerate">↻ Regenerate</button>
+          <div class="lang-wrap">
+            <button class="btn lang-switcher" id="lang-switcher" title="Output language"><span id="lang-label">Auto</span> <span class="dropdown-arrow">▼</span></button>
+            <div class="lang-dropdown" id="lang-dropdown">
+              <div class="lang-item" data-lang="auto">Auto (same as input)</div>
+              <div class="lang-item" data-lang="en">English</div>
+              <div class="lang-item" data-lang="bn">Bengali (বাংলা)</div>
+              <div class="lang-item" data-lang="hi">Hindi (हिन्दी)</div>
+              <div class="lang-item" data-lang="es">Spanish (Español)</div>
+              <div class="lang-item" data-lang="fr">French (Français)</div>
+              <div class="lang-item" data-lang="de">German (Deutsch)</div>
+              <div class="lang-item" data-lang="it">Italian (Italiano)</div>
+              <div class="lang-item" data-lang="pt">Portuguese (Português)</div>
+              <div class="lang-item" data-lang="ar">Arabic (العربية)</div>
+              <div class="lang-item" data-lang="zh">Chinese (中文)</div>
+              <div class="lang-item" data-lang="ja">Japanese (日本語)</div>
+              <div class="lang-item" data-lang="ko">Korean (한국어)</div>
+              <div class="lang-item" data-lang="ru">Russian (Русский)</div>
+            </div>
+          </div>
         </div>
         <div class="right" style="display:flex; gap:6px;">
           <button class="btn" id="copy">Copy</button>
@@ -966,6 +1051,35 @@ import { MonicaTheme } from './ui/MonicaStyleTheme';
             // The result will be updated by the action handler
             // which will call showResultPopup again
           }
+        };
+      });
+    }
+    // Language switcher
+    const langSwitcher = shadow.getElementById('lang-switcher') as HTMLElement | null;
+    const langDropdown = shadow.getElementById('lang-dropdown') as HTMLElement | null;
+    const langLabel = shadow.getElementById('lang-label') as HTMLElement | null;
+    const updateLangLabel = (code: string) => {
+      const map: Record<string,string> = { auto: 'Auto', en: 'English', bn: 'Bengali', hi: 'Hindi', es: 'Spanish', fr: 'French', de: 'German', it: 'Italian', pt: 'Portuguese', ar: 'Arabic', zh: 'Chinese', ja: 'Japanese', ko: 'Korean', ru: 'Russian' };
+      if (langLabel) langLabel.textContent = map[code] || code.toUpperCase();
+    };
+    try {
+      const st = await chrome.storage?.local.get?.(['desainr.settings.outputLang']);
+      updateLangLabel((st?.['desainr.settings.outputLang'] as string) || 'auto');
+    } catch {}
+    if (langSwitcher && langDropdown) {
+      langSwitcher.onclick = (e) => { e.preventDefault(); e.stopPropagation(); langDropdown.classList.toggle('show'); };
+      document.addEventListener('click', () => { try { langDropdown.classList.remove('show'); } catch {} }, { once: true });
+      const items = Array.from(langDropdown.querySelectorAll('.lang-item')) as HTMLElement[];
+      items.forEach(item => {
+        item.onclick = async (e) => {
+          e.preventDefault(); e.stopPropagation();
+          const code = item.dataset.lang || 'auto';
+          try {
+            await chrome.storage?.local.set?.({ 'desainr.settings.outputLang': code });
+            if (code !== 'auto') { try { await chrome.storage?.local.set?.({ 'desainr.settings.targetLang': code }); } catch {} }
+          } catch {}
+          updateLangLabel(code);
+          langDropdown.classList.remove('show');
         };
       });
     }
