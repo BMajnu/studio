@@ -58,17 +58,16 @@ const AnalyzeClientRequirementsPromptInputSchema = z.object({
   chatHistory: z.array(ChatHistoryMessageSchema).optional().describe("A summary of recent messages in the conversation, if any. The current clientMessage is NOT part of this history."),
 });
 
-const GeneratedPromptByCategorySchema = z.object({
-  category: z.string().describe("The design category: 'Graphics-Focused', 'Typography-Focused', or 'Typography with Graphics'."),
-  prompts: z.array(z.string()).describe('Array of detailed AI image generation prompts for this category.')
+const EditingPromptSchema = z.object({
+  type: z.string().describe("A category for the prompt, e.g., 'must_need_edits', 'all_edits', 'make_standout', 'make_colorful', 'new_variations'."),
+  prompt: z.string().describe('The generated editing prompt for an AI image generation/editing tool.'),
 });
-
-// Per-design generated prompt schema (one detailed prompt per design for complete regeneration)
-const DesignGeneratedPromptPerDesignSchema = z.object({
+// New: Per-design editing prompt schema (one prompt per design when multiple designs exist)
+const DesignEditingPromptPerDesignSchema = z.object({
   designId: z.string().describe('The ID of the design this prompt applies to (must match designItemsEnglish[].id).'),
   designTitle: z.string().optional().describe('Optional title of the design for display convenience.'),
-  category: z.string().describe("Design category: 'Graphics-Focused', 'Typography-Focused', or 'Typography with Graphics'."),
-  prompt: z.string().describe('A complete, detailed AI image generation prompt for creating this design from scratch. Must follow proper prompt engineering guidelines.')
+  imageIndex: z.number().optional().describe('Optional 1-based index of the related image order if applicable.'),
+  prompt: z.string().describe('A single, consolidated editing prompt for this specific design. Must explicitly mention the related image by order (e.g., "First image", "Second image").')
 });
 
 const AnalyzeClientRequirementsOutputSchema = z.object({
@@ -85,9 +84,9 @@ const AnalyzeClientRequirementsOutputSchema = z.object({
   imageAnalysisBengali: z.string().describe('Detailed description of any attached image(s) and how they relate to the requirements in Bengali'),
   shortImageSummaryEnglish: z.string().optional().describe('A directive summarizing the visual style from reference images to be applied to the new design. Example: "The new design must follow the reference images \'.........[describe what got from the iamge to design the new design, like style, design, color, typogrpahy style, design theme, etc]......\'"'),
   shortImageSummaryBengali: z.string().optional().describe('A directive summarizing the visual style from reference images, translated to Bengali.'),
-  generatedPromptsByCategory: z.array(GeneratedPromptByCategorySchema).describe('Complete AI image generation prompts organized by category: Graphics-Focused (up to 4), Typography-Focused (up to 3), Typography with Graphics (up to 3).'),
-  // When multiple designs exist, also provide one detailed prompt per design
-  generatedPromptsByDesign: z.array(DesignGeneratedPromptPerDesignSchema).optional().describe('When multiple designs are present, provide one complete generation prompt per design for creating it from scratch.')
+  editingPrompts: z.array(EditingPromptSchema).describe('Exactly 5 editing prompts for image editing models; generate in prompt-only mode if no image is available.'),
+  // New optional: when multiple distinct designs exist, also return one prompt per design for clarity
+  editingPromptsByDesign: z.array(DesignEditingPromptPerDesignSchema).optional().describe('When multiple designs are present, provide one explicit editing prompt per design, referencing image order and specific changes.')
 });
 export type AnalyzeClientRequirementsOutput = z.infer<typeof AnalyzeClientRequirementsOutputSchema>;
 
@@ -112,7 +111,7 @@ This output will directly populate UI tabs in the app, so map your content accor
 - Tab "Details" <= detailedRequirementsEnglish/Bengali (short paragraphs, can include simple lists)
 - Tab "Image" <= imageAnalysisEnglish/Bengali (only if images are attached)
 - Tab "Designs" <= designItemsEnglish/Bengali (structured list of designs)
- - Tab "Generated Prompts" <= generatedPromptsByCategory (complete AI image generation prompts)
+ - Tab "Editing Prompt" <= editingPrompts (5 prompts for editing models; works with image or prompt-only)
 
 When writing the English and Bengali outputs, you MAY (optionally) use basic Markdown (e.g. \`#\`/\`##\`, **bold**, *italic*, inline \`code\`) to improve clarity. Do NOT embed HTML or images—only plain Markdown so the JSON stays valid.
 
@@ -173,40 +172,15 @@ Based on all the above information (latest message, attachments, and full histor
    - English: Provide a concise, one-sentence directive summarizing the key visual style from the reference images that MUST be applied. Start with "The reference images indicate a clear preference for..." and describe the style (e.g., "bold, dynamic, and often layered typographic designs with strong outlines and subtle textures."). This will be added to the 'Must follow' list.
    - Bengali: Translate this directive to Bengali.
 
-7. **Generated Prompts (Complete AI Image Generation Prompts - NOT Editing Prompts)**
-   - Create complete, detailed AI image generation prompts for creating NEW designs from scratch.
-   - These are NOT editing prompts - they are for generating completely new images.
-   
-   **IMPORTANT RULES FOR ALL PROMPTS:**
-   1. **Start with an Action:** Every prompt MUST begin with "Create a," "Design a," or "Make a."
-   2. **Professional Language:** Use professional graphic design terminology.
-   3. **Avoid Product Terms:** DO NOT use "T-shirt," "Mug," "POD," etc. Instead use "typography design," "vector design," "vintage illustration," or "printing design."
-   4. **Solid Backgrounds Only:** All designs MUST be on a solid plain black, white, or gray background. Always specify: "The background is solid [color]."
-   5. **No External References:** Do NOT include URLs, image links, or phrases like "based on the reference image" or "similar to attached image." Create completely standalone prompts.
-   6. **Be Detailed & Complete:** Each prompt should be a rich, detailed paragraph (150-250 words) that includes:
-      - Design concept and narrative
-      - Artistic style (e.g., vintage, modern, minimalist, hand-drawn, etc.)
-      - Visual elements and composition
-      - Color palette with specific colors
-      - Typography details (if text is present)
-      - Text placement and integration
-      - Overall mood and feeling
-   
-   **Example Format:**
-   "Create a vintage illustration design featuring a coffee bean cartoon character holding a golden trophy. The style should evoke a retro revival with clean, intricate line work and a classic, nostalgic feel. Use rich brown tones for the coffee bean contrasted with polished gold accents for the trophy. The background is solid white for maximum contrast. Typography is bold vintage serif, the word 'Coffee' larger than 'Victory,' using a font like Rockwell or Bodoni. Layout is symmetrical with the bean and trophy centered and text placed below. The overall mood is celebratory and refined."
-   
-   **CATEGORIZE PROMPTS:**
-   - Detect the design focus from requirements and create prompts in appropriate categories:
-     * **Graphics-Focused (up to 4 prompts):** Main focus on graphics/illustrations, text is secondary or optional
-     * **Typography-Focused (up to 3 prompts):** Main focus on typography with optional decorative elements
-     * **Typography with Graphics (up to 3 prompts):** Balanced emphasis on both typography and graphics
-   
-   - Output format for 'generatedPromptsByCategory': Array of { category: string, prompts: string[] }
-   
-   **PER-DESIGN PROMPTS (if multiple designs exist):**
-   - If multiple distinct designs are present, also generate ONE complete detailed prompt per design
-   - Each per-design prompt must follow the same structure above
-   - Output in 'generatedPromptsByDesign': { designId, designTitle, category, prompt }
+7. **Editing Prompts (Multi-Design Aware; Image-based if image available; otherwise Prompt-Only)**
+   - Detect if multiple distinct designs are present from the "List of Required Designs" section.
+    - If multiple designs exist, for each design generate ONE consolidated editing prompt that explicitly references the related image by order (e.g., "First image", "Second image", "Third image") and lists the specific edits for that design.
+      - Output these per-design prompts in a separate array named 'editingPromptsByDesign', where each item contains: { designId, designTitle, imageIndex (1-based, optional), prompt }.
+      - The prompt MUST clearly mention the image order and the exact changes needed for that specific design.
+   - Additionally, always generate exactly 5 generic prompts suitable for editing tools:
+     - Types: "must_need_edits", "all_edits", "make_standout", "make_colorful", "new_variations".
+     - If an image is attached, word them as revisions of the existing image (e.g., "Revise this image to...", "Modify the existing design by...").
+     - If no image is available, operate in PROMPT-ONLY mode (still 5 prompts) and avoid referencing a specific existing image; describe the desired output clearly.
 
 Important Notes:
 - Give each design item a unique ID so it can be referenced later
@@ -234,30 +208,16 @@ Output Format (ensure your entire response is a single JSON object):
   "imageAnalysisBengali": "ছবির বর্ণনা এবং এর সম্পর্ক...",
   "shortImageSummaryEnglish": "The reference images indicate a clear preference for bold, dynamic, and often layered typographic designs.",
   "shortImageSummaryBengali": "রেফারেন্স চিত্রগুলি গাঢ়, গতিশীল এবং প্রায়শই স্তরযুক্ত টাইপোগ্রাফিক ডিজাইনের জন্য একটি স্পষ্ট পছন্দ নির্দেশ করে।",
-  "generatedPromptsByCategory": [
-    { 
-      "category": "Graphics-Focused", 
-      "prompts": [
-        "Create a vintage illustration design featuring... [complete detailed prompt following all rules]",
-        "Design a modern graphic artwork showcasing... [complete detailed prompt]"
-      ]
-    },
-    { 
-      "category": "Typography-Focused", 
-      "prompts": [
-        "Make a bold typographic design with... [complete detailed prompt]"
-      ]
-    },
-    { 
-      "category": "Typography with Graphics", 
-      "prompts": [
-        "Create a mixed-media design combining... [complete detailed prompt]"
-      ]
-    }
+  "editingPrompts": [
+    { "type": "must_need_edits", "prompt": "Revise this image to ... OR (if no image) Create a design that ..." },
+    { "type": "all_edits", "prompt": "..." },
+    { "type": "make_standout", "prompt": "..." },
+    { "type": "make_colorful", "prompt": "..." },
+    { "type": "new_variations", "prompt": "..." }
   ],
-  "generatedPromptsByDesign": [
-    { "designId": "design_1", "designTitle": "Poster A", "category": "Graphics-Focused", "prompt": "Create a high-quality vintage illustration design... [complete detailed prompt with all elements]" },
-    { "designId": "design_2", "designTitle": "Poster B", "category": "Typography-Focused", "prompt": "Design a bold typographic artwork... [complete detailed prompt with all elements]" }
+  "editingPromptsByDesign": [
+    { "designId": "design_1", "designTitle": "Poster A", "imageIndex": 1, "prompt": "For the First image (design_1), ... [explicit edits for this design]" },
+    { "designId": "design_2", "designTitle": "Poster B", "imageIndex": 2, "prompt": "For the Second image (design_2), ... [explicit edits for this design]" }
   ]
 }
 `;
