@@ -1,10 +1,6 @@
 import { GeminiKeyManager } from './gemini-key-manager';
 import { UserProfile, ThinkingMode } from '@/lib/types';
-import {
-  GoogleGenAI,
-  type GenerateContentStreamRequest,
-  type GenerateContentResponse,
-} from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 
 export type GeminiRequestFn<T> = (apiKey: string) => Promise<T>;
 
@@ -31,9 +27,9 @@ export class GeminiClient {
    */
   async *generateContentStream(
     modelId: string,
-    request: Omit<GenerateContentStreamRequest, 'model'>,
+    request: any,
     thinkingMode: ThinkingMode = 'default'
-  ): AsyncGenerator<GenerateContentResponse> {
+  ): AsyncGenerator<any> {
     const key = this.manager.getActiveKey();
     if (!key) {
       throw new Error('No active Gemini API key available.');
