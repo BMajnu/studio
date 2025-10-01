@@ -274,7 +274,7 @@ export default function LabPage() {
 
   return (
     <div className="w-full h-full flex flex-col bg-gradient-to-br from-background via-background to-muted/20">
-      {/* Header */}
+        {/* Header */}
       <div className="border-b bg-background/80 backdrop-blur-sm px-6 py-4 flex-shrink-0 shadow-sm">
         <div className="flex items-center justify-between max-w-[2000px] mx-auto">
           <div className="flex items-center gap-4">
@@ -293,8 +293,8 @@ export default function LabPage() {
               <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl blur opacity-30"></div>
               <div className="relative p-2.5 rounded-xl bg-gradient-to-br from-purple-500/90 to-pink-500/90">
                 <Sparkles className="h-5 w-5 text-white" />
-              </div>
             </div>
+          </div>
             <div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
                 Designer Lab
@@ -375,7 +375,7 @@ export default function LabPage() {
                     </Button>
                   )}
                 </div>
-              </div>
+        </div>
 
               {/* Model Selection */}
               <div className="space-y-2">
@@ -542,16 +542,16 @@ export default function LabPage() {
                 {expandedSections.composition && (
                   <div className="space-y-3 pt-2">
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
+                  <Button
+                    variant="ghost"
+                    size="sm"
                         className="h-8 hover:bg-purple-50 hover:text-purple-700 dark:hover:bg-purple-900/20 dark:hover:text-purple-300 transition-all"
                         onClick={() => setSelectedComposition('')}
-                      >
+                  >
                         <X className="h-3 w-3 mr-1.5" />
                         Clear
-                      </Button>
-                    </div>
+                  </Button>
+                </div>
                     <div className="flex flex-wrap gap-2">
                       {compositionPresets.map(comp => (
                         <button
@@ -572,7 +572,7 @@ export default function LabPage() {
                 )}
               </div>
 
-            </div>
+              </div>
 
             {/* Generate Button - Sticky at bottom of left panel */}
             <div className="sticky bottom-0 p-6 bg-gradient-to-t from-background via-background to-transparent border-t backdrop-blur-sm">
@@ -618,12 +618,12 @@ export default function LabPage() {
                   <span className="font-medium">Inspiration</span>
                 </TabsTrigger>
               </TabsList>
-            </div>
+                </div>
 
             <TabsContent value="history" className="flex-1 m-0 overflow-hidden">
               <ScrollArea className="h-full">
                 <div className="p-6">
-                  {isGenerating ? (
+              {isGenerating ? (
                     <div className="flex flex-col items-center justify-center py-32 bg-gradient-to-br from-purple-50/50 to-pink-50/50 dark:from-purple-900/10 dark:to-pink-900/10 rounded-2xl">
                       <div className="relative">
                         <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full blur-xl opacity-30 animate-pulse"></div>
@@ -631,30 +631,30 @@ export default function LabPage() {
                       </div>
                       <p className="text-xl font-bold mt-6">Generating your image...</p>
                       <p className="text-sm text-muted-foreground mt-2">AI is crafting your masterpiece</p>
-                    </div>
+                </div>
                   ) : history.length > 0 || generatedImages.length > 0 ? (
                     <div className="grid grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
                       {/* Current generation */}
-                      {generatedImages.map((image, index) => (
+                  {generatedImages.map((image, index) => (
                         <div key={`current-${index}`} className="group space-y-3">
                           <div className="relative aspect-square rounded-xl overflow-hidden bg-muted border-2 border-purple-500 shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-[1.02]">
-                            <NextImage
-                              src={GeminiImageGenClient.imageToDataUrl(image)}
+                        <NextImage
+                          src={GeminiImageGenClient.imageToDataUrl(image)}
                               alt={`Generated ${index + 1}`}
-                              fill
+                          fill
                               className="object-cover"
-                            />
+                        />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                             <div className="absolute top-3 right-3">
                               <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 shadow-lg font-semibold">
                                 New
                               </Badge>
-                            </div>
+                      </div>
                             <div className="absolute bottom-3 left-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                              <Button
+                        <Button
                                 variant="secondary"
-                                size="sm"
-                                onClick={() => handleDownload(image, index)}
+                          size="sm"
+                          onClick={() => handleDownload(image, index)}
                                 className="w-full bg-white/90 hover:bg-white text-black font-semibold shadow-lg"
                               >
                                 <Download className="h-3.5 w-3.5 mr-2" />
@@ -694,8 +694,8 @@ export default function LabPage() {
                                   className="w-full bg-white/90 hover:bg-white text-black font-semibold shadow-lg"
                                 >
                                   <Download className="h-3.5 w-3.5 mr-2" />
-                                  Download
-                                </Button>
+                          Download
+                        </Button>
                               </div>
                             </div>
                             <div className="space-y-2">
@@ -704,14 +704,14 @@ export default function LabPage() {
                                 <Badge variant="outline" className="text-xs">1:1</Badge>
                                 <Badge variant="outline" className="text-xs text-muted-foreground">
                                   {new Date(item.timestamp).toLocaleDateString()}
-                                </Badge>
-                              </div>
-                            </div>
+                        </Badge>
+                      </div>
+                    </div>
                           </div>
                         ))
-                      ))}
-                    </div>
-                  ) : (
+                  ))}
+                </div>
+              ) : (
                     <div className="flex flex-col items-center justify-center py-32 text-muted-foreground bg-gradient-to-br from-muted/30 to-muted/10 rounded-2xl">
                       <div className="relative">
                         <div className="absolute inset-0 bg-purple-500/20 rounded-full blur-2xl"></div>
@@ -721,8 +721,8 @@ export default function LabPage() {
                       <p className="text-sm mt-2 max-w-md text-center">
                         Start creating amazing images with AI. Enter a prompt on the left and click Generate.
                       </p>
-                    </div>
-                  )}
+                </div>
+              )}
                 </div>
               </ScrollArea>
             </TabsContent>
