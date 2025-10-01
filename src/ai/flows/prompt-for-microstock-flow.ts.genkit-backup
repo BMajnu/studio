@@ -1,5 +1,4 @@
 'use server';
-// ✅ MIGRATED to @google/genai SDK (from Genkit)
 /**
  * @fileOverview Generates prompts with metadata for microstock marketplaces based on user input.
  * Each prompt includes a title, keywords, main category, and subcategory to help with submission to stock sites.

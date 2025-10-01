@@ -1,5 +1,4 @@
 'use server';
-// ✅ MIGRATED to @google/genai SDK (from Genkit)
 /**
  * @fileOverview Generates video prompts in normal and JSON formats, optimized for Google Veo 3 and other video generation models.
  *
@@ -8,11 +7,10 @@
  * - GenerateVideoPromptsOutput - The return type for the generateVideoPrompts function.
  */
 
-// MIGRATED: Using TypeScript types instead of Genkit zod
+import { z } from 'genkit';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
-import { generateJSON, generateText } from '@/lib/ai/genai-helper';
-import type { UserProfile } from '@/lib/types';';
-// MIGRATED: Using genai-helper instead
+import { GeminiClient } from '@/lib/ai/gemini-client';
+import { createGeminiAiInstance } from '@/lib/ai/genkit-utils';
 import * as fs from 'fs';
 import * as path from 'path';
 

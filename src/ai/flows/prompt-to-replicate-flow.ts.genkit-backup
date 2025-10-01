@@ -1,5 +1,4 @@
 'use server';
-// ✅ MIGRATED to @google/genai SDK (from Genkit)
 /**
  * @fileOverview Generates three types of prompts based on uploaded images: exact replication, similar with tweaks, 
  * and same niche/concept prompts. Part of the "Prompt to Replicate" feature.

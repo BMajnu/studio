@@ -1,13 +1,15 @@
 'use server';
+// ✅ MIGRATED to @google/genai SDK (from Genkit)
 /**
  * Story/Film Generator Flow
  * Produces bilingual natural prompts + structured JSON with scenes for story/film.
  */
 
-import { z } from 'genkit';
+// MIGRATED: Using TypeScript types instead of Genkit zod
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
-import { GeminiClient } from '@/lib/ai/gemini-client';
-import { createGeminiAiInstance } from '@/lib/ai/genkit-utils';
+import { generateJSON, generateText } from '@/lib/ai/genai-helper';
+import type { UserProfile } from '@/lib/types';';
+// MIGRATED: Using genai-helper instead
 import { GalleryAsset } from '@/lib/video/types';
 import { generateConsistencyInstruction } from '@/lib/video/gallery-prompt-helper';
 

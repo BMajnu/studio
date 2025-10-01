@@ -5,6 +5,7 @@ export const DEFAULT_USER_ID = 'default-user';
 export const AVAILABLE_MODELS = [
   // 🆕 New Models (Top Priority)
   { id: 'gemini-flash-latest', name: '🆕 Gemini Flash (Latest)', supportsThinking: true, tag: 'New' },
+  { id: 'gemini-2.5-flash', name: '🆕 Gemini 2.5 Flash', supportsThinking: true, tag: 'New' },
   { id: 'gemini-2.5-pro', name: '🆕 Gemini 2.5 Pro', supportsThinking: true, tag: 'New' },
   { id: 'gemini-2.5-flash-image-preview', name: '🆕 Gemini 2.5 Flash (Image Gen/Edit)', supportsThinking: true, supportsImageGen: true, tag: 'New' },
   { id: 'gemini-flash-lite-latest', name: '🆕 Gemini Flash Lite (Latest)', supportsThinking: true, tag: 'New' },
@@ -18,14 +19,12 @@ export const AVAILABLE_MODELS = [
 
   // Fast (Balanced) – Flash models
   { id: 'gemini-1.5-flash-latest', name: 'Gemini 1.5 Flash (Latest)', supportsThinking: false },
-  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', supportsThinking: true },
   { id: 'gemini-2.5-flash-preview-04-17', name: 'Gemini 2.5 Flash Preview (04-17)', supportsThinking: false },
   { id: 'gemini-2.5-flash-preview-05-20', name: 'Gemini 2.5 Flash Preview (05-20)', supportsThinking: true },
   { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', supportsThinking: false },
   { id: 'gemini-2.0-flash-preview-image-generation', name: 'Gemini 2.0 Flash (Image Gen)', supportsThinking: false },
 
   // Fastest (Lowest Cost) – Flash Lite & Gemma models
-  { id: 'gemini-2.5-flash-lite-preview-06-17', name: 'Gemini 2.5 Flash-Lite Preview 06-17', supportsThinking: true },
   { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite', supportsThinking: false },
   { id: 'gemma-3n-e4b', name: 'Gemma 3n E4B', supportsThinking: false },
   { id: 'gemma-3n-e2b', name: 'Gemma 3n E2B', supportsThinking: false },

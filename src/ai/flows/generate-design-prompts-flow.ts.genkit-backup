@@ -1,5 +1,4 @@
 'use server';
-// ✅ MIGRATED to @google/genai SDK (from Genkit)
 /**
  * @fileOverview Generates detailed, creative AI image prompts directly from a design theme.
  * This flow combines idea generation and prompt creation into a single step.
@@ -9,11 +8,10 @@
  * - GenerateDesignPromptsOutput - The return type for the function.
  */
 
-// MIGRATED: Using TypeScript types instead of Genkit zod
+import {z} from 'genkit';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
-import { generateJSON, generateText } from '@/lib/ai/genai-helper';
-import type { UserProfile } from '@/lib/types';';
-// MIGRATED: Using genai-helper instead
+import { GeminiClient } from '@/lib/ai/gemini-client';
+import { createGeminiAiInstance } from '@/lib/ai/genkit-utils';
 
 // Internal schema for the ideas generated in the first step.
 const GeneratedIdeasSchema = z.object({

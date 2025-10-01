@@ -1,5 +1,4 @@
 'use server';
-// ✅ MIGRATED to @google/genai SDK (from Genkit)
 /**
  * @fileOverview Genkit flow to process designer's custom instruction relative to a client's message.
  *
@@ -8,11 +7,10 @@
  * - ProcessCustomInstructionFlowOutput - Output type
  */
 
-// MIGRATED: Using TypeScript types instead of Genkit zod
+import { z } from 'genkit';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
-import { generateJSON, generateText } from '@/lib/ai/genai-helper';
-import type { UserProfile } from '@/lib/types';';
-// MIGRATED: Using genai-helper instead
+import { GeminiClient } from '@/lib/ai/gemini-client';
+import { getOrCreateGeminiAiInstance } from '@/lib/ai/genkit-utils';
 
 // DEBUG helper
 const logDebug = (label: string, ...args: any[]) => {

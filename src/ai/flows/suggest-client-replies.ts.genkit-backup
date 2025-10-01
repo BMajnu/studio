@@ -9,7 +9,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-// MIGRATED: Using TypeScript types instead of Genkit zod
+import {z} from 'genkit';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';

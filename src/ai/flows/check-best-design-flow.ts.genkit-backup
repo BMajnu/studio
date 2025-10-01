@@ -1,5 +1,4 @@
 'use server';
-// ✅ MIGRATED to @google/genai SDK (from Genkit)
 /**
  * @fileOverview AI flow to select and rank the top 5 designs from a collection.
  * Evaluates designs based on predefined criteria and expert-level parameters.
@@ -9,11 +8,10 @@
  * - CheckBestDesignOutput - Output type.
  */
 
-// MIGRATED: Using TypeScript types instead of Genkit zod
+import { z } from 'genkit';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
-import { generateJSON, generateText } from '@/lib/ai/genai-helper';
-import type { UserProfile } from '@/lib/types';';
-// MIGRATED: Using genai-helper instead
+import { GeminiClient } from '@/lib/ai/gemini-client';
+import { createGeminiAiInstance } from '@/lib/ai/genkit-utils';
 
 // Schema for a design object
 const DesignSchema = z.object({

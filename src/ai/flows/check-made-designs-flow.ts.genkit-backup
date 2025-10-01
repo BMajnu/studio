@@ -1,5 +1,4 @@
 'use server';
-// ✅ MIGRATED to @google/genai SDK (from Genkit)
 /**
  * @fileOverview AI flow to check a user-made design for mistakes based on a client's prompt/requirements.
  * Provides feedback in Bangla.
@@ -9,11 +8,10 @@
  * - CheckMadeDesignsOutput - Output type.
  */
 
-// MIGRATED: Using TypeScript types instead of Genkit zod
+import { z } from 'genkit';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
-import { generateJSON, generateText } from '@/lib/ai/genai-helper';
-import type { UserProfile } from '@/lib/types';';
-// MIGRATED: Using genai-helper instead
+import { GeminiClient } from '@/lib/ai/gemini-client';
+import { createGeminiAiInstance } from '@/lib/ai/genkit-utils';
 
 // Schema for the flow's input
 const CheckMadeDesignsFlowInputSchema = z.object({

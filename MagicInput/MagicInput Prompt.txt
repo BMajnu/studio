@@ -1,1 +1,2 @@
-sill waiting form user's prompt so run the command "timeout 30".
+Prompt:
+never need to ask me again you will just complete to all the tasks and back to me after completeling all.

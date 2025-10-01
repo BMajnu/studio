@@ -1,20 +1,18 @@
 'use server';
-// ✅ MIGRATED to @google/genai SDK (from Genkit)
 /**
- * Ads Generator Flow
- * Produces bilingual prompts + structured JSON for ad concepts and scenes.
+ * Viral Video Generator Flow
+ * Produces bilingual prompts + structured JSON optimized for short-form viral content.
  */
 
-// MIGRATED: Using TypeScript types instead of Genkit zod
+import { z } from 'genkit';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
-import { generateJSON, generateText } from '@/lib/ai/genai-helper';
-import type { UserProfile } from '@/lib/types';';
-// MIGRATED: Using genai-helper instead
+import { GeminiClient } from '@/lib/ai/gemini-client';
+import { createGeminiAiInstance } from '@/lib/ai/genkit-utils';
 import { GalleryAsset } from '@/lib/video/types';
 import { generateConsistencyInstruction } from '@/lib/video/gallery-prompt-helper';
 
 const logDebug = (label: string, ...args: any[]) => {
-  try { console.log(`[generateAds] ${label}`, ...args); } catch(_){}
+  try { console.log(`[generateViralVideo] ${label}`, ...args); } catch(_){}
 };
 
 const AttachedFileSchema = z.object({
@@ -26,15 +24,14 @@ const AttachedFileSchema = z.object({
 
 const InputSchema = z.object({
   userName: z.string().default('Designer'),
-  productInfo: z.string().min(1, 'Provide product/service details'),
-  slogans: z.string().optional(),
-  scriptIdea: z.string().optional(),
-  adLengthSeconds: z.number().optional(),
-  visualStyle: z.string().optional(),
+  topic: z.string().min(1, 'Provide a topic'),
+  targetAudience: z.string().optional(),
+  duration: z.number().optional(),
+  style: z.string().optional(),
   attachedFiles: z.array(AttachedFileSchema).optional(),
   selectedGalleryAssets: z.any().optional(),
 });
-export type GenerateAdsInput = z.infer<typeof InputSchema>;
+export type GenerateViralVideoInput = z.infer<typeof InputSchema>;
 
 const OutputSchema = z.object({
   normalPromptEnglish: z.string().optional(),
@@ -45,27 +42,28 @@ const OutputSchema = z.object({
   sceneBreakdown: z.array(z.string()).optional(),
   keywords: z.array(z.string()).optional(),
 });
-export type GenerateAdsOutput = z.infer<typeof OutputSchema>;
+export type GenerateViralVideoOutput = z.infer<typeof OutputSchema>;
 
-export async function generateAds(flowInput: GenerateAdsInput): Promise<GenerateAdsOutput> {
-  const flowName = 'generateAds';
+export async function generateViralVideo(flowInput: GenerateViralVideoInput): Promise<GenerateViralVideoOutput> {
+  const flowName = 'generateViralVideo';
   logDebug('input', flowInput);
   const modelToUse = DEFAULT_MODEL_ID;
 
   const profileStub = { userId: 'default', name: 'User', services: [], geminiApiKeys: [] as string[] } as any;
   const client = new GeminiClient({ profile: profileStub });
 
-  const promptText = `System Role: Senior advertising prompt engineer. Create ad-ready prompts and structured scenes optimized for AI video (Veo 3 primary). Keep it compliant: no brands/logos.
+  const promptText = `System Role: Social content strategist + video prompt engineer. Create engaging, fast-paced short-form prompts optimized for Veo 3. Follow platform best practices. Avoid copyrighted brands/logos.
 
 User: ${flowInput.userName}
-Product/Service: ${flowInput.productInfo}
-Slogans/Texts: ${flowInput.slogans || 'auto'}
-Script/Idea: ${flowInput.scriptIdea || 'auto'}
-${flowInput.adLengthSeconds ? `Ad Length: ${flowInput.adLengthSeconds} seconds` : ''}
-${flowInput.visualStyle ? `Visual Style: ${flowInput.visualStyle}` : ''}
+Topic: ${flowInput.topic}
+Target Audience: ${flowInput.targetAudience || 'general'}
+${flowInput.duration ? `Duration: ${flowInput.duration} seconds` : ''}
+${flowInput.style ? `Style: ${flowInput.style}` : ''}
 
-Return JSON only with keys: normalPromptEnglish, normalPromptBengali, jsonPrompt, veo3OptimizedPrompt, technicalNotes, sceneBreakdown, keywords.
-Scenes must include: sceneNumber, duration, description, cameraMovement, lighting, mood, shotType, lens, location, timeOfDay, transition.`;
+Requirements:
+- Hook in first 2 seconds, 3-7 concise scenes, strong CTA (if applicable).
+- For each scene: sceneNumber, duration, on-screen action, overlay text (if any), cameraMovement, lighting, mood.
+- Return JSON only with keys: normalPromptEnglish, normalPromptBengali, jsonPrompt, veo3OptimizedPrompt, technicalNotes, sceneBreakdown, keywords.`;
 
   try {
     const { data: output } = await client.request(async (apiKey) => {
@@ -79,7 +77,7 @@ Scenes must include: sceneNumber, duration, description, cameraMovement, lightin
       const { output } = await promptDef(flowInput, { model: modelToUse });
       if (!output) throw new Error('AI returned empty output');
       // Inject gallery consistency instruction if assets provided
-      let enriched = output as GenerateAdsOutput;
+      let enriched = output as GenerateViralVideoOutput;
       const assets = (flowInput as { selectedGalleryAssets?: GalleryAsset[] }).selectedGalleryAssets || [];
       if (assets && assets.length) {
         const consistency = generateConsistencyInstruction(assets);
@@ -92,7 +90,7 @@ Scenes must include: sceneNumber, duration, description, cameraMovement, lightin
       }
       return enriched as any;
     });
-    return output as GenerateAdsOutput;
+    return output as GenerateViralVideoOutput;
   } catch (error) {
     console.error(`ERROR (${flowName}):`, error);
     throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);

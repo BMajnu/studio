@@ -1,5 +1,4 @@
 'use server';
-// ✅ MIGRATED to @google/genai SDK (from Genkit)
 /**
  * @fileOverview AI flow to generate image editing prompts based on a design to edit,
  * previous "Check Made Designs" feedback from chat history, and current user instructions.
@@ -11,11 +10,10 @@
  */
 
 import { ai } from '@/ai/genkit';
-// MIGRATED: Using TypeScript types instead of Genkit zod
+import { z } from 'genkit';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
-import { generateJSON, generateText } from '@/lib/ai/genai-helper';
-import type { UserProfile } from '@/lib/types';';
-// MIGRATED: Using genai-helper instead
+import { GeminiClient } from '@/lib/ai/gemini-client';
+import { createGeminiAiInstance } from '@/lib/ai/genkit-utils';
 
 const AttachedFileSchema = z.object({ // Only for consistency within ChatHistory type, not directly used as primary input file
   name: z.string().describe("Name of the file"),
