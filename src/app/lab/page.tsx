@@ -59,6 +59,7 @@ export default function LabPage() {
   const [imageReferences, setImageReferences] = useState<ImageReference[]>([]);
   const [selectedStyle, setSelectedStyle] = useState<string>('');
   const [selectedComposition, setSelectedComposition] = useState<string>('');
+  const [imageCount, setImageCount] = useState<number>(1); // Number of images to generate
   const [history, setHistory] = useState<GenerationHistory[]>([]);
   
   // UI state
@@ -210,7 +211,7 @@ export default function LabPage() {
     } finally {
       setIsGenerating(false);
     }
-  }, [prompt, selectedModel, selectedStyle, selectedComposition, profile, toast]);
+  }, [prompt, selectedModel, selectedStyle, selectedComposition, imageCount, profile, toast]);
 
   const handleDownload = useCallback((imageData: GeneratedImageData, index: number) => {
     try {
@@ -324,9 +325,8 @@ export default function LabPage() {
       {/* Main Content: 2-column layout */}
       <div className="flex-1 flex overflow-hidden max-w-[2000px] mx-auto w-full">
         {/* LEFT PANEL: Controls */}
-        <div className="w-[420px] border-r flex-shrink-0 bg-background/50 backdrop-blur-sm">
-          <ScrollArea className="h-full">
-            <div className="p-6 space-y-6">
+        <div className="w-[420px] border-r flex-shrink-0 bg-background/50 backdrop-blur-sm overflow-y-auto">
+          <div className="p-4 space-y-4">
               {/* Generate images heading */}
               <div>
                 <h2 className="text-xl font-bold">Generate images</h2>
@@ -402,9 +402,25 @@ export default function LabPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">
-                  Select the AI model for generation
-                </p>
+              </div>
+
+              {/* Number of Images Selection */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4 text-purple-500" />
+                  Number of Images
+                </Label>
+                <Select value={imageCount.toString()} onValueChange={(val) => setImageCount(parseInt(val))}>
+                  <SelectTrigger className="w-full border-2 focus:border-purple-500 transition-all shadow-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 Image</SelectItem>
+                    <SelectItem value="2">2 Images</SelectItem>
+                    <SelectItem value="3">3 Images</SelectItem>
+                    <SelectItem value="4">4 Images</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Image References */}
@@ -572,8 +588,6 @@ export default function LabPage() {
                 )}
               </div>
 
-              </div>
-
             {/* Generate Button - Sticky at bottom of left panel */}
             <div className="sticky bottom-0 p-6 bg-gradient-to-t from-background via-background to-transparent border-t backdrop-blur-sm">
               <Button
@@ -595,7 +609,7 @@ export default function LabPage() {
                 )}
               </Button>
             </div>
-          </ScrollArea>
+          </div>
         </div>
 
         {/* RIGHT PANEL: Generated Images & History */}

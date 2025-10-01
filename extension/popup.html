@@ -166,31 +166,66 @@
       </div>
 
       <div id="signout-section">
-        <button id="open-overlay" class="primary">Open Assistant</button>
+        <button id="open-overlay" class="primary">Open Assistant (Ctrl+M)</button>
         <button id="open-webapp" class="secondary">Open Web App</button>
-        <button id="open-designer" class="secondary">Open Designer Page</button>
-        <button id="toggle-settings" class="secondary">Settings</button>
-        <button id="signout" class="secondary">Sign Out</button>
+        
+        <!-- Extension Settings (Always Visible) -->
         <div class="divider"></div>
-        <div class="shortcut">
-          Press <kbd>Ctrl</kbd>+<kbd>M</kbd> on any page
-        </div>
-      </div>
-
-      <!-- Settings Panel -->
-      <div id="settings-panel" style="display:none; margin-top:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-        <h3 style="font-size:14px; color:#2d3748; margin-bottom:8px;">Extension Settings</h3>
-        <label style="display:block; font-size:12px; color:#4a5568; margin-bottom:4px;">Default Target Language</label>
-        <input id="setting-target-lang" type="text" placeholder="e.g., en, bn" style="width:100%; padding:8px; border:1px solid #cbd5e0; border-radius:6px; margin-bottom:8px;" />
-        <label style="display:block; font-size:12px; color:#4a5568; margin-bottom:4px;">Preferred Model ID</label>
-        <input id="setting-model-id" type="text" placeholder="e.g., gemini-1.5-pro" style="width:100%; padding:8px; border:1px solid #cbd5e0; border-radius:6px; margin-bottom:8px;" />
-        <label style="display:block; font-size:12px; color:#4a5568; margin-bottom:4px;">User Gemini API Key (optional)</label>
-        <input id="setting-user-api-key" type="password" placeholder="Paste your Gemini API key" style="width:100%; padding:8px; border:1px solid #cbd5e0; border-radius:6px; margin-bottom:8px;" />
-        <div style="display:flex; gap:8px;">
-          <button id="save-settings" class="primary" style="flex:1;">Save Settings</button>
-          <button id="close-settings" class="secondary" style="flex:1;">Close</button>
-        </div>
-        <p style="font-size:11px; color:#718096; margin-top:8px;">Settings are stored locally in your browser for this extension.</p>
+        <h3 style="font-size:14px; color:#2d3748; margin-bottom:12px; font-weight:600;">Extension Settings</h3>
+        
+        <label style="display:block; font-size:12px; color:#4a5568; margin-bottom:4px; font-weight:500;">Default Target Language</label>
+        <select id="setting-target-lang" style="width:100%; padding:10px; border:1px solid #cbd5e0; border-radius:6px; margin-bottom:12px; font-size:13px; background:white;">
+          <option value="bn">Bengali (bn)</option>
+          <option value="en">English (en)</option>
+          <option value="hi">Hindi (hi)</option>
+          <option value="es">Spanish (es)</option>
+          <option value="fr">French (fr)</option>
+          <option value="de">German (de)</option>
+          <option value="ar">Arabic (ar)</option>
+        </select>
+        
+        <label style="display:block; font-size:12px; color:#4a5568; margin-bottom:4px; font-weight:500;">Preferred Model ID</label>
+        <select id="setting-model-id" style="width:100%; padding:10px; border:1px solid #cbd5e0; border-radius:6px; margin-bottom:12px; font-size:13px; background:white;">
+          <optgroup label="🆕 Latest Models">
+            <option value="gemini-flash-lite-latest" selected>🆕 Gemini Flash Lite (Latest) ⭐</option>
+            <option value="gemini-flash-latest">🆕 Gemini Flash (Latest) ⭐</option>
+            <option value="gemini-2.5-flash">🆕 Gemini 2.5 Flash</option>
+            <option value="gemini-2.5-pro">🆕 Gemini 2.5 Pro</option>
+            <option value="gemini-2.5-flash-image-preview">🆕 Gemini 2.5 Flash (Image Gen/Edit) ⭐</option>
+          </optgroup>
+          <optgroup label="Pro Models">
+            <option value="gemini-1.5-pro-latest">Gemini 1.5 Pro (Latest)</option>
+            <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+            <option value="gemini-2.5-pro-preview-05-06">Gemini 2.5 Pro Preview (05-06)</option>
+            <option value="gemini-2.0-pro-exp">Gemini 2.0 Pro Experimental</option>
+            <option value="gemini-2.5-pro-exp-03-25">Gemini 2.5 Pro Experimental (03-25)</option>
+            <option value="gemini-pro">Gemini 1.0 Pro</option>
+          </optgroup>
+          <optgroup label="Flash Models">
+            <option value="gemini-1.5-flash-latest">Gemini 1.5 Flash (Latest)</option>
+            <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+            <option value="gemini-2.5-flash-preview-04-17">Gemini 2.5 Flash Preview (04-17)</option>
+            <option value="gemini-2.5-flash-preview-05-20">Gemini 2.5 Flash Preview (05-20)</option>
+            <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+            <option value="gemini-2.0-flash-preview-image-generation">Gemini 2.0 Flash Preview (Image Gen)</option>
+          </optgroup>
+          <optgroup label="Lite & Gemma Models">
+            <option value="gemini-2.0-flash-lite-preview-12-18">Gemini 2.0 Flash Lite Preview 12-18</option>
+            <option value="gemini-1.5-flash-lite-preview">Gemini 1.5 Flash Lite Preview</option>
+            <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite</option>
+            <option value="gemma-3n-e4b">Gemma 3n E4B</option>
+            <option value="gemma-3n-e2b">Gemma 3n E2B</option>
+          </optgroup>
+        </select>
+        
+        <label style="display:block; font-size:12px; color:#4a5568; margin-bottom:4px; font-weight:500;">Thinking Mode</label>
+        <select id="setting-thinking-mode" style="width:100%; padding:10px; border:1px solid #cbd5e0; border-radius:6px; margin-bottom:12px; font-size:13px; background:white;">
+          <option value="none">Fast (Non-thinking)</option>
+          <option value="default">Default (With thinking)</option>
+        </select>
+        
+        <button id="save-settings" class="primary" style="margin-bottom:12px;">Save Settings</button>
+        <button id="signout" class="secondary">Sign Out</button>
       </div>
     </div>
     <script type="module" src="./popup.js"></script>

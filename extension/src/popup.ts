@@ -286,33 +286,41 @@ function updateUI(signedIn: boolean) {
 document.addEventListener('DOMContentLoaded', () => {
   const btnOverlay = document.getElementById('open-overlay') as HTMLButtonElement | null;
   const btnOpenWebApp = document.getElementById('open-webapp') as HTMLButtonElement | null;
-  const btnOpenDesigner = document.getElementById('open-designer') as HTMLButtonElement | null;
-  const btnToggleSettings = document.getElementById('toggle-settings') as HTMLButtonElement | null;
-  const settingsPanel = document.getElementById('settings-panel') as HTMLDivElement | null;
   const inputTargetLang = document.getElementById('setting-target-lang') as (HTMLSelectElement | HTMLInputElement | null);
   const inputModelId = document.getElementById('setting-model-id') as (HTMLSelectElement | HTMLInputElement | null);
   const inputThinkingMode = document.getElementById('setting-thinking-mode') as (HTMLSelectElement | HTMLInputElement | null);
-  const inputUserApiKey = document.getElementById('setting-user-api-key') as (HTMLInputElement | null);
   const btnSaveSettings = document.getElementById('save-settings') as HTMLButtonElement | null;
-  const btnCloseSettings = document.getElementById('close-settings') as HTMLButtonElement | null;
 
   const btnSignin = document.getElementById('signin') as HTMLButtonElement | null;
   const btnSignout = document.getElementById('signout') as HTMLButtonElement | null;
 
-  // Initialize UI based on existing token
+  // Initialize UI and load settings
   (async () => {
     try {
       // Default to signed-out so the Sign In button is visible immediately.
       updateUI(false);
-      chrome.runtime.sendMessage({ type: 'AUTH_HAS_TOKEN' }, (resp: any) => {
+      chrome.runtime.sendMessage({ type: 'AUTH_HAS_TOKEN' }, async (resp: any) => {
         const err = chrome.runtime.lastError?.message;
         if (err) {
-          // Keep signed-out if background didn't respond
           updateUI(false);
           return;
         }
         const has = !!(resp && resp.hasToken);
         updateUI(has);
+        
+        // Load settings automatically when signed in
+        if (has) {
+          try {
+            const data = await chrome.storage.local.get([
+              'desainr.settings.targetLang',
+              'desainr.settings.modelId',
+              'desainr.settings.thinkingMode',
+            ]);
+            if (inputTargetLang) (inputTargetLang as any).value = data['desainr.settings.targetLang'] || 'bn';
+            if (inputModelId) (inputModelId as any).value = data['desainr.settings.modelId'] || 'gemini-flash-lite-latest';
+            if (inputThinkingMode) (inputThinkingMode as any).value = data['desainr.settings.thinkingMode'] || 'none';
+          } catch {}
+        }
       });
     } catch {
       updateUI(false);
@@ -340,81 +348,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Open Designer Page
-  btnOpenDesigner?.addEventListener('click', async () => {
-    try {
-      const base = await getBestBaseUrl();
-      await chrome.tabs.create({ url: `${base}/designer` });
-      window.close();
-    } catch (e: any) {
-      showError(e?.message || 'Failed to open designer page');
-    }
-  });
-
-  // Settings toggle
-  btnToggleSettings?.addEventListener('click', async () => {
-    if (!settingsPanel) return;
-    const visible = settingsPanel.style.display !== 'none';
-    settingsPanel.style.display = visible ? 'none' : 'block';
-    if (!visible) {
-      // Load current settings when opening
-      try {
-        const data = await chrome.storage.local.get([
-          'desainr.settings.targetLang',
-          'desainr.settings.modelId',
-          'desainr.settings.thinkingMode',
-          'desainr.settings.userApiKey',
-        ]);
-        if (inputTargetLang) (inputTargetLang as any).value = data['desainr.settings.targetLang'] || (inputTargetLang as any).value || 'en';
-        if (inputModelId) {
-          const saved = data['desainr.settings.modelId'];
-          // Works for both <select> and <input>
-          const options = (inputModelId as HTMLSelectElement).options as any;
-          const exists = saved && options && Array.from(options).some((o: any) => o.value === saved);
-          (inputModelId as any).value = exists ? saved : ((inputModelId as any).value || 'googleai/gemini-1.5-flash-latest');
-        }
-        if (inputThinkingMode) {
-          const tm = data['desainr.settings.thinkingMode'];
-          (inputThinkingMode as any).value = (tm === 'default' || tm === 'none') ? tm : ((inputThinkingMode as any).value || 'none');
-        }
-        if (inputUserApiKey) {
-          inputUserApiKey.value = data['desainr.settings.userApiKey'] || '';
-        }
-      } catch {}
-    }
-  });
-
   // Save settings
   btnSaveSettings?.addEventListener('click', async () => {
     try {
       const targetLang = ((inputTargetLang as any)?.value || '').trim();
       const modelId = ((inputModelId as any)?.value || '').trim();
       const thinkingMode = ((inputThinkingMode as any)?.value || '').trim();
-      const userApiKey = (inputUserApiKey?.value || '').trim();
       await chrome.storage.local.set({
         'desainr.settings.targetLang': targetLang,
         'desainr.settings.modelId': modelId,
         'desainr.settings.thinkingMode': thinkingMode || 'none',
-        'desainr.settings.userApiKey': userApiKey,
       });
       showError('');
-      // Give quick feedback by briefly showing a message in error area styled subtlely
+      // Give quick feedback
       const errorEl = document.getElementById('error');
       if (errorEl) {
         errorEl.style.display = 'block';
         errorEl.style.background = '#c6f6d5';
         errorEl.style.color = '#22543d';
-        errorEl.textContent = 'Settings saved';
-        setTimeout(() => { errorEl.style.display = 'none'; errorEl.style.background=''; errorEl.style.color=''; }, 900);
+        errorEl.textContent = '✓ Settings saved successfully';
+        setTimeout(() => { errorEl.style.display = 'none'; errorEl.style.background=''; errorEl.style.color=''; }, 1500);
       }
     } catch (e: any) {
       showError(e?.message || 'Failed to save settings');
     }
-  });
-
-  // Close settings
-  btnCloseSettings?.addEventListener('click', () => {
-    if (settingsPanel) settingsPanel.style.display = 'none';
   });
 
   // Sign in: request token from web app via background

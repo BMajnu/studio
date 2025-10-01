@@ -2,40 +2,55 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>DesAInR</title>
+    <title>DesAInR Assistant</title>
     <style>
-      body { 
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
         font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-        min-width: 320px;
-        padding: 16px;
-        margin: 0;
+        width: 380px;
+        min-height: 600px;
+        max-height: 600px;
+        padding: 12px;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        overflow-y: auto;
       }
       .container {
         background: white;
         border-radius: 12px;
-        padding: 20px;
+        padding: 16px;
         box-shadow: 0 10px 25px rgba(0,0,0,0.1);
       }
-      h3 {
-        margin: 0 0 8px 0;
-        color: #1a202c;
-        font-size: 20px;
-        font-weight: 600;
+      .header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
       }
-      .subtitle {
-        color: #718096;
-        margin: 0 0 20px 0;
-        font-size: 14px;
+      .logo {
+        width: 28px;
+        height: 28px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 16px;
+      }
+      h1 {
+        font-size: 18px;
+        color: #1a202c;
+        font-weight: 600;
       }
       .status {
         display: flex;
         align-items: center;
         gap: 8px;
-        margin-bottom: 16px;
-        padding: 12px;
+        padding: 8px;
         background: #f7fafc;
-        border-radius: 8px;
+        border-radius: 6px;
+        margin-bottom: 12px;
       }
       .status-dot {
         width: 8px;
@@ -43,171 +58,200 @@
         border-radius: 50%;
         background: #cbd5e0;
       }
-      .status-dot.active { background: #48bb78; }
+      .status-dot.active {
+        background: #48bb78;
+      }
       .status-text {
         font-size: 14px;
         color: #4a5568;
       }
       button {
         width: 100%;
-        padding: 10px 16px;
-        border-radius: 8px;
+        padding: 10px;
         border: none;
-        font-size: 14px;
+        border-radius: 6px;
+        font-size: 13px;
         font-weight: 500;
         cursor: pointer;
         transition: all 0.2s;
+        margin-bottom: 6px;
       }
-      .btn-primary {
+      button:last-child {
+        margin-bottom: 0;
+      }
+      .primary {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
       }
-      .btn-primary:hover {
+      .primary:hover {
         transform: translateY(-1px);
         box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
       }
-      .btn-secondary {
-        background: #e2e8f0;
-        color: #2d3748;
-        margin-top: 8px;
-      }
-      .btn-secondary:hover {
-        background: #cbd5e0;
-      }
-      .features {
-        margin-top: 16px;
-        padding-top: 16px;
-        border-top: 1px solid #e2e8f0;
-      }
-      .feature-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 8px;
-        font-size: 13px;
+      .secondary {
+        background: #edf2f7;
         color: #4a5568;
       }
-      .feature-icon {
-        color: #667eea;
+      .secondary:hover {
+        background: #e2e8f0;
       }
-      #loading {
+      .error {
+        background: #fed7d7;
+        color: #c53030;
+        padding: 10px;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        font-size: 13px;
         display: none;
+      }
+      .loading {
         text-align: center;
         padding: 20px;
+        display: none;
       }
       .spinner {
-        border: 2px solid #f3f3f3;
-        border-top: 2px solid #667eea;
+        width: 24px;
+        height: 24px;
+        border: 3px solid #e2e8f0;
+        border-top-color: #667eea;
         border-radius: 50%;
-        width: 20px;
-        height: 20px;
-        animation: spin 1s linear infinite;
+        animation: spin 0.8s linear infinite;
         margin: 0 auto;
       }
       @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+        to { transform: rotate(360deg); }
       }
-      #error {
+      #signin-section, #signout-section {
         display: none;
-        color: #e53e3e;
-        font-size: 13px;
-        margin-top: 8px;
-        padding: 8px;
-        background: #fff5f5;
-        border-radius: 6px;
       }
-      /* Auth UI sections default hidden; JS will toggle */
-      #signin-section, #signout-section { display: none; }
+      .divider {
+        height: 1px;
+        background: #e2e8f0;
+        margin: 10px 0;
+      }
+      label {
+        display: block;
+        font-size: 11px;
+        color: #4a5568;
+        margin-bottom: 3px;
+        font-weight: 500;
+      }
+      select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #cbd5e0;
+        border-radius: 6px;
+        margin-bottom: 8px;
+        font-size: 12px;
+        background: white;
+      }
+      h3 {
+        font-size: 13px;
+        color: #2d3748;
+        margin-bottom: 8px;
+        font-weight: 600;
+      }
     </style>
   </head>
   <body>
     <div class="container">
-      <h3>🚀 DesAInR Assistant</h3>
-      <p class="subtitle">AI-powered writing and translation</p>
-      
+      <div class="header">
+        <div class="logo">D</div>
+        <h1>DesAInR Assistant</h1>
+      </div>
+
       <div class="status">
-        <span class="status-dot" id="status-dot"></span>
-        <span class="status-text" id="status-text">Ready</span>
+        <div class="status-dot" id="status-dot"></div>
+        <span class="status-text" id="status-text">Checking status...</span>
       </div>
 
-      <!-- Sign-in section -->
+      <div class="error" id="error"></div>
+
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p style="margin-top: 12px; color: #718096;">Loading...</p>
+      </div>
+
       <div id="signin-section">
-        <button id="signin" class="btn-primary">Sign in with DesAInR</button>
-        <p style="margin-top: 12px; font-size: 12px; color: #718096; text-align: center;">Sign in to access AI features</p>
+        <button id="signin" class="primary">Sign in with DesAInR</button>
+        <p style="margin-top: 12px; font-size: 12px; color: #718096; text-align: center;">
+          Sign in to access AI features
+        </p>
       </div>
 
-       <!-- Signed-in controls -->
-       <div id="signout-section">
-        <div id="user-profile" style="display:flex; align-items:center; gap:12px; padding:10px; border:1px solid #e2e8f0; border-radius:8px; margin-bottom:12px; background:#f8fafc;">
-          <img id="user-avatar" alt="avatar" src="" style="width:32px; height:32px; border-radius:50%; background:#e2e8f0; object-fit:cover;" />
+      <div id="signout-section">
+        <!-- User Profile Display -->
+        <div style="display:flex; align-items:center; gap:12px; padding:10px; border:1px solid #e2e8f0; border-radius:8px; margin-bottom:12px; background:#f8fafc;">
+          <img id="user-avatar" alt="avatar" src="" style="width:36px; height:36px; border-radius:50%; background:#e2e8f0; object-fit:cover; display:none;" />
           <div style="flex:1; min-width:0;">
-            <div id="user-name" style="font-size:13px; color:#2d3748; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Signed account</div>
-            <div id="user-email" style="font-size:12px; color:#718096; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">email@example.com</div>
+            <div id="user-name" style="font-size:14px; color:#2d3748; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Loading...</div>
+            <div id="user-email" style="font-size:12px; color:#718096; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div>
           </div>
-          <div id="user-session" style="font-size:11px; color:#4a5568;">Active</div>
+          <div id="user-session" style="font-size:11px; color:#4a5568; padding:4px 8px; background:#e2e8f0; border-radius:4px;">Active</div>
         </div>
-        <button id="open-overlay" class="btn-primary">Open Assistant (Ctrl+M)</button>
-        <button id="open-webapp" class="btn-secondary">Open Web App</button>
-        <button id="open-designer" class="btn-secondary">Open Designer Page</button>
-        <button id="toggle-settings" class="btn-secondary">Settings</button>
-        <button id="signout" class="btn-secondary">Sign Out</button>
-        <div style="text-align:center; font-size:12px; color:#718096; margin-top:8px;">Press <kbd>Ctrl</kbd>+<kbd>M</kbd> on any page</div>
-      </div>
-
-      <!-- Settings Panel -->
-      <div id="settings-panel" style="display:none; margin-top:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-        <h3 style="font-size:14px; color:#2d3748; margin-bottom:8px;">Extension Settings</h3>
-        <label style="display:block; font-size:12px; color:#4a5568; margin-bottom:4px;">Default Target Language</label>
-        <select id="setting-target-lang" style="width:100%; padding:8px; border:1px solid #cbd5e0; border-radius:6px; margin-bottom:8px;">
-          <option value="en">English (en)</option>
+        
+        <button id="open-overlay" class="primary">Open Assistant (Ctrl+M)</button>
+        <button id="open-webapp" class="secondary">Open Web App</button>
+        
+        <!-- Extension Settings (Always Visible) -->
+        <div class="divider"></div>
+        <h3>Extension Settings</h3>
+        
+        <label>Default Target Language</label>
+        <select id="setting-target-lang">
           <option value="bn">Bengali (bn)</option>
+          <option value="en">English (en)</option>
           <option value="hi">Hindi (hi)</option>
           <option value="es">Spanish (es)</option>
           <option value="fr">French (fr)</option>
           <option value="de">German (de)</option>
           <option value="ar">Arabic (ar)</option>
-          <option value="zh">Chinese (zh)</option>
-          <option value="ja">Japanese (ja)</option>
         </select>
-        <label style="display:block; font-size:12px; color:#4a5568; margin-bottom:4px;">Preferred Model ID</label>
-        <select id="setting-model-id" style="width:100%; padding:8px; border:1px solid #cbd5e0; border-radius:6px; margin-bottom:8px;">
-          <option value="googleai/gemini-1.5-pro-latest">Gemini 1.5 Pro (Latest)</option>
-          <option value="googleai/gemini-2.5-pro-preview-05-06">Gemini 2.5 Pro Preview (05-06)</option>
-          <option value="googleai/gemini-2.0-pro-exp">Gemini 2.0 Pro Experimental</option>
-          <option value="googleai/gemini-2.5-pro-exp-03-25">Gemini 2.5 Pro Experimental (03-25)</option>
-          <option value="googleai/gemini-pro">Gemini 1.0 Pro</option>
-          <option value="googleai/gemini-2.5-pro">Gemini 2.5 Pro</option>
-          <option value="googleai/gemini-1.5-flash-latest" selected>Gemini 1.5 Flash (Latest)</option>
-          <option value="googleai/gemini-2.5-flash">Gemini 2.5 Flash</option>
-          <option value="googleai/gemini-2.5-flash-preview-04-17">Gemini 2.5 Flash Preview (04-17)</option>
-          <option value="googleai/gemini-2.5-flash-preview-05-20">Gemini 2.5 Flash Preview (05-20)</option>
-          <option value="googleai/gemini-2.0-flash">Gemini 2.0 Flash</option>
-          <option value="googleai/gemini-2.0-flash-preview-image-generation">Gemini 2.0 Flash Preview (Image Gen)</option>
-          <option value="googleai/gemini-2.5-flash-lite-preview-06-17">Gemini 2.5 Flash-Lite Preview 06-17</option>
-          <option value="googleai/gemini-2.0-flash-lite">Gemini 2.0 Flash Lite</option>
-          <option value="gemma-3n-e4b">Gemma 3n E4B</option>
-          <option value="gemma-3n-e2b">Gemma 3n E2B</option>
+        
+        <label>Preferred Model ID</label>
+        <select id="setting-model-id">
+          <optgroup label="🆕 Latest Models">
+            <option value="gemini-flash-lite-latest" selected>🆕 Gemini Flash Lite (Latest) ⭐</option>
+            <option value="gemini-flash-latest">🆕 Gemini Flash (Latest) ⭐</option>
+            <option value="gemini-2.5-flash">🆕 Gemini 2.5 Flash</option>
+            <option value="gemini-2.5-pro">🆕 Gemini 2.5 Pro</option>
+            <option value="gemini-2.5-flash-image-preview">🆕 Gemini 2.5 Flash (Image Gen/Edit) ⭐</option>
+          </optgroup>
+          <optgroup label="Pro Models">
+            <option value="gemini-1.5-pro-latest">Gemini 1.5 Pro (Latest)</option>
+            <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+            <option value="gemini-2.5-pro-preview-05-06">Gemini 2.5 Pro Preview (05-06)</option>
+            <option value="gemini-2.0-pro-exp">Gemini 2.0 Pro Experimental</option>
+            <option value="gemini-2.5-pro-exp-03-25">Gemini 2.5 Pro Experimental (03-25)</option>
+            <option value="gemini-pro">Gemini 1.0 Pro</option>
+          </optgroup>
+          <optgroup label="Flash Models">
+            <option value="gemini-1.5-flash-latest">Gemini 1.5 Flash (Latest)</option>
+            <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+            <option value="gemini-2.5-flash-preview-04-17">Gemini 2.5 Flash Preview (04-17)</option>
+            <option value="gemini-2.5-flash-preview-05-20">Gemini 2.5 Flash Preview (05-20)</option>
+            <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+            <option value="gemini-2.0-flash-preview-image-generation">Gemini 2.0 Flash Preview (Image Gen)</option>
+          </optgroup>
+          <optgroup label="Lite & Gemma Models">
+            <option value="gemini-2.5-flash-lite-preview-06-17">Gemini 2.5 Flash-Lite Preview 06-17</option>
+            <option value="gemini-2.0-flash-lite-preview-12-18">Gemini 2.0 Flash Lite Preview 12-18</option>
+            <option value="gemini-1.5-flash-lite-preview">Gemini 1.5 Flash Lite Preview</option>
+            <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite</option>
+            <option value="gemma-3n-e4b">Gemma 3n E4B</option>
+            <option value="gemma-3n-e2b">Gemma 3n E2B</option>
+          </optgroup>
         </select>
-        <label style="display:block; font-size:12px; color:#4a5568; margin-bottom:4px;">Thinking Mode</label>
-        <select id="setting-thinking-mode" style="width:100%; padding:8px; border:1px solid #cbd5e0; border-radius:6px; margin-bottom:8px;">
-          <option value="none" selected>Fast (Non-thinking)</option>
-          <option value="default">Standard (Default)</option>
+        
+        <label>Thinking Mode</label>
+        <select id="setting-thinking-mode">
+          <option value="none">Fast (Non-thinking)</option>
+          <option value="default">Default (With thinking)</option>
         </select>
-        <div style="display:flex; gap:8px;">
-          <button id="save-settings" class="btn-primary" style="flex:1;">Save Settings</button>
-          <button id="close-settings" class="btn-secondary" style="flex:1;">Close</button>
-        </div>
-        <p style="font-size:11px; color:#718096; margin-top:8px;">Settings are stored locally in your browser for this extension.</p>
+        
+        <button id="save-settings" class="primary" style="margin-bottom:12px;">Save Settings</button>
+        <button id="signout" class="secondary">Sign Out</button>
       </div>
-
-      <div id="loading">
-        <div class="spinner"></div>
-        <p style="margin-top: 12px; color: #718096; font-size: 14px;">Loading...</p>
-      </div>
-
-      <div id="error"></div>
     </div>
-    <script type="module" src="popup.js"></script>
+    <script type="module" src="./popup.js"></script>
   </body>
 </html>

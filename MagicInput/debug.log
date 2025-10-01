@@ -696,3 +696,66 @@ google.genai.errors.ServerError: 503 UNAVAILABLE. {'error': {'code': 503, 'messa
 [2025-10-01 17:30:46] MagicInput initialized; logging to debug.log and magicinput.log
 [2025-10-01 17:42:34] MagicInput initialized; logging to debug.log and magicinput.log
 [2025-10-01 18:16:19] MagicInput initialized; logging to debug.log and magicinput.log
+[2025-10-02 00:07:58] MagicInput initialized; logging to debug.log and magicinput.log
+[2025-10-02 00:09:52] MagicInput initialized; logging to debug.log and magicinput.log
+[2025-10-02 00:10:23] MagicInput initialized; logging to debug.log and magicinput.log
+[2025-10-02 00:16:11] MagicInput initialized; logging to debug.log and magicinput.log
+[2025-10-02 00:19:11] MagicInput initialized; logging to debug.log and magicinput.log
+[2025-10-02 00:21:24] MagicInput initialized; logging to debug.log and magicinput.log
+[2025-10-02 00:28:36] Starting image processing for 2 image(s). include_context=True; mode=describe
+[2025-10-02 00:28:36] Prepared 2 image part(s). total_bytes=660071 sizes=[115764, 544307]
+[2025-10-02 00:28:36] Context flags: include_context=True; project_brief=no(0 chars); prompts_archive=no(0 chars); terminal=no(0 chars)
+[2025-10-02 00:28:36] Context block total size=0 chars; user_prompt size=717 chars
+[2025-10-02 00:28:36] Calling Gemini with 2 image part(s). Model=gemini-2.5-flash
+[2025-10-02 00:28:39] Describe image thread encountered an error.
+Traceback (most recent call last):
+  File "E:\Developing Projects\DesAInR\MagicInput.py", line 2541, in _describe_image_thread
+    response = self._with_key_failover(_call)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Developing Projects\DesAInR\MagicInput.py", line 3191, in _with_key_failover
+    return func()
+           ^^^^^^
+  File "E:\Developing Projects\DesAInR\MagicInput.py", line 2537, in _call
+    return self.client.models.generate_content(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\B Majnu\AppData\Local\Programs\Python\Python312\Lib\site-packages\google\genai\models.py", line 6112, in generate_content
+    response = self._generate_content(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\B Majnu\AppData\Local\Programs\Python\Python312\Lib\site-packages\google\genai\models.py", line 4933, in _generate_content
+    response = self._api_client.request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\B Majnu\AppData\Local\Programs\Python\Python312\Lib\site-packages\google\genai\_api_client.py", line 1262, in request
+    response = self._request(http_request, http_options, stream=False)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\B Majnu\AppData\Local\Programs\Python\Python312\Lib\site-packages\google\genai\_api_client.py", line 1082, in _request
+    return self._retry(self._request_once, http_request, stream)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\B Majnu\AppData\Local\Programs\Python\Python312\Lib\site-packages\tenacity\__init__.py", line 477, in __call__
+    do = self.iter(retry_state=retry_state)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\B Majnu\AppData\Local\Programs\Python\Python312\Lib\site-packages\tenacity\__init__.py", line 378, in iter
+    result = action(retry_state)
+             ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\B Majnu\AppData\Local\Programs\Python\Python312\Lib\site-packages\tenacity\__init__.py", line 420, in exc_check
+    raise retry_exc.reraise()
+          ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\B Majnu\AppData\Local\Programs\Python\Python312\Lib\site-packages\tenacity\__init__.py", line 187, in reraise
+    raise self.last_attempt.result()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\B Majnu\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\B Majnu\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\_base.py", line 401, in __get_result
+    raise self._exception
+  File "C:\Users\B Majnu\AppData\Local\Programs\Python\Python312\Lib\site-packages\tenacity\__init__.py", line 480, in __call__
+    result = fn(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\B Majnu\AppData\Local\Programs\Python\Python312\Lib\site-packages\google\genai\_api_client.py", line 1059, in _request_once
+    errors.APIError.raise_for_response(response)
+  File "C:\Users\B Majnu\AppData\Local\Programs\Python\Python312\Lib\site-packages\google\genai\errors.py", line 105, in raise_for_response
+    raise ClientError(status_code, response_json, response)
+google.genai.errors.ClientError: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits.\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 250\nPlease retry in 30.581437808s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-2.5-flash'}, 'quotaValue': '250'}]}, {'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '30s'}]}}
+
+[2025-10-02 00:31:27] MagicInput initialized; logging to debug.log and magicinput.log
+[2025-10-02 00:32:32] MagicInput initialized; logging to debug.log and magicinput.log
+[2025-10-02 00:33:33] MagicInput initialized; logging to debug.log and magicinput.log
