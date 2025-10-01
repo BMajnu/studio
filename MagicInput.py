@@ -1138,8 +1138,8 @@ class InputPopup:
         # If an image is present, use the requested phrasing instead of the previous generic line
         if self.images:
             footer_line = (
-                "Please take a screenshot of the current page to understand properly my requirements. "
-                "After analyzing it, start implementing."
+                "Follow the rule always and implement the requirements properly as mentioned above."
+                "Read the rule.md file in the MagicInput folder"
             )
         elif footer_parts:
             if len(footer_parts) == 1:

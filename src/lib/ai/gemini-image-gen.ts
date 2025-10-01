@@ -218,26 +218,10 @@ export class GeminiImageGenClient {
   /**
    * Save generated image to file system (helper for Node.js environments)
    */
-  static saveImageToFile(imageData: GeneratedImageData, fileName: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-      if (typeof window !== 'undefined') {
-        reject(new Error('saveImageToFile is only available in Node.js environment'));
-        return;
-      }
-
-      const fs = require('fs');
-      const fileExtension = mime.getExtension(imageData.mimeType) || 'png';
-      const fullFileName = `${fileName}.${fileExtension}`;
-      const buffer = Buffer.from(imageData.data, 'base64');
-
-      fs.writeFile(fullFileName, buffer, (err: any) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(fullFileName);
-        }
-      });
-    });
+  static async saveImageToFile(_imageData: GeneratedImageData, _fileName: string): Promise<string> {
+    // Intentionally a no-op in browser bundles to avoid pulling Node.js 'fs'
+    // If you need to save to disk on the server, implement a server-only helper.
+    throw new Error('saveImageToFile is server-only and not available in the browser');
   }
 
   /**

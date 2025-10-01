@@ -1556,6 +1556,55 @@ ${params.language ? `Language: ${params.language}` : ''}`;
 
     setIsLoading(true);
 
+    // START: Parallel chat title generation (non-blocking)
+    // Trigger title generation immediately in parallel with response generation
+    if (currentSession?.id && userMessageContent && !isRegenerationCall) {
+      (async () => {
+        try {
+          const recentUserMessages = messagesRef.current
+            .filter(m => m.role === 'user' && m.content)
+            .slice(-3);
+          
+          if (recentUserMessages.length > 0) {
+            const titleMessages = recentUserMessages.map(m => ({
+              role: 'user' as const,
+              text: typeof m.content === 'string' 
+                ? m.content 
+                : (m.content as ChatMessageContentPart[])
+                    .map(p => p.type === 'text' ? p.text : '')
+                    .join(' ')
+                    .trim()
+            }));
+
+            // Non-blocking title generation API call
+            fetch('/api/generate-chat-title', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                messages: titleMessages,
+                modelId: 'googleai/gemini-flash-lite-latest',
+              }),
+            })
+            .then(async (res) => {
+              if (res.ok) {
+                const data = await res.json();
+                if (data?.title && currentSession?.id) {
+                  // Update session title via renameSession from use-chat-history hook
+                  await renameSession(currentSession.id, data.title.trim());
+                }
+              }
+            })
+            .catch((err) => {
+              console.warn('Parallel title generation failed (non-critical):', err);
+            });
+          }
+        } catch (err) {
+          console.warn('Parallel title generation error (non-critical):', err);
+        }
+      })();
+    }
+    // END: Parallel chat title generation
+
     setTimeout(async () => {
         let finalAiResponseContent: ChatMessageContentPart[] = [];
         let aiCallError: any = null;

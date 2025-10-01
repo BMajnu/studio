@@ -49,8 +49,8 @@ let globalInitialized = false;
 const AI_CHAT_TITLE_ENDPOINT = '/api/generate-chat-title';
 /** Tracks which session IDs have already triggered an AI rename attempt in this runtime */
 const aiRenameAttempts: Set<string> = new Set();
-/** Model ID to always use for chat-title generation */
-const TITLE_MODEL_ID = 'googleai/gemini-2.5-flash-lite-preview-06-17';
+/** Model ID to always use for chat-title generation - fallback is handled by the API */
+const TITLE_MODEL_ID = 'googleai/gemini-flash-lite-latest';
 
 // IndexedDB helper for chat session storage - provides higher storage limits than localStorage
 class SessionStorageDB {

@@ -1,4 +1,3 @@
-// src/ai/flows/generate-platform-messages.ts
 'use server';
 /**
  * @fileOverview A flow for generating standardized platform messages for order delivery and revisions, tailored with the user's details.
@@ -8,82 +7,76 @@
  * - GeneratePlatformMessagesOutput - The return type for the generatePlatformMessages function.
  */
 
-import {ai} from '@/ai/genkit';
-// MIGRATED: Using TypeScript types instead of Genkit zod
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
-import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
+import { generateJSON } from '@/lib/ai/genai-helper';
+import type { UserProfile } from '@/lib/types';
 
-// Schema for the flow's input, including modelId and userApiKey
-const GeneratePlatformMessagesFlowInputSchema = z.object({
-  name: z.string().describe('The name of the designer.'),
-  professionalTitle: z.string().optional().describe('The professional title of the designer.'),
-  services: z.array(z.string()).optional().describe('A list of services offered by the designer.'),
-  deliveryNotes: z.string().optional().describe('Any notes about the delivery (e.g., client message context, number of designs).'),
-  revisionNotes: z.string().optional().describe('Any notes about the revision.'),
-  fiverrUsername: z.string().optional().describe('The Fiverr username of the designer.'),
-  customSellerFeedbackTemplate: z.string().optional().describe('Custom seller feedback template provided by the user.'),
-  customClientFeedbackResponseTemplate: z.string().optional().describe('Custom client feedback response template provided by the user.'),
-  messageType: z.enum(['delivery', 'revision']).describe('The type of message to generate (delivery or revision).'),
-  modelId: z.string().optional().describe('The Genkit model ID to use for this request.'),
-  userApiKey: z.string().optional().describe('User-provided Gemini API key.'),
-});
-export type GeneratePlatformMessagesInput = z.infer<typeof GeneratePlatformMessagesFlowInputSchema>;
+// Input interface
+export interface GeneratePlatformMessagesInput {
+  name: string;
+  professionalTitle?: string;
+  services?: string[];
+  deliveryNotes?: string;
+  revisionNotes?: string;
+  fiverrUsername?: string;
+  customSellerFeedbackTemplate?: string;
+  customClientFeedbackResponseTemplate?: string;
+  messageType: 'delivery' | 'revision';
+  modelId?: string;
+  userApiKey?: string;
+  profile?: UserProfile;
+}
 
-// Schema for the prompt's specific input (does not include modelId or userApiKey)
-const GeneratePlatformMessagesPromptInputSchema = z.object({
-  name: z.string().describe('The name of the designer.'),
-  professionalTitle: z.string().optional().describe('The professional title of the designer.'),
-  services: z.array(z.string()).optional().describe('A list of services offered by the designer.'),
-  deliveryNotes: z.string().optional().describe('Any notes about the delivery.'),
-  revisionNotes: z.string().optional().describe('Any notes about the revision.'),
-  fiverrUsername: z.string().optional().describe('The Fiverr username of the designer.'),
-  customSellerFeedbackTemplate: z.string().optional().describe('Custom seller feedback template.'),
-  customClientFeedbackResponseTemplate: z.string().optional().describe('Custom client feedback response template.'),
-  messageType: z.enum(['delivery', 'revision']).describe('The type of message to generate (delivery or revision).'),
-});
+// Output interfaces
+interface PlatformMessage {
+  message: string;
+  type: string;
+}
 
-const PlatformMessageSchema = z.object({
-  message: z.string().describe('The generated platform message content.'),
-  type: z.string().describe('A specific type for the message, e.g., "delivery_option_1", "thank_you_with_tip", "revision_option_1", "seller_feedback_template".'),
-});
-
-const GeneratePlatformMessagesOutputSchema = z.object({
-  messages: z.array(PlatformMessageSchema).describe("An array of generated messages, each with its content and specific type."),
-});
-export type GeneratePlatformMessagesOutput = z.infer<typeof GeneratePlatformMessagesOutputSchema>;
+export interface GeneratePlatformMessagesOutput {
+  messages: PlatformMessage[];
+}
 
 export async function generatePlatformMessages(flowInput: GeneratePlatformMessagesInput): Promise<GeneratePlatformMessagesOutput> {
-  const { userApiKey, modelId, name, professionalTitle, services, deliveryNotes, revisionNotes, fiverrUsername, customSellerFeedbackTemplate, customClientFeedbackResponseTemplate, messageType } = flowInput;
-  const actualPromptInputData = { name, professionalTitle, services, deliveryNotes, revisionNotes, fiverrUsername, customSellerFeedbackTemplate, customClientFeedbackResponseTemplate, messageType };
+  const { 
+    userApiKey, 
+    modelId, 
+    name, 
+    professionalTitle = '', 
+    services = [], 
+    deliveryNotes = 'No specific notes provided.', 
+    revisionNotes = 'No specific notes provided.', 
+    fiverrUsername = '', 
+    customSellerFeedbackTemplate = "Great client, outstanding experience, easy requirement. I love working with you and looking forward to working with you again.", 
+    customClientFeedbackResponseTemplate = "Thanks for your great feedback. I hope we will continue doing more and more.", 
+    messageType,
+    profile 
+  } = flowInput;
+  
   const modelToUse = modelId || DEFAULT_MODEL_ID;
   const flowName = 'generatePlatformMessages';
 
-  let currentAiInstance = ai; // Global Genkit instance by default
-  let apiKeySourceForLog = "GOOGLE_API_KEY from .env file";
+  // Build profile for key management
+  const profileForKey = profile || (userApiKey ? {
+    userId: 'temp',
+    name: 'temp',
+    services: [],
+    geminiApiKeys: [userApiKey]
+  } as any : null);
 
-  if (userApiKey) {
-    console.log(`INFO (${flowName}): Using user-provided API key.`);
-    currentAiInstance = genkit({ plugins: [googleAI({ apiKey: userApiKey })] });
-    apiKeySourceForLog = "User-provided API key from profile";
-  } else if (process.env.GOOGLE_API_KEY) {
-    console.log(`INFO (${flowName}): User API key not provided. Using GOOGLE_API_KEY from .env file.`);
-  } else {
-    console.error(`CRITICAL_ERROR (${flowName}): No API key available. Neither a user-provided API key nor the GOOGLE_API_KEY in the .env file is set.`);
-    throw new Error(`API key configuration error in ${flowName}. AI features are unavailable.`);
-  }
+  // Build system prompt
+  const systemPrompt = `You are an expert assistant for a graphic designer.
 
-  const platformMessagesPrompt = currentAiInstance.definePrompt({
-    name: `${flowName}Prompt_${Date.now()}`,
-    input: {schema: GeneratePlatformMessagesPromptInputSchema},
-    output: {schema: GeneratePlatformMessagesOutputSchema},
-    prompt: `You are an expert assistant for a graphic designer.
+You are generating templates for the ${messageType} process on a platform like Fiverr.
+Designer's custom seller feedback base: "${customSellerFeedbackTemplate}"
+Designer's custom client feedback response base: "${customClientFeedbackResponseTemplate}"`;
 
-You are generating templates for the MESSAGE_TYPE process on a platform like Fiverr.
-Designer's custom seller feedback base: "FEEDBACK_BASE"
-Designer's custom client feedback response base: "RESPONSE_BASE"
-
-SPECIFIC_INSTRUCTIONS
+  // Build user prompt with specific instructions based on message type
+  const specificInstructions = messageType === 'delivery' 
+    ? deliveryInstructions(name, deliveryNotes, services, fiverrUsername) 
+    : revisionInstructions(name, revisionNotes, services, fiverrUsername);
+  
+  const userPrompt = `${specificInstructions}
 
 Output Format:
 {
@@ -93,38 +86,22 @@ Output Format:
   ]
 }
 Ensure each "message" field contains the full text for that template.
-`
-    .replace("MESSAGE_TYPE", messageType)
-    .replace("FEEDBACK_BASE", customSellerFeedbackTemplate || "Great client, outstanding experience, easy requirement. I love working with you and looking forward to working with you again.")
-    .replace("RESPONSE_BASE", customClientFeedbackResponseTemplate || "Thanks for your great feedback. I hope we will continue doing more and more.")
-    .replace("SPECIFIC_INSTRUCTIONS", messageType === 'delivery' ? deliveryInstructions(name, deliveryNotes || 'No specific notes provided.', services || [], fiverrUsername || '') : revisionInstructions(name, revisionNotes || 'No specific notes provided.', services || [], fiverrUsername || '')),
-  });
+`;
 
   try {
-    console.log(`INFO (${flowName}): Making AI call using API key from: ${apiKeySourceForLog}`);
-    const {output} = await platformMessagesPrompt(actualPromptInputData, { 
-      model: modelToUse,
-      // @ts-ignore - Handlebars options are supported but not properly typed in the Genkit type definitions
-      handlebarsOptions: {
-        knownHelpersOnly: false,
-        knownHelpers: {
-          eq: true
-        },
-        helpers: {
-          eq: function(a: any, b: any): boolean {
-            return a === b;
-          }
-        }
-      }
-    });
-    if (!output) {
-      console.error(`ERROR (${flowName}): AI returned empty or undefined output.`);
-      throw new Error(`AI response was empty or undefined in ${flowName}.`);
-    }
+    const output = await generateJSON<GeneratePlatformMessagesOutput>({
+      modelId: modelToUse,
+      temperature: 0.7,
+      maxOutputTokens: 8000,
+      thinkingMode: profile?.thinkingMode || 'default',
+      profile: profileForKey
+    }, systemPrompt, userPrompt);
+
+    console.log(`[${flowName}] Success, generated ${output.messages.length} messages`);
     return output;
   } catch (error) {
-    console.error(`ERROR (${flowName}): AI call failed (API key source: ${apiKeySourceForLog}). Error:`, error);
-    throw new Error(`AI call failed in ${flowName}. Please check server logs for details. Original error: ${(error as Error).message}`);
+    console.error(`ERROR (${flowName}): Failed:`, error);
+    throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);
   }
 }
 

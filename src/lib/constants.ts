@@ -4,21 +4,21 @@ export const DEFAULT_USER_ID = 'default-user';
 
 export const AVAILABLE_MODELS = [
   // 🆕 New Models (Top Priority)
-  { id: 'gemini-flash-latest', name: '🆕 Gemini Flash (Latest)', supportsThinking: true, tag: 'New' },
+  { id: 'gemini-flash-latest', name: '🆕 Gemini Flash (Latest) ⭐', supportsThinking: true, tag: 'New' },
   { id: 'gemini-2.5-flash', name: '🆕 Gemini 2.5 Flash', supportsThinking: true, tag: 'New' },
   { id: 'gemini-2.5-pro', name: '🆕 Gemini 2.5 Pro', supportsThinking: true, tag: 'New' },
-  { id: 'gemini-2.5-flash-image-preview', name: '🆕 Gemini 2.5 Flash (Image Gen/Edit)', supportsThinking: true, supportsImageGen: true, tag: 'New' },
-  { id: 'gemini-flash-lite-latest', name: '🆕 Gemini Flash Lite (Latest)', supportsThinking: true, tag: 'New' },
+  { id: 'gemini-2.5-flash-image-preview', name: '🆕 Gemini 2.5 Flash (Image Gen/Edit) ⭐', supportsThinking: true, supportsImageGen: true, tag: 'New' },
+  { id: 'gemini-flash-lite-latest', name: '🆕 Gemini Flash Lite (Latest) ⭐', supportsThinking: true, tag: 'New' },
 
   // Most Accurate (Slower)
-  { id: 'gemini-1.5-pro-latest', name: 'Gemini 1.5 Pro (Latest)', supportsThinking: true },
+  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', supportsThinking: true },
   { id: 'gemini-2.5-pro-preview-05-06', name: 'Gemini 2.5 Pro Preview (05-06)', supportsThinking: true },
   { id: 'gemini-2.0-pro-exp', name: 'Gemini 2.0 Pro Experimental', supportsThinking: false },
   { id: 'gemini-2.5-pro-exp-03-25', name: 'Gemini 2.5 Pro Experimental (03-25)', supportsThinking: true },
   { id: 'gemini-pro', name: 'Gemini 1.0 Pro', supportsThinking: false },
 
   // Fast (Balanced) – Flash models
-  { id: 'gemini-1.5-flash-latest', name: 'Gemini 1.5 Flash (Latest)', supportsThinking: false },
+  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', supportsThinking: false },
   { id: 'gemini-2.5-flash-preview-04-17', name: 'Gemini 2.5 Flash Preview (04-17)', supportsThinking: false },
   { id: 'gemini-2.5-flash-preview-05-20', name: 'Gemini 2.5 Flash Preview (05-20)', supportsThinking: true },
   { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', supportsThinking: false },

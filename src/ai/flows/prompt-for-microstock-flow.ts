@@ -1,5 +1,4 @@
 'use server';
-// ✅ MIGRATED to @google/genai SDK (from Genkit)
 /**
  * @fileOverview Generates prompts with metadata for microstock marketplaces based on user input.
  * Each prompt includes a title, keywords, main category, and subcategory to help with submission to stock sites.
@@ -7,113 +6,112 @@
  * - promptForMicrostock - Function to generate 20 prompts with associated metadata
  */
 
-import { ai } from '@/ai/genkit';
-import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
-import {
+import { generateJSON } from '@/lib/ai/genai-helper';
+import type { UserProfile } from '@/lib/types';
+import type {
   ContentType,
   PromptForMicrostockInput,
   PromptForMicrostockOutput,
-  PromptForMicrostockPromptInputSchema,
-  PromptForMicrostockPromptOutputSchema
+  PromptWithMetadata
 } from './prompt-for-microstock-types';
 
+interface AIPromptOutput {
+  prompts: PromptWithMetadata[];
+}
+
 export async function promptForMicrostock(flowInput: PromptForMicrostockInput): Promise<PromptForMicrostockOutput> {
-  const { userApiKey, modelId, contentType, designNiche, subNiche, detailedDescription, userName } = flowInput;
-  const modelToUse = modelId || DEFAULT_MODEL_ID;
+  const { 
+    userApiKey,
+    profile, 
+    modelId = DEFAULT_MODEL_ID, 
+    contentType, 
+    designNiche, 
+    subNiche, 
+    detailedDescription, 
+    userName 
+  } = flowInput;
+  
   const flowName = 'promptForMicrostock';
 
-  let currentAiInstance = ai; // Global Genkit instance by default
-  let apiKeySourceForLog = "GOOGLE_API_KEY from .env file";
+  // Build profile for key management
+  const profileForKey = profile || (userApiKey ? {
+    userId: 'temp',
+    name: 'temp',
+    services: [],
+    geminiApiKeys: [userApiKey]
+  } as any : null);
 
-  if (userApiKey) {
-    console.log(`INFO (${flowName}): Using user-provided API key.`);
-    currentAiInstance = genkit({ plugins: [googleAI({ apiKey: userApiKey })] });
-    apiKeySourceForLog = "User-provided API key from profile";
-  } else if (process.env.GOOGLE_API_KEY) {
-    console.log(`INFO (${flowName}): User API key not provided. Using GOOGLE_API_KEY from .env file.`);
-  } else {
-    console.error(`CRITICAL_ERROR (${flowName}): No API key available. Neither a user-provided API key nor the GOOGLE_API_KEY in the .env file is set.`);
-    throw new Error(`API key configuration error in ${flowName}. AI features are unavailable.`);
-  }
+  // Build system prompt
+  const systemPrompt = `You are an expert prompt engineer and stock content creator for ${userName || 'a graphic designer'}.`;
 
-  const microstockPrompt = currentAiInstance.definePrompt({
-    name: `${flowName}Prompt_${Date.now()}`,
-    input: { schema: PromptForMicrostockPromptInputSchema },
-    output: { schema: PromptForMicrostockPromptOutputSchema },
-    prompt: `You are an expert prompt engineer and stock content creator for {{#if userName}}{{{userName}}}{{else}}a graphic designer{{/if}}.
-
-**Objective:** Generate 20 distinct, high-quality prompts with metadata for microstock marketplaces based on the following inputs:
-
-**Content Type:** {{contentType}}
-**Design/Image Niche:** {{{designNiche}}}
-**Sub-Niche:** {{#if subNiche}}{{{subNiche}}}{{else}}Not specified{{/if}}
-**Detailed Description:** {{#if detailedDescription}}{{{detailedDescription}}}{{else}}Not provided{{/if}}
-
-**Guidelines based on Content Type:**
-The content type is "{{contentType}}". Follow the appropriate guidelines below:
-
-**For Photography/Real Image Content:**
-- Include precise camera settings (e.g., aperture, shutter speed, ISO)
-- Specify lighting setups and conditions (e.g., natural light, studio lighting with specific modifiers)
-- Detail composition aspects (e.g., rule of thirds, leading lines)
-- Mention post-processing recommendations
-- Include color grading and mood specifications
-- Suggest lens choices and focal lengths
-- Describe subject positioning and background elements
-- Specify shooting angles and perspectives
-
-**For Vector/Design Content:**
-- Detail typography choices (font families, weights, kerning)
-- Specify color palettes with exact color codes when appropriate
-- Include style specifications (e.g., flat, isometric, realistic)
-- Describe design elements and their arrangement
-- Mention texture and pattern details
-- Include information about proportions and scale
-- Detail line weights and stroke styles
-- Specify design techniques and effects
-
-**Task:**
-Generate 20 unique, detailed prompts for creating {{contentType}} stock content in the specified niche. For each prompt, also provide the following metadata that would be used when submitting to stock marketplaces:
-
-1. Title - A clear, marketable title for the stock content (50-60 characters)
-2. Keywords - 8-12 relevant, searchable keywords separated by commas
-3. Main Category - The primary category this would fit into on stock sites
-4. Subcategory - A more specific subcategory
-
-**Requirements for each prompt:**
-- Make each prompt specific, detailed, and actionable
-- Ensure prompts are varied and explore different aspects of the design niche
-- Include specific style guidance, composition details, and technical specifications
-- Make each prompt 150-200 words in length for comprehensive detail
-- Ensure prompts would result in commercially viable stock content
-- Avoid copyright issues (no branded or trademarked content)
-- Focus on marketable concepts with commercial potential
-- Make each prompt unique and distinct from the others
-
-**Requirements for metadata:**
-- Title should be concise but descriptive, optimized for marketplace search
-- Keywords should be relevant and popular search terms for the content
-- Categories should match common marketplace categorization systems
-- All metadata should be optimized for discoverability on stock platforms
-
-Output all 20 prompts with their associated metadata in the specified format.
-`,
-  });
+  // Build user prompt
+  let userPrompt = `**Objective:** Generate 20 distinct, high-quality prompts with metadata for microstock marketplaces based on the following inputs:\n\n`;
+  
+  userPrompt += `**Content Type:** ${contentType}\n`;
+  userPrompt += `**Design/Image Niche:** ${designNiche}\n`;
+  userPrompt += `**Sub-Niche:** ${subNiche || 'Not specified'}\n`;
+  userPrompt += `**Detailed Description:** ${detailedDescription || 'Not provided'}\n\n`;
+  
+  userPrompt += `**Guidelines based on Content Type:**\n`;
+  userPrompt += `The content type is "${contentType}". Follow the appropriate guidelines below:\n\n`;
+  
+  userPrompt += `**For Photography/Real Image Content:**\n`;
+  userPrompt += `- Include precise camera settings (e.g., aperture, shutter speed, ISO)\n`;
+  userPrompt += `- Specify lighting setups and conditions (e.g., natural light, studio lighting with specific modifiers)\n`;
+  userPrompt += `- Detail composition aspects (e.g., rule of thirds, leading lines)\n`;
+  userPrompt += `- Mention post-processing recommendations\n`;
+  userPrompt += `- Include color grading and mood specifications\n`;
+  userPrompt += `- Suggest lens choices and focal lengths\n`;
+  userPrompt += `- Describe subject positioning and background elements\n`;
+  userPrompt += `- Specify shooting angles and perspectives\n\n`;
+  
+  userPrompt += `**For Vector/Design Content:**\n`;
+  userPrompt += `- Detail typography choices (font families, weights, kerning)\n`;
+  userPrompt += `- Specify color palettes with exact color codes when appropriate\n`;
+  userPrompt += `- Include style specifications (e.g., flat, isometric, realistic)\n`;
+  userPrompt += `- Describe design elements and their arrangement\n`;
+  userPrompt += `- Mention texture and pattern details\n`;
+  userPrompt += `- Include information about proportions and scale\n`;
+  userPrompt += `- Detail line weights and stroke styles\n`;
+  userPrompt += `- Specify design techniques and effects\n\n`;
+  
+  userPrompt += `**Task:**\n`;
+  userPrompt += `Generate 20 unique, detailed prompts for creating ${contentType} stock content in the specified niche. For each prompt, also provide the following metadata that would be used when submitting to stock marketplaces:\n\n`;
+  
+  userPrompt += `1. Title - A clear, marketable title for the stock content (50-60 characters)\n`;
+  userPrompt += `2. Keywords - 8-12 relevant, searchable keywords separated by commas\n`;
+  userPrompt += `3. Main Category - The primary category this would fit into on stock sites\n`;
+  userPrompt += `4. Subcategory - A more specific subcategory\n\n`;
+  
+  userPrompt += `**Requirements for each prompt:**\n`;
+  userPrompt += `- Make each prompt specific, detailed, and actionable\n`;
+  userPrompt += `- Ensure prompts are varied and explore different aspects of the design niche\n`;
+  userPrompt += `- Include specific style guidance, composition details, and technical specifications\n`;
+  userPrompt += `- Make each prompt 150-200 words in length for comprehensive detail\n`;
+  userPrompt += `- Ensure prompts would result in commercially viable stock content\n`;
+  userPrompt += `- Avoid copyright issues (no branded or trademarked content)\n`;
+  userPrompt += `- Focus on marketable concepts with commercial potential\n`;
+  userPrompt += `- Make each prompt unique and distinct from the others\n\n`;
+  
+  userPrompt += `**Requirements for metadata:**\n`;
+  userPrompt += `- Title should be concise but descriptive, optimized for marketplace search\n`;
+  userPrompt += `- Keywords should be relevant and popular search terms for the content\n`;
+  userPrompt += `- Categories should match common marketplace categorization systems\n`;
+  userPrompt += `- All metadata should be optimized for discoverability on stock platforms\n\n`;
+  
+  userPrompt += `Output all 20 prompts with their associated metadata in JSON format with key: prompts (array of objects with keys: prompt, metadata).`;
 
   try {
     console.log(`INFO (${flowName}): Processing request for content type: ${contentType}, design niche: ${designNiche}, sub-niche: ${subNiche || 'Not specified'}`);
-    const { output } = await microstockPrompt(
-      { 
-        contentType,
-        designNiche, 
-        subNiche, 
-        detailedDescription, 
-        userName 
-      }, 
-      { model: modelToUse }
-    );
+    
+    const output = await generateJSON<AIPromptOutput>({
+      modelId,
+      temperature: 0.9,
+      maxOutputTokens: 16000,
+      thinkingMode: profile?.thinkingMode || 'default',
+      profile: profileForKey
+    }, systemPrompt, userPrompt);
     
     if (!output || !output.prompts || output.prompts.length === 0) {
       console.error(`ERROR (${flowName}): AI returned empty or invalid output.`);
@@ -132,7 +130,7 @@ Output all 20 prompts with their associated metadata in the specified format.
         const sourceIndex = results.length % output.prompts.length;
         const sourcePrompt = output.prompts[sourceIndex];
         
-        const variation = {
+        const variation: PromptWithMetadata = {
           prompt: `${sourcePrompt.prompt} (Variation ${results.length - output.prompts.length + 1})`,
           metadata: {
             title: `${sourcePrompt.metadata.title} (Variation ${results.length - output.prompts.length + 1})`,
@@ -151,7 +149,7 @@ Output all 20 prompts with their associated metadata in the specified format.
     
     return { results };
   } catch (error) {
-    console.error(`ERROR (${flowName}): AI call failed (API key source: ${apiKeySourceForLog}). Error:`, error);
+    console.error(`ERROR (${flowName}): AI call failed. Error:`, error);
     throw new Error(`Failed to generate microstock prompts: ${error instanceof Error ? error.message : String(error)}`);
   }
-} 
+}

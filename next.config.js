@@ -84,6 +84,15 @@ if (!process.env.TURBOPACK) {
       ...(config.resolve.alias || {}),
       // Stub optional Genkit Firebase plugin to avoid module-not-found
       '@genkit-ai/firebase': path.resolve(__dirname, 'src/shims/genkit-firebase-stub.ts'),
+      // Fix for pdfjs-dist
+      'pdfjs-dist/build/pdf.worker.entry': 'pdfjs-dist/build/pdf.worker.mjs'
+    };
+
+    // Fix for pdfjs-dist canvas dependency
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      canvas: false,
+      fs: false,
     };
 
     return config;

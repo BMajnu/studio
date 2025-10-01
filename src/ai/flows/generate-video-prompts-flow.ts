@@ -1,5 +1,4 @@
 'use server';
-// ✅ MIGRATED to @google/genai SDK (from Genkit)
 /**
  * @fileOverview Generates video prompts in normal and JSON formats, optimized for Google Veo 3 and other video generation models.
  *
@@ -8,11 +7,9 @@
  * - GenerateVideoPromptsOutput - The return type for the generateVideoPrompts function.
  */
 
-// MIGRATED: Using TypeScript types instead of Genkit zod
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
-import { generateJSON, generateText } from '@/lib/ai/genai-helper';
-import type { UserProfile } from '@/lib/types';';
-// MIGRATED: Using genai-helper instead
+import { generateJSON } from '@/lib/ai/genai-helper';
+import type { UserProfile } from '@/lib/types';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -78,23 +75,24 @@ const CategoryGuidelines: Record<'shortform'|'youtube_vlog'|'educational'|'produ
     'Fast highlight cuts; readable UI; reactive commentary',
   ],
   travel: [
-    'Establishing shots; textures; ambient sound cues',
+    'Establishing shots; cultural authenticity; golden-hour',
   ],
   fitness: [
-    'Demonstrate safe form; rep counts; set/rest overlay',
+    'Form clarity; split-screen comparisons; motivational vibe',
   ],
   food: [
-    'Appetizing close-ups; process clarity; steam/sizzle cues',
+    'Overhead/45° angle; texture close-ups; minimal clutter',
   ],
   news: [
-    'Neutral tone; headline → context → key facts',
+    'Neutral framing; structured information; source clarity',
   ],
 };
 
-// Aspect ratio guidance removed as part of deprecation
-
-// Load up to N JSON code blocks from the research file to use as reference examples
-function loadResearchExamples(maxBlocks: number = 2): string {
+/**
+ * Loads JSON-based prompt examples from the Prompt-resourch-for-video.md file.
+ * Returns a formatted string block for injection into the AI prompt.
+ */
+function loadResearchExamples(maxBlocks = 2): string {
   try {
     const researchPath = path.resolve(process.cwd(), 'Prompt-resourch-for-video.md');
     if (!fs.existsSync(researchPath)) return '';
@@ -127,180 +125,179 @@ function getDurationGuidance(duration?: number): string[] {
   return ['Long-form pacing discouraged; compress ideas aggressively'];
 }
 
-const AttachedFileSchema = z.object({
-  name: z.string().describe("Name of the file"),
-  type: z.string().describe("MIME type of the file"),
-  dataUri: z.string().optional().describe("Base64 data URI for image files"),
-  textContent: z.string().optional().describe("Text content for text files")
-});
+// Input interfaces
+export interface AttachedFile {
+  name: string;
+  type: string;
+  dataUri?: string;
+  textContent?: string;
+}
 
-// Schema for the flow's input
-const GenerateVideoPromptsFlowInputSchema = z.object({
-  userMessage: z.string().describe('The user message describing video requirements'),
-  userName: z.string().describe('The name of the user'),
-  videoStyle: z.enum(['cinematic', 'animation', 'documentary', 'commercial', 'music_video', 'social_media']).optional().describe('Preferred video style'),
-  duration: z.number().optional().describe('Target video duration in seconds'),
-  attachedFiles: z.array(AttachedFileSchema).optional().describe("Reference files attached by the user"),
-  modelId: z.string().optional().describe('The Genkit model ID to use'),
-  userApiKey: z.string().optional().describe('User-provided Gemini API key'),
-  contentCategory: z.enum([
-    'shortform','youtube_vlog','educational','product_review','storytelling','gaming','travel','fitness','food','news'
-  ]).optional().describe('Content category to steer tone and structure'),
-});
-export type GenerateVideoPromptsInput = z.infer<typeof GenerateVideoPromptsFlowInputSchema>;
+export interface GenerateVideoPromptsInput {
+  userMessage: string;
+  userName: string;
+  videoStyle?: 'cinematic' | 'animation' | 'documentary' | 'commercial' | 'music_video' | 'social_media';
+  duration?: number;
+  attachedFiles?: AttachedFile[];
+  modelId?: string;
+  userApiKey?: string;
+  contentCategory?: 'shortform'|'youtube_vlog'|'educational'|'product_review'|'storytelling'|'gaming'|'travel'|'fitness'|'food'|'news';
+  profile?: UserProfile;
+}
 
-// Schema for the prompt's specific input
-const GenerateVideoPromptsPromptInputSchema = z.object({
-  userMessage: z.string().describe('The user message describing video requirements'),
-  userName: z.string().describe('The name of the user'),
-  videoStyle: z.enum(['cinematic', 'animation', 'documentary', 'commercial', 'music_video', 'social_media']).optional(),
-  duration: z.number().optional(),
-  attachedFiles: z.array(AttachedFileSchema).optional(),
-  contentCategory: z.enum(['shortform','youtube_vlog','educational','product_review','storytelling','gaming','travel','fitness','food','news']).optional(),
-});
+// Output interfaces
+export interface VideoPrompt {
+  title: string;
+  description: string;
+  scenes: Array<{
+    sceneNumber: number;
+    duration: number;
+    description: string;
+    cameraMovement: string;
+    lighting: string;
+    mood: string;
+    shotType: string;
+    lens: string;
+    location: string;
+    timeOfDay: string;
+    transition: string;
+  }>;
+  visualStyle: string;
+  colorPalette: string[];
+  audioNotes: string;
+  totalDuration: number;
+  postProcessing: string;
+  negativePrompts: string[];
+}
 
-// Video prompt schema for structured output
-const VideoPromptSchema = z.object({
-  title: z.string().describe('Title for the video prompt'),
-  description: z.string().describe('Detailed description of the video'),
-  scenes: z.array(z.object({
-    sceneNumber: z.number(),
-    duration: z.number().describe('Duration in seconds'),
-    description: z.string(),
-    cameraMovement: z.string().optional(),
-    lighting: z.string().optional(),
-    mood: z.string().optional(),
-    shotType: z.string().optional().describe('CU/MCU/MS/WS/OTS/etc'),
-    lens: z.string().optional().describe('Wide/normal/tele or focal length hint'),
-    location: z.string().optional(),
-    timeOfDay: z.string().optional(),
-    transition: z.string().optional(),
-  })).describe('Individual scenes breakdown'),
-  visualStyle: z.string().describe('Overall visual style and aesthetic'),
-  colorPalette: z.array(z.string()).describe('Suggested color palette'),
-  audioNotes: z.string().optional().describe('Audio and music suggestions'),
-  // aspectRatio removed from output schema
-  totalDuration: z.number().optional().describe('Total target duration in seconds'),
-  postProcessing: z.string().optional().describe('Color grade, grain, vignettes, overlays'),
-  negativePrompts: z.array(z.string()).optional().describe('Things to avoid'),
-});
-
-// Output schema
-const GenerateVideoPromptsOutputSchema = z.object({
-  normalPromptEnglish: z.string().describe('Natural language video prompt in English'),
-  normalPromptBengali: z.string().describe('Natural language video prompt in Bengali'),
-  jsonPrompt: VideoPromptSchema.describe('Structured JSON format prompt for video generation'),
-  veo3OptimizedPrompt: z.string().describe('Prompt specifically optimized for Google Veo 3'),
-  technicalNotes: z.array(z.string()).describe('Technical considerations for video creation'),
-  suggestedKeywords: z.array(z.string()).describe('Keywords for better AI understanding'),
-  sceneBreakdown: z.array(z.string()).optional().describe('Readable scene list for UI display'),
-  keywords: z.array(z.string()).optional().describe('Alias of suggested keywords if needed'),
-});
-export type GenerateVideoPromptsOutput = z.infer<typeof GenerateVideoPromptsOutputSchema>;
+export interface GenerateVideoPromptsOutput {
+  normalPromptEnglish: string;
+  normalPromptBengali: string;
+  jsonPrompt: VideoPrompt;
+  veo3OptimizedPrompt: string;
+  technicalNotes: string[];
+  suggestedKeywords: string[];
+  sceneBreakdown: string[];
+  keywords: string[];
+}
 
 export async function generateVideoPrompts(flowInput: GenerateVideoPromptsInput): Promise<GenerateVideoPromptsOutput> {
   const flowName = 'generateVideoPrompts';
   logDebug('Starting flow with input', { ...flowInput, userApiKey: flowInput.userApiKey ? '***' : undefined });
 
-  const { modelId = DEFAULT_MODEL_ID, userApiKey, ...promptInputData } = flowInput;
-  const modelToUse = modelId;
-  
-  const profileStub = {
-    userId: 'default',
-    name: 'User',
+  const { 
+    modelId = DEFAULT_MODEL_ID, 
+    userApiKey,
+    userMessage,
+    userName,
+    videoStyle,
+    duration,
+    attachedFiles,
+    contentCategory,
+    profile
+  } = flowInput;
+
+  // Build profile for key management
+  const profileForKey = profile || (userApiKey ? {
+    userId: 'temp',
+    name: 'temp',
     services: [],
-    geminiApiKeys: userApiKey ? [userApiKey] : [],
-  };
+    geminiApiKeys: [userApiKey]
+  } as any : null);
 
-  const client = new GeminiClient({ profile: profileStub });
-  
-  const actualPromptInputData = {
-    ...promptInputData,
-    attachedFiles: promptInputData.attachedFiles?.map(file => ({
-      ...file,
-      dataUri: file.dataUri ? `{{media url=${file.dataUri}}}` : undefined,
-    })),
-  };
-
-  const styleGuides: string[] = promptInputData.videoStyle ? (StyleGuidelines[promptInputData.videoStyle] ?? []) : [] as string[];
-  const categoryGuides: string[] = promptInputData.contentCategory ? (CategoryGuidelines[promptInputData.contentCategory] ?? []) : [] as string[];
-  const durationGuides: string[] = getDurationGuidance(promptInputData.duration);
+  const styleGuides: string[] = videoStyle ? (StyleGuidelines[videoStyle] ?? []) : [];
+  const categoryGuides: string[] = contentCategory ? (CategoryGuidelines[contentCategory] ?? []) : [];
+  const durationGuides: string[] = getDurationGuidance(duration);
 
   // Load example prompts from research (if available)
   const researchExamples = loadResearchExamples(2);
 
-  const attachmentsSummary = (promptInputData.attachedFiles || [])
+  const attachmentsSummary = (attachedFiles || [])
     .map((f, i) => `#${i+1} ${f.name} (${f.type})${f.textContent ? ' [text included]' : ''}${f.dataUri ? ' [image reference]' : ''}`)
     .join('\n');
 
-  const promptText = `System Role: You are a senior video prompt engineer. Produce production-ready prompts optimized for AI video generators (Veo 3 primary). Be precise, visual, and actionable.
+  // Build system prompt
+  const systemPrompt = `System Role: You are a senior video prompt engineer. Produce production-ready prompts optimized for AI video generators (Veo 3 primary). Be precise, visual, and actionable.`;
 
-User Name: ${promptInputData.userName}
-User Requirements: ${promptInputData.userMessage}
-${promptInputData.videoStyle ? `Style: ${promptInputData.videoStyle}` : ''}
-${promptInputData.contentCategory ? `Content Category: ${promptInputData.contentCategory}` : ''}
-${promptInputData.duration ? `Duration: ${promptInputData.duration} seconds` : ''}
-${promptInputData.attachedFiles?.length ? `Attached Files (${promptInputData.attachedFiles.length}):\n${attachmentsSummary}` : ''}
+  // Build user prompt
+  let userPrompt = `User Name: ${userName}\n`;
+  userPrompt += `User Requirements: ${userMessage}\n`;
+  if (videoStyle) userPrompt += `Style: ${videoStyle}\n`;
+  if (contentCategory) userPrompt += `Content Category: ${contentCategory}\n`;
+  if (duration) userPrompt += `Duration: ${duration} seconds\n`;
+  if (attachedFiles && attachedFiles.length > 0) {
+    userPrompt += `Attached Files (${attachedFiles.length}):\n${attachmentsSummary}\n`;
+  }
+  userPrompt += `\n`;
 
-Quality Guidelines (must follow):
-- Global:
-  • Avoid brands, watermarks, copyrighted characters, and real identities
-  • Use camera verbs (dolly/truck/crane/tilt/pan/orbit/rack focus) instead of vague phrasing
-  • Specify lighting (key/fill/rim), time-of-day, atmosphere, and texture
+  userPrompt += `Quality Guidelines (must follow):\n`;
+  userPrompt += `- Global:\n`;
+  userPrompt += `  • Avoid brands, watermarks, copyrighted characters, and real identities\n`;
+  userPrompt += `  • Use camera verbs (dolly/truck/crane/tilt/pan/orbit/rack focus) instead of vague phrasing\n`;
+  userPrompt += `  • Specify lighting (key/fill/rim), time-of-day, atmosphere, and texture\n`;
+  userPrompt += `  \n`;
+
+  if (styleGuides.length > 0) {
+    userPrompt += `- Style:\n`;
+    styleGuides.forEach(g => userPrompt += `  • ${g}\n`);
+  }
+
+  if (categoryGuides.length > 0) {
+    userPrompt += `- Category:\n`;
+    categoryGuides.forEach(g => userPrompt += `  • ${g}\n`);
+  }
+
+  if (durationGuides.length > 0) {
+    userPrompt += `- Duration:\n`;
+    durationGuides.forEach(g => userPrompt += `  • ${g}\n`);
+  }
+
+  userPrompt += `\n`;
+  userPrompt += researchExamples;
   
-- Style: ${styleGuides.map((g: string) => `• ${g}`).join('\n')}
-- Category: ${categoryGuides.map((g: string) => `• ${g}`).join('\n')}
-- Duration: ${durationGuides.map((g: string) => `• ${g}`).join('\n')}
- 
+  userPrompt += `Your Tasks:\n`;
+  userPrompt += `1) Write a flowing natural-language prompt in English.\n`;
+  userPrompt += `2) Provide the same prompt in Bengali.\n`;
+  userPrompt += `3) Provide a structured JSON prompt usable by code (see exact schema below).\n`;
+  userPrompt += `4) Provide a Veo 3 optimized one-paragraph version (concise, cinematic grammar).\n`;
+  userPrompt += `5) Provide technical notes and keyword list.\n`;
+  userPrompt += `\n`;
 
-${researchExamples}
-Your Tasks:
-1) Write a flowing natural-language prompt in English.
-2) Provide the same prompt in Bengali.
-3) Provide a structured JSON prompt usable by code (see exact schema below).
-4) Provide a Veo 3 optimized one-paragraph version (concise, cinematic grammar).
-5) Provide technical notes and keyword list.
-
-Structured JSON must follow this exact top-level format (return JSON only, no extra text):
-{
-  "normalPromptEnglish": "...",
-  "normalPromptBengali": "...",
-  "jsonPrompt": {
-    "title": "...",
-    "description": "...",
-    "scenes": [
-      { "sceneNumber": 1, "duration": 4, "description": "...", "cameraMovement": "...", "lighting": "...", "mood": "...", "shotType": "...", "lens": "...", "location": "...", "timeOfDay": "...", "transition": "..." }
-    ],
-    "visualStyle": "...",
-    "colorPalette": ["#...", "#..."],
-    "audioNotes": "...",
-    
-    "totalDuration": ${promptInputData.duration || 0},
-    "postProcessing": "Color grade and finishing notes",
-    "negativePrompts": ["watermarks", "logos", "celebrity likeness"]
-  },
-  "veo3OptimizedPrompt": "...",
-  "technicalNotes": ["Frame rate suggestions", "Shutter/ND hints", "Safe areas for text"],
-  "suggestedKeywords": ["cinematic", "${promptInputData.videoStyle || 'style'}"],
-  "sceneBreakdown": ["Scene 1 – ...", "Scene 2 – ..."],
-  "keywords": ["cinematic", "high-contrast"]
-}`;
+  userPrompt += `Structured JSON must follow this exact top-level format (return JSON only, no extra text):\n`;
+  userPrompt += `{\n`;
+  userPrompt += `  "normalPromptEnglish": "...",\n`;
+  userPrompt += `  "normalPromptBengali": "...",\n`;
+  userPrompt += `  "jsonPrompt": {\n`;
+  userPrompt += `    "title": "...",\n`;
+  userPrompt += `    "description": "...",\n`;
+  userPrompt += `    "scenes": [\n`;
+  userPrompt += `      { "sceneNumber": 1, "duration": 4, "description": "...", "cameraMovement": "...", "lighting": "...", "mood": "...", "shotType": "...", "lens": "...", "location": "...", "timeOfDay": "...", "transition": "..." }\n`;
+  userPrompt += `    ],\n`;
+  userPrompt += `    "visualStyle": "...",\n`;
+  userPrompt += `    "colorPalette": ["#...", "#..."],\n`;
+  userPrompt += `    "audioNotes": "...",\n`;
+  userPrompt += `    "totalDuration": ${duration || 0},\n`;
+  userPrompt += `    "postProcessing": "Color grade and finishing notes",\n`;
+  userPrompt += `    "negativePrompts": ["watermarks", "logos", "celebrity likeness"]\n`;
+  userPrompt += `  },\n`;
+  userPrompt += `  "veo3OptimizedPrompt": "...",\n`;
+  userPrompt += `  "technicalNotes": ["Frame rate suggestions", "Shutter/ND hints", "Safe areas for text"],\n`;
+  userPrompt += `  "suggestedKeywords": ["cinematic", "${videoStyle || 'style'}"],\n`;
+  userPrompt += `  "sceneBreakdown": ["Scene 1 – ...", "Scene 2 – ..."],\n`;
+  userPrompt += `  "keywords": ["cinematic", "high-contrast"]\n`;
+  userPrompt += `}`;
 
   try {
-    const { data: output, apiKeyUsed } = await client.request(async (apiKey) => {
-      const instance = createGeminiAiInstance(apiKey);
-      const promptDef = instance.definePrompt({
-        name: `${flowName}Prompt_${Date.now()}`,
-        input: { schema: GenerateVideoPromptsPromptInputSchema },
-        output: { schema: GenerateVideoPromptsOutputSchema },
-        prompt: promptText
-      });
-      const { output } = await promptDef(actualPromptInputData, { model: modelToUse });
-      if (!output) throw new Error('AI returned empty output');
-      return output;
-    });
-    console.log(`INFO (${flowName}): AI call succeeded using key ending with ...${apiKeyUsed.slice(-4)}`);
-    return output as GenerateVideoPromptsOutput;
+    const output = await generateJSON<GenerateVideoPromptsOutput>({
+      modelId,
+      temperature: 0.8,
+      maxOutputTokens: 16000,
+      thinkingMode: profile?.thinkingMode || 'default',
+      profile: profileForKey
+    }, systemPrompt, userPrompt);
+
+    logDebug('AI call succeeded');
+    return output;
   } catch (error) {
     console.error(`ERROR (${flowName}): Failed after rotating keys:`, error);
     throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);

@@ -7,28 +7,17 @@
  * - AnalyzeClientRequirementsOutput - The return type for the analyzeClientRequirements function.
  */
 
-import {z} from 'genkit';
+import { z } from 'zod';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
-import { GeminiClient } from '@/lib/ai/gemini-client';
-import { createGeminiAiInstance } from '@/lib/ai/genkit-utils';
+import { generateJSON } from '@/lib/ai/genai-helper';
+import type { UserProfile } from '@/lib/types';
 
 // DEBUG logging helper
 const logDebug = (label: string, ...args: any[]) => {
   try { console.log(`[analyzeClientRequirements] ${label}`, ...args); } catch(_){}
 };
 
-const AttachedFileSchema = z.object({
-  name: z.string().describe("Name of the file"),
-  type: z.string().describe("MIME type of the file"),
-  dataUri: z.string().optional().describe("Base64 data URI for image files. Use {{media url=<dataUri>}} to reference in prompt."),
-  textContent: z.string().optional().describe("Text content for text files (e.g., .txt, .md).")
-});
-
-const ChatHistoryMessageSchema = z.object({
-  role: z.enum(['user', 'assistant']),
-  text: z.string(),
-});
-
+// Zod schemas for output validation (used for type inference only with new SDK)
 const DesignListItemSchema = z.object({
   id: z.string().describe("Unique identifier for the design item"),
   title: z.string().describe("Title/name of the design item"),
@@ -37,32 +26,27 @@ const DesignListItemSchema = z.object({
   mustFollow: z.array(z.string()).optional().describe("Specific key requirement points that MUST be followed for this design")
 });
 
-// Schema for the flow's input, including modelId and userApiKey
-const AnalyzeClientRequirementsFlowInputSchema = z.object({
-  clientMessage: z.string().describe('The current client message to process.'),
-  userName: z.string().describe('The name of the user (designer).'),
-  communicationStyleNotes: z.string().describe('The communication style notes of the user.'),
-  attachedFiles: z.array(AttachedFileSchema).optional().describe("Files attached by the user. Images should be passed as dataUris. Text files as textContent."),
-  chatHistory: z.array(ChatHistoryMessageSchema).optional().describe("A summary of recent messages in the conversation, if any. The current clientMessage is NOT part of this history."),
-  modelId: z.string().optional().describe('The Genkit model ID to use for this request.'),
-  userApiKey: z.string().optional().describe('User-provided Gemini API key.'),
-});
-export type AnalyzeClientRequirementsInput = z.infer<typeof AnalyzeClientRequirementsFlowInputSchema>;
+// Input interface (no longer using Zod schema for input validation)
+export interface AnalyzeClientRequirementsInput {
+  clientMessage: string;
+  userName: string;
+  communicationStyleNotes: string;
+  attachedFiles?: Array<{
+    name: string;
+    type: string;
+    dataUri?: string;
+    textContent?: string;
+  }>;
+  chatHistory?: Array<{
+    role: 'user' | 'assistant';
+    text: string;
+  }>;
+  modelId?: string;
+  userApiKey?: string;
+  profile?: UserProfile;
+}
 
-// Schema for the prompt's specific input (does not include modelId or userApiKey)
-const AnalyzeClientRequirementsPromptInputSchema = z.object({
-  clientMessage: z.string().describe('The current client message to process.'),
-  userName: z.string().describe('The name of the user (designer).'),
-  communicationStyleNotes: z.string().describe('The communication style notes of the user.'),
-  attachedFiles: z.array(AttachedFileSchema).optional().describe("Files attached by the user. Images should be passed as dataUris. Text files as textContent."),
-  chatHistory: z.array(ChatHistoryMessageSchema).optional().describe("A summary of recent messages in the conversation, if any. The current clientMessage is NOT part of this history."),
-});
-
-const EditingPromptSchema = z.object({
-  type: z.string().describe("A category for the prompt, e.g., 'must_need_edits', 'all_edits', 'make_standout', 'make_colorful', 'new_variations'."),
-  prompt: z.string().describe('The generated editing prompt for an AI image generation/editing tool.'),
-});
-// New: Per-design editing prompt schema (one prompt per design when multiple designs exist)
+// Per-design editing prompt schema
 const DesignEditingPromptPerDesignSchema = z.object({
   designId: z.string().describe('The ID of the design this prompt applies to (must match designItemsEnglish[].id).'),
   designTitle: z.string().optional().describe('Optional title of the design for display convenience.'),
@@ -98,16 +82,32 @@ export type AnalyzeClientRequirementsOutput = z.infer<typeof AnalyzeClientRequir
 export async function analyzeClientRequirements(flowInput: AnalyzeClientRequirementsInput): Promise<AnalyzeClientRequirementsOutput> {
   logDebug('input attachments', flowInput.attachedFiles?.length || 0);
   try { logDebug('input size', JSON.stringify(flowInput).length, 'bytes'); } catch(_){}
-  const { userApiKey, modelId, clientMessage, userName, communicationStyleNotes, attachedFiles, chatHistory } = flowInput;
-  const actualPromptInputData = { clientMessage, userName, communicationStyleNotes, attachedFiles, chatHistory };
+  
+  const { 
+    userApiKey, 
+    modelId, 
+    clientMessage, 
+    userName, 
+    communicationStyleNotes, 
+    attachedFiles = [], 
+    chatHistory = [],
+    profile 
+  } = flowInput;
+  
   const modelToUse = modelId || DEFAULT_MODEL_ID;
   const flowName = 'analyzeClientRequirements';
 
-  const profileStub = userApiKey ? ({ userId: 'tmp', name: 'tmp', services: [], geminiApiKeys: [userApiKey] } as any) : null;
-  const client = new GeminiClient({ profile: profileStub });
+  // Build profile for key management
+  const profileForKey = profile || (userApiKey ? {
+    userId: 'temp',
+    name: 'temp',
+    services: [],
+    geminiApiKeys: [userApiKey]
+  } as any : null);
 
-  const promptText = `You are a helpful AI assistant for a graphic designer named {{{userName}}}.
-Their communication style is: {{{communicationStyleNotes}}}.
+  // Build system prompt
+  const systemPrompt = `You are a helpful AI assistant for a graphic designer named ${userName}.
+Their communication style is: ${communicationStyleNotes}.
 
 Your task is to thoroughly analyze the client's request (latest message + any attached files + conversation history) and produce a structured bilingual analysis in English and Bengali.
 
@@ -118,33 +118,37 @@ This output will directly populate UI tabs in the app, so map your content accor
 - Tab "Designs" <= designItemsEnglish/Bengali (structured list of designs)
  - Tab "Editing Prompt" <= editingPrompts (5 prompts for editing models; works with image or prompt-only)
 
-When writing the English and Bengali outputs, you MAY (optionally) use basic Markdown (e.g. \`#\`/\`##\`, **bold**, *italic*, inline \`code\`) to improve clarity. Do NOT embed HTML or images—only plain Markdown so the JSON stays valid.
+When writing the English and Bengali outputs, you MAY (optionally) use basic Markdown (e.g. \`#\`/\`##\`, **bold**, *italic*, inline \`code\`) to improve clarity. Do NOT embed HTML or images—only plain Markdown so the JSON stays valid.`;
 
-{{#if chatHistory.length}}
-Previous conversation context (analyze the current message in light of this history):
-{{#each chatHistory}}
-{{this.role}}: {{{this.text}}}
----
-{{/each}}
-{{/if}}
+  // Build user prompt with dynamic content
+  let userPrompt = '';
+  
+  if (chatHistory.length > 0) {
+    userPrompt += 'Previous conversation context (analyze the current message in light of this history):\n';
+    chatHistory.forEach(msg => {
+      userPrompt += `${msg.role}: ${msg.text}\n---\n`;
+    });
+    userPrompt += '\n';
+  }
 
-Client's Current Message:
-{{{clientMessage}}}
+  userPrompt += `Client's Current Message:\n${clientMessage}\n\n`;
 
-{{#if attachedFiles.length}}
-The client also attached the following files with their current message. Analyze these files as part of the requirements.
-{{#each attachedFiles}}
-- File: {{this.name}} (Type: {{this.type}})
-  {{#if this.dataUri}}
-    (This is an image. Analyze its content for design requirements: {{media url=this.dataUri}})
-  {{else if this.textContent}}
-    Content of {{this.name}}:
-    {{{this.textContent}}}
-  {{else}}
-    (This file (e.g. PDF, other binary) content is not directly viewable by you, but its existence and the client's reference to it in their message might be relevant.)
-  {{/if}}
-{{/each}}
-{{/if}}
+  if (attachedFiles.length > 0) {
+    userPrompt += 'The client also attached the following files with their current message. Analyze these files as part of the requirements.\n';
+    attachedFiles.forEach(file => {
+      userPrompt += `- File: ${file.name} (Type: ${file.type})\n`;
+      if (file.dataUri) {
+        userPrompt += `  (This is an image. Analyze its content for design requirements)\n`;
+      } else if (file.textContent) {
+        userPrompt += `  Content of ${file.name}:\n  ${file.textContent}\n`;
+      } else {
+        userPrompt += `  (This file (e.g. PDF, other binary) content is not directly viewable by you, but its existence and the client's reference to it in their message might be relevant.)\n`;
+      }
+    });
+    userPrompt += '\n';
+  }
+
+  userPrompt += `
 
 Based on all the above information (latest message, attachments, and full history), provide a comprehensive bilingual analysis split into distinct sections, each in both English and Bengali:
 
@@ -245,25 +249,21 @@ Output Format (ensure your entire response is a single JSON object):
     { "designId": "design_2", "designTitle": "Poster B", "prompt": "Design a ... [complete AI image generation prompt]" }
   ]
 }
-`;
+
+Remember: Return ONLY valid JSON matching the exact structure specified above.`;
 
   try {
-    const { data: output, apiKeyUsed } = await client.request(async (apiKey) => {
-      const instance = createGeminiAiInstance(apiKey);
-      const promptDef = instance.definePrompt({
-        name: `${flowName}Prompt_${Date.now()}`,
-        input: { schema: AnalyzeClientRequirementsPromptInputSchema },
-        output: { schema: AnalyzeClientRequirementsOutputSchema },
-        prompt: promptText
-      });
-      const { output } = await promptDef(actualPromptInputData, { model: modelToUse });
-      if (!output) throw new Error('AI returned empty output');
-      return output;
-    });
-    console.log(`INFO (${flowName}): AI call succeeded using key ending with ...${apiKeyUsed.slice(-4)}`);
-    // Debug output size
+    const output = await generateJSON<AnalyzeClientRequirementsOutput>({
+      modelId: modelToUse,
+      temperature: 0.7,
+      maxOutputTokens: 16000,
+      thinkingMode: profile?.thinkingMode || 'default',
+      profile: profileForKey
+    }, systemPrompt, userPrompt);
+
+    console.log(`[${flowName}] Success, output size: ${JSON.stringify(output).length} bytes`);
     try { logDebug('output size', JSON.stringify(output).length, 'bytes'); } catch(_){}
-    return output as AnalyzeClientRequirementsOutput;
+    return output;
   } catch (error) {
     console.error(`ERROR (${flowName}): Failed after rotating keys:`, error);
     throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);

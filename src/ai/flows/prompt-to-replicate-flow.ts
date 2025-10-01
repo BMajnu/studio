@@ -1,5 +1,4 @@
 'use server';
-// ✅ MIGRATED to @google/genai SDK (from Genkit)
 /**
  * @fileOverview Generates three types of prompts based on uploaded images: exact replication, similar with tweaks, 
  * and same niche/concept prompts. Part of the "Prompt to Replicate" feature.
@@ -7,84 +6,91 @@
  * - promptToReplicate - Function to generate prompts based on uploaded images
  */
 
-import { ai } from '@/ai/genkit';
-import { genkit } from 'genkit';
-import { z } from 'zod';
-import { googleAI } from '@genkit-ai/googleai';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
-import {
+import { generateJSON } from '@/lib/ai/genai-helper';
+import type { UserProfile } from '@/lib/types';
+import type {
   PromptToReplicateInput,
   PromptToReplicateOutput,
-  PromptToReplicatePromptInputSchema,
-  PromptReplicateOutputSchema
+  ImagePromptResult
 } from './prompt-to-replicate-types';
 
+interface SingleImagePromptOutput {
+  exactReplicationPrompt: string;
+  similarWithTweaksPrompt: string;
+  sameNichePrompt: string;
+}
+
 export async function promptToReplicate(flowInput: PromptToReplicateInput): Promise<PromptToReplicateOutput> {
-  const { userApiKey, modelId, imageDataUris, userName } = flowInput;
-  const modelToUse = modelId || DEFAULT_MODEL_ID;
+  const { 
+    userApiKey,
+    profile, 
+    modelId = DEFAULT_MODEL_ID, 
+    imageDataUris, 
+    userName 
+  } = flowInput;
+  
   const flowName = 'promptToReplicate';
 
-  let currentAiInstance = ai; // Global Genkit instance by default
-  let apiKeySourceForLog = "GOOGLE_API_KEY from .env file";
+  // Build profile for key management
+  const profileForKey = profile || (userApiKey ? {
+    userId: 'temp',
+    name: 'temp',
+    services: [],
+    geminiApiKeys: [userApiKey]
+  } as any : null);
 
-  if (userApiKey) {
-    console.log(`INFO (${flowName}): Using user-provided API key.`);
-    currentAiInstance = genkit({ plugins: [googleAI({ apiKey: userApiKey })] });
-    apiKeySourceForLog = "User-provided API key from profile";
-  } else if (process.env.GOOGLE_API_KEY) {
-    console.log(`INFO (${flowName}): User API key not provided. Using GOOGLE_API_KEY from .env file.`);
-  } else {
-    console.error(`CRITICAL_ERROR (${flowName}): No API key available. Neither a user-provided API key nor the GOOGLE_API_KEY in the .env file is set.`);
-    throw new Error(`API key configuration error in ${flowName}. AI features are unavailable.`);
-  }
-
-  const replicatePrompt = currentAiInstance.definePrompt({
-    name: `${flowName}Prompt_${Date.now()}`,
-    input: { schema: PromptToReplicatePromptInputSchema },
-    output: { schema: PromptReplicateOutputSchema },
-    prompt: `You are an expert AI Prompt Engineer for {{#if userName}}{{{userName}}}{{else}}a graphic designer{{/if}}.
-
-**Objective:** Generate three distinct, detailed prompts based on an uploaded design image:
-
-**Image to Analyze:**
-{{media url=imageDataUri}}
-
-**Tasks:**
-
-1. **Generate "Exact Replication" Prompt:**
-   * Create a highly detailed textual description of the image
-   * Focus on elements like objects, colors, composition, style, lighting, textures, and any text present
-   * Be comprehensive enough that an image generation AI could use it to recreate the visual as closely as possible
-   * This prompt should aim to replicate the design exactly
-
-2. **Generate "Similar with Tweaks" Prompt:**
-   * Analyze the core elements and style of the image
-   * Create a prompt for a variation that is clearly inspired by the original
-   * Incorporate thoughtful modifications (e.g., different color scheme, alternative objects, modified composition)
-   * Keep the essence of the original design but with specific variations
-
-3. **Generate "Same Niche/Concept, Not Similar" Prompt:**
-   * Identify the underlying niche or concept (e.g., "fruit still life," "abstract geometric pattern," "futuristic cityscape")
-   * Create a highly detailed prompt for a completely new image within that same niche/concept
-   * Make sure it's visually distinct from the uploaded image
-   * Focus on the same subject matter/purpose but with a fresh creative approach
-
-For each prompt:
-- Be extremely specific and detailed
-- Ensure that an AI image generator could produce a high-quality result following your description
-- Focus on color, lighting, composition, style, mood, and specific elements
-- Format each prompt for maximum usability with AI image generators
-
-Output all three prompts as separate fields.
-`,
-  });
+  // Build system prompt
+  const systemPrompt = `You are an expert AI Prompt Engineer for ${userName || 'a graphic designer'}.`;
 
   // Process each image and get prompts
-  const imagePrompts = [];
+  const imagePrompts: ImagePromptResult[] = [];
+  
   for (const imageDataUri of imageDataUris) {
     try {
       console.log(`INFO (${flowName}): Processing image...`);
-      const { output } = await replicatePrompt({ imageDataUri, userName }, { model: modelToUse });
+      
+      // Build user prompt for this image
+      let userPrompt = `**Objective:** Generate three distinct, detailed prompts based on an uploaded design image:\n\n`;
+      
+      userPrompt += `**Image to Analyze:**\n`;
+      userPrompt += `{{media url=${imageDataUri}}}\n\n`;
+      
+      userPrompt += `**Tasks:**\n\n`;
+      
+      userPrompt += `1. **Generate "Exact Replication" Prompt:**\n`;
+      userPrompt += `   * Create a highly detailed textual description of the image\n`;
+      userPrompt += `   * Focus on elements like objects, colors, composition, style, lighting, textures, and any text present\n`;
+      userPrompt += `   * Be comprehensive enough that an image generation AI could use it to recreate the visual as closely as possible\n`;
+      userPrompt += `   * This prompt should aim to replicate the design exactly\n\n`;
+      
+      userPrompt += `2. **Generate "Similar with Tweaks" Prompt:**\n`;
+      userPrompt += `   * Analyze the core elements and style of the image\n`;
+      userPrompt += `   * Create a prompt for a variation that is clearly inspired by the original\n`;
+      userPrompt += `   * Incorporate thoughtful modifications (e.g., different color scheme, alternative objects, modified composition)\n`;
+      userPrompt += `   * Keep the essence of the original design but with specific variations\n\n`;
+      
+      userPrompt += `3. **Generate "Same Niche/Concept, Not Similar" Prompt:**\n`;
+      userPrompt += `   * Identify the underlying niche or concept (e.g., "fruit still life," "abstract geometric pattern," "futuristic cityscape")\n`;
+      userPrompt += `   * Create a highly detailed prompt for a completely new image within that same niche/concept\n`;
+      userPrompt += `   * Make sure it's visually distinct from the uploaded image\n`;
+      userPrompt += `   * Focus on the same subject matter/purpose but with a fresh creative approach\n\n`;
+      
+      userPrompt += `For each prompt:\n`;
+      userPrompt += `- Be extremely specific and detailed\n`;
+      userPrompt += `- Ensure that an AI image generator could produce a high-quality result following your description\n`;
+      userPrompt += `- Focus on color, lighting, composition, style, mood, and specific elements\n`;
+      userPrompt += `- Format each prompt for maximum usability with AI image generators\n\n`;
+      
+      userPrompt += `Output all three prompts as separate fields in JSON with keys: exactReplicationPrompt, similarWithTweaksPrompt, sameNichePrompt.`;
+
+      const output = await generateJSON<SingleImagePromptOutput>({
+        modelId,
+        temperature: 0.8,
+        maxOutputTokens: 8000,
+        thinkingMode: profile?.thinkingMode || 'default',
+        profile: profileForKey
+      }, systemPrompt, userPrompt);
       
       if (!output) {
         console.error(`ERROR (${flowName}): AI returned empty or undefined output for an image.`);
@@ -98,7 +104,7 @@ Output all three prompts as separate fields.
         sameNichePrompt: output.sameNichePrompt,
       });
     } catch (error) {
-      console.error(`ERROR (${flowName}): AI call failed for an image (API key source: ${apiKeySourceForLog}). Error:`, error);
+      console.error(`ERROR (${flowName}): AI call failed for an image. Error:`, error);
     }
   }
 
@@ -107,4 +113,4 @@ Output all three prompts as separate fields.
   }
 
   return { imagePrompts };
-} 
+}

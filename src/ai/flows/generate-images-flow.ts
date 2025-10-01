@@ -1,5 +1,4 @@
 'use server';
-// ✅ MIGRATED to @google/genai SDK (from Genkit)
 /**
  * @fileOverview Generates images using Google's Gemini 2.0 image generation API.
  *
@@ -8,39 +7,31 @@
  * - GenerateImagesOutput - The return type for the generateImages function.
  */
 
-import {ai} from '@/ai/genkit';
-// MIGRATED: Using TypeScript types instead of Genkit zod
-import { DEFAULT_MODEL_ID } from '@/lib/constants';
-import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
-import { generateJSON, generateText } from '@/lib/ai/genai-helper';
-import type { UserProfile } from '@/lib/types';';
-import { UserProfile } from '@/lib/types';
+import type { UserProfile } from '@/lib/types';
+import { GeminiClient } from '@/lib/ai/gemini-client';
 
-// Schema for the flow's input
-const GenerateImagesFlowInputSchema = z.object({
-  prompt: z.string().describe('The text prompt to generate images from.'),
-  numImages: z.number().min(1).max(8).default(4).describe('Number of images to generate (1-8).'),
-  temperature: z.number().min(0).max(2).default(1).describe('Sampling temperature (0-2)'),
-  userName: z.string().describe('The name of the user (designer).'),
-  communicationStyleNotes: z.string().describe('The communication style notes of the user.'),
-  modelId: z.string().optional().describe('The Genkit model ID to use for this request.'),
-  userApiKeys: z.array(z.string()).optional().describe('User-provided Gemini API keys.'),
-});
-export type GenerateImagesInput = z.infer<typeof GenerateImagesFlowInputSchema>;
+// Input interface
+export interface GenerateImagesInput {
+  prompt: string;
+  numImages?: number;
+  temperature?: number;
+  userName: string;
+  communicationStyleNotes: string;
+  modelId?: string;
+  userApiKeys?: string[];
+  profile?: UserProfile;
+}
 
-// Schema for an individual generated image
-const GeneratedImageSchema = z.object({
-  dataUri: z.string().describe('Base64 data URI of the generated image.'),
-  alt: z.string().describe('Alt text/description for the image.'),
-});
+// Output interfaces
+export interface GeneratedImage {
+  dataUri: string;
+  alt: string;
+}
 
-// Schema for the flow's output
-const GenerateImagesOutputSchema = z.object({
-  images: z.array(GeneratedImageSchema).describe('Array of generated images.'),
-  prompt: z.string().describe('The prompt used to generate the images.'),
-});
-export type GenerateImagesOutput = z.infer<typeof GenerateImagesOutputSchema>;
+export interface GenerateImagesOutput {
+  images: GeneratedImage[];
+  prompt: string;
+}
 
 /**
  * Generates images using Google's Gemini 2.0 image generation API.
@@ -49,11 +40,26 @@ export type GenerateImagesOutput = z.infer<typeof GenerateImagesOutputSchema>;
  * @returns Array of generated images as data URIs with alt text
  */
 export async function generateImages(flowInput: GenerateImagesInput): Promise<GenerateImagesOutput> {
-  const { userApiKeys, modelId, prompt, numImages, temperature, userName } = flowInput as any;
-  const modelToUse = modelId || 'gemini-pro-vision';
+  const { 
+    userApiKeys, 
+    profile,
+    modelId, 
+    prompt, 
+    numImages = 4, 
+    temperature = 1, 
+    userName 
+  } = flowInput;
+  
   const flowName = 'generateImages';
 
-  const profileStub: UserProfile | null = userApiKeys ? { userId: 'u', name: 'tmp', services: [], geminiApiKeys: userApiKeys } as any : null;
+  // Build profile for key management
+  const profileStub: UserProfile | null = profile || (userApiKeys ? { 
+    userId: 'u', 
+    name: 'tmp', 
+    services: [], 
+    geminiApiKeys: userApiKeys 
+  } as any : null);
+  
   const client = new GeminiClient({ profile: profileStub });
 
   try {
@@ -150,4 +156,4 @@ export async function generateImages(flowInput: GenerateImagesInput): Promise<Ge
     console.error(`ERROR (${flowName}): Image generation failed. Error:`, error);
     throw new Error(`Image generation failed in ${flowName}. Please check server logs for details. Original error: ${(error as Error).message}`);
   }
-} 
+}

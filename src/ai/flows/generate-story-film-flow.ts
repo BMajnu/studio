@@ -1,15 +1,12 @@
 'use server';
-// ✅ MIGRATED to @google/genai SDK (from Genkit)
 /**
  * Story/Film Generator Flow
  * Produces bilingual natural prompts + structured JSON with scenes for story/film.
  */
 
-// MIGRATED: Using TypeScript types instead of Genkit zod
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
-import { generateJSON, generateText } from '@/lib/ai/genai-helper';
-import type { UserProfile } from '@/lib/types';';
-// MIGRATED: Using genai-helper instead
+import { generateJSON } from '@/lib/ai/genai-helper';
+import type { UserProfile } from '@/lib/types';
 import { GalleryAsset } from '@/lib/video/types';
 import { generateConsistencyInstruction } from '@/lib/video/gallery-prompt-helper';
 
@@ -17,89 +14,108 @@ const logDebug = (label: string, ...args: any[]) => {
   try { console.log(`[generateStoryFilm] ${label}`, ...args); } catch(_){}
 };
 
-const AttachedFileSchema = z.object({
-  name: z.string(),
-  type: z.string(),
-  dataUri: z.string().optional(),
-  textContent: z.string().optional(),
-});
+// Input interface
+export interface GenerateStoryFilmInput {
+  userName?: string;
+  storylineIdea: string;
+  sceneCount?: number;
+  decideByAI?: boolean;
+  storyType?: string;
+  audioMode?: 'speaking' | 'narration' | 'none';
+  duration?: number;
+  attachedFiles?: Array<{
+    name: string;
+    type: string;
+    dataUri?: string;
+    textContent?: string;
+  }>;
+  selectedGalleryAssets?: GalleryAsset[];
+  modelId?: string;
+  userApiKey?: string;
+  profile?: UserProfile;
+}
 
-const InputSchema = z.object({
-  userName: z.string().default('Designer'),
-  storylineIdea: z.string().min(1, 'Provide a story idea or synopsis'),
-  sceneCount: z.number().int().min(1).max(30).optional(),
-  decideByAI: z.boolean().optional(),
-  storyType: z.string().optional(),
-  audioMode: z.enum(['speaking','narration','none']).optional(),
-  duration: z.number().optional(),
-  attachedFiles: z.array(AttachedFileSchema).optional(),
-  selectedGalleryAssets: z.any().optional(),
-});
-export type GenerateStoryFilmInput = z.infer<typeof InputSchema>;
-
-const OutputSchema = z.object({
-  normalPromptEnglish: z.string().optional(),
-  normalPromptBengali: z.string().optional(),
-  jsonPrompt: z.any().optional(),
-  veo3OptimizedPrompt: z.string().optional(),
-  technicalNotes: z.array(z.string()).optional(),
-  sceneBreakdown: z.array(z.string()).optional(),
-  keywords: z.array(z.string()).optional(),
-});
-export type GenerateStoryFilmOutput = z.infer<typeof OutputSchema>;
+// Output interface
+export interface GenerateStoryFilmOutput {
+  normalPromptEnglish?: string;
+  normalPromptBengali?: string;
+  jsonPrompt?: any;
+  veo3OptimizedPrompt?: string;
+  technicalNotes?: string[];
+  sceneBreakdown?: string[];
+  keywords?: string[];
+}
 
 export async function generateStoryFilm(flowInput: GenerateStoryFilmInput): Promise<GenerateStoryFilmOutput> {
   const flowName = 'generateStoryFilm';
   logDebug('input', flowInput);
-  const modelToUse = DEFAULT_MODEL_ID;
+  
+  const {
+    userName = 'Designer',
+    storylineIdea,
+    sceneCount,
+    decideByAI,
+    storyType,
+    audioMode,
+    duration,
+    selectedGalleryAssets = [],
+    modelId = DEFAULT_MODEL_ID,
+    userApiKey,
+    profile
+  } = flowInput;
 
-  const profileStub = { userId: 'default', name: 'User', services: [], geminiApiKeys: [] as string[] } as any;
-  const client = new GeminiClient({ profile: profileStub });
+  // Build profile for key management
+  const profileForKey = profile || (userApiKey ? {
+    userId: 'temp',
+    name: 'temp',
+    services: [],
+    geminiApiKeys: [userApiKey]
+  } as any : null);
 
-  const desiredScenes = flowInput.decideByAI ? 'Decide scene count based on pacing' : (flowInput.sceneCount ? `${flowInput.sceneCount} scenes` : '5-8 scenes by default');
+  const desiredScenes = decideByAI 
+    ? 'Decide scene count based on pacing' 
+    : (sceneCount ? `${sceneCount} scenes` : '5-8 scenes by default');
 
-  const promptText = `System Role: Senior film prompt engineer. Create production-ready prompts for narrative video generation (Veo 3 primary).
+  // Build system prompt
+  const systemPrompt = `System Role: Senior film prompt engineer. Create production-ready prompts for narrative video generation (Veo 3 primary).`;
 
-User: ${flowInput.userName}
-Story Idea: ${flowInput.storylineIdea}
-Story Type: ${flowInput.storyType || 'auto'}
-Audio Mode: ${flowInput.audioMode || 'auto'}
-Target Scenes: ${desiredScenes}
-${flowInput.duration ? `Total Duration: ${flowInput.duration} seconds` : ''}
+  // Build user prompt
+  let userPrompt = `User: ${userName}\n`;
+  userPrompt += `Story Idea: ${storylineIdea}\n`;
+  userPrompt += `Story Type: ${storyType || 'auto'}\n`;
+  userPrompt += `Audio Mode: ${audioMode || 'auto'}\n`;
+  userPrompt += `Target Scenes: ${desiredScenes}\n`;
+  if (duration) userPrompt += `Total Duration: ${duration} seconds\n`;
+  userPrompt += `\n`;
 
-Requirements:
-- Generate a clear list of scenes with: sceneNumber, duration (approx), description, cameraMovement, lighting, mood, shotType, lens, location, timeOfDay, transition.
-- Maintain character/subject consistency across scenes; avoid brands and real identities.
-- Output bilingual natural prompts (English and Bengali), a structured JSON prompt, Veo3-optimized concise paragraph, technical notes, keywords, and a scene breakdown list.
-
-Return JSON only with keys: normalPromptEnglish, normalPromptBengali, jsonPrompt, veo3OptimizedPrompt, technicalNotes, sceneBreakdown, keywords`;
+  userPrompt += `Requirements:\n`;
+  userPrompt += `- Generate a clear list of scenes with: sceneNumber, duration (approx), description, cameraMovement, lighting, mood, shotType, lens, location, timeOfDay, transition.\n`;
+  userPrompt += `- Maintain character/subject consistency across scenes; avoid brands and real identities.\n`;
+  userPrompt += `- Output bilingual natural prompts (English and Bengali), a structured JSON prompt, Veo3-optimized concise paragraph, technical notes, keywords, and a scene breakdown list.\n`;
+  userPrompt += `\n`;
+  userPrompt += `Return JSON only with keys: normalPromptEnglish, normalPromptBengali, jsonPrompt, veo3OptimizedPrompt, technicalNotes, sceneBreakdown, keywords`;
 
   try {
-    const { data: output } = await client.request(async (apiKey) => {
-      const instance = createGeminiAiInstance(apiKey);
-      const promptDef = instance.definePrompt({
-        name: `${flowName}Prompt_${Date.now()}`,
-        input: { schema: InputSchema },
-        output: { schema: OutputSchema },
-        prompt: promptText,
-      });
-      const { output } = await promptDef(flowInput, { model: modelToUse });
-      if (!output) throw new Error('AI returned empty output');
-      // Inject gallery consistency instruction if assets provided
-      let enriched = output as GenerateStoryFilmOutput;
-      const assets = (flowInput as { selectedGalleryAssets?: GalleryAsset[] }).selectedGalleryAssets || [];
-      if (assets && assets.length) {
-        const consistency = generateConsistencyInstruction(assets);
-        enriched = {
-          ...enriched,
-          normalPromptEnglish: `${consistency}\n\n${enriched.normalPromptEnglish || ''}`.trim(),
-          normalPromptBengali: `${consistency}\n\n${enriched.normalPromptBengali || ''}`.trim(),
-          technicalNotes: [...(enriched.technicalNotes || []), 'Maintain asset consistency across all scenes as described above.'],
-        };
-      }
-      return enriched as any;
-    });
-    return output as GenerateStoryFilmOutput;
+    let output = await generateJSON<GenerateStoryFilmOutput>({
+      modelId,
+      temperature: 0.8,
+      maxOutputTokens: 16000,
+      thinkingMode: profile?.thinkingMode || 'default',
+      profile: profileForKey
+    }, systemPrompt, userPrompt);
+
+    // Inject gallery consistency instruction if assets provided
+    if (selectedGalleryAssets && selectedGalleryAssets.length > 0) {
+      const consistency = generateConsistencyInstruction(selectedGalleryAssets);
+      output = {
+        ...output,
+        normalPromptEnglish: `${consistency}\n\n${output.normalPromptEnglish || ''}`.trim(),
+        normalPromptBengali: `${consistency}\n\n${output.normalPromptBengali || ''}`.trim(),
+        technicalNotes: [...(output.technicalNotes || []), 'Maintain asset consistency across all scenes as described above.'],
+      };
+    }
+
+    return output;
   } catch (error) {
     console.error(`ERROR (${flowName}):`, error);
     throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);

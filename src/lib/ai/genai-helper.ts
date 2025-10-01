@@ -25,7 +25,7 @@ export async function generateJSON<T = any>(
 ): Promise<T> {
   const { modelId, temperature = 0.7, maxOutputTokens = 8000, thinkingMode, profile } = config;
 
-  const manager = new GeminiKeyManager(profile);
+  const manager = new GeminiKeyManager(profile || null);
   const allKeys = manager.getAllKeys();
   
   let attempts = 0;
@@ -39,33 +39,48 @@ export async function generateJSON<T = any>(
 
     try {
       const ai = new GoogleGenAI({ apiKey: key });
-      
-      const genConfig: any = {
+
+      const modelConfig: any = {
         temperature,
         maxOutputTokens,
         responseMimeType: 'application/json',
+        // Note: Tools (like googleSearch) cannot be used with responseMimeType: 'application/json'
       };
 
       if (thinkingMode === 'none') {
-        genConfig.thinkingConfig = { thinkingBudget: 0 };
+        modelConfig.thinkingConfig = { thinkingBudget: 0 };
       } else if (thinkingMode === 'default') {
-        genConfig.thinkingConfig = { thinkingBudget: -1 };
+        modelConfig.thinkingConfig = { thinkingBudget: -1 };
       }
 
-      const model = ai.getGenerativeModel({
-        model: modelId,
-        generationConfig: genConfig,
-      });
-
       const fullPrompt = systemPrompt + '\n\n' + userPrompt;
-      
-      const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
-      });
 
-      const responseText = result.response.text();
+      // Prefer streaming API per latest SDK guidance
+      let responseText = '';
+      try {
+        const stream = await ai.models.generateContentStream({
+          model: modelId,
+          config: modelConfig,
+          contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+        });
+
+        for await (const chunk of stream as any) {
+          // chunk.text is progressively built by the SDK
+          if (typeof chunk?.text === 'string') {
+            responseText += chunk.text;
+          }
+        }
+      } catch (_streamErr) {
+        // Fallback to non-streaming call for models that don't support streaming
+        const result = await ai.models.generateContent({
+          model: modelId,
+          config: modelConfig,
+          contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+        });
+        responseText = result.candidates?.[0]?.content?.parts?.[0]?.text || result.text || JSON.stringify(result);
+      }
+
       manager.reportSuccess(key);
-      
       return JSON.parse(responseText) as T;
     } catch (err: any) {
       attempts++;
@@ -106,7 +121,7 @@ export async function generateText(
 ): Promise<string> {
   const { modelId, temperature = 0.7, maxOutputTokens = 2000, thinkingMode, profile } = config;
 
-  const manager = new GeminiKeyManager(profile);
+  const manager = new GeminiKeyManager(profile || null);
   const allKeys = manager.getAllKeys();
   
   let attempts = 0;
@@ -121,27 +136,54 @@ export async function generateText(
     try {
       const ai = new GoogleGenAI({ apiKey: key });
       
-      const genConfig: any = {
+      const config: any = {
         temperature,
         maxOutputTokens,
       };
 
       if (thinkingMode === 'none') {
-        genConfig.thinkingConfig = { thinkingBudget: 0 };
+        config.thinkingConfig = { thinkingBudget: 0 };
       } else if (thinkingMode === 'default') {
-        genConfig.thinkingConfig = { thinkingBudget: -1 };
+        config.thinkingConfig = { thinkingBudget: -1 };
       }
 
-      const model = ai.getGenerativeModel({
-        model: modelId,
-        generationConfig: genConfig,
-      });
+      let responseText = '';
+      try {
+        const stream = await ai.models.generateContentStream({
+          model: modelId,
+          config: {
+            temperature,
+            maxOutputTokens,
+            tools: [{ googleSearch: {} }],
+            ...(thinkingMode === 'none'
+              ? { thinkingConfig: { thinkingBudget: 0 } }
+              : thinkingMode === 'default'
+              ? { thinkingConfig: { thinkingBudget: -1 } }
+              : {}),
+          },
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        });
+        for await (const chunk of stream as any) {
+          if (typeof chunk?.text === 'string') responseText += chunk.text;
+        }
+      } catch (_streamErr) {
+        const result = await ai.models.generateContent({
+          model: modelId,
+          config: {
+            temperature,
+            maxOutputTokens,
+            tools: [{ googleSearch: {} }],
+            ...(thinkingMode === 'none'
+              ? { thinkingConfig: { thinkingBudget: 0 } }
+              : thinkingMode === 'default'
+              ? { thinkingConfig: { thinkingBudget: -1 } }
+              : {}),
+          },
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        });
+        responseText = result.candidates?.[0]?.content?.parts?.[0]?.text || result.text || JSON.stringify(result);
+      }
 
-      const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      });
-
-      const responseText = result.response.text();
       manager.reportSuccess(key);
       
       return responseText;

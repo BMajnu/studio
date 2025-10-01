@@ -1,15 +1,12 @@
 'use server';
-// ✅ MIGRATED to @google/genai SDK (from Genkit)
 /**
  * @fileOverview Generate an AI-powered random video description based on style, category, duration,
  * and output language. Includes parameter-specific guidelines similar to other flows.
  */
 
-// MIGRATED: Using TypeScript types instead of Genkit zod
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
-import { generateJSON, generateText } from '@/lib/ai/genai-helper';
-import type { UserProfile } from '@/lib/types';';
-// MIGRATED: Using genai-helper instead
+import { generateJSON } from '@/lib/ai/genai-helper';
+import type { UserProfile } from '@/lib/types';
 
 const logDebug = (label: string, ...args: any[]) => {
   try { console.log(`[generateVideoDescription] ${label}`, ...args); } catch (_) {}
@@ -47,73 +44,65 @@ const StyleGuidelines: Record<string, string[]> = {
     'Hook in first 2 seconds; ultra concise; fast pacing',
     'Large, readable visuals; immediate payoff',
   ],
-  musicvideo: [
-    'Beat-synced cuts; stylized visuals; strong mood/palette',
-    'Transitions driven by rhythm; visual accents on downbeats',
-  ],
-  productdemo: [
-    'Feature-first visual; clean backgrounds; macro details',
-    'Use-cases and value; simple animated callouts',
-  ],
-  motiongraphics: [
-    'Kinetic type; geometric shapes; smooth easing',
-    'Plan transitions/overlays/layering for clarity',
-  ],
-  stopmotion: [
-    'Tactile textures; handcrafted feel; frame-by-frame cues',
-    'Simple readable actions; stable backgrounds',
+  music: [
+    'Match visual rhythm to audio; sync cuts and motion to beats',
+    'Mood-driven transitions; showcase instruments/performance',
   ],
   commercial: [
-    'Product-centric framing and benefit clarity',
-    'Polished look; neutral clean backgrounds; hero shot payoff',
-    'Avoid brand names/logos; focus on attributes and outcomes',
+    'Product/service at center; clear value proposition in visuals',
+    'Polished look; brand-consistent color/style; CTA framing',
   ],
 };
 
 const CategoryGuidelines: Record<string, string[]> = {
-  shortform: [
-    'Optimize for vertical scrolling context and thumb-stop hooks',
-    'Deliver value in under 60 seconds; compress narrative density',
+  nature: [
+    'Natural light preferred; authentic environment; wildlife behavior',
+    'Depth cues: foreground plants, background landscapes',
+    'Avoid artificial props or obvious staged elements',
   ],
-  youtube_vlog: [
-    'Conversational pacing with narrative beats and b-roll inserts',
-    'Maintain authenticity and clarity; include moments of reflection',
+  technology: [
+    'Clean backgrounds; spotlight key device/product',
+    'Macro close-ups to show detail; UI insets when relevant',
+    'Modern lighting: cool tones, soft highlights',
   ],
-  educational: [
-    'Use clear structure: intro, concept, example, recap',
-    'Prioritize accuracy and simple explanations; add on-screen labels',
-  ],
-  product_review: [
-    'Cover pros, cons, and verdict; show real usage and details',
-    'Be objective and concise; include close-ups and sound cues',
-  ],
-  storytelling: [
-    'Establish character, conflict, and resolution even in short runtime',
-    'Use visual symbolism and coherent mood to support theme',
-  ],
-  gaming: [
-    'Fast cuts for highlights; on-screen stats; reactive commentary',
-    'Ensure UI readability; avoid clutter; keep flow exciting',
-  ],
-  travel: [
-    'Show location identity: landmarks, textures, light, people',
-    'Use establishing shots, transitions, and ambient sound cues',
-  ],
-  fitness: [
-    'Demonstrate safe form; rep counts; set/rest guidance on-screen',
-    'Energetic tone; clear angles; motivating pacing',
+  sports: [
+    'Dynamic angles; motion blur for speed; subject tracking',
+    'Capture peak action; slow-mo for dramatic moments',
+    'Highlight athleticism, tension, and payoff',
   ],
   food: [
-    'Appetizing close-ups; ingredient prep; cooking process clarity',
-    'Use sizzling/steam cues and final plating hero shot',
+    'Overhead or 45° angle; shallow DOF; appetizing color palette',
+    'Show texture; pouring/cutting/steaming motion; ambient props minimal',
+  ],
+  travel: [
+    'Establishing shots; local culture; authentic locations',
+    'Golden-hour or blue-hour; people-in-context; reveal narrative',
+  ],
+  fashion: [
+    'Flattering angles; controlled/natural lighting; movement/flow',
+    'Focus on fabric texture, silhouettes, and color harmony',
+  ],
+  education: [
+    'Clear visuals; step-by-step demonstrations; whiteboard/diagram elements',
+    'Steady framing; avoid distracting backgrounds',
+  ],
+  gaming: [
+    'Specify game art style (realistic/stylized/retro/futuristic)',
+    'Action-packed camera; HUD elements minimal or none; highlight gameplay',
+  ],
+  art: [
+    'Creative compositions; close-ups on details; process reveals',
+    'Controlled lighting; neutral or complementary backgrounds',
+  ],
+  health: [
+    'Positive tone; well-lit, clean environments; subject-focus clear',
+    'Avoid clutter; emphasize wellness cues',
   ],
   news: [
     'Neutral tone; structured: headline, context, key facts',
     'On-screen lower-thirds; source mentions; avoid sensationalism',
   ],
 };
-
-// Aspect ratio guidance removed per deprecation
 
 function getDurationGuidance(duration: number): string[] {
   if (duration <= 15) return ['Ultra concise; 1-3 punchy beats; immediate hook'];
@@ -122,89 +111,113 @@ function getDurationGuidance(duration: number): string[] {
   return ['Long-form pacing not recommended here; compress ideas aggressively'];
 }
 
-const GenerateVideoDescriptionFlowInputSchema = z.object({
-  style: z.string().describe('Selected video style'),
-  contentCategory: z.string().describe('Selected content category'),
-  duration: z.number().describe('Target duration (seconds)'),
-  language: z.enum(['english', 'bengali', 'both']).describe('Output language for the description'),
-  userName: z.string().optional().describe('Optional user name to personalize tone'),
-});
-export type GenerateVideoDescriptionInput = z.infer<typeof GenerateVideoDescriptionFlowInputSchema>;
+// Input interface
+export interface GenerateVideoDescriptionInput {
+  style: string;
+  contentCategory: string;
+  duration: number;
+  language: 'english' | 'bengali' | 'both';
+  userName?: string;
+  modelId?: string;
+  userApiKey?: string;
+  profile?: UserProfile;
+}
 
-const GenerateVideoDescriptionOutputSchema = z.object({
-  descriptionEnglish: z.string().optional(),
-  descriptionBengali: z.string().optional(),
-});
-export type GenerateVideoDescriptionOutput = z.infer<typeof GenerateVideoDescriptionOutputSchema>;
+// Output interface
+export interface GenerateVideoDescriptionOutput {
+  descriptionEnglish?: string;
+  descriptionBengali?: string;
+}
 
 export async function generateVideoDescription(flowInput: GenerateVideoDescriptionInput): Promise<GenerateVideoDescriptionOutput> {
   const flowName = 'generateVideoDescription';
   logDebug('input', flowInput);
 
-  const { language, style, contentCategory, duration, userName } = flowInput;
+  const { 
+    language, 
+    style, 
+    contentCategory, 
+    duration, 
+    userName,
+    modelId = DEFAULT_MODEL_ID,
+    userApiKey,
+    profile
+  } = flowInput;
+
+  // Build profile for key management
+  const profileForKey = profile || (userApiKey ? {
+    userId: 'temp',
+    name: 'temp',
+    services: [],
+    geminiApiKeys: [userApiKey]
+  } as any : null);
 
   const styleGuides = StyleGuidelines[style] || [];
   const categoryGuides = CategoryGuidelines[contentCategory] || [];
   const durationGuides = getDurationGuidance(duration);
 
-  const modelToUse = DEFAULT_MODEL_ID;
-  // Use a profile stub so GeminiClient can safely initialize and include env key
-  const profileStub = {
-    userId: 'default',
-    name: 'User',
-    services: [],
-    geminiApiKeys: [] as string[],
-  } as any;
-  const client = new GeminiClient({ profile: profileStub });
+  // Build system prompt
+  const systemPrompt = `System Role: You are a senior video prompt engineer. Produce production-ready descriptions optimized for AI video generators (e.g., Veo 3, Runway Gen-3, Luma). Be precise, visual, and actionable.`;
 
-  const promptText = `System Role: You are a senior video prompt engineer. Produce production-ready descriptions optimized for AI video generators (e.g., Veo 3, Runway Gen-3, Luma). Be precise, visual, and actionable.
+  // Build user prompt
+  let userPrompt = `User: ${userName || 'Designer'}\n`;
+  userPrompt += `Style: ${style}\n`;
+  userPrompt += `Content Category: ${contentCategory}\n`;
+  userPrompt += `Duration: ${duration} seconds\n`;
+  userPrompt += `\n`;
 
-User: ${userName || 'Designer'}
-Style: ${style}
-Content Category: ${contentCategory}
-Duration: ${duration} seconds
+  userPrompt += `Quality Guidelines (follow all):\n`;
+  userPrompt += `- Global:\n`;
+  userPrompt += `  • Avoid brand names, watermarks, copyrighted characters, and real identities\n`;
+  userPrompt += `  • Prefer verbs for motion: dolly, truck, crane, tilt, pan, orbit, rack focus\n`;
+  userPrompt += `  • Describe lighting: key/fill/rim; golden hour, overcast softbox, neon practicals\n`;
+  userPrompt += `  • Include mood and atmosphere cues; specify environment textures and depth\n`;
+  
+  if (styleGuides.length > 0) {
+    userPrompt += `- Style:\n`;
+    styleGuides.forEach(g => userPrompt += `  • ${g}\n`);
+  }
+  
+  if (categoryGuides.length > 0) {
+    userPrompt += `- Category:\n`;
+    categoryGuides.forEach(g => userPrompt += `  • ${g}\n`);
+  }
+  
+  if (durationGuides.length > 0) {
+    userPrompt += `- Duration:\n`;
+    durationGuides.forEach(g => userPrompt += `  • ${g}\n`);
+  }
+  
+  userPrompt += `\n`;
+  userPrompt += `Your task:\n`;
+  userPrompt += `- Write a single, tightly crafted description that a video model can follow to produce a high-quality result.\n`;
+  userPrompt += `- Include: subject, setting, camera motion, shot type (CU/WS/OS/etc.), lens cues (wide/normal/tele), lighting, color/mood, and a clear payoff.\n`;
+  userPrompt += `- DO NOT include logos, on-screen text instructions, or external references.\n`;
+  userPrompt += `\n`;
 
-Quality Guidelines (follow all):
-- Global:
-  • Avoid brand names, watermarks, copyrighted characters, and real identities
-  • Prefer verbs for motion: dolly, truck, crane, tilt, pan, orbit, rack focus
-  • Describe lighting: key/fill/rim; golden hour, overcast softbox, neon practicals
-  • Include mood and atmosphere cues; specify environment textures and depth
-- Style: ${styleGuides.map(g => `• ${g}`).join('\n')}
-- Category: ${categoryGuides.map(g => `• ${g}`).join('\n')}
-- Duration: ${durationGuides.map(g => `• ${g}`).join('\n')}
+  userPrompt += `Language:\n`;
+  userPrompt += `- If language = "english": output only English.\n`;
+  userPrompt += `- If language = "bengali": output only Bengali.\n`;
+  userPrompt += `- If language = "both": output both languages.\n`;
+  userPrompt += `\n`;
 
-Your task:
-- Write a single, tightly crafted description that a video model can follow to produce a high-quality result.
-- Include: subject, setting, camera motion, shot type (CU/WS/OS/etc.), lens cues (wide/normal/tele), lighting, color/mood, and a clear payoff.
-- DO NOT include logos, on-screen text instructions, or external references.
-
-Language:
-- If language = "english": output only English.
-- If language = "bengali": output only Bengali.
-- If language = "both": output both languages.
-
-Output strictly as JSON only (no extra text). Omit keys that do not apply:
-{
-  "descriptionEnglish": "...",
-  "descriptionBengali": "..."
-}`;
+  userPrompt += `Output strictly as JSON only (no extra text). Omit keys that do not apply:\n`;
+  userPrompt += `{\n`;
+  userPrompt += `  "descriptionEnglish": "...",\n`;
+  userPrompt += `  "descriptionBengali": "..."\n`;
+  userPrompt += `}`;
 
   try {
-    const { data: output, apiKeyUsed } = await client.request(async (apiKey) => {
-      const instance = createGeminiAiInstance(apiKey);
-      const promptDef = instance.definePrompt({
-        name: `${flowName}Prompt_${Date.now()}`,
-        input: { schema: GenerateVideoDescriptionFlowInputSchema },
-        output: { schema: GenerateVideoDescriptionOutputSchema },
-        prompt: promptText,
-      });
-      const { output } = await promptDef(flowInput, { model: modelToUse });
-      if (!output) throw new Error('AI returned empty output');
-      return output;
-    });
-    console.log(`INFO (${flowName}): AI call succeeded using key ending with ...${apiKeyUsed.slice(-4)}`);
-    return output as GenerateVideoDescriptionOutput;
+    const output = await generateJSON<GenerateVideoDescriptionOutput>({
+      modelId,
+      temperature: 0.8,
+      maxOutputTokens: 8000,
+      thinkingMode: profile?.thinkingMode || 'default',
+      profile: profileForKey
+    }, systemPrompt, userPrompt);
+
+    logDebug('AI call succeeded');
+    return output;
   } catch (error) {
     console.error(`ERROR (${flowName}): Failed after rotating keys:`, error);
     throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);

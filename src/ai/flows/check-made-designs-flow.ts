@@ -1,5 +1,4 @@
 'use server';
-// ✅ MIGRATED to @google/genai SDK (from Genkit)
 /**
  * @fileOverview AI flow to check a user-made design for mistakes based on a client's prompt/requirements.
  * Provides feedback in Bangla.
@@ -9,75 +8,85 @@
  * - CheckMadeDesignsOutput - Output type.
  */
 
-// MIGRATED: Using TypeScript types instead of Genkit zod
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
-import { generateJSON, generateText } from '@/lib/ai/genai-helper';
-import type { UserProfile } from '@/lib/types';';
-// MIGRATED: Using genai-helper instead
+import { generateJSON } from '@/lib/ai/genai-helper';
+import type { UserProfile } from '@/lib/types';
 
-// Schema for the flow's input
-const CheckMadeDesignsFlowInputSchema = z.object({
-  clientPromptOrDescription: z.string().describe("The original client prompt or description of requirements the design was based on. This may come from chat history or user input."),
-  designToCheckDataUri: z.string().describe("A data URI of the design image to be checked. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
-  userName: z.string().describe('The name of the user (designer).'),
-  communicationStyleNotes: z.string().describe('The communication style notes of the user.'),
-  chatHistory: z.array(z.object({ role: z.enum(['user', 'assistant']), text: z.string() })).optional().describe("Conversation history for additional context about the design requirements."),
-  modelId: z.string().optional().describe('The Genkit model ID to use for this request.'),
-  userApiKey: z.string().optional().describe('User-provided Gemini API key.'),
-});
-export type CheckMadeDesignsInput = z.infer<typeof CheckMadeDesignsFlowInputSchema>;
+// Input interface
+export interface CheckMadeDesignsInput {
+  clientPromptOrDescription: string;
+  designToCheckDataUri: string;
+  userName: string;
+  communicationStyleNotes: string;
+  chatHistory?: Array<{
+    role: 'user' | 'assistant';
+    text: string;
+  }>;
+  modelId?: string;
+  userApiKey?: string;
+  profile?: UserProfile;
+}
 
-// Schema for the prompt's specific input
-const CheckMadeDesignsPromptInputSchema = z.object({
-  clientPromptOrDescription: z.string().describe("The original client prompt or description of requirements."),
-  designToCheckDataUri: z.string().describe("The design image to be checked."),
-  userName: z.string().describe('The name of the user (designer).'),
-  communicationStyleNotes: z.string().describe('The communication style notes of the user.'),
-  chatHistory: z.array(z.object({ role: z.enum(['user', 'assistant']), text: z.string() })).optional().describe("Conversation history."),
-});
+// Output interfaces
+interface MistakeAnalysis {
+  wrongObjectOrElements: string;
+  wrongPositions: string;
+  typingMistakes: string;
+  wrongColors: string;
+  wrongSizes: string;
+  missingElements: string;
+  otherMistakes: string;
+}
 
-const MistakeAnalysisSchema = z.object({
-  wrongObjectOrElements: z.string().describe("Mistakes related to incorrect objects, graphics, or elements. Specify if changes are 'Must Required' or 'Optional'. Output in Bangla."),
-  wrongPositions: z.string().describe("Mistakes related to incorrect positioning of objects, graphics, or elements. Specify if changes are 'Must Required' or 'Optional'. Output in Bangla."),
-  typingMistakes: z.string().describe("Typing mistakes, wrong text, or unnecessary text. Provide corrections line by line if applicable. Specify if changes are 'Must Required' or 'Optional'. Output in Bangla."),
-  wrongColors: z.string().describe("Mistakes related to wrong colors. Mention specific color codes if possible. Specify if changes are 'Must Required' or 'Optional'. Output in Bangla."),
-  wrongSizes: z.string().describe("Mistakes related to wrong sizes of objects, graphics, or elements. Specify if changes are 'Must Required' or 'Optional'. Output in Bangla."),
-  missingElements: z.string().describe("Identify any missing text, objects, graphics, or elements. Describe their expected positions, colors, fonts, etc. Specify if changes are 'Must Required' or 'Optional'. Output in Bangla."),
-  otherMistakes: z.string().describe("Any other mistakes not covered above. Specify if changes are 'Must Required' or 'Optional'. Output in Bangla."),
-});
-
-const CheckMadeDesignsOutputSchema = z.object({
-  mistakeAnalysis: MistakeAnalysisSchema,
-  overallSummary: z.string().describe("A final summary of the design check. Output in Bangla."),
-});
-export type CheckMadeDesignsOutput = z.infer<typeof CheckMadeDesignsOutputSchema>;
+export interface CheckMadeDesignsOutput {
+  mistakeAnalysis: MistakeAnalysis;
+  overallSummary: string;
+}
 
 export async function checkMadeDesigns(flowInput: CheckMadeDesignsInput): Promise<CheckMadeDesignsOutput> {
-  const { userApiKey, modelId, clientPromptOrDescription, designToCheckDataUri, userName, communicationStyleNotes, chatHistory } = flowInput;
-  const actualPromptInputData = { clientPromptOrDescription, designToCheckDataUri, userName, communicationStyleNotes, chatHistory };
+  const { 
+    userApiKey, 
+    modelId, 
+    clientPromptOrDescription, 
+    designToCheckDataUri, 
+    userName, 
+    communicationStyleNotes, 
+    chatHistory = [],
+    profile 
+  } = flowInput;
+  
   const modelToUse = modelId || DEFAULT_MODEL_ID;
   const flowName = 'checkMadeDesigns';
 
-  const profileStub = userApiKey ? ({ userId: 'tmp', name: 'tmp', services: [], geminiApiKeys: [userApiKey] } as any) : null;
-  const client = new GeminiClient({ profile: profileStub });
+  // Build profile for key management
+  const profileForKey = profile || (userApiKey ? {
+    userId: 'temp',
+    name: 'temp',
+    services: [],
+    geminiApiKeys: [userApiKey]
+  } as any : null);
 
-  const promptText = `You are an expert design reviewer assisting a designer named {{{userName}}}. Their communication style is: {{{communicationStyleNotes}}}.
+  // Build system prompt
+  const systemPrompt = `You are an expert design reviewer assisting a designer named ${userName}. Their communication style is: ${communicationStyleNotes}.
 The designer made a design based on a client's requirements and wants you to check it thoroughly for mistakes.
-Your entire response MUST be in Bangla.
+Your entire response MUST be in Bangla.`;
 
-Client's Original Requirements/Prompt:
-"{{{clientPromptOrDescription}}}"
+  // Build user prompt
+  let userPrompt = `Client's Original Requirements/Prompt:
+"${clientPromptOrDescription}"
 
-{{#if chatHistory.length}}
-Supporting Conversation History (for context on requirements):
-{{#each chatHistory}}
-{{this.role}}: {{{this.text}}}
----
-{{/each}}
-{{/if}}
+`;
 
-Design to Check:
-{{media url=designToCheckDataUri}}
+  if (chatHistory.length > 0) {
+    userPrompt += 'Supporting Conversation History (for context on requirements):\n';
+    chatHistory.forEach(msg => {
+      userPrompt += `${msg.role}: ${msg.text}\n---\n`;
+    });
+    userPrompt += '\n';
+  }
+
+  userPrompt += `Design to Check: [IMAGE PROVIDED]
+NOTE: The design image should be analyzed visually.
 
 Please analyze the design from top to bottom based on the client's requirements and the provided image.
 Identify errors or mistakes and categorize them. For each mistake type, specify if the suggested change is "Must Required" (অবশ্যই প্রয়োজনীয়) or "Optional" (ঐচ্ছিক).
@@ -108,17 +117,15 @@ Output Format (ensure your entire response is a single JSON object matching this
 }`;
   
   try {
-    const { data: output, apiKeyUsed } = await client.request(async (apiKey) => {
-      const instance = createGeminiAiInstance(apiKey);
-      const promptDef = instance.definePrompt({
-        name: `${flowName}Prompt_${Date.now()}`,
-        input: { schema: CheckMadeDesignsPromptInputSchema },
-        output: { schema: CheckMadeDesignsOutputSchema },
-        prompt: promptText
-      });
-      const { output } = await promptDef(actualPromptInputData, { model: modelToUse });
-      return output as CheckMadeDesignsOutput;
-    });
+    const output = await generateJSON<CheckMadeDesignsOutput>({
+      modelId: modelToUse,
+      temperature: 0.7,
+      maxOutputTokens: 8000,
+      thinkingMode: profile?.thinkingMode || 'default',
+      profile: profileForKey
+    }, systemPrompt, userPrompt);
+
+    console.log(`[${flowName}] Success, output size: ${JSON.stringify(output).length} bytes`);
     return output;
   } catch (error) {
     console.error(`ERROR (${flowName}): Failed after rotating keys:`, error);

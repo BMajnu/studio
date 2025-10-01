@@ -3,13 +3,6 @@
  * Extracts text content from various document formats for AI processing
  */
 
-import * as pdfjsLib from 'pdfjs-dist';
-
-// Configure PDF.js worker
-if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-}
-
 /**
  * Extract text content from a PDF file
  * @param file - PDF file to parse
@@ -17,6 +10,14 @@ if (typeof window !== 'undefined') {
  */
 export async function extractTextFromPDF(file: File): Promise<string> {
   try {
+    // Dynamic import to avoid bundling issues with PDF.js in client components
+    const pdfjsLib = await import('pdfjs-dist');
+    
+    // Configure PDF.js worker
+    if (typeof window !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+    }
+    
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     
@@ -35,7 +36,12 @@ export async function extractTextFromPDF(file: File): Promise<string> {
     return fullText.trim();
   } catch (error) {
     console.error('Error extracting text from PDF:', error);
-    throw new Error(`Failed to extract text from PDF: ${(error as Error).message}`);
+    // Provide a more user-friendly error message
+    throw new Error(
+      `PDF text extraction is temporarily unavailable due to a browser compatibility issue. ` +
+      `Please try one of these alternatives: (1) Copy and paste the text directly, ` +
+      `(2) Upload a DOCX file instead, or (3) Upload images of the PDF pages.`
+    );
   }
 }
 

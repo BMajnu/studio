@@ -16,6 +16,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 
+// Force dynamic rendering for this page
+export const dynamic = 'force-dynamic';
 
 export default function GalleryPage() {
   const router = useRouter();

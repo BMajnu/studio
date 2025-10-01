@@ -5,7 +5,7 @@
  */
 
 import { GoogleAIService } from '@/lib/services/google-ai-service';
-import { z } from 'genkit';
+import { z } from 'zod';
 
 // -------------------------
 // Schemas
@@ -32,7 +32,13 @@ export type GenerateChatTitleOutput = z.infer<typeof GenerateChatTitleOutputSche
 // Constants
 // -------------------------
 
-const DEFAULT_TITLE_MODEL = 'googleai/gemini-2.5-flash-lite-preview-06-17';
+// Default model for title generation with fallback models
+const DEFAULT_TITLE_MODEL = 'googleai/gemini-flash-lite-latest';
+const FALLBACK_TITLE_MODELS = [
+  'googleai/gemini-2.5-flash-lite-preview-06-17',
+  'googleai/gemini-2.0-flash-lite-preview-12-18',
+  'googleai/gemini-1.5-flash-lite-preview'
+];
 
 // -------------------------
 // Helper – build prompt text
@@ -57,11 +63,7 @@ function buildPrompt(messages: GenerateChatTitleInput['messages']): string {
 
 export async function generateChatTitle(input: GenerateChatTitleInput): Promise<string> {
   const { messages, modelId, userApiKey } = input;
-  const modelIdWithPrefix = modelId || DEFAULT_TITLE_MODEL;
-
-  // The GoogleAIService expects the model name *without* the 'googleai/' prefix.
-  const modelToUse = modelIdWithPrefix.replace(/^googleai\//, '');
-
+  
   // Build prompt
   const promptText = buildPrompt(messages);
 
@@ -78,14 +80,35 @@ export async function generateChatTitle(input: GenerateChatTitleInput): Promise<
     throw new Error('No API key available for generating chat title');
   }
 
-  // Call GoogleAIService directly (simpler and avoids Genkit parsing quirks)
-  const service = new GoogleAIService({ 
-    modelId: modelToUse,
-    profile 
-  });
-  const { text } = await service.generateContent(promptText);
+  // Try models with fallback
+  const modelsToTry = modelId 
+    ? [modelId] 
+    : [DEFAULT_TITLE_MODEL, ...FALLBACK_TITLE_MODELS];
 
-  return text.replace(/\n/g, ' ').trim();
+  let lastError: Error | null = null;
+
+  for (const modelIdWithPrefix of modelsToTry) {
+    try {
+      // The GoogleAIService expects the model name *without* the 'googleai/' prefix.
+      const modelToUse = modelIdWithPrefix.replace(/^googleai\//, '');
+      
+      // Call GoogleAIService directly (simpler and avoids Genkit parsing quirks)
+      const service = new GoogleAIService({ 
+        modelId: modelToUse,
+        profile 
+      });
+      const { text } = await service.generateContent(promptText);
+
+      return text.replace(/\n/g, ' ').trim();
+    } catch (error) {
+      console.warn(`Chat title generation failed with model ${modelIdWithPrefix}:`, error);
+      lastError = error as Error;
+      // Continue to next model
+    }
+  }
+
+  // If all models failed, throw the last error
+  throw lastError || new Error('All chat title generation models failed');
 }
 
 // Optional: convenience wrapper matching older API (returns object)

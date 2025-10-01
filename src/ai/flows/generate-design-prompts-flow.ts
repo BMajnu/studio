@@ -1,5 +1,4 @@
 'use server';
-// ✅ MIGRATED to @google/genai SDK (from Genkit)
 /**
  * @fileOverview Generates detailed, creative AI image prompts directly from a design theme.
  * This flow combines idea generation and prompt creation into a single step.
@@ -9,79 +8,90 @@
  * - GenerateDesignPromptsOutput - The return type for the function.
  */
 
-// MIGRATED: Using TypeScript types instead of Genkit zod
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
-import { generateJSON, generateText } from '@/lib/ai/genai-helper';
-import type { UserProfile } from '@/lib/types';';
-// MIGRATED: Using genai-helper instead
+import { generateJSON } from '@/lib/ai/genai-helper';
+import type { UserProfile } from '@/lib/types';
 
-// Internal schema for the ideas generated in the first step.
-const GeneratedIdeasSchema = z.object({
-  extractedTextOrSaying: z.string(),
-  searchKeywords: z.array(z.string()),
-  graphicsCreativeIdeas: z.array(z.string()).length(4),
-  typographyDesignIdeas: z.array(z.string()).length(3),
-  typographyWithGraphicsIdeas: z.array(z.string()).length(3),
-});
+// Internal type for ideas generated in the first step
+interface GeneratedIdeas {
+  extractedTextOrSaying: string;
+  searchKeywords: string[];
+  graphicsCreativeIdeas: string[]; // Should be exactly 4
+  typographyDesignIdeas: string[]; // Should be exactly 3
+  typographyWithGraphicsIdeas: string[]; // Should be exactly 3
+}
 
-// Re-usable attached file schema (images & text)
-const AttachedFileSchema = z.object({
-  name: z.string(),
-  type: z.string(),
-  dataUri: z.string().optional(),
-  textContent: z.string().optional(),
-});
+// Input interface
+export interface GenerateDesignPromptsInput {
+  designInputText: string;
+  userName: string;
+  communicationStyleNotes: string;
+  modelId?: string;
+  userApiKey?: string;
+  profile?: UserProfile;
+  attachedFiles?: Array<{
+    name: string;
+    type: string;
+    dataUri?: string;
+    textContent?: string;
+  }>;
+}
 
-// Schema for the flow's input – now includes attachments.
-const GenerateDesignPromptsFlowInputSchema = z.object({
-  designInputText: z.string().describe("The primary text, saying, or theme for the design (e.g., 'Coffee Beats Everything', 'DesAInR company launch')."),
-  userName: z.string().describe('The name of the user (designer).'),
-  communicationStyleNotes: z.string().describe('The communication style notes of the user.'),
-  modelId: z.string().optional().describe('The Genkit model ID to use for this request.'),
-  userApiKey: z.string().optional().describe('User-provided Gemini API key.'),
-  attachedFiles: z.array(AttachedFileSchema).optional().describe('Images or text files that should inform the design prompts'),
-});
-export type GenerateDesignPromptsInput = z.infer<typeof GenerateDesignPromptsFlowInputSchema>;
-
-// Schema for the final output, which is the detailed prompts.
-const GenerateDesignPromptsOutputSchema = z.object({
-  extractedTextOrSaying: z.string().describe("The extracted focal text or saying from the design input."),
-  searchKeywords: z.array(z.string()).describe("Search keywords generated to find design inspiration on Google."),
-  graphicsPrompts: z.array(z.string()).length(4).describe("Exactly 4 detailed prompts for graphics-focused designs."),
-  typographyPrompts: z.array(z.string()).length(3).describe("Exactly 3 detailed prompts for typography-focused designs."),
-  typographyWithGraphicsPrompts: z.array(z.string()).length(3).describe("Exactly 3 detailed prompts for designs combining typography and graphics.")
-});
-export type GenerateDesignPromptsOutput = z.infer<typeof GenerateDesignPromptsOutputSchema>;
+// Output interface
+export interface GenerateDesignPromptsOutput {
+  extractedTextOrSaying: string;
+  searchKeywords: string[];
+  graphicsPrompts: string[]; // Exactly 4
+  typographyPrompts: string[]; // Exactly 3
+  typographyWithGraphicsPrompts: string[]; // Exactly 3
+}
 
 export async function generateDesignPrompts(flowInput: GenerateDesignPromptsInput): Promise<GenerateDesignPromptsOutput> {
-  const { userApiKey, modelId, designInputText, userName, communicationStyleNotes, attachedFiles } = flowInput;
+  const { 
+    userApiKey, 
+    modelId, 
+    designInputText, 
+    userName, 
+    communicationStyleNotes, 
+    attachedFiles = [],
+    profile 
+  } = flowInput;
+  
   const modelToUse = modelId || DEFAULT_MODEL_ID;
   const flowName = 'generateDesignPromptsUnified';
 
   console.log(`\n--- [${flowName}] FLOW_STARTED ---`);
-  console.log('Flow Input:', JSON.stringify(flowInput, null, 2));
 
-  const profileStub = userApiKey ? ({ userId: 'tmp', name: 'tmp', services: [], geminiApiKeys: [userApiKey] } as any) : null;
-  const client = new GeminiClient({ profile: profileStub });
+  // Build profile for key management
+  const profileForKey = profile || (userApiKey ? {
+    userId: 'temp',
+    name: 'temp',
+    services: [],
+    geminiApiKeys: [userApiKey]
+  } as any : null);
   
-  // STEP 1: Define the prompt for generating creative ideas (from the old ideas-flow)
-  const ideaGenPromptText = `You are an expert Design Idea Generator for a graphic designer named {{{userName}}}.
-Their communication style is: {{{communicationStyleNotes}}}.
+  // STEP 1: Build system prompt for generating creative ideas
+  const ideaGenSystemPrompt = `You are an expert Design Idea Generator for a graphic designer named ${userName}.
+Their communication style is: ${communicationStyleNotes}.
 
-**Objective:** Generate creative design ideas and Give the complete prompts for the designs in 3 distinct categories based on the provided "Design Input Text".
+**Objective:** Generate creative design ideas and Give the complete prompts for the designs in 3 distinct categories based on the provided "Design Input Text".`;
 
-Design Input Text: {{{designInputText}}}
+  // Build user prompt for idea generation
+  let ideaGenUserPrompt = `Design Input Text: ${designInputText}\n\n`;
 
-{{#if attachedFiles.length}}
-The user has provided the following reference files. Analyse them carefully and let them influence your ideas:
-{{#each attachedFiles}}
-  {{#if this.dataUri}}
-    - [[Image]] {{media url=this.dataUri}}
-  {{else if this.textContent}}
-    - [[TEXT FILE]] {{{this.textContent}}}
-  {{/if}}
-{{/each}}
-{{/if}}
+  if (attachedFiles.length > 0) {
+    ideaGenUserPrompt += 'The user has provided the following reference files. Analyse them carefully and let them influence your ideas:\n';
+    attachedFiles.forEach(file => {
+      if (file.dataUri) {
+        ideaGenUserPrompt += `  - [[Image]] ${file.name}\n`;
+      } else if (file.textContent) {
+        ideaGenUserPrompt += `  - [[TEXT FILE]] ${file.textContent}\n`;
+      }
+    });
+    ideaGenUserPrompt += '\n';
+  }
+
+  ideaGenUserPrompt += `
 
 **Instructions:**
 1. First, identify or extract any specific text, saying, quote or theme that should be the focal point of designs.
@@ -131,24 +141,44 @@ The user has provided the following reference files. Analyse them carefully and 
     Typography: expressive brush-script lettering, slightly slanted for motion
     Text Incorporation: lettering sits at the splash centre, bean elements overlap stroke ends
     Overall Mood/Feeling: lively and artisanal, suggesting freshly brewed excitement
+
+**Output Format:** Return ONLY a valid JSON object with these exact fields:
+{
+  "extractedTextOrSaying": "string",
+  "searchKeywords": ["keyword1", "keyword2", ...],
+  "graphicsCreativeIdeas": ["idea1", "idea2", "idea3", "idea4"],
+  "typographyDesignIdeas": ["idea1", "idea2", "idea3"],
+  "typographyWithGraphicsIdeas": ["idea1", "idea2", "idea3"]
+}
 `;
 
-  // STEP 2: Define the prompt for converting ideas into final image prompts (from the old prompts-flow)
-  const promptCreationPromptText = `You are an expert AI Image Prompt Generator. Your task is to convert the provided design ideas into detailed, high-quality, Complete Image generation prompts.
+  try {
+    // Execute STEP 1: Generate Ideas
+    console.log(`\n--- [${flowName}] STEP 1: GENERATING IDEAS ---`);
+    
+    const generatedIdeas = await generateJSON<GeneratedIdeas>({
+      modelId: modelToUse,
+      temperature: 0.8,
+      maxOutputTokens: 16000,
+      thinkingMode: profile?.thinkingMode || 'default',
+      profile: profileForKey
+    }, ideaGenSystemPrompt, ideaGenUserPrompt);
 
-**Design Ideas Provided:**
+    console.log(`\n--- [${flowName}] STEP 1 RESULT ---`);
+    console.log(JSON.stringify(generatedIdeas, null, 2));
+
+    // STEP 2: Build prompt for converting ideas into final image prompts
+    const promptCreationSystemPrompt = `You are an expert AI Image Prompt Generator. Your task is to convert the provided design ideas into detailed, high-quality, Complete Image generation prompts.`
+    
+    const promptCreationUserPrompt = `**Design Ideas Provided:**
 - Graphics-Focused:
-{{#each graphicsCreativeIdeas}}
-  - {{{this}}}
-{{/each}}
+${generatedIdeas.graphicsCreativeIdeas.map(idea => `  - ${idea}`).join('\n')}
+
 - Typography-Focused:
-{{#each typographyDesignIdeas}}
-  - {{{this}}}
-{{/each}}
+${generatedIdeas.typographyDesignIdeas.map(idea => `  - ${idea}`).join('\n')}
+
 - Typography with Graphics:
-{{#each typographyWithGraphicsIdeas}}
-  - {{{this}}}
-{{/each}}
+${generatedIdeas.typographyWithGraphicsIdeas.map(idea => `  - ${idea}`).join('\n')}
 
 **Important Rules for All Prompts:**
 1.  **Start with an Action:** Every prompt must begin with "Make a," "Design a," or "Create a." 
@@ -165,52 +195,40 @@ The user has provided the following reference files. Analyse them carefully and 
    Creative Design Ideas (Graphics-Focused): Create a vintage illustration design featuring a coffee bean cartoon character holding a golden trophy. The style should evoke a retro revival with clean, intricate line work and a classic, nostalgic feel. Use rich brown tones for the coffee bean contrasted with polished gold accents for the trophy. The background is solid white for maximum contrast. Typography is bold vintage serif, the word "Coffee" larger than "Victory," using a font like Rockwell or Bodoni. Layout is symmetrical with the bean and trophy centred and text placed below. The overall mood is celebratory and refined.
    Typography-Focused Prompt: Design a bold retro typographic artwork showcasing the stacked phrase "Coffee Beats Everything". Use condensed sans-serif for "Coffee" and flowing script for "Beats Everything", tightly kerned. Add starburst and underline flourishes for emphasis. Palette: warm cream lettering on deep espresso; background solid black. Composition centred and balanced, exuding confident vintage-café energy.
    Typography with Graphics Prompt: Make a loose hand-drawn graphic of coffee beans splashing outward around the hand-lettered phrase "Coffee Beats Everything". Combine expressive brush-script lettering with dynamic ink-style bean graphics. Palette: rich browns with warm cream highlights on a solid light-gray background. Composition asymmetrical and flowing—beans overlap the lettering, conveying artisanal, freshly-brewed excitement.
-`;
-  
-  try {
-    // Execute STEP 1: Generate Ideas
-    console.log(`\n--- [${flowName}] STEP 1: GENERATING IDEAS ---`);
-    console.log('--- PROMPT START ---\n', ideaGenPromptText, '\n--- PROMPT END ---');
-    
-    const { data: generatedIdeas } = await client.request(async (apiKey) => {
-      const instance = createGeminiAiInstance(apiKey);
-      const promptDef = instance.definePrompt({
-        name: 'ideaGeneration',
-        input: { schema: GenerateDesignPromptsFlowInputSchema },
-        output: { schema: GeneratedIdeasSchema },
-        prompt: ideaGenPromptText
-      });
-      console.log('Executing ideaGeneration prompt with input:', JSON.stringify(flowInput, null, 2));
-      const { output } = await promptDef(flowInput, { model: modelToUse });
-      if (!output) throw new Error("AI returned empty output for idea generation");
-      return output;
-    });
 
-    console.log(`\n--- [${flowName}] STEP 1 RESULT (generatedIdeas) ---`);
-    console.log(JSON.stringify(generatedIdeas, null, 2));
+**Output Format:** Return ONLY a valid JSON object with these exact fields:
+{
+  "extractedTextOrSaying": "string (same as from ideas)",
+  "searchKeywords": ["keyword1", "keyword2", ...] (same as from ideas),
+  "graphicsPrompts": ["prompt1", "prompt2", "prompt3", "prompt4"],
+  "typographyPrompts": ["prompt1", "prompt2", "prompt3"],
+  "typographyWithGraphicsPrompts": ["prompt1", "prompt2", "prompt3"]
+}
+`;
 
     // Execute STEP 2: Create Prompts from Ideas
     console.log(`\n--- [${flowName}] STEP 2: CREATING PROMPTS FROM IDEAS ---`);
-    console.log('--- PROMPT START ---\n', promptCreationPromptText, '\n--- PROMPT END ---');
 
-    const { data: finalPrompts } = await client.request(async (apiKey) => {
-      const instance = createGeminiAiInstance(apiKey);
-      const promptDef = instance.definePrompt({
-        name: 'promptCreation',
-        input: { schema: GeneratedIdeasSchema },
-        output: { schema: GenerateDesignPromptsOutputSchema },
-        prompt: promptCreationPromptText
-      });
-      console.log('Executing promptCreation prompt with input (generatedIdeas):', JSON.stringify(generatedIdeas, null, 2));
-      const { output } = await promptDef(generatedIdeas, { model: modelToUse });
-      if (!output) throw new Error("AI returned empty output for prompt creation");
-      return output;
-    });
+    interface FinalPromptsOutput {
+      extractedTextOrSaying: string;
+      searchKeywords: string[];
+      graphicsPrompts: string[];
+      typographyPrompts: string[];
+      typographyWithGraphicsPrompts: string[];
+    }
 
-    console.log(`\n--- [${flowName}] STEP 2 RESULT (finalPrompts) ---`);
+    const finalPrompts = await generateJSON<FinalPromptsOutput>({
+      modelId: modelToUse,
+      temperature: 0.7,
+      maxOutputTokens: 16000,
+      thinkingMode: profile?.thinkingMode || 'default',
+      profile: profileForKey
+    }, promptCreationSystemPrompt, promptCreationUserPrompt);
+
+    console.log(`\n--- [${flowName}] STEP 2 RESULT ---`);
     console.log(JSON.stringify(finalPrompts, null, 2));
 
-    const finalOutput = {
+    const finalOutput: GenerateDesignPromptsOutput = {
       extractedTextOrSaying: generatedIdeas.extractedTextOrSaying,
       searchKeywords: generatedIdeas.searchKeywords,
       graphicsPrompts: finalPrompts.graphicsPrompts,
@@ -219,12 +237,10 @@ The user has provided the following reference files. Analyse them carefully and 
     };
 
     console.log(`\n--- [${flowName}] FLOW_COMPLETED ---`);
-    console.log('Final Output:', JSON.stringify(finalOutput, null, 2));
-
     return finalOutput;
 
   } catch (error) {
-    console.error(`ERROR (${flowName}): Flow failed. Error:`, error);
-    throw new Error(`AI call failed in ${flowName}. Please check server logs for details. Original error: ${(error as Error).message}`);
+    console.error(`ERROR (${flowName}): Flow failed:`, error);
+    throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);
   }
 } 

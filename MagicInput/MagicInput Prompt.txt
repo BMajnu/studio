@@ -1,2 +1,153 @@
 Prompt:
-never need to ask me again you will just complete to all the tasks and back to me after completeling all.
+I tested it many time and I can see now it just working with the models:
+
+  // 🆕 New Models (Top Priority)
+  { id: 'gemini-flash-latest', name: '🆕 Gemini Flash (Latest) ⭐', supportsThinking: true, tag: 'New' },
+  { id: 'gemini-2.5-flash', name: '🆕 Gemini 2.5 Flash', supportsThinking: true, tag: 'New' },
+  { id: 'gemini-2.5-pro', name: '🆕 Gemini 2.5 Pro', supportsThinking: true, tag: 'New' },
+  { id: 'gemini-2.5-flash-image-preview', name: '🆕 Gemini 2.5 Flash (Image Gen/Edit) ⭐', supportsThinking: true, supportsImageGen: true, tag: 'New' },
+  { id: 'gemini-flash-lite-latest', name: '🆕 Gemini Flash Lite (Latest) ⭐', supportsThinking: true, tag: 'New' },
+
+
+Also for this gemini-2.5-flash' model changing to gemini-flash-latest not using gemini-2.5-flash' models. Also I can see all models now aksing the thinking velue so non thinking models are getting error this this.  
+
+
+ ⚠ Found a change in next.config.js. Restarting the server to apply the changes...
+   ▲ Next.js 15.2.3
+   - Local:        http://localhost:9003
+   - Network:      http://192.168.1.101:9003
+   - Environments: .env.local, .env
+   - Experiments (use with caution):
+     · allowedDevOrigins
+
+ ✓ Starting...
+ ✓ Ready in 2.2s
+ ○ Compiling / ...
+ ✓ Compiled / in 7.5s (3868 modules)
+ GET / 200 in 8701ms
+ ✓ Compiled in 1364ms (1653 modules)
+ GET / 200 in 64ms
+ ✓ Compiled in 1331ms (3854 modules)
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET / 200 in 889ms
+ ✓ Compiled in 573ms (3854 modules)
+[processClientMessage] Processing message, attachments: 0
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+[processClientMessage] Success, output size: 2708 bytes
+ POST / 200 in 7984ms
+ ○ Compiling /api/generate-chat-title ...
+ ✓ Compiled /api/generate-chat-title in 1342ms (4011 modules)
+Generating content with model: gemini-flash-lite-latest
+Generating content with model: gemini-flash-lite-latest
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+ POST /api/generate-chat-title 200 in 2311ms
+ POST /api/generate-chat-title 200 in 3473ms
+Generating content with model: gemini-flash-lite-latest
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+[analyzeClientRequirements] input attachments 0
+[analyzeClientRequirements] input size 2782 bytes
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+ POST /api/generate-chat-title 200 in 1776ms
+[analyzeClientRequirements] Success, output size: 10397 bytes
+[analyzeClientRequirements] output size 10397 bytes
+ POST / 200 in 20560ms
+Generating content with model: gemini-flash-lite-latest
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+[analyzeClientRequirements] input attachments 0
+[analyzeClientRequirements] input size 6741 bytes
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+ POST /api/generate-chat-title 200 in 1835ms
+[analyzeClientRequirements] Success, output size: 12996 bytes
+[analyzeClientRequirements] output size 12996 bytes
+ POST / 200 in 24841ms
+[analyzeClientRequirements] input attachments 0
+[analyzeClientRequirements] input size 248 bytes
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+ERROR (analyzeClientRequirements): Failed after rotating keys: Error [ApiError]: {"error":{"code":400,"message":"Unable to submit request because thinking is not supported by this model. Learn more: https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/gemini","status":"INVALID_ARGUMENT"}}
+    at async generateJSON (src\lib\ai\genai-helper.ts:75:23)
+    at async analyzeClientRequirements (src\ai\flows\analyze-client-requirements.ts:256:19)
+  73 |       } catch (_streamErr) {
+  74 |         // Fallback to non-streaming call for models that don't support streaming
+> 75 |         const result = await ai.models.generateContent({
+     |                       ^
+  76 |           model: modelId,
+  77 |           config: modelConfig,
+  78 |           contents: [{ role: 'user', parts: [{ text: fullPrompt }] }], {
+  status: 400
+}
+ ⨯ Error: AI call failed in analyzeClientRequirements. {"error":{"code":400,"message":"Unable to submit request because thinking is not supported by this model. Learn more: https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/gemini","status":"INVALID_ARGUMENT"}}
+    at analyzeClientRequirements (src\ai\flows\analyze-client-requirements.ts:269:10)
+  267 |   } catch (error) {
+  268 |     console.error(`ERROR (${flowName}): Failed after rotating keys:`, error);
+> 269 |     throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);
+      |          ^
+  270 |   }
+  271 | } {
+  digest: '22060190'
+}
+ POST / 500 in 3417ms
+[processClientMessage] Processing message, attachments: 0
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+ERROR (processClientMessage): Error [ApiError]: {"error":{"code":404,"message":"models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.","status":"NOT_FOUND"}}
+    at async generateJSON (src\lib\ai\genai-helper.ts:75:23)
+    at async processClientMessage (src\ai\flows\process-client-message.ts:128:19)
+  73 |       } catch (_streamErr) {
+  74 |         // Fallback to non-streaming call for models that don't support streaming
+> 75 |         const result = await ai.models.generateContent({
+     |                       ^
+  76 |           model: modelId,
+  77 |           config: modelConfig,
+  78 |           contents: [{ role: 'user', parts: [{ text: fullPrompt }] }], {
+  status: 404
+}
+ ⨯ Error: AI call failed in processClientMessage. {"error":{"code":404,"message":"models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.","status":"NOT_FOUND"}}
+    at processClientMessage (src\ai\flows\process-client-message.ts:140:10)
+  138 |   } catch (error) {
+  139 |     console.error(`ERROR (${flowName}):`, error);
+> 140 |     throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);
+      |          ^
+  141 |   }
+  142 | }
+  143 | {
+  digest: '366048'
+}
+ POST / 500 in 2778ms
+[analyzeClientRequirements] input attachments 0
+[analyzeClientRequirements] input size 243 bytes
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+[analyzeClientRequirements] Success, output size: 9266 bytes
+[analyzeClientRequirements] output size 9266 bytes
+ POST / 200 in 36245ms
+Generating content with model: gemini-flash-lite-latest
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+Generating content with model: gemini-flash-lite-latest
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+ POST /api/generate-chat-title 200 in 682ms
+ POST /api/generate-chat-title 200 in 701ms
+[processClientMessage] Processing message, attachments: 0
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+ERROR (processClientMessage): Error [ApiError]: {"error":{"code":404,"message":"models/gemini-2.5-flash-preview-04-17 is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.","status":"NOT_FOUND"}}    
+    at async generateJSON (src\lib\ai\genai-helper.ts:75:23)
+    at async processClientMessage (src\ai\flows\process-client-message.ts:128:19)
+  73 |       } catch (_streamErr) {
+  74 |         // Fallback to non-streaming call for models that don't support streaming
+> 75 |         const result = await ai.models.generateContent({
+     |                       ^
+  76 |           model: modelId,
+  77 |           config: modelConfig,
+  78 |           contents: [{ role: 'user', parts: [{ text: fullPrompt }] }], {
+  status: 404
+}
+ ⨯ Error: AI call failed in processClientMessage. {"error":{"code":404,"message":"models/gemini-2.5-flash-preview-04-17 is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.","status":"NOT_FOUND"}}  
+    at processClientMessage (src\ai\flows\process-client-message.ts:140:10)
+  138 |   } catch (error) {
+  139 |     console.error(`ERROR (${flowName}):`, error);
+> 140 |     throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);
+      |          ^
+  141 |   }
+  142 | }
+  143 | {
+  digest: '3399401120'
+}
+ POST / 500 in 6558ms
