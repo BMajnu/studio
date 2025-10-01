@@ -283,7 +283,7 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { user: authUser, loading: authLoading, googleAccessToken, signInWithGoogle: triggerGoogleSignInFromAuth } = useAuth();
-  const { profile, isLoading: profileLoading } = useUserProfile();
+  const { profile, updateProfile, isLoading: profileLoading } = useUserProfile();
   const chatAreaRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputTextAreaRef = useRef<HTMLTextAreaElement>(null);
@@ -525,10 +525,27 @@ ${params.language ? `Language: ${params.language}` : ''}`;
   // State for AI model selector modal
   const [showAIModelDropdown, setShowAIModelDropdown] = useState(false);
 
-  const [currentModelId, setCurrentModelId] = useState(DEFAULT_MODEL_ID);
+  const [currentModelId, setCurrentModelId] = useState(() => {
+    // Initialize from localStorage first (user's last selection), then profile, then default
+    if (typeof window !== 'undefined') {
+      const savedModel = localStorage.getItem('preferred-ai-model');
+      if (savedModel) {
+        console.log(`🔧 [INIT] Loading saved model from localStorage: ${savedModel}`);
+        return savedModel;
+      }
+    }
+    console.log(`🔧 [INIT] Using DEFAULT_MODEL_ID: ${DEFAULT_MODEL_ID}`);
+    return DEFAULT_MODEL_ID;
+  });
+  
   useEffect(() => {
+    // Update from profile if available (but localStorage takes priority)
     if (profile?.selectedGenkitModelId) {
-      setCurrentModelId(profile.selectedGenkitModelId);
+      const savedModel = typeof window !== 'undefined' ? localStorage.getItem('preferred-ai-model') : null;
+      if (!savedModel) {
+        console.log(`🔧 [PROFILE] Loading model from profile: ${profile.selectedGenkitModelId}`);
+        setCurrentModelId(profile.selectedGenkitModelId);
+      }
     }
   }, [profile]);
 
@@ -1502,6 +1519,8 @@ ${params.language ? `Language: ${params.language}` : ''}`;
     }
 
     const modelIdToUse = currentModelId;
+    
+    console.log(`🎯 [USER SELECTED] Content generation will use model: ${modelIdToUse}`);
 
     // Debug log for outgoing AI request
     debugLogAiRequest(currentActionType, userMessageContent, filesToSendWithThisMessage);
@@ -1576,13 +1595,13 @@ ${params.language ? `Language: ${params.language}` : ''}`;
                     .trim()
             }));
 
-            // Non-blocking title generation API call
+            // Non-blocking title generation API call (using lite model, NOT user-selected model)
             fetch('/api/generate-chat-title', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 messages: titleMessages,
-                modelId: 'googleai/gemini-flash-lite-latest',
+                modelId: 'googleai/gemini-flash-lite-latest', // Always use flash-lite-latest for title generation
               }),
             })
             .then(async (res) => {
@@ -3610,9 +3629,21 @@ ${params.language ? `Language: ${params.language}` : ''}`;
                       activeButton={activeActionButton}
                       lastSelectedButton={lastSelectedActionButton}
                       currentModelId={currentModelId}
-                      onModelChange={(modelId: string) => {
+                      onModelChange={async (modelId: string) => {
+                        console.log(`🔄 [MODEL CHANGE] User selected model: ${modelId}`);
                         setCurrentModelId(modelId);
                         localStorage.setItem('preferred-ai-model', modelId);
+                        
+                        // Also update profile so it persists across sessions
+                        if (profile && updateProfile) {
+                          try {
+                            await updateProfile({ ...profile, selectedGenkitModelId: modelId });
+                            console.log(`✅ [MODEL CHANGE] Saved to profile: ${modelId}`);
+                          } catch (err) {
+                            console.warn('[MODEL CHANGE] Failed to save to profile:', err);
+                          }
+                        }
+                        
                         safeToast({
                           title: "Model Changed",
                           description: `Switched to ${AVAILABLE_MODELS.find(m => m.id === modelId)?.name || modelId}`,

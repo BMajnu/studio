@@ -1,3 +1,527 @@
+[2025-10-01 17:26:19] (from previous session)
+Prompt:
+continue
+--------------------------------------------------
+[2025-10-01 17:25:10] (from previous session)
+Prompt:
+ঠিক আছে। এখন কাজ করছে। সমস্যাটি এখন নেই। তো, এ মুহূর্তে আমাদের আর কিছু কাজ করতে হবে, যেরকম গ্যালারি, তারপরে ল্যাব এবং প্রোফাইল পেজে ঢুকলে এটি একটু সময় নেয়, অর্থাৎ ল্যাগ করে। কয়েক সেকেন্ড সময় নেয় এটা ঢুকতে এবং এখান থেকে হোমে ব্যাক করলেও অ্যাপটি পুনরায় রিলোড নেয়। এই সমস্যাটি তুমি ফিক্স করো, যেন বিষয়টি স্মুথ হয় এবং পুরোপুরি অ্যাপ রিলোড না হয়, এই ফাংশনালিটিগুলো প্রোপারলি ইমপ্লিমেন্ট করো।
+--------------------------------------------------
+[2025-10-01 17:22:53] (from previous session)
+Prompt:
+Please make the files restore. Becouse they are not dublicated they are becouse of 404
+This page could not be found. problem.
+--------------------------------------------------
+[2025-10-01 17:21:06] (from previous session)
+Prompt:
+okay great. Now fix this problems:
+
+[{
+	"resource": "/e:/Developing Projects/DesAInR/app/lab/page.tsx",
+	"owner": "typescript",
+	"code": "6142",
+	"severity": 8,
+	"message": "Module '../../src/app/lab/page' was resolved to 'e:/Developing Projects/DesAInR/src/app/lab/page.tsx', but '--jsx' is not set.",
+	"source": "ts",
+	"startLineNumber": 3,
+	"startColumn": 25,
+	"endLineNumber": 3,
+	"endColumn": 49,
+	"modelVersionId": 3
+},{
+	"resource": "/e:/Developing Projects/DesAInR/app/lab/page.tsx",
+	"owner": "typescript",
+	"code": "6142",
+	"severity": 8,
+	"message": "Module '../../src/app/lab/page' was resolved to 'e:/Developing Projects/DesAInR/src/app/lab/page.tsx', but '--jsx' is not set.",
+	"source": "ts",
+	"startLineNumber": 4,
+	"startColumn": 25,
+	"endLineNumber": 4,
+	"endColumn": 49,
+	"modelVersionId": 3
+}]
+--------------------------------------------------
+[2025-10-01 17:18:17] (from previous session)
+Prompt:
+okay it's fixed now. 
+
+So now change the title gen model as the gemini flash lite latest
+--------------------------------------------------
+[2025-10-01 17:12:50] (from previous session)
+Prompt:
+আচ্ছা, তুমি কি ক্রেজি? কারণ এখানে দেখতে পাচ্ছো যে আমি মডেল সিলেক্ট করেছি, যেমনই ফ্লাশ লেটেস্ট। কিন্তু টাইটেল এবং কন্টেন্ট জেনারেটিং মডেল উইথ যেমনই 2.5 ফ্লাশ লাইট প্রিভিউ, দুই ক্ষেত্রেই অর্থাৎ কন্টেন্ট জেনারেশন এবং টাইটেল জেনারেশন-এর জন্য দুই ক্ষেত্রেই ব্যবহৃত হয়েছে এই মডেলটি। তাহলে কিভাবে সব ঠিক হলো? তো, প্রপারলি কোড বেস অ্যানালাইসিস করে এটা ঠিক করো, যেন টাইটেল জেনারেশন-এর সাথে কন্টেন্ট জেনারেশন মডেলের কোনো ধরনের কানেকশন বা সম্পর্ক না থাকে। টোটালি ডিফারেন্ট হয়। কন্টেন্ট জেনারেশন-এর জন্য আলাদাভাবে এপিআই কল হবে এবং টাইটেল জেনারেশন-এর জন্য কমপ্লিটলি আলাদাভাবে একটি এপিআই কল হবে। দুটির সাথে কোনো ধরনের সম্পর্ক থাকবে না।
+--------------------------------------------------
+[2025-10-01 17:09:54] (from previous session)
+Prompt:
+✅ [CONTENT GENERATION] Success with model: gemini-flash-latest
+[processClientMessage] Success, output size: 5384 bytes
+ POST / 200 in 13192ms
+ ○ Compiling /api/generate-chat-title ...
+ ✓ Compiled /api/generate-chat-title in 854ms (2371 modules)
+🏷️  [TITLE GENERATION] Using LITE model: gemini-2.5-flash-lite-preview-06-17
+Generating content with model: gemini-2.5-flash-lite-preview-06-17
+🏷️  [TITLE GENERATION] Using LITE model: gemini-2.5-flash-lite-preview-06-17
+Generating content with model: gemini-2.5-flash-lite-preview-06-17
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+✅ [TITLE GENERATION] Success with model: gemini-2.5-flash-lite-preview-06-17
+ POST /api/generate-chat-title 200 in 1750ms
+✅ [TITLE GENERATION] Success with model: gemini-2.5-flash-lite-preview-06-17
+ POST /api/generate-chat-title 200 in 3023ms
+--------------------------------------------------
+[2025-10-01 17:09:20] (from previous session)
+Prompt:
+I selected the gemini flash latest model and here used for both: gemini-2.5-flash-lite-preview-06-17
+
+ ○ Compiling /api/generate-chat-title ...
+ ✓ Compiled /api/generate-chat-title in 854ms (2371 modules)
+🏷️  [TITLE GENERATION] Using LITE model: gemini-2.5-flash-lite-preview-06-17
+Generating content with model: gemini-2.5-flash-lite-preview-06-17
+🏷️  [TITLE GENERATION] Using LITE model: gemini-2.5-flash-lite-preview-06-17
+Generating content with model: gemini-2.5-flash-lite-preview-06-17
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+✅ [TITLE GENERATION] Success with model: gemini-2.5-flash-lite-preview-06-17
+ POST /api/generate-chat-title 200 in 1750ms
+✅ [TITLE GENERATION] Success with model: gemini-2.5-flash-lite-preview-06-17
+ POST /api/generate-chat-title 200 in 3023ms
+--------------------------------------------------
+[2025-10-01 17:07:16] (from previous session)
+Prompt:
+just follow the structure of it:
+
+// To run this code you need to install the following dependencies:
+// npm install @google/genai mime
+// npm install -D @types/node
+
+import {
+  GoogleGenAI,
+} from '@google/genai';
+
+async function main() {
+  const ai = new GoogleGenAI({
+    apiKey: process.env.GEMINI_API_KEY,
+  });
+  const tools = [
+    {
+      googleSearch: {
+      }
+    },
+  ];
+  const config = {
+    thinkingConfig: {
+      thinkingBudget: -1,
+    },
+    tools,
+  };
+  const model = 'gemini-flash-latest';
+  const contents = [
+    {
+      role: 'user',
+      parts: [
+        {
+          text: `INSERT_INPUT_HERE`,
+        },
+      ],
+    },
+  ];
+
+  const response = await ai.models.generateContentStream({
+    model,
+    config,
+    contents,
+  });
+  let fileIndex = 0;
+  for await (const chunk of response) {
+    console.log(chunk.text);
+  }
+}
+
+main();
+--------------------------------------------------
+[2025-10-01 17:06:26] (from previous session)
+Prompt:
+Orginal models and normal models will be same. Not different.
+--------------------------------------------------
+[2025-10-01 17:05:30] (from previous session)
+Prompt:
+that are not new models. These
+
+
+  // 🆕 New Models (Top Priority)
+  { id: 'gemini-flash-latest', name: '🆕 Gemini Flash (Latest) ⭐', supportsThinking: true, tag: 'New' },
+  { id: 'gemini-2.5-flash', name: '🆕 Gemini 2.5 Flash', supportsThinking: true, tag: 'New' },
+  { id: 'gemini-2.5-pro', name: '🆕 Gemini 2.5 Pro', supportsThinking: true, tag: 'New' },
+  { id: 'gemini-2.5-flash-image-preview', name: '🆕 Gemini 2.5 Flash (Image Gen/Edit) ⭐', supportsThinking: true, supportsImageGen: true, tag: 'New' },
+  { id: 'gemini-flash-lite-latest', name: '🆕 Gemini Flash Lite (Latest) ⭐', supportsThinking: true, tag: 'New' },
+--------------------------------------------------
+[2025-10-01 17:03:49] (from previous session)
+Prompt:
+Please get back the newer models what you deleted.
+--------------------------------------------------
+[2025-10-01 17:02:07] (from previous session)
+Prompt:
+sync] Finished upload process.
+E:\Developing Projects\DesAInR\src\app\page.tsx:3633 🔄 [MODEL CHANGE] User selected model: gemini-1.5-flash
+E:\Developing Projects\DesAInR\src\app\page.tsx:3638 Uncaught (in promise) ReferenceError: updateProfile is not defined
+    at Object.onModelChange (E:\Developing Projects\DesAInR\src\app\page.tsx:3638:40)
+    at Object.eval [as onValueChange] (index.mjs:46:32)
+    at handleSelect (index.mjs:1070:21)
+    at eval (index.mjs:1115:61)
+    at handleEvent (index.mjs:16:31)
+    at executeDispatch (react-dom-client.development.js:16427:9)
+    at runWithFiberInDEV (react-dom-client.development.js:1511:30)
+    at processDispatchQueue (react-dom-client.development.js:16477:19)
+    at eval (react-dom-client.development.js:17075:9)
+    at batchedUpdates$1 (react-dom-client.development.js:3254:40)
+    at dispatchEventForPluginEventSystem (react-dom-client.development.js:16631:7)
+    at dispatchEvent (react-dom-client.development.js:20717:11)
+    at dispatchDiscreteEvent (react-dom-client.development.js:20685:11)
+onModelChange @ E:\Developing Projects\DesAInR\src\app\page.tsx:3638
+eval @ index.mjs:46
+handleSelect @ index.mjs:1070
+eval @ index.mjs:1115
+handleEvent @ index.mjs:16
+executeDispatch @ react-dom-client.development.js:16427
+runWithFiberInDEV @ react-dom-client.development.js:1511
+processDispatchQueue @ react-dom-client.development.js:16477
+eval @ react-dom-client.development.js:17075
+batchedUpdates$1 @ react-dom-client.development.js:3254
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:16631
+dispatchEvent @ react-dom-client.development.js:20717
+dispatchDiscreteEvent @ react-dom-client.development.js:20685
+E:\Developing Projects\DesAInR\src\app\page.tsx:3633 🔄 [MODEL CHANGE] User selected model: gemini-2.5-flash
+E:\Developing Projects\DesAInR\src\app\page.tsx:3638 Uncaught (in promise) ReferenceError: updateProfile is not defined
+    at Object.onModelChange (E:\Developing Projects\DesAInR\src\app\page.tsx:3638:40)
+    at Object.eval [as onValueChange] (index.mjs:46:32)
+    at handleSelect (index.mjs:1070:21)
+    at eval (index.mjs:1115:61)
+    at handleEvent (index.mjs:16:31)
+    at executeDispatch (react-dom-client.development.js:16427:9)
+    at runWithFiberInDEV (react-dom-client.development.js:1511:30)
+    at processDispatchQueue (react-dom-client.development.js:16477:19)
+    at eval (react-dom-client.development.js:17075:9)
+    at batchedUpdates$1 (react-dom-client.development.js:3254:40)
+    at dispatchEventForPluginEventSystem (react-dom-client.development.js:16631:7)
+    at dispatchEvent (react-dom-client.development.js:20717:11)
+    at dispatchDiscreteEvent (react-dom-client.development.js:20685:11)
+onModelChange @ E:\Developing Projects\DesAInR\src\app\page.tsx:3638
+eval @ index.mjs:46
+handleSelect @ index.mjs:1070
+eval @ index.mjs:1115
+handleEvent @ index.mjs:16
+executeDispatch @ react-dom-client.development.js:16427
+runWithFiberInDEV @ react-dom-client.development.js:1511
+processDispatchQueue @ react-dom-client.development.js:16477
+eval @ react-dom-client.development.js:17075
+batchedUpdates$1 @ react-dom-client.development.js:3254
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:16631
+dispatchEvent @ react-dom-client.development.js:20717
+dispatchDiscreteEvent @ react-dom-client.development.js:20685
+--------------------------------------------------
+[2025-10-01 16:59:27] (from previous session)
+Prompt:
+still same: 
+[processClientMessage] Processing message, attachments: 0
+💬 [CONTENT GENERATION] Original model ID: gemini-flash-latest
+💬 [CONTENT GENERATION] Normalized model ID: gemini-2.0-flash-exp
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+✅ [CONTENT GENERATION] Success with model: gemini-2.0-flash-exp
+[processClientMessage] Success, output size: 4557 bytes
+ POST / 200 in 14459ms
+ ○ Compiling /api/generate-chat-title ...
+ ✓ Compiled /api/generate-chat-title in 2.5s (2371 modules)
+🏷️  [TITLE GENERATION] Using LITE model: gemini-2.5-flash-lite-preview-06-17
+Generating content with model: gemini-2.5-flash-lite-preview-06-17
+🏷️  [TITLE GENERATION] Using LITE model: gemini-2.5-flash-lite-preview-06-17
+Generating content with model: gemini-2.5-flash-lite-preview-06-17
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+✅ [TITLE GENERATION] Success with model: gemini-2.5-flash-lite-preview-06-17
+ POST /api/generate-chat-title 200 in 3339ms
+✅ [TITLE GENERATION] Success with model: gemini-2.5-flash-lite-preview-06-17
+ POST /api/generate-chat-title 200 in 3571ms
+--------------------------------------------------
+[2025-10-01 16:57:32] (from previous session)
+Prompt:
+Here is clear that, not using my selected model for content gen.
+
+
+[processClientMessage] Processing message, attachments: 0
+💬 [CONTENT GENERATION] Original model ID: gemini-flash-latest
+💬 [CONTENT GENERATION] Normalized model ID: gemini-2.0-flash-exp
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+✅ [CONTENT GENERATION] Success with model: gemini-2.0-flash-exp
+[processClientMessage] Success, output size: 2854 bytes
+ POST / 200 in 8903ms
+ ○ Compiling /api/generate-chat-title ...
+ ✓ Compiled /api/generate-chat-title in 1540ms (2371 modules)
+🏷️  [TITLE GENERATION] Using LITE model: gemini-2.5-flash-lite-preview-06-17
+Generating content with model: gemini-2.5-flash-lite-preview-06-17
+🏷️  [TITLE GENERATION] Using LITE model: gemini-2.5-flash-lite-preview-06-17
+Generating content with model: gemini-2.5-flash-lite-preview-06-17
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+ GET / 200 in 390ms
+✅ [TITLE GENERATION] Success with model: gemini-2.5-flash-lite-preview-06-17
+ POST /api/generate-chat-title 200 in 2515ms
+✅ [TITLE GENERATION] Success with model: gemini-2.5-flash-lite-preview-06-17
+ POST /api/generate-chat-title 200 in 3797ms
+--------------------------------------------------
+[2025-10-01 16:53:49] (from previous session)
+Prompt:
+please add detail debugging for api calling what model is using for what.
+--------------------------------------------------
+[2025-10-01 16:50:10] (from previous session)
+Prompt:
+still both using same model:
+
+gemini-2.5-flash-lite-preview-06-17
+
+ ○ Compiling /api/generate-chat-title ...
+ ✓ Compiled /api/generate-chat-title in 679ms (2371 modules)
+Generating content with model: gemini-2.5-flash-lite-preview-06-17
+Generating content with model: gemini-2.5-flash-lite-preview-06-17
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+ GET / 200 in 430ms
+ POST /api/generate-chat-title 200 in 1684ms
+ POST /api/generate-chat-title 200 in 2986ms
+--------------------------------------------------
+[2025-10-01 16:45:49] (from previous session)
+Prompt:
+still same:
+
+✓ Compiled /api/generate-chat-title in 262ms (2371 modules)
+Generating content with model: gemini-flash-lite-latest
+Generating content with model: gemini-flash-lite-latest
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+ POST /api/generate-chat-title 200 in 1086ms
+ POST /api/generate-chat-title 200 in 2331ms
+--------------------------------------------------
+[2025-10-01 16:36:02] (from previous session)
+Prompt:
+still same. 
+
+ POST / 500 in 22537ms
+[processClientMessage] Processing message, attachments: 0
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+[processClientMessage] Success, output size: 4890 bytes
+ POST / 200 in 12943ms
+ ○ Compiling /api/generate-chat-title ...
+ ✓ Compiled /api/generate-chat-title in 511ms (2371 modules)
+Generating content with model: gemini-flash-lite-latest
+Generating content with model: gemini-flash-lite-latest
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+ GET / 200 in 335ms
+ POST /api/generate-chat-title 200 in 1311ms
+ POST /api/generate-chat-title 200 in 2761ms
+
+
+I selected for the content genaration Gemini Flash letest. But it doesn't follow it at al. Both genarated by gemini-flash-lite-latest
+--------------------------------------------------
+[2025-10-01 16:32:13] (from previous session)
+Prompt:
+Problem is now it using same model for genarating contents and chat titile. But it should be just use the chat titile with the lite models:
+  'googleai/gemini-2.5-flash-lite-preview-06-17',
+  'googleai/gemini-2.0-flash-lite-preview-12-18',
+  'googleai/gemini-1.5-flash-lite-preview',
+
+But for contents genaration it will user the user seleted models. So please analyze the codebase and fix it.
+--------------------------------------------------
+[2025-10-01 16:26:50] (from previous session)
+Prompt:
+please back them as before
+--------------------------------------------------
+[2025-10-01 16:23:48] (from previous session)
+Prompt:
+I can see model changing not effecting on api call becouse always it asking the call with the gemini-flash-lite-latest model. 
+
+Check the log here. I tried there time with three different model but here always same:
+ POST / 500 in 6558ms
+ ✓ Compiled in 592ms (2215 modules)
+ ✓ Compiled in 266ms (2215 modules)
+ ✓ Compiled in 269ms (2215 modules)
+[processClientMessage] Processing message, attachments: 0
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+[processClientMessage] Success, output size: 2802 bytes
+ POST / 200 in 10034ms
+ ✓ Compiled /api/generate-chat-title in 269ms (2371 modules)
+Generating content with model: gemini-flash-lite-latest
+Generating content with model: gemini-flash-lite-latest
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+ POST /api/generate-chat-title 200 in 1107ms
+ POST /api/generate-chat-title 200 in 1529ms
+[processClientMessage] Processing message, attachments: 0
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+[processClientMessage] Success, output size: 2762 bytes
+ POST / 200 in 5482ms
+Generating content with model: gemini-flash-lite-latest
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+Generating content with model: gemini-flash-lite-latest
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+ POST /api/generate-chat-title 200 in 550ms
+ POST /api/generate-chat-title 200 in 1805ms
+Follow the rule always and implement the requirements properly as mentioned above.Read the rule.md file in the MagicInput folder
+--------------------------------------------------
+[2025-10-01 16:19:17] (from previous session)
+Prompt:
+I tested it many time and I can see now it just working with the models:
+
+  // 🆕 New Models (Top Priority)
+  { id: 'gemini-flash-latest', name: '🆕 Gemini Flash (Latest) ⭐', supportsThinking: true, tag: 'New' },
+  { id: 'gemini-2.5-flash', name: '🆕 Gemini 2.5 Flash', supportsThinking: true, tag: 'New' },
+  { id: 'gemini-2.5-pro', name: '🆕 Gemini 2.5 Pro', supportsThinking: true, tag: 'New' },
+  { id: 'gemini-2.5-flash-image-preview', name: '🆕 Gemini 2.5 Flash (Image Gen/Edit) ⭐', supportsThinking: true, supportsImageGen: true, tag: 'New' },
+  { id: 'gemini-flash-lite-latest', name: '🆕 Gemini Flash Lite (Latest) ⭐', supportsThinking: true, tag: 'New' },
+
+
+Also for this gemini-2.5-flash' model changing to gemini-flash-latest not using gemini-2.5-flash' models. Also I can see all models now aksing the thinking velue so non thinking models are getting error this this.  
+
+
+ ⚠ Found a change in next.config.js. Restarting the server to apply the changes...
+   ▲ Next.js 15.2.3
+   - Local:        http://localhost:9003
+   - Network:      http://192.168.1.101:9003
+   - Environments: .env.local, .env
+   - Experiments (use with caution):
+     · allowedDevOrigins
+
+ ✓ Starting...
+ ✓ Ready in 2.2s
+ ○ Compiling / ...
+ ✓ Compiled / in 7.5s (3868 modules)
+ GET / 200 in 8701ms
+ ✓ Compiled in 1364ms (1653 modules)
+ GET / 200 in 64ms
+ ✓ Compiled in 1331ms (3854 modules)
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET / 200 in 889ms
+ ✓ Compiled in 573ms (3854 modules)
+[processClientMessage] Processing message, attachments: 0
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+[processClientMessage] Success, output size: 2708 bytes
+ POST / 200 in 7984ms
+ ○ Compiling /api/generate-chat-title ...
+ ✓ Compiled /api/generate-chat-title in 1342ms (4011 modules)
+Generating content with model: gemini-flash-lite-latest
+Generating content with model: gemini-flash-lite-latest
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+ POST /api/generate-chat-title 200 in 2311ms
+ POST /api/generate-chat-title 200 in 3473ms
+Generating content with model: gemini-flash-lite-latest
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+[analyzeClientRequirements] input attachments 0
+[analyzeClientRequirements] input size 2782 bytes
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+ POST /api/generate-chat-title 200 in 1776ms
+[analyzeClientRequirements] Success, output size: 10397 bytes
+[analyzeClientRequirements] output size 10397 bytes
+ POST / 200 in 20560ms
+Generating content with model: gemini-flash-lite-latest
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+[analyzeClientRequirements] input attachments 0
+[analyzeClientRequirements] input size 6741 bytes
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+ POST /api/generate-chat-title 200 in 1835ms
+[analyzeClientRequirements] Success, output size: 12996 bytes
+[analyzeClientRequirements] output size 12996 bytes
+ POST / 200 in 24841ms
+[analyzeClientRequirements] input attachments 0
+[analyzeClientRequirements] input size 248 bytes
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+ERROR (analyzeClientRequirements): Failed after rotating keys: Error [ApiError]: {"error":{"code":400,"message":"Unable to submit request because thinking is not supported by this model. Learn more: https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/gemini","status":"INVALID_ARGUMENT"}}
+    at async generateJSON (src\lib\ai\genai-helper.ts:75:23)
+    at async analyzeClientRequirements (src\ai\flows\analyze-client-requirements.ts:256:19)
+  73 |       } catch (_streamErr) {
+  74 |         // Fallback to non-streaming call for models that don't support streaming
+> 75 |         const result = await ai.models.generateContent({
+     |                       ^
+  76 |           model: modelId,
+  77 |           config: modelConfig,
+  78 |           contents: [{ role: 'user', parts: [{ text: fullPrompt }] }], {
+  status: 400
+}
+ ⨯ Error: AI call failed in analyzeClientRequirements. {"error":{"code":400,"message":"Unable to submit request because thinking is not supported by this model. Learn more: https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/gemini","status":"INVALID_ARGUMENT"}}
+    at analyzeClientRequirements (src\ai\flows\analyze-client-requirements.ts:269:10)
+  267 |   } catch (error) {
+  268 |     console.error(`ERROR (${flowName}): Failed after rotating keys:`, error);
+> 269 |     throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);
+      |          ^
+  270 |   }
+  271 | } {
+  digest: '22060190'
+}
+ POST / 500 in 3417ms
+[processClientMessage] Processing message, attachments: 0
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+ERROR (processClientMessage): Error [ApiError]: {"error":{"code":404,"message":"models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.","status":"NOT_FOUND"}}
+    at async generateJSON (src\lib\ai\genai-helper.ts:75:23)
+    at async processClientMessage (src\ai\flows\process-client-message.ts:128:19)
+  73 |       } catch (_streamErr) {
+  74 |         // Fallback to non-streaming call for models that don't support streaming
+> 75 |         const result = await ai.models.generateContent({
+     |                       ^
+  76 |           model: modelId,
+  77 |           config: modelConfig,
+  78 |           contents: [{ role: 'user', parts: [{ text: fullPrompt }] }], {
+  status: 404
+}
+ ⨯ Error: AI call failed in processClientMessage. {"error":{"code":404,"message":"models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.","status":"NOT_FOUND"}}
+    at processClientMessage (src\ai\flows\process-client-message.ts:140:10)
+  138 |   } catch (error) {
+  139 |     console.error(`ERROR (${flowName}):`, error);
+> 140 |     throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);
+      |          ^
+  141 |   }
+  142 | }
+  143 | {
+  digest: '366048'
+}
+ POST / 500 in 2778ms
+[analyzeClientRequirements] input attachments 0
+[analyzeClientRequirements] input size 243 bytes
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+[analyzeClientRequirements] Success, output size: 9266 bytes
+[analyzeClientRequirements] output size 9266 bytes
+ POST / 200 in 36245ms
+Generating content with model: gemini-flash-lite-latest
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+Generating content with model: gemini-flash-lite-latest
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+ POST /api/generate-chat-title 200 in 682ms
+ POST /api/generate-chat-title 200 in 701ms
+[processClientMessage] Processing message, attachments: 0
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+ERROR (processClientMessage): Error [ApiError]: {"error":{"code":404,"message":"models/gemini-2.5-flash-preview-04-17 is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.","status":"NOT_FOUND"}}    
+    at async generateJSON (src\lib\ai\genai-helper.ts:75:23)
+    at async processClientMessage (src\ai\flows\process-client-message.ts:128:19)
+  73 |       } catch (_streamErr) {
+  74 |         // Fallback to non-streaming call for models that don't support streaming
+> 75 |         const result = await ai.models.generateContent({
+     |                       ^
+  76 |           model: modelId,
+  77 |           config: modelConfig,
+  78 |           contents: [{ role: 'user', parts: [{ text: fullPrompt }] }], {
+  status: 404
+}
+ ⨯ Error: AI call failed in processClientMessage. {"error":{"code":404,"message":"models/gemini-2.5-flash-preview-04-17 is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.","status":"NOT_FOUND"}}  
+    at processClientMessage (src\ai\flows\process-client-message.ts:140:10)
+  138 |   } catch (error) {
+  139 |     console.error(`ERROR (${flowName}):`, error);
+> 140 |     throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);
+      |          ^
+  141 |   }
+  142 | }
+  143 | {
+  digest: '3399401120'
+}
+ POST / 500 in 6558ms
+--------------------------------------------------
 [2025-10-01 16:08:55] (from previous session)
 Prompt:
 add the Gemini Flash (Latest) - New tag ⭐ (Default)

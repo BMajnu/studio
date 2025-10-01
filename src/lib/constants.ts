@@ -3,7 +3,7 @@ import type { UserProfile } from './types';
 export const DEFAULT_USER_ID = 'default-user';
 
 export const AVAILABLE_MODELS = [
-  // 🆕 New Models (Top Priority)
+  // 🆕 New Models (Top Priority) - "-latest" models are auto-mapped to valid names
   { id: 'gemini-flash-latest', name: '🆕 Gemini Flash (Latest) ⭐', supportsThinking: true, tag: 'New' },
   { id: 'gemini-2.5-flash', name: '🆕 Gemini 2.5 Flash', supportsThinking: true, tag: 'New' },
   { id: 'gemini-2.5-pro', name: '🆕 Gemini 2.5 Pro', supportsThinking: true, tag: 'New' },
@@ -32,6 +32,7 @@ export const AVAILABLE_MODELS = [
 
 // Image Generation Models - separate reference for image-specific features
 export const IMAGE_GENERATION_MODELS = AVAILABLE_MODELS.filter(m => (m as any).supportsImageGen);
+// Default model for content generation (NOT for title generation which uses specific lite preview models)
 export const DEFAULT_MODEL_ID = 'gemini-flash-latest';
 
 

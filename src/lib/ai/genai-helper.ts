@@ -5,6 +5,7 @@
 
 import { GoogleGenAI } from '@google/genai';
 import { UserProfile } from '@/lib/types';
+import { AVAILABLE_MODELS } from '@/lib/constants';
 import { GeminiKeyManager } from './gemini-key-manager';
 
 export interface GenAIConfig {
@@ -13,6 +14,19 @@ export interface GenAIConfig {
   maxOutputTokens?: number;
   thinkingMode?: 'default' | 'none';
   profile?: UserProfile | null;
+}
+
+/** Normalize legacy/deprecated model IDs - currently just removes googleai/ prefix */
+function normalizeModelId(modelId: string): string {
+  // Remove any prefix like "googleai/" that might have been added
+  // No other normalization - use model IDs as-is
+  return modelId.replace(/^googleai\//, '');
+}
+
+/** Whether the given model supports thinking config */
+function modelSupportsThinking(modelId: string): boolean {
+  const info = AVAILABLE_MODELS.find((m: any) => m.id === modelId);
+  return !!info?.supportsThinking;
 }
 
 /**
@@ -24,6 +38,10 @@ export async function generateJSON<T = any>(
   userPrompt: string
 ): Promise<T> {
   const { modelId, temperature = 0.7, maxOutputTokens = 8000, thinkingMode, profile } = config;
+  const normalizedModelId = normalizeModelId(modelId);
+  
+  console.log(`💬 [CONTENT GENERATION] Original model ID: ${modelId}`);
+  console.log(`💬 [CONTENT GENERATION] Normalized model ID: ${normalizedModelId}`);
 
   const manager = new GeminiKeyManager(profile || null);
   const allKeys = manager.getAllKeys();
@@ -44,22 +62,24 @@ export async function generateJSON<T = any>(
         temperature,
         maxOutputTokens,
         responseMimeType: 'application/json',
-        // Note: Tools (like googleSearch) cannot be used with responseMimeType: 'application/json'
       };
 
-      if (thinkingMode === 'none') {
-        modelConfig.thinkingConfig = { thinkingBudget: 0 };
-      } else if (thinkingMode === 'default') {
-        modelConfig.thinkingConfig = { thinkingBudget: -1 };
+      if (modelSupportsThinking(modelId)) {
+        if (thinkingMode === 'none') {
+          modelConfig.thinkingConfig = { thinkingBudget: 0 };
+        } else if (thinkingMode === 'default') {
+          modelConfig.thinkingConfig = { thinkingBudget: -1 };
+        }
       }
 
       const fullPrompt = systemPrompt + '\n\n' + userPrompt;
 
       // Prefer streaming API per latest SDK guidance
       let responseText = '';
+      console.log(`📡 [CONTENT API CALL] Calling AI with model: ${normalizedModelId}`);
       try {
         const stream = await ai.models.generateContentStream({
-          model: modelId,
+          model: normalizedModelId,
           config: modelConfig,
           contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
         });
@@ -72,8 +92,9 @@ export async function generateJSON<T = any>(
         }
       } catch (_streamErr) {
         // Fallback to non-streaming call for models that don't support streaming
+        console.log(`📡 [CONTENT API FALLBACK] Streaming failed, using non-streaming with model: ${normalizedModelId}`);
         const result = await ai.models.generateContent({
-          model: modelId,
+          model: normalizedModelId,
           config: modelConfig,
           contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
         });
@@ -81,6 +102,7 @@ export async function generateJSON<T = any>(
       }
 
       manager.reportSuccess(key);
+      console.log(`✅ [CONTENT GENERATION] Success with model: ${normalizedModelId}`);
       return JSON.parse(responseText) as T;
     } catch (err: any) {
       attempts++;
@@ -120,6 +142,7 @@ export async function generateText(
   prompt: string
 ): Promise<string> {
   const { modelId, temperature = 0.7, maxOutputTokens = 2000, thinkingMode, profile } = config;
+  const normalizedModelId = normalizeModelId(modelId);
 
   const manager = new GeminiKeyManager(profile || null);
   const allKeys = manager.getAllKeys();
@@ -141,24 +164,28 @@ export async function generateText(
         maxOutputTokens,
       };
 
-      if (thinkingMode === 'none') {
-        config.thinkingConfig = { thinkingBudget: 0 };
-      } else if (thinkingMode === 'default') {
-        config.thinkingConfig = { thinkingBudget: -1 };
+      if (modelSupportsThinking(normalizedModelId)) {
+        if (thinkingMode === 'none') {
+          config.thinkingConfig = { thinkingBudget: 0 };
+        } else if (thinkingMode === 'default') {
+          config.thinkingConfig = { thinkingBudget: -1 };
+        }
       }
 
       let responseText = '';
       try {
         const stream = await ai.models.generateContentStream({
-          model: modelId,
+          model: normalizedModelId,
           config: {
             temperature,
             maxOutputTokens,
             tools: [{ googleSearch: {} }],
-            ...(thinkingMode === 'none'
-              ? { thinkingConfig: { thinkingBudget: 0 } }
-              : thinkingMode === 'default'
-              ? { thinkingConfig: { thinkingBudget: -1 } }
+            ...(modelSupportsThinking(normalizedModelId)
+              ? thinkingMode === 'none'
+                ? { thinkingConfig: { thinkingBudget: 0 } }
+                : thinkingMode === 'default'
+                ? { thinkingConfig: { thinkingBudget: -1 } }
+                : {}
               : {}),
           },
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -168,15 +195,17 @@ export async function generateText(
         }
       } catch (_streamErr) {
         const result = await ai.models.generateContent({
-          model: modelId,
+          model: normalizedModelId,
           config: {
             temperature,
             maxOutputTokens,
             tools: [{ googleSearch: {} }],
-            ...(thinkingMode === 'none'
-              ? { thinkingConfig: { thinkingBudget: 0 } }
-              : thinkingMode === 'default'
-              ? { thinkingConfig: { thinkingBudget: -1 } }
+            ...(modelSupportsThinking(normalizedModelId)
+              ? thinkingMode === 'none'
+                ? { thinkingConfig: { thinkingBudget: 0 } }
+                : thinkingMode === 'default'
+                ? { thinkingConfig: { thinkingBudget: -1 } }
+                : {}
               : {}),
           },
           contents: [{ role: 'user', parts: [{ text: prompt }] }],

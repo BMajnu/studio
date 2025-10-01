@@ -673,17 +673,16 @@ export function HistoryPanel({
         
         {/* Gallery Button */}
         <div className="px-3 pb-2 flex justify-center">
-          <Button
-            variant="outline"
-            size="icon"
+          <Link
+            href="/gallery"
+            prefetch={true}
             className="w-10 h-10 flex items-center justify-center transition-colors shadow-sm hover:shadow-md
             dark:bg-[#111622] dark:text-white dark:hover:bg-[#111622]/80 dark:border-primary/20
-            light:bg-white light:text-black light:hover:bg-white/90 light:border-gray-800/30 border"
-            onClick={() => router.push('/gallery')}
+            light:bg-white light:text-black light:hover:bg-white/90 light:border-gray-800/30 border rounded-md"
             title="Media Gallery"
           >
             <Image className="h-5 w-5" />
-          </Button>
+          </Link>
         </div>
         
         {/* Search Button */}
@@ -765,34 +764,34 @@ export function HistoryPanel({
       
       {/* Gallery Button */}
       <div className="px-3 pb-2">
-        <Button 
-          variant="outline" 
-          className="w-full justify-start gap-2 border-0"
+        <Link 
+          href="/gallery"
+          prefetch={true}
+          className="w-full justify-start gap-2 border-0 flex items-center px-4 py-2 rounded-md transition-colors hover:bg-accent hover:text-accent-foreground"
           style={{ 
             color: 'hsl(var(--sidebar-foreground) / 0.8)',
             borderColor: 'hsl(var(--sidebar-border))'
           }}
-          onClick={() => router.push('/gallery')}
         >
           <Image className="h-4 w-4" />
           <span>Gallery</span>
-        </Button>
+        </Link>
       </div>
       
       {/* Lab Button - Image Generation/Editing */}
       <div className="px-3 pb-2">
-        <Button 
-          variant="outline" 
-          className="w-full justify-start gap-2 border-0"
+        <Link 
+          href="/lab"
+          prefetch={true}
+          className="w-full justify-start gap-2 border-0 flex items-center px-4 py-2 rounded-md transition-colors hover:bg-accent hover:text-accent-foreground"
           style={{ 
             color: 'hsl(var(--sidebar-foreground) / 0.8)',
             borderColor: 'hsl(var(--sidebar-border))'
           }}
-          onClick={() => router.push('/lab')}
         >
           <Beaker className="h-4 w-4" />
           <span>Lab</span>
-        </Button>
+        </Link>
       </div>
 
       {/* Clear Search Highlights Button - Only shown when search has been performed */}

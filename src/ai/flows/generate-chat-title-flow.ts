@@ -32,12 +32,12 @@ export type GenerateChatTitleOutput = z.infer<typeof GenerateChatTitleOutputSche
 // Constants
 // -------------------------
 
-// Default model for title generation with fallback models
+// Default model for title generation - using flash-lite-latest with fallback to preview models
 const DEFAULT_TITLE_MODEL = 'googleai/gemini-flash-lite-latest';
 const FALLBACK_TITLE_MODELS = [
   'googleai/gemini-2.5-flash-lite-preview-06-17',
   'googleai/gemini-2.0-flash-lite-preview-12-18',
-  'googleai/gemini-1.5-flash-lite-preview'
+  'googleai/gemini-1.5-flash-lite-preview',
 ];
 
 // -------------------------
@@ -81,8 +81,9 @@ export async function generateChatTitle(input: GenerateChatTitleInput): Promise<
   }
 
   // Try models with fallback
-  const modelsToTry = modelId 
-    ? [modelId] 
+  // Always constrain title generation to lite models unless caller explicitly forces it
+  const modelsToTry = modelId && modelId.startsWith('googleai/') && modelId.includes('flash-lite')
+    ? [modelId]
     : [DEFAULT_TITLE_MODEL, ...FALLBACK_TITLE_MODELS];
 
   let lastError: Error | null = null;
@@ -92,6 +93,8 @@ export async function generateChatTitle(input: GenerateChatTitleInput): Promise<
       // The GoogleAIService expects the model name *without* the 'googleai/' prefix.
       const modelToUse = modelIdWithPrefix.replace(/^googleai\//, '');
       
+      console.log(`🏷️  [TITLE GENERATION] Using LITE model: ${modelToUse}`);
+      
       // Call GoogleAIService directly (simpler and avoids Genkit parsing quirks)
       const service = new GoogleAIService({ 
         modelId: modelToUse,
@@ -99,6 +102,7 @@ export async function generateChatTitle(input: GenerateChatTitleInput): Promise<
       });
       const { text } = await service.generateContent(promptText);
 
+      console.log(`✅ [TITLE GENERATION] Success with model: ${modelToUse}`);
       return text.replace(/\n/g, ' ').trim();
     } catch (error) {
       console.warn(`Chat title generation failed with model ${modelIdWithPrefix}:`, error);

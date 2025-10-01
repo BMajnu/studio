@@ -45,7 +45,8 @@ export class GoogleAIService {
     }
 
     try {
-      console.log(`Generating content with model: ${this.config.modelId}`);
+      // This service is ONLY used by title generation (via generate-chat-title-flow)
+      console.log(`🏷️  [GoogleAIService - TITLE ONLY] Generating with model: ${this.config.modelId}`);
       
       // Use GeminiClient request method for non-streaming
       const { data } = await this.client.request(async (apiKey) => {
@@ -58,6 +59,7 @@ export class GoogleAIService {
           responseMimeType: this.config.responseMimeType,
         };
         
+        // Apply thinking only when supported; keep defaults otherwise
         if (this.config.thinkingMode === 'none') {
           config.thinkingConfig = { thinkingBudget: 0 };
         } else if (this.config.thinkingMode === 'default') {
