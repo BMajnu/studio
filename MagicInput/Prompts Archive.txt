@@ -1,3 +1,1677 @@
+[2025-10-03 01:03:10] (from previous session)
+Prompt:
+still they are cropping from right side.
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-03 01:02:06] (from previous session)
+Prompt:
+I am not taking about the Suggested Actions croped. I am saying that the language cards are cropped from the right side.
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-03 00:59:25] (from previous session)
+Prompt:
+Check out the screenshot and here you will see still and there the right part of the AI generations are So properly analyze the code base and make sure no part will be cropped at all. So fix it. And you can see at the top, the buttons like logo, theme changing button, language changing button, any forward on. Looks like overflate. So make a better solution for it, and fix the cropping, problem. But, there is a good thing now, for mobile, view, English and Bengali translate showing above and below. Not showing a little right and left side. So this is a good thing.
+
+Analysis:
+## Overview:
+
+The user has provided a screenshot of a chat interface and is requesting UI/UX analysis. The main concerns are visual cropping issues affecting elements at the top of the interface and within the AI-generated content section, specifically "Suggested Actions." The user also notes an improvement in mobile view for language translations.
+
+## Describe Image:
+
+The image displays a chat interface, starting with "You" at the top left and a "Hello!" message. The top bar features navigational elements: "AI Chat" (currently selected), followed by several icons representing functionalities such as code (`{}`), language/translation (`A*`), theme (`☀️`), and typography (`TT`). The rightmost portion of these top bar icons is visibly cropped or overflowing beyond the screenshot's boundary, confirming the user's observation of an overflow issue for these buttons.
+
+Below the "Hello!" message, an AI-generated response is presented in a large white card. This card contains text blocks for "ENGLISH" and "BENGALI" translations of the AI's message. Each language section presents its content vertically stacked, with the Bengali translation appearing directly below the English one. The user explicitly praises this vertical stacking for mobile view. The text within both English and Bengali sections wraps horizontally, fitting within the visible boundaries of the AI response card without individual lines being horizontally cropped.
+
+Further down, within the same AI response card, a "Suggested Actions" section is visible. This section contains several button-like elements with text and a star icon. Examples include "Create a concise design brief from my message", "Generate 3 logo concept directions", "Outline a step-by-step plan to deliver the design", and "Summarize key requirements". Crucially, a fifth suggested action button, "Propose a color...", is horizontally truncated on the right side of the screen, indicating a cropping problem within this section.
+
+At the very bottom, a chat input field is present, featuring a user avatar on the left, an input area with "Show input", and icons for attaching files, voice input, and sending messages on the right. This input area does not appear to have any cropping or overflow issues in the provided image.
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-03 00:54:48] (from previous session)
+Prompt:
+Now I want to optimize the full website Every single page of it to for a mobile view. Because I can see in mobile view the few part are going be cropped or sometime it's, shows error to generate or something else. Firstly, I'm pacing problem with the UI because, this UI is not optimized for mobile screen. So please check the code base every single pass and, properly analyze it and make them optimize for mobile view.
+
+Analysis:
+Overview:
+The user is requesting a complete mobile optimization of their website, stating that the current UI is not responsive and leads to cropping or errors on mobile devices. The provided image displays the desktop version of a web application with a two-column layout, showcasing a chat interface with a sidebar navigation and main content area.
+
+Describe Image:
+The provided image displays a desktop view of a web application, "DesAInR," which appears to be an AI-powered design assistant. The interface is divided into two primary columns.
+
+The **left sidebar** functions as the main navigation. At the top, it features the application logo "DesAInR" and a hamburger menu icon. Below this, a "New Chat" button is prominently displayed. The middle section contains navigation categories, "Gallery" and "Lab," followed by a "Search chats..." input field. The lower part of the sidebar lists recent chat conversations, such as "Initial Greeting Exchange" (highlighted, showing 4 messages, 4 minutes ago), "Holiday Mug Design Requests," and "Logo Revision Feedback Provided," each with a message count and timestamp. This fixed-width sidebar would likely need to collapse into a hidden drawer or overlay menu on a mobile view to conserve screen space.
+
+The **right main content area** hosts the core chat functionality. At the very top, there's a user profile icon (labeled "You"), followed by a segmented control or tabs for "AI Chat" and "Gemini Flash (Latest)," and an "Edit & Resend" button. Further to the right, a series of utility icons are visible, including what appear to be settings, notifications, and possibly a theme toggle, along with a plus icon and a grid/dots icon. This density of interactive elements may require simplification or re-arrangement for smaller mobile screens.
+
+The primary chat display area shows a conversation. A user input "Hello!" is visible. The subsequent AI response is presented in a two-column format, featuring the content in "ENGLISH" on the left and "BENGALI" on the right. This side-by-side linguistic display is a significant challenge for mobile responsiveness, as it would likely cause severe cropping or require horizontal scrolling; it would need to be re-designed to stack vertically or use a tabbed interface. The AI's initial response introduces itself as a "dedicated graphic design assistant" ready to help with various design challenges.
+
+Below the initial AI response, a "Suggested Actions" section presents several interactive buttons (e.g., "Create a concise design brief from my message," "Generate 3 logo concept directions," "Propose a color palette and font pairings," "Outline a step-by-step plan to deliver the design," "Summarize key requirements"). These buttons, if too numerous, would require wrapping or a more dynamic layout for mobile. Below these suggestions, a row of smaller icons (e.g., plus, chat bubble, image, code) and a "Show input" button are visible, along with a "Regenerate" button on the far right. A partial second AI response, also in the two-column English/Bengali format, is visible at the bottom, beginning with "Assalamu Alaikum, B. Majnul. Generating initial concepts is one of the most exciting parts of the design process."
+
+Overall, the design heavily relies on ample horizontal space, making the two-column text, dense navigation, and numerous action buttons significant areas that would require extensive refactoring and responsive design principles for an optimized mobile experience.
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-03 00:43:02] (from previous session)
+Prompt:
+I just asked to remove the title: "AI Design Assistant Response"
+
+And fix the dublicate issues
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-03 00:40:34] (from previous session)
+Prompt:
+Okay. Now, I can see it's working. But I want to remove the AI design assistant response. And this title. I want the remove. This title. And still I can see the suggested action buttons are in two row lines and, same thing are in the two different land. I mean, there was first line, with, four different solution, and same four solution are duplicated in the below line. So fix them. Properly.
+
+Analysis:
+Overview:
+The user is interacting with an AI chat interface that has provided a dual-language response and duplicated suggested actions. The request involves refining the UI by removing the AI's detailed response and its corresponding title, and streamlining the "Suggested Actions" section by eliminating duplicate buttons and consolidating their display.
+
+Describe Image:
+The provided image showcases a dark-themed chat interface. At the top, a user's prompt "hello!" is displayed. Below this, a prominent dark grey card, centrally titled "AI Design Assistant Response," occupies a significant portion of the screen. This card is horizontally divided into two main content areas: "ENGLISH" on the left and "BENGALI" on the right. Both sections contain an introductory message from "B. Majnu," an AI graphic design assistant, asking about the user's current project and goals. Immediately following this response card, there is a section labeled "Suggested Actions." This section displays eight interactive buttons arranged in two identical rows of four. Each row contains the actions: "Create a concise design brief from my message," "Generate 3 logo concept directions," "Propose a color palette and font pairings," and "Outline a step-by-step plan to deliver the design." Every button is prefixed with a sparkle icon. Below the suggested actions, a chat input field is visible, adorned with various formatting and media attachment icons, a timestamp "12:37 AM," and a "Regenerate" button. A partially visible sidebar on the left displays "Requests" and "Provided" sections.
+
+Content requirements (UI/UX):
+-   **Removal of "AI Design Assistant Response" section:** The entire UI component displaying the "AI Design Assistant Response" title, along with both the English and Bengali text responses below it, should be completely removed from the interface.
+-   **Consolidation of "Suggested Actions":** The "Suggested Actions" section needs to be modified to display only one set of the unique suggested actions. Specifically, the second row of four buttons, which is an exact duplicate of the first row, should be removed. The remaining four unique suggested action buttons should be presented in a single, clear layout, ideally a single row, without duplication.
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-03 00:37:27] (from previous session)
+Prompt:
+I can see the layout is fully distroied now all are showsed as like the suggested actions. the english and bengali ai response and the suggeste actions both. Also I can see the suggested actions are dublicated in two lines (row). 
+
+Fix them properly. 
+
+Analysis:
+## Overview:
+The user is reporting a UI rendering issue within the "DesAInR - AI Design Assistant" application. The AI's textual responses (both English and Bengali) are incorrectly displayed as if they were "Suggested Actions" buttons, adopting the same visual style. Additionally, the actual "Suggested Actions" section itself is duplicated, showing two identical rows of action buttons. The request is to fix these display inconsistencies.
+
+## Describe Image:
+The provided image displays the "DesAInR - AI Design Assistant" web interface, characterized by a dark theme. The layout consists of a left sidebar for navigation and chat history, and a main content area for the chat conversation. The user has initiated a chat with "Hello!".
+
+Within the main chat area, the "AI Design Assistant Response" section is visible. Immediately following the label, an English text response ("Hello B. Majnul. Welcome. I'm excited to start this design journey with you...") is displayed. Below this, a Bengali text response is presented. Crucially, both the English and Bengali AI responses are rendered inside distinct, rounded-corner, dark-background elements, visually identical in style to the interactive "Suggested Actions" buttons shown below. This indicates that a text content component is erroneously adopting the styling of an interactive button or action item.
+
+Below the AI's responses, a section titled "Suggested Actions" is present. This section contains five distinct action buttons: "Create a concise design brief from my message," "Generate 3 logo concept directions," "Propose a color palette and font pairings," "Outline a step-by-step plan to deliver the design," and "Summarize key requirements." A significant issue, as reported by the user, is that this entire set of five "Suggested Actions" buttons is duplicated, appearing in two identical rows directly beneath each other. This confirms a rendering bug causing redundant display of the suggested actions.
+
+At the bottom of the main chat area, an input field with a "Show input" button and various interaction icons (video, image, message, list, code, refresh, copy, magic wand, image, copy) are visible, presumably for composing and enhancing user inputs.
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-03 00:33:27] (from previous session)
+Prompt:
+Okay, I can see now it's fixed. Take out the first screenshot, please. The response should be in English. There were two cards like this, but one is above and the other is below. This way, it's formatted. I want it like the other "Belong Well" system. I've attached the second screenshot, please check it. There's the way where there are "Belong Well" cards. You can see the English is on the left side and the French is on the right side. I want it the same way. So, implement it properly. I can also see there was a "Design Tip" card. I want you to remove this "Design Tip" card completely because it is unnecessary. So, please analyze the codebase properly, implement it, and fix them.
+
+Analysis:
+Overview:
+The user is requesting UI modifications to a chat interface, specifically concerning the display of multilingual responses and the removal of an irrelevant information card. The primary goal is to reformat the English and Bengali response cards from a vertical stack to a side-by-side horizontal layout, mirroring a "Belong Well" system exemplified in the second provided screenshot. Additionally, the "Design Tips" card, deemed unnecessary, is to be entirely removed from the interface.
+
+Describe Image:
+The first image displays a chat interface where a language model has provided a response. The main content area shows a "Response (English)" card containing an English text and, immediately below it, a "প্রতিক্রিয়া (বাংলা)" (Response (Bengali)) card with the corresponding Bengali text. Both these response cards are distinct, vertically stacked components. Below these, there's a section titled "Suggested Actions" displaying multiple actionable buttons, such as "Create a concise design brief from my message" and "Generate 3 logo concept directions." At the very bottom of the visible screen, there is a "Design Tips" card that provides advice like "Establish clear visual hierarchy in your layout..." The overall theme of the interface is dark, with light text and purple accents for interactive elements.
+
+The second image, serving as a reference, shows a "Client Message Analyze" interface with a different layout. This interface features tabs like "Key Points," "Fast analyze," and "Suggested Replies." Under the "Suggested Replies" tab (which appears to be active), there are two large, distinct text areas positioned side-by-side horizontally. The left text area is labeled "ENGLISH" and contains an English message, while the right text area is labeled "BENGALI" and contains a Bengali message. Both text areas have an icon for copying content. This horizontal arrangement of language-specific content is the desired layout for the response cards in the user's primary chat interface. The "Design Tips" card is not present in this reference image.
+
+Content requirements:
+- **UI/UX:** The primary task involves reconfiguring the layout of the response cards in the first screenshot to match the side-by-side horizontal display observed in the second screenshot. Specifically, the "Response (English)" card should be positioned on the left, and the "প্রতিক্রিয়া (বাংলা)" (Response (Bengali)) card should be on the right, mirroring the "ENGLISH" and "BENGALI" sections of the "Suggested Replies" in the reference image. The "Design Tips" card, visible at the bottom of the first screenshot, needs to be completely removed from the UI. The user's mention of the response being "in English" is interpreted as the primary interface language, while the content itself will be displayed multilingually (English and Bengali) side-by-side.
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-03 00:25:56] (from previous session)
+Prompt:
+check out the screenshot it's still not fixed. 
+
+Analysis:
+Overview:
+The screenshot displays a web-based AI Design Assistant interface. The user indicates that an issue remains unfixed. The primary area of concern appears to be the "Key Points" section, which consistently displays "No key points available" in both English and Bengali, suggesting that the feature intended to generate or display key points is not functioning as expected.
+
+Describe Image:
+The image shows a dark-themed web application with a top navigation bar and a left sidebar. The top bar contains several open tabs, including "Whimsic.com", "WinApp", and "AI AI", along with icons for help, language settings, dark mode toggle, and a "TTP" button. The left sidebar presents navigation options "You" and "AI Chat". The main content area features a chat interface, starting with a user message "Hello!". Below this, a large panel titled "AI Design Assistant" is visible. This panel contains five tab-like buttons: "Key Points" (currently selected, highlighted with a pink/purple gradient), "Fast analyze", "Simplified Request", "Step-by-Step Approach", and "Suggested Replies".
+
+Under the selected "Key Points" tab, there are two distinct text areas. The first, labeled "ENGLISH", states "No key points available". The second, labeled "BENGALI", states "কোন মূল বিষয় উপলক্ষ নেই", which translates to "No key points available". Both sections are empty of any generated content. Further down, there is a "Design Tips" section, indicated by a document icon and title, which provides two general design principles: "Always establish a clear visual hierarchy so the audience knows what to look at first." and "Ensure your chosen font is readable across all mediums (digital and print) and sizes." At the very bottom of the interface is a persistent input bar with a series of action icons, including video, image upload, file upload, list, code snippet, trophy, search, edit, refresh, copy, magic wand, plus, and clipboard. To the bottom right of this bar, the time "12:24 AM" and a "Regenerate" button are displayed. The overall aesthetic is clean, with dark backgrounds and contrasting lighter text and interactive elements. The "No key points available" message in both languages strongly suggests the core functionality of generating these points is still unresolved.
+
+Content requirements:
+- Overview: The image shows an AI Design Assistant interface where the "Key Points" feature, intended to provide summarized insights in both English and Bengali, is consistently displaying "No key points available". The user's prompt indicates that this state is an ongoing issue that has not been resolved from a prior context.
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-03 00:23:54] (from previous session)
+Prompt:
+ai chat buttons (reacting as like a Graphics designer assistent) it's not working still same as before.
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-03 00:21:01] (from previous session)
+Prompt:
+Error: ./src/app/page.tsx
+Module parse failed: Identifier 'generateChatResponse' has already been declared (26:9)
+| import { checkBestDesign } from '@/ai/flows/check-best-design-flow';
+| import { promptToReplicate } from '@/ai/flows/prompt-to-replicate-flow';
+> import { generateChatResponse } from '@/ai/flows/generate-chat-response-flow';
+| import { generateVideoPrompts } from '@/ai/flows/generate-video-prompts-flow';
+| import { generateStoryFilm } from '@/ai/flows/generate-story-film-flow';
+
+Import trace for requested module:
+./src/app/page.tsx
+./app/page.tsx
+    at BuildError (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/ui/container/build-error.js:43:41)
+    at react-stack-bottom-frame (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:23950:20)
+    at renderWithHooksAgain (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:5179:20)
+    at renderWithHooks (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:5091:22)
+    at updateFunctionComponent (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:8328:19)
+    at beginWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:9945:18)
+    at runWithFiberInDEV (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:1511:30)
+    at performUnitOfWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:15120:22)
+    at workLoopSync (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:14944:41)
+    at renderRootSync (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:14924:11)
+    at performWorkOnRoot (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:14411:13)
+    at performWorkOnRootViaSchedulerTask (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:16275:7)
+    at MessagePort.performWorkUntilDeadline (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/scheduler/cjs/scheduler.development.js:45:48)
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-03 00:19:49] (from previous session)
+Prompt:
+এই স্ক্রিনশট দুটি লক্ষ্য করো। এখানে তুমি দুটি চ্যাট বাটন দেখতে পাচ্ছ। একটি হলো "Filancher FL Project Tools"। এখানে প্রথমে যে চ্যাট বাটনটি রয়েছে এবং দ্বিতীয় স্ক্রিনশটে তুমি দেখতে পাবে "AI Chat" নামে একটি চ্যাট বাটন রয়েছে। এটি হলো, এখানে ডিটেইলস সহকারে শো করছে যে AI Chat বাটনটি AI Chat for graphic designer advice and suggestion. অর্থাৎ, এই AI Chat বাটনে ক্লিক করলে সাধারণত চ্যাটবোর্ডের মত ইউজার AI এর সাথে গ্রাফিক্স সম্পর্কিত কোন বিষয়ে সাজেশন বা এডভাইস নিতে পারবে বা AI এর সাথে কথোপকথন করতে পারবে।
+
+কিন্তু "Filancher Project Tools" মেনুতে যে চ্যাট নামে টুল রয়েছে, এটি সাধারণত বর্তমান যে ফাংশন ইমপ্লিমেন্ট করা হয়েছে, অর্থাৎ ক্লায়েন্টের চ্যাট মেসেজ এটিকে অ্যানালাইজ করে কি-পয়েন্ট, ফাস্ট অ্যানালাইজ, সিম্পলিফাই রিকোয়েস্ট, স্টেপ-বাই-স্টেপ এপ্রোচ এবং সাজেস্টেড রিপ্লেস, এই ক্লায়েন্ট মেসেজ অ্যানালাইজ এই অ্যানালাইসিসটি প্রেজেন্ট করে।
+
+তো, বর্তমানে Filancher Project Tools লিস্টের AI Chat এ বাটনটি সম্পূর্ণভাবে ঠিক আছে এবং প্রপারলি কাজ করছে। কিন্তু AI Chat বাটনটি Filancher Project Tools এর চ্যাট বাটনের সেম কাজ করছে। কিন্তু AI Chat বাটনটি কাজ করা ছিল, কথা ছিল AI Chatbot হিসেবে। সেটি কাজ করছে না।
+
+তো, নরমালি সম্ভবত এটির AI Flow ইমপ্লিমেন্ট অথবা তৈরি করা রয়েছে। জাস্ট আমাদের যেটা করতে হবে, কোথায় এটি ইমপ্লিমেন্ট করা হয়েছে, কোন ফাইল, সেটি এবং সেটি অনুসরণ করে এটির সাথে AI Chat এ বাটনটির কানেকশন করতে হবে প্রপারলি।
+
+তো, কোডবেস অ্যানালাইসিস করে এই বিষয়টি ফিক্স করো।
+
+Analysis:
+Overview:
+প্রথম স্ক্রিনশটটিতে একটি "AI Chat" বাটন দেখা যাচ্ছে যার টূলটিপে উল্লেখ করা আছে এটি গ্রাফিক্স ডিজাইনের পরামর্শ ও সাজেশনের জন্য একটি AI চ্যাটবট। দ্বিতীয় স্ক্রিনশটে "FL Project Tool" মেনুতে একটি "Chat" বাটন রয়েছে। ব্যবহারকারীর রিপোর্ট অনুযায়ী, "AI Chat" বাটনটি তার নির্ধারিত চ্যাটবট ফাংশনালিটির বদলে "FL Project Tool" এর "Chat" বাটনের মতোই ক্লায়েন্টের মেসেজ অ্যানালাইসিসের কাজ করছে, যা একটি বাগ। এই বাগ ফিক্স করার জন্য কোডবেস অ্যানালাইসিস করে "AI Chat" বাটনটিকে তার সঠিক AI চ্যাটবট ফ্লো-এর সাথে সংযুক্ত করার প্রয়োজন।
+
+Describe Image:
+Image 1:
+এই স্ক্রিনশটের নিচের অংশে একটি ইউজার ইন্টারফেসের কন্ট্রোল প্যানেল দেখা যাচ্ছে। এখানে বিভিন্ন টুলস যেমন "Modern Tool", "Image Tools", "Video Tools" এবং একটি হাইলাইট করা "AI Chat" বাটন রয়েছে। "AI Chat" বাটনের উপর মাউস হোভার করা আছে, যার ফলে একটি টূলটিপ দেখা যাচ্ছে। টূলটিপে লেখা আছে:
+"AI Chat"
+"AI chatbot for graphic design advice and suggestions."
+এটি থেকে বোঝা যাচ্ছে যে এই বাটনটি গ্রাফিক্স ডিজাইন সংক্রান্ত পরামর্শ এবং প্রস্তাবনার জন্য একটি AI চ্যাটবট চালু করার উদ্দেশ্যে তৈরি। বাটনের পাশে একটি প্লাস আইকন এবং "AI Chat" লেখা রয়েছে।
+
+Image 2:
+এই স্ক্রিনশটটি পূর্ববর্তী একটি চ্যাট উইন্ডোর প্রেক্ষাপটে নেওয়া হয়েছে। স্ক্রিনশটের নিচের ডানদিকে "Gemini Flash (Latest)" এবং একটি সেটিংস আইকনসহ "FL Project Tool" নামে দুটি বাটন দেখা যাচ্ছে। "FL Project Tool" বাটনে ক্লিক করার ফলে একটি ড্রপডাউন মেনু খুলেছে। এই মেনুতে একাধিক অপশন রয়েছে, যেমন: "Chat", "Requirements", "AI Prompts", "Check the best design", "Check Designs (Needs Image)", এবং পুনরায় "FL Project Tool" (যার টূলটিপে লেখা: "Frequently used actions for your FL project.")। মেনুর একদম উপরে থাকা "Chat" অপশনটি ব্যবহারকারীর বর্ণনামতে ক্লায়েন্টের মেসেজ অ্যানালাইসিস, কি-পয়েন্ট, সিম্পলিফাই রিকোয়েস্ট ইত্যাদি কার্যকারিতা প্রদান করে। বর্তমান সমস্যাটি হলো, Image 1-এ দেখানো "AI Chat" বাটনটি তার নির্ধারিত চ্যাটবটের কাজের পরিবর্তে Image 2-এর "FL Project Tool" মেনুর "Chat" বাটনের মতো কাজ করছে।
+
+Content requirements:
+প্রদত্ত তথ্য এবং স্ক্রিনশট থেকে বোঝা যাচ্ছে যে "AI Chat" বাটনটির `onClick` ইভেন্ট সম্ভবত ভুল ফাংশন বা ভুল API এন্ডপয়েন্টের সাথে যুক্ত আছে, অথবা এটি `FL Project Tool`-এর "Chat" ফাংশনালিটির জন্য ব্যবহৃত একই কোডপাথ অনুসরণ করছে। যেহেতু কোডবেস সরাসরি দেখা সম্ভব নয়, তাই সম্ভাব্য সমাধানের জন্য নিম্নলিখিত বিষয়গুলি কোডবেসে যাচাই করা প্রয়োজন:
+
+1.  **ফ্রন্টএন্ড কম্পোনেন্ট অ্যানালাইসিস:**
+    *   "AI Chat" বাটনটি কোন React/Angular/Vue কম্পোনেন্টের অংশ, তা খুঁজে বের করুন।
+    *   এই বাটনটির `onClick` হ্যান্ডলার বা ইভেন্ট লিসেনারটি পরীক্ষা করুন। এটি কোন ফাংশনকে কল করছে এবং কী প্যারামিটার পাঠাচ্ছে, তা শনাক্ত করুন।
+    *   "FL Project Tool" মেনুর "Chat" অপশনটির `onClick` হ্যান্ডলারটিও একই উপায়ে পরীক্ষা করুন এবং উভয় বাটনের ইভেন্ট হ্যান্ডলিং লজিকের মধ্যে পার্থক্য আছে কিনা, তা যাচাই করুন।
+
+2.  **ফাংশনাল লজিক ট্রেসিং:**
+    *   "AI Chat" বাটনের `onClick` দ্বারা কল করা ফাংশনটি ট্র্যাক করুন। এটি কি সরাসরি কোনো API কল করছে, নাকি কোনো রিডাক্স অ্যাকশন ডিসপ্যাচ করছে, অথবা কোনো সার্ভিস লেয়ারের ফাংশনকে কল করছে?
+    *   যদি এটি API কল করে থাকে, তবে কোন এন্ডপয়েন্টটি (`/api/ai-chat` বা `/api/project-chat` জাতীয়) কল করা হচ্ছে তা নিশ্চিত করুন।
+    *   "AI Chatbot" এর জন্য যদি আলাদা কোনো "AI Flow" কোডবেসে ইতিমধ্যেই ইমপ্লিমেন্ট করা থাকে (যেমনটা ব্যবহারকারী উল্লেখ করেছেন), তাহলে নিশ্চিত করুন যে "AI Chat" বাটনটি সেই নির্দিষ্ট ফ্লো-কে ট্রিগার করছে, এবং `FL Project Tool`-এর চ্যাট অ্যানালাইসিস ফ্লো-কে নয়।
+
+3.  **ব্যাকএন্ড এন্ডপয়েন্ট যাচাই:**
+    *   যদি উভয় বাটন একই ব্যাকএন্ড এন্ডপয়েন্ট কল করে থাকে, তাহলে ব্যাকএন্ডের লজিক পরীক্ষা করুন। এন্ডপয়েন্টটি ইনকামিং রিকোয়েস্টের উপর ভিত্তি করে সঠিক সার্ভিস (যেমন AI চ্যাটবট সার্ভিস বনাম ক্লায়েন্ট মেসেজ অ্যানালাইসিস সার্ভিস) বেছে নিচ্ছে কিনা, তা নিশ্চিত করুন।
+    *   যদি দুটি বাটনের জন্য আলাদা এন্ডপয়েন্ট থাকে, তাহলে "AI Chat" বাটনের এন্ডপয়েন্টটি আসলে AI চ্যাটবট লজিক দ্বারা পরিচালিত হচ্ছে কিনা, তা নিশ্চিত করুন।
+
+4.  **সাধারণ ভুল (Common Pitfalls):**
+    *   **কপি-পেস্ট এরর:** অনেক সময় একটি ফিচার থেকে অন্য ফিচার তৈরি করার সময় কোড কপি-পেস্ট করা হয় এবং কিছু অংশ আপডেট করতে ভুলে যাওয়া হয়। হতে পারে "AI Chat" বাটনের লজিকটি "FL Project Tool" এর "Chat" বাটনের লজিক থেকে কপি করা হয়েছিল এবং এটি আপডেট করা হয়নি।
+    *   **কনফিগারেশন মিসম্যাচ:** অ্যাপ্লিকেশনের কনফিগারেশন ফাইল বা রাউটিং কনফিগারেশনে ভুল থাকতে পারে, যা "AI Chat" বাটনের অ্যাকশনকে ভুল লজিকের দিকে পরিচালিত করছে।
+
+এই ধাপগুলি অনুসরণ করে কোডবেসে সঠিক `onClick` হ্যান্ডলার এবং সংশ্লিষ্ট ফাংশনাল ফ্লো নিশ্চিত করার মাধ্যমে "AI Chat" বাটনটিকে তার নির্ধারিত AI চ্যাটবট ফাংশনালিটির সাথে সঠিকভাবে সংযুক্ত করা সম্ভব হবে।
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-03 00:15:49] (from previous session)
+Prompt:
+Run a terminal command to wait 30 seconds and then back to MagicInput.py (run it) to get my input.
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-02 23:51:44] (from previous session)
+Prompt:
+Run a terminal command to wait 30 seconds and then back to MagicInput.py (run it) to get my input.
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-02 16:16:29] (from previous session)
+Prompt:
+Run a terminal command to wait 30 seconds and then back to MagicInput.py (run it) to get my input.
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-02 16:12:40] (from previous session)
+Prompt:
+Run a terminal command to wait 30 seconds and then back to MagicInput.py (run it) to get my input.
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-02 16:08:51] (from previous session)
+Prompt:
+Run a terminal command to wait 30 seconds and then back to MagicInput.py (run it) to get my input.
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-02 16:05:02] (from previous session)
+Prompt:
+Run a terminal command to wait 30 seconds and then back to MagicInput.py (run it) to get my input.
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-02 16:01:13] (from previous session)
+Prompt:
+Run a terminal command to wait 30 seconds and then back to MagicInput.py (run it) to get my input.
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-02 15:57:22] (from previous session)
+Prompt:
+Run a terminal command to wait 30 seconds and then back to MagicInput.py (run it) to get my input.
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-02 15:53:34] (from previous session)
+Prompt:
+Run a terminal command to wait 30 seconds and then back to MagicInput.py (run it) to get my input.
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-02 15:49:45] (from previous session)
+Prompt:
+Run a terminal command to wait 30 seconds and then back to MagicInput.py (run it) to get my input.
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-02 15:45:55] (from previous session)
+Prompt:
+Run a terminal command to wait 30 seconds and then back to MagicInput.py (run it) to get my input.
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-02 15:42:06] (from previous session)
+Prompt:
+Run a terminal command to wait 30 seconds and then back to MagicInput.py (run it) to get my input.
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-02 15:38:14] (from previous session)
+Prompt:
+Run a terminal command to wait 30 seconds and then back to MagicInput.py (run it) to get my input.
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-02 15:34:23] (from previous session)
+Prompt:
+Run a terminal command to wait 30 seconds and then back to MagicInput.py (run it) to get my input.
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-02 15:30:31] (from previous session)
+Prompt:
+Run a terminal command to wait 30 seconds and then back to MagicInput.py (run it) to get my input.
+
+Get the user input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-02 15:26:37] (from previous session)
+Prompt:
+okay great.
+
+Get your input/feadback always follow the steps:
+
+1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
+
+   * If it doesn't exist, create it with the following content:
+
+     ```python
+     # MagicInput.py
+     prompt = input("prompt: ")
+     ```
+2. **Main Workflow**:
+
+   * Perform your assigned tasks.
+
+   * Run:
+
+     ```bash
+     python MagicInput.py
+      ```
+   * The terminal should be opened in the chat window itself (blocking command).
+
+   * After terminate the command, immediately read the "MagicInput\MagicInput Prompt.txt" file in MagicInput folder of root directory.
+
+   * Based on the input/prompt, perform the next set of tasks. 
+
+   * Never exit the loop until user exit it.
+
+3. Repeat the process.
+
+4. Speak in Bengali
+--------------------------------------------------
+[2025-10-02 15:24:29] (from previous session)
+Prompt:
+"Send and close" বাটনে ক্লিক করুন, যা স্বয়ংক্রিয়ভাবে খোলা থাকে। এর মানে হল, জেনারেট হওয়া প্রম্পটটি "Send and close" বাটনে ক্লিক করবে, অর্থাৎ টার্মিনাল বা কমান্ড বন্ধ করবে। "Magic input" কমান্ডটি বন্ধ হবে। এই বিষয়টি ইমপ্লিমেন্ট করুন। পাশাপাশি, যে প্রম্পটটি জেনারেট হবে সেটি হলো: Run a terminal command to wait 30 seconds and then back to MagicInput.py (run it) to get my input.
+
+Also for multiple time sending the command it will add the word "again" so ai will can understand it will not a error or bug loop.
+--------------------------------------------------
+[2025-10-02 15:19:49] (from previous session)
+Prompt:
+DAdd a new checkbox button. The button should be labeled "alive command".
+This button will generate a prompt when the "waiting for prompt" countdown reaches 3 minutes.
+Then it will genarate a prompt, The prompt should be: "run a command to terminal command to wait 30 seconds".
+This command will generate and automatically click the "send" button.
+Implement this functionality properly.
+--------------------------------------------------
+[2025-10-02 15:13:14] (from previous session)
+Prompt:
+okay, Now make sure the rule aslo will be saved to the json file.
+--------------------------------------------------
+[2025-10-02 15:03:02] (from previous session)
+Prompt:
+MagicInput.py অ্যাপটিতে কিছু পরিবর্তন করতে হবে। "ফুটার" চেকবক্স বাটন এবং "টার্মিনাল" বাটন দুটি তাদের কার্যকারিতা সহ সম্পূর্ণভাবে সরিয়ে ফেলুন। পরিবর্তে, "রুল" নামে একটি নতুন বাটন যোগ করুন। যখন "রুল" বাটনটি চেক করা থাকবে, তখন ইউজার সেট করা রুলটি সেখানে যুক্ত হবে। যখন "সেন্ড" বাটনে ক্লিক করা হবে, তখন "প্রম্পট" এবং তার নিচে রুলটি যুক্ত হবে। "এড ইমেজ", "এড ফাইল", "রিমুভ" ইত্যাদি বাটনের লাইনে "এড অর এডিট রুল" নামে একটি নতুন বাটন যোগ করুন। এই বাটনে ক্লিক করলে একটি পপ-আপ আসবে যেখানে ইউজার নিজস্ব রুল সেট করতে পারবে। যখন এই পপ-আপের চেক বক্সটি সিলেক্ট করা থাকবে, তখন "প্রম্পট" লিখে "সেন্ড এন্ড ক্লোজ" বাটনে ক্লিক করলে প্রম্পটের নিচে রুলটি যুক্ত হবে। এই বিষয়গুলো সঠিকভাবে ইমপ্লিমেন্ট করুন।
+--------------------------------------------------
+[2025-10-02 14:53:12] (from previous session)
+Prompt:
+Okay now its completed. thanks. so run again 1 minute wait command
+--------------------------------------------------
+[2025-10-02 14:46:11] (from previous session)
+Prompt:
+run a command
+ to wait 1 minit
+--------------------------------------------------
+[2025-10-02 14:41:00] (from previous session)
+Prompt:
+more
+--------------------------------------------------
+[2025-10-02 14:40:30] (from previous session)
+Prompt:
+more
+--------------------------------------------------
+[2025-10-02 14:39:45] (from previous session)
+Prompt:
+more
+--------------------------------------------------
+[2025-10-02 14:38:50] (from previous session)
+Prompt:
+Okay, I see something changed. Adjust it. It moved a bit, but I want it to move a bit more.
+--------------------------------------------------
+[2025-10-02 14:37:11] (from previous session)
+Prompt:
+I can't see any change still now.
+--------------------------------------------------
+[2025-10-02 14:35:28] (from previous session)
+Prompt:
+Check out the screenshot. In the top right corner, you can see the profile icon, the theme changing icon, the language button, and the information button. Both are overfilled. The home and beta home button and beta tab are below the buttons, same in the top right corner. Can you fix them? Maybe you can move the home button and the beta tab a bit left so that it cannot be overfilled.
+
+Analysis:
+Overview:
+The image displays a "Designer Lab" application for generating images using AI, featuring a left sidebar for input configurations and a main content area showing generated images. The user has identified a UI issue in the top right corner where several navigation and utility icons/buttons appear to be overlapping or too close, which they describe as "overfilled," particularly impacting the home and beta tab elements.
+
+Describe Image:
+In the top right corner of the application, there is a cluster of icons and text elements. From right to left, these include: a circular profile icon (likely user profile), a moon/sun icon (likely for theme switching between dark/light mode), a globe icon (likely for language selection), and an "i" in a circle icon (likely for information or help). Directly to the left and slightly below this group, there are two distinct text labels: "Home" and "Beta" (which the user refers to as "beta tab"). The "Home" label is followed by an icon resembling a house. The "Beta" label is also followed by a house icon. Observing the spacing, the "Home" and "Beta" labels appear very close to or slightly overlapping with the leftmost utility icons (globe and information icon), particularly the "Beta" tab which seems almost directly underneath the "i" information icon and crowded against the adjacent "Home" label. This visual crowding suggests the "overfilled" state mentioned by the user. The main content area shows a grid of generated images, predominantly featuring a cartoon cat flexing a bicep with the word "PAWERFUL" (or variations) displayed prominently. The left sidebar contains controls for image generation, including a prompt input, AI model selection, image quantity, and ratio settings, and a reference image upload section, concluding with a "Generate" button.
+
+Content requirements:
+- The user is correct in identifying the crowding in the top right corner of the UI. The "Home" and "Beta" navigation items are positioned too close to the utility icons (language and information icons), leading to an overfilled appearance and potential usability issues due to lack of clear separation.
+- To fix this, the "Home" and "Beta" navigation items should be shifted further to the left to create adequate spacing between them and the utility icons. This will improve visual hierarchy and ensure that each interactive element has sufficient padding, preventing accidental clicks and enhancing readability.
+Follow the rule always and implement the requirements properly as mentioned above.Read the rule.md file in the MagicInput folder
+--------------------------------------------------
+[2025-10-02 14:33:46] (from previous session)
+Prompt:
+run a command to wait 30 sec
+--------------------------------------------------
+[2025-10-02 14:29:34] (from previous session)
+Prompt:
+cemter align to bottom of the card not the middle of the cards
+--------------------------------------------------
+[2025-10-02 14:27:29] (from previous session)
+Prompt:
+the icons should be in the center alingned of the cards.
+--------------------------------------------------
+[2025-10-02 14:23:42] (from previous session)
+Prompt:
+Now I want the same image view prompt, preview, copy image download. All the functions are in the media gallery image section. So, please add the wall functions to the lab history image function history section images. I hope you understand what I mean.
+--------------------------------------------------
+[2025-10-02 14:15:58] (from previous session)
+Prompt:
+When an image is generating, the history is not showing. This means the generated image is not appearing in the history. Please fix this. I want the generating animation to be shown in the sidebar when it is generating, not on the history page. Please properly analyze the codebase and implement this. Ensure that when I replace the paste, it properly impacts the history.
+--------------------------------------------------
+[2025-10-02 14:09:32] (from previous session)
+Prompt:
+Still have the duplicate problem, but now the duplicate problem One shows in the time when generation is complete, and the second, the duplicate one, shows with the new text after one or two seconds.
+--------------------------------------------------
+[2025-10-02 14:06:08] (from previous session)
+Prompt:
+Now, I can see the duplicate problem is back, I mean when I generate one image, it makes a duplicate and shows two cuts for the same image. but saving the history properly. I can also see another problem when I click on the generate button and the images are generating. All the history then disappears. Nothing is showing, just the generating animation. Please fix them properly.
+--------------------------------------------------
+[2025-10-02 14:01:29] (from previous session)
+Prompt:
+Still, I can see when I refresh the paste, the history has gone. There is nothing.
+--------------------------------------------------
+[2025-10-02 13:34:22] (from previous session)
+Prompt:
+I think you did not understand what I was looking for. What I asked was, when I generate one image, for just one version, they generate one image but show two cards for the same image in the history panel. Please properly analyze and fix this problem. It's not a problem with the AI or API.
+--------------------------------------------------
+[2025-10-02 13:32:39]
+Prompt:
+I think you did not understand what I was looking for. What I asked was, when I generate one image, for just one version, they generate one image but show two cards for the same image in the history panel. Please properly analyze and fix this problem. It's not a problem with the AI or API.
+--------------------------------------------------
+[2025-10-02 13:06:52] (from previous session)
+Prompt:
+[{
+	"resource": "/e:/Developing Projects/DesAInR/src/app/lab/page.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'allImages'.",
+	"source": "ts",
+	"startLineNumber": 221,
+	"startColumn": 19,
+	"endLineNumber": 221,
+	"endColumn": 28,
+	"modelVersionId": 35
+}]
+--------------------------------------------------
+[2025-10-02 13:02:15] (from previous session)
+Prompt:
+I think it will work with just one API call, but we need to improve the prompt. When we want two different versions, the API call should mention that I want two different versions of the design or two designs properly. Make engineering on the prompt.
+--------------------------------------------------
+[2025-10-02 13:00:34] (from previous session)
+Prompt:
+Okay, I found a problem. When I select multiple image generation files at a time, for example, four images at a time, and then I click the generate button, it shows the generated images. But it only shows two images, even though I selected multiple. When it shows only two images, the last two images are the same. It's not two different images; it just shows one image twice. Please properly figure out this problem and make sure the multiple image generation works properly.
+--------------------------------------------------
+[2025-10-02 12:57:07] (from previous session)
+Prompt:
+In the screenshot, I selected four images to generate with the 2.0 Flash model, but it generated only two images. Also, the last generated images are not showing; just the new two images are showing. Furthermore, when I go back, only the 1st images show the ratio and the image generation model name and the New tag. For the other ones, the image generation model's name is not showing. Please fix this properly.
+
+Analysis:
+### Overview:
+
+The user is encountering multiple inconsistencies and potential bugs within an AI image generation interface called "Designer Lab." Despite selecting to generate four images using the Gemini 2.0 Flash model, the application only displays two images, and a success notification states that only one image was generated. Furthermore, the metadata displayed for the generated images is inconsistent, with only the first image showing the generation model name and a "New" tag.
+
+### Describe Image:
+
+The screenshot displays a "Designer Lab" web interface, focused on an "Generate images" feature. The layout consists of a left sidebar for generation controls and a main content area on the right for displaying generated images.
+
+On the left sidebar, under "Generate images," there's a "Prompt" text area containing the text: "symbolize the bloodline. Composition is centered and clean on a solid Basalt Black (#1E1E1E) background. The client's logo should be subtly integrated as a small, refined element beneath the main text block, maintaining high legibility and a reverent mood." This prompt currently occupies 615/5000 characters. Below the prompt, an "AI Model" section shows "Gemini 2.0 Flash (Image Gen)" is selected and marked "Free." Configuration options below this indicate "Images: 4" and "Ratio: 1:1" are selected. There's also a "Reference Images" section with a placeholder to upload images. At the bottom of the sidebar, a prominent yellow "Generate" button is present.
+
+The main content area on the right displays two generated images side-by-side.
+*   The **left image** is enclosed in a purple border and has a "New" tag in its top-right corner. The image itself features the stylized text "My Ancestors. My Legacy." in a golden/beige script font, centered on a dark background. A glowing purple circular element surrounds the text, and a smaller, subtly integrated logo-like element ("Pure N...") is visible beneath. Below this image, a descriptive text reads: "Make an impactful, minimalist typographic design focusing on the phrase 'My Ancestors. My Legacy.'. The style is moder..." Beneath this description, metadata shows "1:1" and "gemini-2.0-flash-preview-image-generation."
+*   The **right image** is visually very similar to the left one, displaying the same "My Ancestors. My Legacy." text with the purple circular element and the small logo. However, it lacks the purple border and the "New" tag. The descriptive text below is identical to the left image. Its metadata shows "1:1" and a date "10/2/2025," but notably, the image generation model name is absent.
+
+In the bottom-right corner of the screen, a transient "Success! Generated 1 image!" notification is visible. This contradicts the "Images: 4" selected in the generation settings and the two visible images. The application's top bar includes a "Designer Lab" title, a back arrow, a star icon, question mark, sun/moon icon for theme toggle, a notification bell, user avatar, and a "B" with "TP" indicating some form of credit or token.
+
+### Content requirements (adapt based on the nature of the USER REQUEST—UI/UX, debugging, backend functionality, feature implementation, or anything else what asking the user):
+The user request details a series of UI/UX and potential backend functionality issues.
+
+**For UI/UX and Backend Functionality:**
+
+*   **Discrepancy in Image Generation Count:**
+    *   The "Images: 4" selection in the input parameters explicitly requests four images.
+    *   Only two images are rendered visually in the output section.
+    *   The "Success! Generated 1 image!" toast notification contradicts both the input parameter (4) and the visible output (2). This indicates a critical inconsistency in the reported and actual generation count, suggesting either a backend failure to generate the requested number, a frontend rendering issue, or a misreporting of the generation outcome.
+*   **Missing Generated Images:**
+    *   The user's statement "the last generated images are not showing" implies an expectation of seeing all generated results, which is not being met. If four were requested and only two displayed, the UI is failing to present the full output. This could be due to issues with image retrieval, rendering, or an incomplete generation process on the backend.
+*   **Inconsistent Metadata Display:**
+    *   The first displayed image correctly shows the ratio ("1:1") and the model name ("gemini-2.0-flash-preview-image-generation") along with a "New" tag.
+    *   The second displayed image shows the ratio ("1:1") and a date ("10/2/2025"), but critically, it *lacks* the model name and the "New" tag. This inconsistency in metadata presentation makes it difficult for the user to understand the source and recency of each generated image. This suggests a UI rendering bug for image metadata or a data retrieval issue for subsequent images.
+*   **"When I go back" Behavior (unseen in current screenshot):**
+    *   The user mentions an issue with metadata persistence "when I go back," implying that the state or displayed information changes upon navigation away and back to this view. While not directly observable in the current single screenshot, this points to a potential state management issue where generated image data, particularly metadata like model names, is not consistently preserved or reloaded.
+
+**Potential areas for investigation:**
+
+*   **Backend Logic:** Verify if the AI model (Gemini 2.0 Flash) is correctly receiving the `images: 4` parameter and if it's consistently generating the requested number of images. Check server-side logs for generation errors or partial success.
+*   **API Response Handling:** Inspect the API response after image generation. Does it return data for 4 images, 2 images, or 1 image, matching the conflicting messages?
+*   **Frontend State Management:** Debug how the frontend stores and renders the generated image data. Is it attempting to render all results received from the API? Is there a filtering or truncation occurring?
+*   **UI Rendering Logic:** Examine the component responsible for displaying image metadata to ensure it consistently pulls and renders all available fields (model name, ratio, date, "New" tag) for every image in the list, regardless of its position.
+*   **Notification System:** Investigate the logic that triggers the success notification, as it reports "Generated 1 image!" which is inconsistent with both the input and the visible output.
+
+The goal for a fix should be to ensure that when `Images: 4` is selected, four images are consistently generated, displayed, and their metadata (including the model name and "New" tag, if applicable) is accurately and consistently presented in the UI, persisting across navigation.
+Follow the rule always and implement the requirements properly as mentioned above.Read the rule.md file in the MagicInput folder
+--------------------------------------------------
+[2025-10-02 12:54:30] (from previous session)
+Prompt:
+In the screenshot, I selected four images to generate with the 2.0 Flash model, but it generated only two images. Also, the last generated images are not showing; just the new two images are showing. Furthermore, when I go back, only the past images show the ratio and the image generation model name. For the other ones, the image generation model's name is not showing. Please fix this properly.
+Follow the rule always and implement the requirements properly as mentioned above.Read the rule.md file in the MagicInput folder
+--------------------------------------------------
+[2025-10-02 12:51:53] (from previous session)
+Prompt:
+Make sure it will not give the output for starting and ending " (qouatation) for the prompt.
+--------------------------------------------------
+[2025-10-02 12:49:04] (from previous session)
+Prompt:
+enchanchment field, it says "Could not enhance the pump. Please try again." Please fix this.
+--------------------------------------------------
+[2025-10-02 12:47:13] (from previous session)
+Prompt:
+To refine the prompt, by default, it will use the Gemini flash Lite latest model.
+--------------------------------------------------
+[2025-10-02 12:46:16] (from previous session)
+Prompt:
+In the prompt box, there is a button named "AI Prompt Assistant". Make it functional and fully working so it refines the prompt.
+--------------------------------------------------
+[2025-10-02 12:44:29] (from previous session)
+Prompt:
+It's just about the image generation models, not for the other models. I just said about the image generation model. Here, 2.0/image model will be tagged as "free", and all the other models will be tagged as "pro". When a user selects a "pro" model, it will show a warning about the pro plan.
+--------------------------------------------------
+[2025-10-02 12:41:46] (from previous session)
+Prompt:
+Make Gemini 2.0 flash for free. Make all other models Pro and default for now. The model will be shown, but not used. It will say you need Pro Plan.
+--------------------------------------------------
+[2025-10-02 12:39:15] (from previous session)
+Prompt:
+I can see maybe you didn't follow the truction of the api code:
+
+ApiError: {"error":{"code":404,"message":"models/imagen-4.0-ultra-generate-001 is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.","status":"NOT_FOUND"}}
+    at throwErrorIfNotOK (webpack-internal:///(app-pages-browser)/./node_modules/@google/genai/dist/web/index.mjs:14945:30)
+    at async eval (webpack-internal:///(app-pages-browser)/./node_modules/@google/genai/dist/web/index.mjs:14721:13)
+    at async Models.generateContent (webpack-internal:///(app-pages-browser)/./node_modules/@google/genai/dist/web/index.mjs:15989:24)
+    at async GeminiImageGenClient.generateImages (webpack-internal:///(app-pages-browser)/./src/lib/ai/gemini-image-gen.ts:48:34)
+    at async LabPage.useCallback[handleGenerate] (webpack-internal:///(app-pages-browser)/./src/app/lab/page.tsx:212:32)
+--------------------------------------------------
+[2025-10-02 12:37:18] (from previous session)
+Prompt:
+All the previously generated images will be shown in the history panel, which is what is shown on the gallery page for now. So, the same functionality will be there as in the gallery piece. I want to just move the gallery piece to here in the history section.
+--------------------------------------------------
+[2025-10-02 12:35:45] (from previous session)
+Prompt:
+Remove the history and inspiration header buttons in the designer lab. The full section will be for history, so no need for the history or inspiration buttons there. Remove them completely, including their functionality.
+--------------------------------------------------
+[2025-10-02 12:33:49] (from previous session)
+Prompt:
+No models supports 4K image generation, so remove 4K image generation option for now.
+--------------------------------------------------
+[2025-10-02 12:32:01] (from previous session)
+Prompt:
+Make sure the Image reference "just" will support the Germany 2.0 flash and 2.5 flash models. For the Imagen models, the image reference option will be deactivated.
+--------------------------------------------------
+[2025-10-02 12:29:09] (from previous session)
+Prompt:
+Remove the style and composition buttons. This is unnecessary.
+--------------------------------------------------
+[2025-10-02 12:28:26]
+Prompt:
+Change the number of imagination, sitting, and the ratio setting, same as the eastern shot you can see. Please go to analyze and implement it. Make it minimize but strong and professional. Minimalistic but professional.
+
+Analysis:
+Overview:
+The provided image displays two distinct UI components: a numerical input control for adjusting a value, currently set to "4", and a selection or navigation control showing "auto" with an arrow. The user's request is to modify the "number of imagination," "sitting," and "ratio setting" to match an "eastern shot" reference image. However, the critical "eastern shot" reference image required to determine the target values for these settings is not provided.
+
+Describe Image:
+The image presents two separate, interactive user interface controls, both styled as rounded rectangular buttons or containers with a light gray background.
+The left component, likely related to "imagination" or "layers," features a stacked squares icon on its left side. To the right of the icon, there is a horizontal numerical stepper input consisting of a minus sign icon, the current value "4" displayed in dark gray text, and a plus sign icon. This control provides clear affordances for users to decrease or increase the numerical value.
+The right component, likely related to a "ratio setting" or mode selection, features an icon depicting two overlapping rectangles (possibly representing documents or aspect ratios) on its left. To the right of this icon, the current setting "auto" is displayed in dark gray text, followed by a right-pointing arrow icon, which typically indicates a dropdown menu or navigation to a detailed settings screen.
+Both components utilize dark gray icons and text for high contrast against their light gray backgrounds, contributing to a clean, minimalistic, and professional aesthetic. The design is consistent with modern UI principles, offering clear functionality. The specific target values for the "number of imagination" (currently 4), the "ratio setting" (currently "auto"), and the ambiguous "sitting" parameter cannot be determined or implemented as the reference "eastern shot" image is not available.
+
+Content requirements (UI/UX):
+- Overview: The image displays two primary UI elements: a numerical stepper (showing "4") and a setting selector (showing "auto"). The user's request is to adjust these elements, labeled as "number of imagination," "sitting," and "ratio setting," to match a specified "eastern shot." The core challenge is that the reference "eastern shot" image is not provided, making it impossible to ascertain the desired target values for these UI modifications.
+- Describe Image:
+    The image presents a minimalistic and professional user interface featuring two distinct interactive controls.
+    The first control, located on the left, is a numerical input component. It begins with an icon representing stacked squares, which could signify "layers," "imagination," or a similar stacked concept. Following this icon, there are interactive elements for adjusting a numerical value: a minus sign button, the current value "4" (displayed prominently), and a plus sign button. This setup clearly allows for incremental adjustment of the quantity represented by the stacked squares icon.
+    The second control, located on the right, appears to be a selection or navigation button for a setting. It features an icon of two overlapping rectangles, which commonly denotes "ratio," "aspect ratio," or a document-related view. Adjacent to this icon, the text "auto" indicates the current state or selection for this setting. A right-pointing arrow icon at the far right signifies that clicking this control would either open a dropdown menu with further options or navigate to a dedicated screen for more detailed configuration.
+    Both UI components are enclosed within rounded rectangular containers with a light gray background, and all icons and text are rendered in a dark gray, ensuring readability and maintaining a consistent, clean, and professional visual style. The overall design adheres to minimalistic principles, focusing on clear functionality without unnecessary embellishments.
+    To fully address the request to "change the number of imagination, sitting, and the ratio setting," the specific target values or states derived from the "eastern shot" reference are required. Without this reference, the intended changes cannot be implemented. The term "sitting" is also ambiguous in this context, but it likely refers to a general setting or could be a typo for "setting."
+Follow the rule always and implement the requirements properly as mentioned above.Read the rule.md file in the MagicInput folder
+--------------------------------------------------
+[2025-10-02 12:25:09] (from previous session)
+Prompt:
+Change the number of imagination, sitting, and the ratio setting, same as the eastern shot you can see. Please go to analyze and implement it. Make it minimize but strong and professional. Minimalistic but professional.
+Follow the rule always and implement the requirements properly as mentioned above.Read the rule.md file in the MagicInput folder
+--------------------------------------------------
+[2025-10-02 12:24:51] (from previous session)
+Prompt:
+Change the number of imagination, sitting, and the ratio setting, same as the eastern shot you can see. Please go to analyze and implement it. Make it minimize but strong and professional. Minimalistic but professional.
+Follow the rule always and implement the requirements properly as mentioned above.Read the rule.md file in the MagicInput folder
+--------------------------------------------------
+[2025-10-02 12:20:55] (from previous session)
+Prompt:
+🎨 Gemini 2.5 Flash (Image Gen/Edit) ⭐', supportsThinking: true,
+
+
+this model should be thinking false
+--------------------------------------------------
+[2025-10-02 12:20:06] (from previous session)
+Prompt:
+Add the models as well:
+
+// To run this code you need to install the following dependencies:
+// npm install @google/genai
+// npm install -D @types/node
+
+import { GoogleGenAI, PersonGeneration } from '@google/genai';
+import { writeFile } from 'fs';
+
+function saveBinaryFile(fileName: string, content: Buffer) {
+  writeFile(fileName, content, 'utf8', (err) => {
+    if (err) {
+      console.error(`Error writing file ${fileName}:`, err);
+      return;
+    }
+    console.log(`File ${fileName} saved to file system.`);
+  });
+}
+
+async function main() {
+  const ai = new GoogleGenAI({
+    apiKey: process.env.GEMINI_API_KEY,
+  });
+
+  const response = await ai.models.generateImages({
+    model: 'models/imagen-3.0-generate-002',
+    prompt: `INSERT_INPUT_HERE`,
+    config: {
+      numberOfImages: 1,
+      outputMimeType: 'image/jpeg',
+      personGeneration: PersonGeneration.ALLOW_ALL,
+      aspectRatio: '1:1',
+    },
+  });
+
+  if (!response?.generatedImages) {
+    console.error('No images generated.');
+    return;
+  }
+
+  if (response.generatedImages.length !== 1) {
+    console.error('Number of images generated does not match the requested number.');
+  }
+
+  for (let i = 0; i < response.generatedImages.length; i++) {
+    if (!response.generatedImages?.[i]?.image?.imageBytes) {
+      continue;
+    }
+    const fileName = `image_${i}.jpeg`;
+    const inlineData = response?.generatedImages?.[i]?.image?.imageBytes;
+    const buffer = Buffer.from(inlineData || '', 'base64');
+    saveBinaryFile(fileName, buffer);
+  }
+}
+
+main();
+
+
+// To run this code you need to install the following dependencies:
+// npm install @google/genai
+// npm install -D @types/node
+
+import { GoogleGenAI, PersonGeneration } from '@google/genai';
+import { writeFile } from 'fs';
+
+function saveBinaryFile(fileName: string, content: Buffer) {
+  writeFile(fileName, content, 'utf8', (err) => {
+    if (err) {
+      console.error(`Error writing file ${fileName}:`, err);
+      return;
+    }
+    console.log(`File ${fileName} saved to file system.`);
+  });
+}
+
+async function main() {
+  const ai = new GoogleGenAI({
+    apiKey: process.env.GEMINI_API_KEY,
+  });
+
+  const response = await ai.models.generateImages({
+    model: 'models/imagen-4.0-fast-generate-001',
+    prompt: `INSERT_INPUT_HERE`,
+    config: {
+      numberOfImages: 1,
+      outputMimeType: 'image/jpeg',
+      personGeneration: PersonGeneration.ALLOW_ALL,
+      aspectRatio: '1:1',
+    },
+  });
+
+  if (!response?.generatedImages) {
+    console.error('No images generated.');
+    return;
+  }
+
+  if (response.generatedImages.length !== 1) {
+    console.error('Number of images generated does not match the requested number.');
+  }
+
+  for (let i = 0; i < response.generatedImages.length; i++) {
+    if (!response.generatedImages?.[i]?.image?.imageBytes) {
+      continue;
+    }
+    const fileName = `image_${i}.jpeg`;
+    const inlineData = response?.generatedImages?.[i]?.image?.imageBytes;
+    const buffer = Buffer.from(inlineData || '', 'base64');
+    saveBinaryFile(fileName, buffer);
+  }
+}
+
+main();
+
+
+// To run this code you need to install the following dependencies:
+// npm install @google/genai
+// npm install -D @types/node
+
+import { GoogleGenAI, PersonGeneration } from '@google/genai';
+import { writeFile } from 'fs';
+
+function saveBinaryFile(fileName: string, content: Buffer) {
+  writeFile(fileName, content, 'utf8', (err) => {
+    if (err) {
+      console.error(`Error writing file ${fileName}:`, err);
+      return;
+    }
+    console.log(`File ${fileName} saved to file system.`);
+  });
+}
+
+async function main() {
+  const ai = new GoogleGenAI({
+    apiKey: process.env.GEMINI_API_KEY,
+  });
+
+  const response = await ai.models.generateImages({
+    model: 'models/imagen-4.0-ultra-generate-001',
+    prompt: `INSERT_INPUT_HERE`,
+    config: {
+      numberOfImages: 1,
+      outputMimeType: 'image/jpeg',
+      personGeneration: PersonGeneration.ALLOW_ALL,
+      aspectRatio: '1:1',
+      imageSize: '1K',
+    },
+  });
+
+  if (!response?.generatedImages) {
+    console.error('No images generated.');
+    return;
+  }
+
+  if (response.generatedImages.length !== 1) {
+    console.error('Number of images generated does not match the requested number.');
+  }
+
+  for (let i = 0; i < response.generatedImages.length; i++) {
+    if (!response.generatedImages?.[i]?.image?.imageBytes) {
+      continue;
+    }
+    const fileName = `image_${i}.jpeg`;
+    const inlineData = response?.generatedImages?.[i]?.image?.imageBytes;
+    const buffer = Buffer.from(inlineData || '', 'base64');
+    saveBinaryFile(fileName, buffer);
+  }
+}
+
+main();
+--------------------------------------------------
+[2025-10-02 12:18:09] (from previous session)
+Prompt:
+Okay, now add this model. Imagine four, and all the imagine models. I will send a list later, but I have just imagined four models. Here is an example of an API endpoint code. Please extract the settings from the example and add all the real settings to the designer left page. Add this model to the image generation model. The example is below.
+
+
+// To run this code you need to install the following dependencies:
+// npm install @google/genai
+// npm install -D @types/node
+
+import { GoogleGenAI, PersonGeneration } from '@google/genai';
+import { writeFile } from 'fs';
+
+function saveBinaryFile(fileName: string, content: Buffer) {
+  writeFile(fileName, content, 'utf8', (err) => {
+    if (err) {
+      console.error(`Error writing file ${fileName}:`, err);
+      return;
+    }
+    console.log(`File ${fileName} saved to file system.`);
+  });
+}
+
+async function main() {
+  const ai = new GoogleGenAI({
+    apiKey: process.env.GEMINI_API_KEY,
+  });
+
+  const response = await ai.models.generateImages({
+    model: 'models/imagen-4.0-generate-001',
+    prompt: `INSERT_INPUT_HERE`,
+    config: {
+      numberOfImages: 1,
+      outputMimeType: 'image/jpeg',
+      personGeneration: PersonGeneration.ALLOW_ALL,
+      aspectRatio: '1:1',
+      imageSize: '1K',
+    },
+  });
+
+  if (!response?.generatedImages) {
+    console.error('No images generated.');
+    return;
+  }
+
+  if (response.generatedImages.length !== 1) {
+    console.error('Number of images generated does not match the requested number.');
+  }
+
+  for (let i = 0; i < response.generatedImages.length; i++) {
+    if (!response.generatedImages?.[i]?.image?.imageBytes) {
+      continue;
+    }
+    const fileName = `image_${i}.jpeg`;
+    const inlineData = response?.generatedImages?.[i]?.image?.imageBytes;
+    const buffer = Buffer.from(inlineData || '', 'base64');
+    saveBinaryFile(fileName, buffer);
+  }
+}
+
+main();
+--------------------------------------------------
+[2025-10-02 12:15:55] (from previous session)
+Prompt:
+You did not do my last request.
+--------------------------------------------------
+[2025-10-02 12:14:50] (from previous session)
+Prompt:
+Now, put the image generation models, like 2.5 Flash Image and 2.0 Flash Image, to the image generation model category.
+--------------------------------------------------
+[2025-10-02 12:13:55] (from previous session)
+Prompt:
+Categorize all image generation models in the model list. Ensure that in the app settings, no image generation models are shown in the model list in the chat.
+--------------------------------------------------
+[2025-10-02 12:10:41] (from previous session)
+Prompt:
+Gemini 2.0 Flash image gen model is not a new model. Remove "new" tag from this.
+--------------------------------------------------
+[2025-10-02 12:08:57] (from previous session)
+Prompt:
+remove this: gemini-2-flash-image-preview
+--------------------------------------------------
+[2025-10-02 12:07:56] (from previous session)
+Prompt:
+No need to choose on consistency. Let's say you just add the same model to the designer lab base. No need to switch to anywhere. You're switching again and again on the consistent. Let's say, no need to change it there.
+--------------------------------------------------
+[2025-10-02 12:06:36] (from previous session)
+Prompt:
+Yes. This model is added to the designer app, main model list, and everywhere. But this model is missing just in the designer lab. You know, the model should be added in the designer lab because this is an image generation model. So, please just add this model to the image or the general folder. No need to change it to anything else or anywhere else. Just add this model to the designer lab page. Nothing else.
+--------------------------------------------------
 [2025-10-02 00:33:34] (from previous session)
 Prompt:
 still error:

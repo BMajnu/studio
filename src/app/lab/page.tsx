@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useUserProfile } from '@/lib/hooks/use-user-profile';
 import { useAuth } from '@/contexts/auth-context';
+import { useRecentGeneratedImages } from '@/lib/hooks/use-recent-generated-images';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { 
   Loader2, Sparkles, Download, Copy, Image as ImageIcon, 
   Upload, X, Wand2, Plus, Shuffle, Clock, Lightbulb,
-  ChevronDown, ChevronUp, Palette, Home, ArrowLeft
+  ChevronDown, ChevronUp, Palette, Home, ArrowLeft, Maximize2, Code
 } from 'lucide-react';
 import Link from 'next/link';
 import { IMAGE_GENERATION_MODELS } from '@/lib/constants';
@@ -24,6 +25,10 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { GeneratedImageStorage } from '@/lib/firebase/generatedImageStorage';
+import type { GeneratedImage } from '@/lib/types';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ImagePreviewDialog } from '@/components/ui/image-preview-dialog';
 
 // Force dynamic rendering for this page
 export const dynamic = 'force-dynamic';
@@ -47,6 +52,9 @@ export default function LabPage() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Fetch all generated images from storage (same as gallery)
+  const { images: allGeneratedImages } = useRecentGeneratedImages(profile?.userId);
 
   // Generation state
   const [selectedModel, setSelectedModel] = useState(IMAGE_GENERATION_MODELS[0]?.id || 'gemini-2.5-flash-image-preview');
@@ -54,13 +62,18 @@ export default function LabPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImageData[]>([]);
   const [textResponse, setTextResponse] = useState<string>('');
+  const [currentGenerationIds, setCurrentGenerationIds] = useState<Set<string>>(new Set()); // Track IDs of current generation to avoid duplicates
   
   // Advanced controls
   const [imageReferences, setImageReferences] = useState<ImageReference[]>([]);
   const [selectedStyle, setSelectedStyle] = useState<string>('');
   const [selectedComposition, setSelectedComposition] = useState<string>('');
   const [imageCount, setImageCount] = useState<number>(1); // Number of images to generate
+  const [aspectRatio, setAspectRatio] = useState<string>('1:1'); // Aspect ratio for Imagen
+  const [imageSize, setImageSize] = useState<string>('1K'); // Image size for Imagen
+  const [outputFormat, setOutputFormat] = useState<string>('image/jpeg'); // Output format
   const [history, setHistory] = useState<GenerationHistory[]>([]);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null); // For image preview dialog
   
   // UI state
   const [expandedSections, setExpandedSections] = useState({
@@ -159,48 +172,167 @@ export default function LabPage() {
       return;
     }
 
+    // Check if model requires Pro plan
+    const modelInfo = IMAGE_GENERATION_MODELS.find(m => m.id === selectedModel);
+    if ((modelInfo as any)?.requiresPro) {
+      toast({
+        title: "🔒 Pro Plan Required",
+        description: "This model is only available with a Pro subscription. Upgrade to unlock all models!",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Auto-retry logic
+    const MAX_RETRIES = 3;
+    let retryCount = 0;
+    let lastError: Error | null = null;
+
     try {
       setIsGenerating(true);
-      setGeneratedImages([]);
+      // DON'T clear generatedImages here - keep showing previous generation during loading
       setTextResponse('');
 
-      // Build enhanced prompt with style and composition
-      let enhancedPrompt = prompt;
+      // Build base enhanced prompt with style and composition
+      let basePrompt = prompt;
       if (selectedStyle) {
-        enhancedPrompt += `. Style: ${selectedStyle}`;
+        basePrompt += `. Style: ${selectedStyle}`;
       }
       if (selectedComposition) {
-        enhancedPrompt += `. Composition: ${selectedComposition}`;
+        basePrompt += `. Composition: ${selectedComposition}`;
       }
 
       const imageClient = new GeminiImageGenClient(profile);
-      const result = await imageClient.generateImages(selectedModel, enhancedPrompt);
+      const isImagenModel = selectedModel.startsWith('models/imagen');
+
+      // Retry loop
+      while (retryCount < MAX_RETRIES) {
+        try {
+          const allImages: GeneratedImageData[] = [];
+          let combinedTextResponse = '';
+
+          if (isImagenModel) {
+            // Imagen models support multiple images in one call
+            const result = await imageClient.generateImages(
+              selectedModel, 
+              basePrompt,
+              5, // max attempts
+              {
+                numberOfImages: imageCount,
+                aspectRatio: aspectRatio,
+                imageSize: imageSize,
+                outputMimeType: outputFormat,
+              }
+            );
+            
+            allImages.push(...(result.images || []));
+            combinedTextResponse = result.textResponse || '';
+          } else {
+            // Gemini models - make multiple calls with unique variation prompts
+            const variations = [
+              'Create a unique and creative interpretation',
+              'Generate an alternative creative version',
+              'Design a distinct variation with fresh perspective',
+              'Produce a different artistic take'
+            ];
+            
+            for (let i = 0; i < imageCount; i++) {
+              // Create unique prompt for each variation
+              const variationInstruction = imageCount > 1 ? `${variations[i % variations.length]}. ` : '';
+              const uniquePrompt = `${variationInstruction}${basePrompt}`;
+              
+              const result = await imageClient.generateImages(
+                selectedModel, 
+                uniquePrompt,
+                5, // max attempts
+                {
+                  numberOfImages: 1,
+                  aspectRatio: aspectRatio,
+                  imageSize: imageSize,
+                  outputMimeType: outputFormat,
+                }
+              );
 
       if (result.images && result.images.length > 0) {
-        setGeneratedImages(result.images);
-        setTextResponse(result.textResponse || '');
-        
-        // Add to history
-        const historyEntry: GenerationHistory = {
-          id: Date.now().toString(),
-          prompt: enhancedPrompt,
-          images: result.images,
-          timestamp: Date.now(),
-          model: selectedModel
-        };
-        setHistory(prev => [historyEntry, ...prev].slice(0, 20)); // Keep last 20
+                allImages.push(...result.images);
+                if (result.textResponse) {
+                  combinedTextResponse += (combinedTextResponse ? '\n\n' : '') + result.textResponse;
+                }
+              }
+            }
+          }
+
+          // Check if we got any images
+          if (allImages.length > 0) {
+            // Success! Convert to GeneratedImage format and save to Firebase
+            const generatedImages: GeneratedImage[] = allImages.map((img, idx) => ({
+              id: globalThis.crypto?.randomUUID?.() || `${Date.now()}-${idx}`,
+              dataUri: GeminiImageGenClient.imageToDataUrl(img),
+              alt: `Generated: ${basePrompt.substring(0, 100)}`,
+              prompt: basePrompt,
+              createdAt: Date.now(),
+            }));
+
+            // Track the IDs to filter them out from Firebase history
+            const newIds = new Set(generatedImages.map(img => img.id).filter((id): id is string => !!id));
+            setCurrentGenerationIds(newIds);
+
+            // Save to Firebase (same as gallery) - runs in background
+            if (profile?.userId) {
+              GeneratedImageStorage.saveImages(profile.userId, generatedImages, basePrompt)
+                .then(() => {
+                  console.log('✅ Images saved to Firebase successfully');
+                })
+                .catch((saveError) => {
+                  console.warn('⚠️ Failed to save to Firebase (non-critical):', saveError);
+                });
+            }
+
+            setGeneratedImages(allImages);
+            setTextResponse(combinedTextResponse);
+            
+            // Add to local history (for immediate display)
+            const historyEntry: GenerationHistory = {
+              id: Date.now().toString(),
+              prompt: basePrompt,
+              images: allImages,
+              timestamp: Date.now(),
+              model: selectedModel
+            };
+            setHistory(prev => [historyEntry, ...prev].slice(0, 20)); // Keep last 20
 
         toast({
           title: "Success!",
-          description: `Generated ${result.images.length} image${result.images.length > 1 ? 's' : ''}!`
+              description: `Generated ${allImages.length} image${allImages.length > 1 ? 's' : ''}!`
         });
+            
+            return; // Exit successfully
       } else {
+            // No images generated, prepare to retry
+            throw new Error('No images returned by the model');
+          }
+        } catch (attemptError: any) {
+          lastError = attemptError;
+          retryCount++;
+          
+          if (retryCount < MAX_RETRIES) {
+            console.log(`⚠️ Generation attempt ${retryCount} failed, retrying... (${MAX_RETRIES - retryCount} attempts left)`);
+            toast({
+              title: "Retrying...",
+              description: `Attempt ${retryCount + 1} of ${MAX_RETRIES}`,
+            });
+            // Wait a bit before retrying
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+      }
+
+      // All retries exhausted
         toast({
-          title: "No Images Generated",
-          description: "The model didn't return any images. Try a different prompt.",
+        title: "Generation Failed",
+        description: `Failed after ${MAX_RETRIES} attempts. ${lastError?.message || 'Please try again later.'}`,
           variant: "destructive"
         });
-      }
     } catch (error: any) {
       console.error('Image generation error:', error);
       toast({
@@ -211,7 +343,7 @@ export default function LabPage() {
     } finally {
       setIsGenerating(false);
     }
-  }, [prompt, selectedModel, selectedStyle, selectedComposition, imageCount, profile, toast]);
+  }, [prompt, selectedModel, selectedStyle, selectedComposition, imageCount, aspectRatio, imageSize, outputFormat, profile, toast]);
 
   const handleDownload = useCallback((imageData: GeneratedImageData, index: number) => {
     try {
@@ -236,13 +368,105 @@ export default function LabPage() {
     }
   }, [toast]);
 
-  const handleCopyPrompt = useCallback(() => {
+  const handleCopyImagePrompt = useCallback((promptText: string | undefined) => {
+    if (!promptText) {
+      toast({
+        title: 'No prompt available',
+        description: "The prompt used for this image wasn't saved.",
+        variant: 'destructive',
+      });
+      return;
+    }
+    navigator.clipboard.writeText(promptText);
+    toast({
+      title: 'Prompt Copied!',
+      description: 'The image prompt has been copied to your clipboard.',
+    });
+  }, [toast]);
+
+  const handleCopyImage = useCallback(async (dataUri: string) => {
+    try {
+      const blob = await (await fetch(dataUri)).blob();
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          [blob.type]: blob,
+        }),
+      ]);
+      toast({
+        title: 'Image Copied!',
+        description: 'The image has been copied to your clipboard.',
+      });
+    } catch (error) {
+      console.error('Failed to copy image:', error);
+      toast({
+        title: 'Copy Failed',
+        description: 'Could not copy the image to the clipboard.',
+        variant: 'destructive',
+      });
+    }
+  }, [toast]);
+
+  const handleCopyCurrentPrompt = useCallback(() => {
     navigator.clipboard.writeText(prompt);
     toast({
       title: "Copied!",
       description: "Prompt copied to clipboard."
     });
   }, [prompt, toast]);
+
+  const handleEnhancePrompt = useCallback(async () => {
+    if (!prompt.trim()) {
+      toast({
+        title: "No Prompt",
+        description: "Please enter a prompt first to enhance it.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!profile?.geminiApiKeys?.length) {
+      toast({
+        title: "API Key Required",
+        description: "Please add a Gemini API key in your profile settings first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const enhancementPrompt = `You are an expert prompt engineer for AI image generation. Enhance this prompt to make it more detailed and effective: "${prompt}". Respond with ONLY the enhanced prompt, nothing else.`;
+
+      // Use direct Google GenAI SDK for prompt enhancement
+      const { GoogleGenAI } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey: profile.geminiApiKeys[0] });
+      
+      const result = await ai.models.generateContent({
+        model: 'gemini-flash-lite-latest',
+        contents: [{ role: 'user', parts: [{ text: enhancementPrompt }] }],
+      });
+
+      const enhancedText = result.candidates?.[0]?.content?.parts?.[0]?.text || result.text || '';
+      
+      if (enhancedText.trim()) {
+        // Remove quotes from start and end if present
+        const cleanedPrompt = enhancedText.trim().replace(/^["']|["']$/g, '');
+        setPrompt(cleanedPrompt);
+        toast({
+          title: "✨ Prompt Enhanced!",
+          description: "Your prompt has been optimized for better results."
+        });
+      } else {
+        throw new Error('No enhanced prompt returned');
+      }
+    } catch (error: any) {
+      console.error('Prompt enhancement error:', error);
+      toast({
+        title: "Enhancement Failed",
+        description: error.message || "Could not enhance the prompt. Please try again.",
+        variant: "destructive"
+      });
+    }
+  }, [prompt, profile, toast, setPrompt]);
 
   if (isLoading) {
     return (
@@ -305,7 +529,7 @@ export default function LabPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 mr-48">
             <Link href="/">
               <Button 
                 variant="outline"
@@ -320,7 +544,7 @@ export default function LabPage() {
             </Badge>
           </div>
         </div>
-      </div>
+        </div>
 
       {/* Main Content: 2-column layout */}
       <div className="flex-1 flex overflow-hidden max-w-[2000px] mx-auto w-full">
@@ -348,13 +572,9 @@ export default function LabPage() {
                     size="icon"
                     variant="ghost"
                     className="absolute top-3 right-3 h-9 w-9 hover:bg-purple-100 hover:text-purple-600 dark:hover:bg-purple-900/30 dark:hover:text-purple-400 transition-all"
-                    onClick={() => {
-                      // AI prompt enhancement could go here
-                      toast({
-                        title: "✨ AI Prompt Assistant",
-                        description: "Coming soon! This will help enhance your prompts."
-                      });
-                    }}
+                    onClick={handleEnhancePrompt}
+                    disabled={!prompt.trim()}
+                    title="Enhance prompt with AI"
                   >
                     <Wand2 className="h-4 w-4" />
                   </Button>
@@ -364,15 +584,15 @@ export default function LabPage() {
                     {prompt.length} / 5000 characters
                   </p>
                   {prompt.trim() && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleCopyPrompt}
-                      className="h-7 text-xs"
-                    >
-                      <Copy className="h-3 w-3 mr-1" />
-                      Copy
-                    </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCopyCurrentPrompt}
+                    className="h-7 text-xs"
+                  >
+                    <Copy className="h-3 w-3 mr-1" />
+                    Copy
+                  </Button>
                   )}
                 </div>
         </div>
@@ -388,42 +608,128 @@ export default function LabPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {IMAGE_GENERATION_MODELS.map(model => (
-                      <SelectItem key={model.id} value={model.id}>
-                        <span className="flex items-center gap-2">
-                          <span className="font-medium">{model.name}</span>
-                          {(model as any).tag && (
-                            <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
-                              {(model as any).tag}
-                            </Badge>
-                          )}
-                        </span>
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="gemini-2.0-flash-preview-image-generation">
+                      <span className="flex items-center gap-2">
+                        <span className="font-medium">🎨 Gemini 2.0 Flash (Image Gen) ✓</span>
+                        <Badge variant="outline" className="text-xs bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                          Free
+                        </Badge>
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="gemini-2.5-flash-image-preview">
+                      <span className="flex items-center gap-2">
+                        <span className="font-medium">🎨 Gemini 2.5 Flash (Image Gen/Edit) ⭐</span>
+                        <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                          Pro
+                        </Badge>
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="models/imagen-4.0-ultra-generate-001">
+                      <span className="flex items-center gap-2">
+                        <span className="font-medium">🎨 Imagen 4.0 Ultra ⭐</span>
+                        <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                          Pro
+                        </Badge>
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="models/imagen-4.0-generate-001">
+                      <span className="flex items-center gap-2">
+                        <span className="font-medium">🎨 Imagen 4.0 ⭐</span>
+                        <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                          Pro
+                        </Badge>
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="models/imagen-4.0-fast-generate-001">
+                      <span className="flex items-center gap-2">
+                        <span className="font-medium">🎨 Imagen 4.0 Fast</span>
+                        <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                          Pro
+                        </Badge>
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="models/imagen-3.0-generate-002">
+                      <span className="flex items-center gap-2">
+                        <span className="font-medium">🎨 Imagen 3.0</span>
+                        <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                          Pro
+                        </Badge>
+                      </span>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              {/* Number of Images Selection */}
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold flex items-center gap-2">
-                  <ImageIcon className="h-4 w-4 text-purple-500" />
-                  Number of Images
-                </Label>
-                <Select value={imageCount.toString()} onValueChange={(val) => setImageCount(parseInt(val))}>
-                  <SelectTrigger className="w-full border-2 focus:border-purple-500 transition-all shadow-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">1 Image</SelectItem>
-                    <SelectItem value="2">2 Images</SelectItem>
-                    <SelectItem value="3">3 Images</SelectItem>
-                    <SelectItem value="4">4 Images</SelectItem>
-                  </SelectContent>
-                </Select>
+              {/* Compact Settings Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                {/* Number of Images */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground">Images</Label>
+                  <Select value={imageCount.toString()} onValueChange={(val) => setImageCount(parseInt(val))}>
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1</SelectItem>
+                      <SelectItem value="2">2</SelectItem>
+                      <SelectItem value="3">3</SelectItem>
+                      <SelectItem value="4">4</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Aspect Ratio */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground">Ratio</Label>
+                  <Select value={aspectRatio} onValueChange={setAspectRatio}>
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1:1">1:1</SelectItem>
+                      <SelectItem value="16:9">16:9</SelectItem>
+                      <SelectItem value="9:16">9:16</SelectItem>
+                      <SelectItem value="3:4">3:4</SelectItem>
+                      <SelectItem value="4:3">4:3</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Image Size (Imagen only) */}
+                {selectedModel.startsWith('models/imagen') && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">Size</Label>
+                    <Select value={imageSize} onValueChange={setImageSize}>
+                      <SelectTrigger className="h-9 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1K">1K</SelectItem>
+                        <SelectItem value="2K">2K</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Output Format (Imagen only) */}
+                {selectedModel.startsWith('models/imagen') && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">Format</Label>
+                    <Select value={outputFormat} onValueChange={setOutputFormat}>
+                      <SelectTrigger className="h-9 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="image/jpeg">JPEG</SelectItem>
+                        <SelectItem value="image/png">PNG</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
 
-              {/* Image References */}
+              {/* Image References - Only for Gemini models, NOT Imagen */}
+              {!selectedModel.startsWith('models/imagen') && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-semibold flex items-center gap-2">
@@ -474,119 +780,7 @@ export default function LabPage() {
                   Upload reference images to guide the AI generation
                 </p>
               </div>
-
-              {/* Style Section */}
-              <div className="space-y-3 p-4 rounded-xl border-2 bg-card shadow-sm">
-                <button
-                  onClick={() => toggleSection('style')}
-                  className="w-full flex items-center justify-between group"
-                >
-                  <span className="flex items-center gap-2 text-sm font-semibold">
-                    <Palette className="h-4 w-4 text-purple-500" />
-                    Style
-                  </span>
-                  {expandedSections.style ? (
-                    <ChevronUp className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-                  )}
-                </button>
-                {expandedSections.style && (
-                  <div className="space-y-3 pt-2">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-400 dark:hover:bg-purple-900/20 dark:hover:text-purple-300 transition-all"
-                        onClick={() => {
-                          const randomStyle = stylePresets[Math.floor(Math.random() * stylePresets.length)];
-                          setSelectedStyle(randomStyle);
-                          toast({
-                            title: "Random Style Selected",
-                            description: `Selected: ${randomStyle}`
-                          });
-                        }}
-                      >
-                        <Shuffle className="h-3 w-3 mr-1.5" />
-                        Random
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 hover:bg-purple-50 hover:text-purple-700 dark:hover:bg-purple-900/20 dark:hover:text-purple-300 transition-all"
-                        onClick={() => setSelectedStyle('')}
-                      >
-                        <X className="h-3 w-3 mr-1.5" />
-                        Clear
-                      </Button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {stylePresets.map(style => (
-                        <button
-                          key={style}
-                          onClick={() => setSelectedStyle(style === selectedStyle ? '' : style)}
-                          className={cn(
-                            "px-3.5 py-2 text-xs font-medium rounded-full border-2 transition-all shadow-sm",
-                            selectedStyle === style
-                              ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white border-transparent shadow-md scale-105"
-                              : "bg-background hover:bg-purple-50 dark:hover:bg-purple-900/20 border-border hover:border-purple-400 hover:scale-105"
-                          )}
-                        >
-                          {style}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Composition Section */}
-              <div className="space-y-3 p-4 rounded-xl border-2 bg-card shadow-sm">
-                <button
-                  onClick={() => toggleSection('composition')}
-                  className="w-full flex items-center justify-between group"
-                >
-                  <span className="flex items-center gap-2 text-sm font-semibold">
-                    Composition
-                  </span>
-                  {expandedSections.composition ? (
-                    <ChevronUp className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-                  )}
-                </button>
-                {expandedSections.composition && (
-                  <div className="space-y-3 pt-2">
-                    <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                        className="h-8 hover:bg-purple-50 hover:text-purple-700 dark:hover:bg-purple-900/20 dark:hover:text-purple-300 transition-all"
-                        onClick={() => setSelectedComposition('')}
-                  >
-                        <X className="h-3 w-3 mr-1.5" />
-                        Clear
-                  </Button>
-                </div>
-                    <div className="flex flex-wrap gap-2">
-                      {compositionPresets.map(comp => (
-                        <button
-                          key={comp}
-                          onClick={() => setSelectedComposition(comp === selectedComposition ? '' : comp)}
-                          className={cn(
-                            "px-3.5 py-2 text-xs font-medium rounded-full border-2 transition-all shadow-sm",
-                            selectedComposition === comp
-                              ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white border-transparent shadow-md scale-105"
-                              : "bg-background hover:bg-purple-50 dark:hover:bg-purple-900/20 border-border hover:border-purple-400 hover:scale-105"
-                          )}
-                        >
-                          {comp}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+              )}
 
             {/* Generate Button - Sticky at bottom of left panel */}
             <div className="sticky bottom-0 p-6 bg-gradient-to-t from-background via-background to-transparent border-t backdrop-blur-sm">
@@ -610,43 +804,24 @@ export default function LabPage() {
               </Button>
             </div>
           </div>
-        </div>
+                </div>
 
         {/* RIGHT PANEL: Generated Images & History */}
         <div className="flex-1 flex flex-col overflow-hidden bg-background/30">
-          <Tabs defaultValue="history" className="flex-1 flex flex-col">
-            <div className="border-b px-6 py-4 bg-background/80 backdrop-blur-sm">
-              <TabsList className="bg-muted/50">
-                <TabsTrigger 
-                  value="history" 
-                  className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm"
-                >
-                  <Clock className="h-4 w-4" />
-                  <span className="font-medium">History</span>
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="inspiration" 
-                  className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm"
-                >
-                  <Lightbulb className="h-4 w-4" />
-                  <span className="font-medium">Inspiration</span>
-                </TabsTrigger>
-              </TabsList>
+          <ScrollArea className="h-full">
+            <div className="p-6">
+              {/* Loading indicator when generating (doesn't hide history) */}
+              {isGenerating && (
+                <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl border border-purple-200 dark:border-purple-800 flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 animate-spin text-purple-500" />
+                  <div>
+                    <p className="font-semibold text-purple-700 dark:text-purple-300">Generating your image...</p>
+                    <p className="text-xs text-muted-foreground">AI is crafting your masterpiece</p>
+                  </div>
                 </div>
-
-            <TabsContent value="history" className="flex-1 m-0 overflow-hidden">
-              <ScrollArea className="h-full">
-                <div className="p-6">
-              {isGenerating ? (
-                    <div className="flex flex-col items-center justify-center py-32 bg-gradient-to-br from-purple-50/50 to-pink-50/50 dark:from-purple-900/10 dark:to-pink-900/10 rounded-2xl">
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full blur-xl opacity-30 animate-pulse"></div>
-                        <Loader2 className="relative h-20 w-20 animate-spin text-purple-500" />
-                      </div>
-                      <p className="text-xl font-bold mt-6">Generating your image...</p>
-                      <p className="text-sm text-muted-foreground mt-2">AI is crafting your masterpiece</p>
-                </div>
-                  ) : history.length > 0 || generatedImages.length > 0 ? (
+              )}
+              
+              {history.length > 0 || generatedImages.length > 0 || allGeneratedImages.length > 0 ? (
                     <div className="grid grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
                       {/* Current generation */}
                   {generatedImages.map((image, index) => (
@@ -670,10 +845,10 @@ export default function LabPage() {
                           size="sm"
                           onClick={() => handleDownload(image, index)}
                                 className="w-full bg-white/90 hover:bg-white text-black font-semibold shadow-lg"
-                              >
+                        >
                                 <Download className="h-3.5 w-3.5 mr-2" />
-                                Download
-                              </Button>
+                          Download
+                        </Button>
                             </div>
                           </div>
                           <div className="space-y-2">
@@ -688,8 +863,16 @@ export default function LabPage() {
                         </div>
                       ))}
 
-                      {/* History items */}
-                      {history.map((item) => (
+                      {/* History items - Skip first item if it matches current generation */}
+                      {history
+                        .filter((item, index) => {
+                          // Skip the first history item if we have generated images (to avoid duplication)
+                          if (index === 0 && generatedImages.length > 0) {
+                            return false;
+                          }
+                          return true;
+                        })
+                        .map((item) => (
                         item.images.map((image, imgIndex) => (
                           <div key={`${item.id}-${imgIndex}`} className="group space-y-3">
                             <div className="relative aspect-square rounded-xl overflow-hidden bg-muted border shadow-md hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
@@ -700,29 +883,196 @@ export default function LabPage() {
                                 className="object-cover"
                               />
                               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                              <div className="absolute bottom-3 left-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                <Button
-                                  variant="secondary"
-                                  size="sm"
-                                  onClick={() => handleDownload(image, imgIndex)}
-                                  className="w-full bg-white/90 hover:bg-white text-black font-semibold shadow-lg"
-                                >
-                                  <Download className="h-3.5 w-3.5 mr-2" />
-                          Download
-                        </Button>
+                              {/* Action buttons - Center aligned at bottom */}
+                              <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        size="icon"
+                                        variant="secondary"
+                                        className="bg-white/90 hover:bg-white text-black rounded-full h-9 w-9 shadow-lg"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          // Find index in combined array for preview
+                                          const allImages = [...generatedImages, ...history.flatMap(h => h.images.map(img => ({ ...img, prompt: h.prompt })))];
+                                          setPreviewIndex(allImages.findIndex(img => img === image));
+                                        }}
+                                      >
+                                        <Maximize2 className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>Preview</p></TooltipContent>
+                                  </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        size="icon"
+                                        variant="secondary"
+                                        className="bg-white/90 hover:bg-white text-black rounded-full h-9 w-9 shadow-lg"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleCopyImagePrompt(item.prompt);
+                                        }}
+                                      >
+                                        <Code className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>Copy Prompt</p></TooltipContent>
+                                  </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        size="icon"
+                                        variant="secondary"
+                                        className="bg-white/90 hover:bg-white text-black rounded-full h-9 w-9 shadow-lg"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleCopyImage(GeminiImageGenClient.imageToDataUrl(image));
+                                        }}
+                                      >
+                                        <Copy className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>Copy Image</p></TooltipContent>
+                                  </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        size="icon"
+                                        variant="secondary"
+                                        className="bg-white/90 hover:bg-white text-black rounded-full h-9 w-9 shadow-lg"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDownload(image, imgIndex);
+                                        }}
+                                      >
+                                        <Download className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>Download</p></TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                               </div>
                             </div>
                             <div className="space-y-2">
                               <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{item.prompt}</p>
                               <div className="flex items-center gap-2 flex-wrap">
-                                <Badge variant="outline" className="text-xs">1:1</Badge>
+                                <Badge variant="outline" className="text-xs">{aspectRatio}</Badge>
+                                <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 border-purple-200 dark:border-purple-800">
+                                  {item.model.split('/').pop()}
+                                </Badge>
                                 <Badge variant="outline" className="text-xs text-muted-foreground">
                                   {new Date(item.timestamp).toLocaleDateString()}
-                        </Badge>
-                      </div>
-                    </div>
+                                </Badge>
+                              </div>
+                            </div>
                           </div>
                         ))
+                  ))}
+
+                      {/* Firebase-persisted images (from gallery) - Filter out current generation to avoid duplicates */}
+                      {allGeneratedImages
+                        .filter((img) => {
+                          // Skip images that are in the current generation (shown with "New" badge)
+                          return !currentGenerationIds.has(img.id || '');
+                        })
+                        .map((img, imgIdx) => (
+                        <div key={`firebase-${img.id || imgIdx}`} className="group space-y-3">
+                          <div className="relative aspect-square rounded-xl overflow-hidden bg-muted border shadow-md hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+                            <NextImage
+                              src={img.dataUri}
+                              alt={img.alt || 'Generated image'}
+                              fill
+                              className="object-cover"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                            {/* Action buttons - Center aligned at bottom */}
+                            <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="icon"
+                                      variant="secondary"
+                                      className="bg-white/90 hover:bg-white text-black rounded-full h-9 w-9 shadow-lg"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setPreviewIndex(imgIdx);
+                                      }}
+                                    >
+                                      <Maximize2 className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent><p>Preview</p></TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="icon"
+                                      variant="secondary"
+                                      className="bg-white/90 hover:bg-white text-black rounded-full h-9 w-9 shadow-lg"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleCopyImagePrompt(img.prompt);
+                                      }}
+                                    >
+                                      <Code className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent><p>Copy Prompt</p></TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="icon"
+                                      variant="secondary"
+                                      className="bg-white/90 hover:bg-white text-black rounded-full h-9 w-9 shadow-lg"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleCopyImage(img.dataUri);
+                                      }}
+                                    >
+                                      <Copy className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent><p>Copy Image</p></TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="icon"
+                                      variant="secondary"
+                                      className="bg-white/90 hover:bg-white text-black rounded-full h-9 w-9 shadow-lg"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const link = document.createElement('a');
+                                        link.href = img.dataUri;
+                                        link.download = `generated-${img.id || Date.now()}.png`;
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        document.body.removeChild(link);
+                                        toast({ title: "Downloaded!", description: "Image saved to your device." });
+                                      }}
+                                    >
+                                      <Download className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent><p>Download</p></TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{img.prompt || img.alt}</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge variant="outline" className="text-xs">From Storage</Badge>
+                              <Badge variant="outline" className="text-xs text-muted-foreground">
+                                {img.createdAt ? new Date(img.createdAt).toLocaleDateString() : 'Unknown'}
+                        </Badge>
+                            </div>
+                      </div>
+                    </div>
                   ))}
                 </div>
               ) : (
@@ -737,36 +1087,17 @@ export default function LabPage() {
                       </p>
                 </div>
               )}
-                </div>
-              </ScrollArea>
-            </TabsContent>
-
-            <TabsContent value="inspiration" className="flex-1 m-0 overflow-hidden">
-              <ScrollArea className="h-full">
-                <div className="p-6">
-                  <div className="flex flex-col items-center justify-center py-32 text-muted-foreground bg-gradient-to-br from-yellow-50/50 to-orange-50/50 dark:from-yellow-900/10 dark:to-orange-900/10 rounded-2xl">
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full blur-2xl opacity-20 animate-pulse"></div>
-                      <Lightbulb className="relative h-24 w-24 mb-6 opacity-30 text-yellow-600 dark:text-yellow-400" />
-                    </div>
-                    <p className="text-xl font-bold">Inspiration Gallery</p>
-                    <p className="text-sm mt-2 max-w-md text-center">
-                      Coming soon! Browse curated designs, trending prompts, and get inspired by the community.
-                    </p>
-                    <Button 
-                      variant="outline" 
-                      className="mt-6"
-                      disabled
-                    >
-                      Explore Soon
-                    </Button>
-                  </div>
-                </div>
-              </ScrollArea>
-            </TabsContent>
-          </Tabs>
+            </div>
+          </ScrollArea>
         </div>
       </div>
+
+      {/* Image Preview Dialog */}
+      <ImagePreviewDialog
+        images={allGeneratedImages}
+        startIndex={previewIndex}
+        onClose={() => setPreviewIndex(null)}
+      />
     </div>
   );
 }

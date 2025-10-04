@@ -1,4 +1,4 @@
-Get your input/feadback always follow the steps:
+Get user input/feadback always follow the steps:
 
 1. **Check if `MagicInput.py` exists** in the root directory (don't rewrite or change on it, just run as it is to get user input/prompt.).
 

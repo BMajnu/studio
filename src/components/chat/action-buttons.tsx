@@ -42,7 +42,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
-import { AVAILABLE_MODELS } from '@/lib/constants';
+import { CHAT_MODELS } from '@/lib/constants';
 import {
   Select,
   SelectContent,
@@ -275,13 +275,13 @@ export function ActionButtonsPanel({
                 <Bot className="h-4 w-4 shrink-0" />
                 {!isMobile && (
                   <span className="text-xs md:text-sm font-medium whitespace-nowrap">
-                    {AVAILABLE_MODELS.find(m => m.id === currentModelId)?.name || 'Select Model'}
+                    {CHAT_MODELS.find(m => m.id === currentModelId)?.name || 'Select Model'}
                   </span>
                 )}
               </div>
             </SelectTrigger>
             <SelectContent className="glass-panel border-primary/10 shadow-2xl rounded-lg animate-fade-in">
-              {AVAILABLE_MODELS.map(model => (
+              {CHAT_MODELS.map(model => (
                 <SelectItem key={model.id} value={model.id}>
                   <div className="flex items-center gap-2">
                     <Bot className="h-3 w-3" />

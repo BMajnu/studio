@@ -41,7 +41,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { AVAILABLE_MODELS } from '@/lib/constants';
+import { CHAT_MODELS } from '@/lib/constants';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { loadUploadedAttachments } from '@/lib/storage/uploaded-attachments-local';
@@ -316,7 +316,7 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
           key={index}
           className={cn(
             commonClasses,
-            "bg-card/80 backdrop-blur-sm border border-border rounded-lg shadow-md overflow-hidden"
+            "bg-card/80 backdrop-blur-sm border border-border rounded-lg shadow-md overflow-hidden w-full"
           )}
           style={{ animationDelay }}
         >
@@ -329,9 +329,9 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
             </div>
           )}
 
-          <div className="p-4">
-            <div className="flex flex-row gap-1">
-              <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
+          <div className="p-2 sm:p-4 w-full">
+            <div className="flex flex-col md:flex-row gap-2 md:gap-1 w-full">
+              <ScrollArea className="flex-1 h-full p-3 sm:p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow max-w-full overflow-x-hidden">
                 <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
@@ -339,13 +339,13 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                     ul: ({ node, ...props }: any) => <ul className="list-disc pl-5 space-y-[3px]" {...props} />,
                     ol: ({ node, ...props }: any) => <ol className="list-decimal pl-5 space-y-[3px]" {...props} />,
                   }}
-                  className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0 prose-headings:my-2"
+                  className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0 prose-headings:my-2 break-words"
                 >
                   {part.english}
                 </ReactMarkdown>
               </ScrollArea>
-              <div className="w-px bg-border mx-2" />
-              <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
+              <div className="w-px bg-border mx-2 hidden md:block" />
+              <ScrollArea className="flex-1 h-full p-3 sm:p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow max-w-full overflow-x-hidden">
                 <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
@@ -353,7 +353,7 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                     ul: ({ node, ...props }: any) => <ul className="list-disc pl-5 space-y-[3px]" {...props} />,
                     ol: ({ node, ...props }: any) => <ol className="list-decimal pl-5 space-y-[3px]" {...props} />,
                   }}
-                  className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0 prose-headings:my-2"
+                  className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0 prose-headings:my-2 break-words"
                 >
                   {part.bengali}
                 </ReactMarkdown>
@@ -533,7 +533,7 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
               
               <div className="min-h-[200px]">
                 <TabsContent value="keyPoints" className="mt-0">
-                  <div className="flex flex-row gap-1 h-full">
+                  <div className="flex flex-col md:flex-row gap-2 md:gap-1 h-full">
                     <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
                       <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
                       <div className="prose prose-sm dark:prose-invert max-w-none text-foreground leading-snug font-medium prose-li:my-0 prose-ul:my-0 prose-ol:my-0">
@@ -544,7 +544,7 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                         ) : "No key points available"}
               </div>
                     </ScrollArea>
-                    <div className="w-px bg-border mx-2 h-full"></div>
+                    <div className="w-px bg-border mx-2 h-full hidden md:block"></div>
                     <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
                       <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
                       <div className="prose prose-sm dark:prose-invert max-w-none text-foreground leading-snug font-medium prose-li:my-0 prose-ul:my-0 prose-ol:my-0">
@@ -559,7 +559,7 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                 </TabsContent>
 
                 <TabsContent value="analysis" className="mt-0">
-                  <div className="flex flex-row gap-1 h-full">
+                  <div className="flex flex-col md:flex-row gap-2 md:gap-1 h-full">
                     <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
                       <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
                       <ReactMarkdown
@@ -574,7 +574,7 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                       </ReactMarkdown>
                     </ScrollArea>
                     
-                    <div className="w-px bg-border mx-2 h-full"></div>
+                    <div className="w-px bg-border mx-2 h-full hidden md:block"></div>
                     
                     <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
                       <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
@@ -593,7 +593,7 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                 </TabsContent>
                 
                 <TabsContent value="simplified" className="mt-0">
-                  <div className="flex flex-row gap-1 h-full">
+                  <div className="flex flex-col md:flex-row gap-2 md:gap-1 h-full">
                     <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
                       <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
                       <ReactMarkdown
@@ -608,7 +608,7 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                       </ReactMarkdown>
                     </ScrollArea>
                     
-                    <div className="w-px bg-border mx-2 h-full"></div>
+                    <div className="w-px bg-border mx-2 h-full hidden md:block"></div>
                     
                     <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
                       <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
@@ -627,7 +627,7 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                 </TabsContent>
                 
                 <TabsContent value="approach" className="mt-0">
-                  <div className="flex flex-row gap-1 h-full">
+                  <div className="flex flex-col md:flex-row gap-2 md:gap-1 h-full">
                     <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
                       <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
                       <ReactMarkdown
@@ -642,7 +642,7 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                       </ReactMarkdown>
                     </ScrollArea>
                     
-                    <div className="w-px bg-border mx-2 h-full"></div>
+                    <div className="w-px bg-border mx-2 h-full hidden md:block"></div>
                     
                     <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
                       <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
@@ -661,7 +661,7 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                 </TabsContent>
                 
                 <TabsContent value="replies" className="mt-0">
-                  <div className="flex flex-row gap-1 h-full">
+                  <div className="flex flex-col md:flex-row gap-2 md:gap-1 h-full">
                     <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
                       <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">English</div>
                       <div className="prose prose-sm dark:prose-invert max-w-none text-foreground leading-snug font-medium prose-li:my-0 prose-ul:my-0 prose-ol:my-0">
@@ -670,16 +670,12 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                             {Array.isArray(part.english.suggestions) && part.english.suggestions.map((suggestion, idx) => (
                               <div
                                 key={`eng-tab-sugg-${idx}`}
-                                className="group relative"
-                                onClick={(e) => { if ((e.target as HTMLElement).closest('button')) return; onSuggestionClick && onSuggestionClick(suggestion, 'en'); }}
-                                role="button"
-                                tabIndex={0}
-                                onKeyDown={(e) => { if ((e.target as HTMLElement).closest('button')) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSuggestionClick && onSuggestionClick(suggestion, 'en'); } }}
+                                className="group relative pointer-events-none"
                                 title={`Use suggestion: ${suggestion}`}
                               >
                                 <CopyToClipboard
                                   textToCopy={suggestion}
-                                  className="cursor-pointer not-prose bg-card border-border hover:border-primary/50 text-foreground"
+                                  className="not-prose bg-card border-border hover:border-primary/50 text-foreground pointer-events-auto"
                                   contentClassName="font-sans [&_code]:font-sans"
                                   style={{ marginTop: '3px', marginBottom: '3px' }}
                                 />
@@ -690,7 +686,7 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                         ) : "No suggested replies available"}
                       </div>
                     </ScrollArea>
-                    <div className="w-px bg-border mx-2 h-full"></div>
+                    <div className="w-px bg-border mx-2 h-full hidden md:block"></div>
                     <ScrollArea className="flex-1 h-full p-4 rounded-md bg-card/50 backdrop-blur-sm border border-border shadow-sm hover:shadow-md transition-shadow">
                       <div className="mb-2 text-sm uppercase font-semibold text-muted-foreground">Bengali</div>
                       <div className="prose prose-sm dark:prose-invert max-w-none text-foreground leading-snug font-medium prose-li:my-0 prose-ul:my-0 prose-ol:my-0">
@@ -699,16 +695,12 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                             {Array.isArray(part.bengali.suggestions) && part.bengali.suggestions.map((suggestion, idx) => (
                               <div
                                 key={`bn-tab-sugg-${idx}`}
-                                className="group relative"
-                                onClick={(e) => { if ((e.target as HTMLElement).closest('button')) return; onSuggestionClick && onSuggestionClick(suggestion, 'bn'); }}
-                                role="button"
-                                tabIndex={0}
-                                onKeyDown={(e) => { if ((e.target as HTMLElement).closest('button')) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSuggestionClick && onSuggestionClick(suggestion, 'bn'); } }}
+                                className="group relative pointer-events-none"
                                 title={`Use suggestion: ${suggestion}`}
                               >
                                 <CopyToClipboard
                                   textToCopy={suggestion}
-                                  className="cursor-pointer not-prose bg-card border-border hover:border-secondary/50 text-foreground"
+                                  className="not-prose bg-card border-border hover:border-secondary/50 text-foreground pointer-events-auto"
                                   contentClassName="font-sans [&_code]:font-sans"
                                   style={{ marginTop: '3px', marginBottom: '3px' }}
                                 />
@@ -777,11 +769,12 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                   key={`eng-sugg-${i}`}
                   variant="outline"
                   size="sm"
-                  className="rounded-full bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary hover:text-primary shadow-sm"
+                  className="rounded-full bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary hover:text-primary shadow-sm max-w-full text-xs sm:text-sm"
                   onClick={() => onSuggestionClick && onSuggestionClick(reply, 'en')}
                   title={`Use suggestion: ${reply}`}
                 >
-                  <Sparkles className="h-3 w-3 mr-1" /> {reply}
+                  <Sparkles className="h-3 w-3 mr-1 shrink-0" /> 
+                  <span className="truncate">{reply}</span>
                 </Button>
               ))}
             </div>
@@ -794,11 +787,12 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                   key={`bn-sugg-${i}`}
                   variant="outline"
                   size="sm"
-                  className="rounded-full bg-secondary/5 hover:bg-secondary/10 border-secondary/20 text-secondary-foreground/90 shadow-sm"
+                  className="rounded-full bg-secondary/5 hover:bg-secondary/10 border-secondary/20 text-secondary-foreground/90 shadow-sm max-w-full text-xs sm:text-sm"
                   onClick={() => onSuggestionClick && onSuggestionClick(reply, 'bn')}
                   title={`Use suggestion: ${reply}`}
                 >
-                  <Sparkles className="h-3 w-3 mr-1" /> {reply}
+                  <Sparkles className="h-3 w-3 mr-1 shrink-0" /> 
+                  <span className="truncate">{reply}</span>
                 </Button>
               ))}
             </div>
@@ -1959,7 +1953,7 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
                           <SelectValue placeholder="Model" />
                         </SelectTrigger>
                         <SelectContent>
-                          {AVAILABLE_MODELS.map(model => (
+                          {CHAT_MODELS.map(model => (
                             <SelectItem key={model.id} value={model.id}>{model.name}</SelectItem>
                           ))}
                         </SelectContent>
@@ -2091,7 +2085,7 @@ export function ChatMessageDisplay({ message, onRegenerate, onConfirmEditAndRese
                           <SelectValue placeholder="Model" />
                         </SelectTrigger>
                         <SelectContent>
-                          {AVAILABLE_MODELS.map(model => (
+                          {CHAT_MODELS.map(model => (
                             <SelectItem key={model.id} value={model.id}>{model.name}</SelectItem>
                           ))}
                         </SelectContent>

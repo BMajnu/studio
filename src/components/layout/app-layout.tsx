@@ -261,12 +261,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="relative flex h-[100dvh] flex-col">
       <GeneratedImagesCleaner />
       
-      <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
-                {navItems.map((item, index) => (
-          <React.Fragment key={`nav-${index}`}>
-                    {renderNavItem(item, false)}
-          </React.Fragment>
-                ))}
+      <div className="absolute top-4 right-4 z-50 flex items-center gap-1 md:gap-2">
+                {/* Hide nav items on mobile to save space */}
+                <div className="hidden md:flex items-center gap-2">
+                  {navItems.map((item, index) => (
+                    <React.Fragment key={`nav-${index}`}>
+                      {renderNavItem(item, false)}
+                    </React.Fragment>
+                  ))}
+                </div>
+                
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button 
@@ -275,10 +279,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     rounded="full" 
                     glow
                     animate
-                    className="backdrop-blur-sm border border-border/20 shadow-sm hover:shadow-md hover:bg-primary/10 transition-all duration-300 ease-in-out" 
+                    className="backdrop-blur-sm border border-border/20 shadow-sm hover:shadow-md hover:bg-primary/10 transition-all duration-300 ease-in-out h-8 w-8 md:h-10 md:w-10" 
                     aria-label={srChangeLanguage}
                   >
-              <Languages className="h-6 w-6 text-foreground/80 hover:text-primary transition-colors" />
+              <Languages className="h-4 w-4 md:h-6 md:w-6 text-foreground/80 hover:text-primary transition-colors" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="glass-panel backdrop-blur-md border-border/30 shadow-lg animate-fade-in">
@@ -303,13 +307,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 rounded="full" 
                 glow
                 animate
-                className="backdrop-blur-sm border border-border/20 shadow-sm hover:shadow-md hover:bg-primary/10 transition-all duration-300 ease-in-out" 
+                className="backdrop-blur-sm border border-border/20 shadow-sm hover:shadow-md hover:bg-primary/10 transition-all duration-300 ease-in-out h-8 w-8 md:h-10 md:w-10" 
                 onClick={toggleTheme} 
                 aria-label={srToggleTheme}
               >
                 {effectiveTheme === 'dark' ? 
-            <Moon className="h-6 w-6 text-foreground/80 hover:text-primary transition-colors" /> : 
-            <Sun className="h-6 w-6 text-foreground/80 hover:text-primary transition-colors" />}
+            <Moon className="h-4 w-4 md:h-6 md:w-6 text-foreground/80 hover:text-primary transition-colors" /> : 
+            <Sun className="h-4 w-4 md:h-6 md:w-6 text-foreground/80 hover:text-primary transition-colors" />}
               </Button>
             
         {user && (
@@ -321,12 +325,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     rounded="full" 
                     glow
                     animate
-                className="backdrop-blur-sm border border-border/20 shadow-sm hover:shadow-md hover:bg-primary/10 transition-all duration-300 ease-in-out"
+                className="backdrop-blur-sm border border-border/20 shadow-sm hover:shadow-md hover:bg-primary/10 transition-all duration-300 ease-in-out h-8 w-8 md:h-10 md:w-10"
                   >
-                <Avatar className="h-9 w-9">
+                <Avatar className="h-7 w-7 md:h-9 md:w-9">
                   <AvatarImage src={user.photoURL || ''} alt={user.displayName || 'User'} />
                   <AvatarFallback>
-                    <User className="h-6 w-6 text-foreground/80" />
+                    <User className="h-4 w-4 md:h-6 md:w-6 text-foreground/80" />
                   </AvatarFallback>
                 </Avatar>
                   </Button>

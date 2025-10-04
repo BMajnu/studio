@@ -197,7 +197,6 @@ class InputPopup:
         self._configure_gemini_client()
         self.file_paths: list[str] = []
         self.file_meta: dict[str, tuple[int,int,int]] = {}
-        self.terminal_context_buffer: str = ""
 
         # Autocomplete state (for '@' mentions)
         self._ac_popup: tk.Toplevel | None = None
@@ -716,11 +715,12 @@ class InputPopup:
             command=self._on_prefs_changed
         )
 
-        self.include_terminal_var = tk.BooleanVar(value=True)
-        self.include_terminal_chk = tk.Checkbutton(
+        # Rule checkbox - when enabled, appends user-defined rule to prompt
+        self.include_rule_var = tk.BooleanVar(value=False)
+        self.include_rule_chk = tk.Checkbutton(
             self.ctx_frame,
-            text="Terminal",
-            variable=self.include_terminal_var,
+            text="Rule",
+            variable=self.include_rule_var,
             bg=self.current_theme["bg_primary"],
             fg=self.current_theme["text_primary"],
             selectcolor=self.current_theme["bg_primary"],
@@ -728,12 +728,16 @@ class InputPopup:
             activeforeground=self.current_theme["text_primary"],
             command=self._on_prefs_changed
         )
-
-        self.include_footer_var = tk.BooleanVar(value=True)
-        self.include_footer_chk = tk.Checkbutton(
+        
+        # Store custom rule (set via "Add or Edit Rule" button)
+        self.custom_rule: str = ""
+        
+        # Alive Command checkbox - auto-send keep-alive prompt at 3 minutes
+        self.alive_command_var = tk.BooleanVar(value=False)
+        self.alive_command_chk = tk.Checkbutton(
             self.ctx_frame,
-            text="Footer",
-            variable=self.include_footer_var,
+            text="Alive Command",
+            variable=self.alive_command_var,
             bg=self.current_theme["bg_primary"],
             fg=self.current_theme["text_primary"],
             selectcolor=self.current_theme["bg_primary"],
@@ -741,16 +745,19 @@ class InputPopup:
             activeforeground=self.current_theme["text_primary"],
             command=self._on_prefs_changed
         )
+        
+        # Track how many times alive command has been sent
+        self.alive_command_count: int = 0
 
-        # Button to preload/paste terminal context
-        self.terminal_ctx_btn = tk.Button(
+        # Button to add or edit custom rule
+        self.edit_rule_btn = tk.Button(
             self.btn_frame,
-            text="Terminal…",
+            text="Add or Edit Rule",
             font=self.button_font,
             bg=self.current_theme["bg_secondary"],
             fg=self.current_theme["text_primary"],
             relief="flat",
-            command=self._open_terminal_context_dialog
+            command=self._open_rule_editor_dialog
         )
         
         # Add hover effects
@@ -811,8 +818,8 @@ class InputPopup:
         self.include_context_chk.pack(side=tk.LEFT, padx=(0,8))
         self.include_project_chk.pack(side=tk.LEFT, padx=(0,8))
         self.include_archive_chk.pack(side=tk.LEFT, padx=(0,8))
-        self.include_terminal_chk.pack(side=tk.LEFT, padx=(0,8))
-        self.include_footer_chk.pack(side=tk.LEFT, padx=(0,8))
+        self.include_rule_chk.pack(side=tk.LEFT, padx=(0,8))
+        self.alive_command_chk.pack(side=tk.LEFT, padx=(0,8))
 
         # Text section
         self.text_label.pack(fill=tk.X, padx=10, pady=(0, 5), anchor="w")
@@ -823,7 +830,7 @@ class InputPopup:
         self.btn_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=(0, 10))
         
         # Top row (actions)
-        self.terminal_ctx_btn.pack(side=tk.LEFT, pady=6, ipady=3, ipadx=8)
+        self.edit_rule_btn.pack(side=tk.LEFT, pady=6, ipady=3, ipadx=8)
         self.clear_btn.pack(side=tk.LEFT, padx=(5,0), pady=6, ipady=3, ipadx=8)
         self.refine_btn.pack(side=tk.LEFT, padx=(5,0), pady=6, ipady=3, ipadx=8)
         self.send_close_btn.pack(side=tk.RIGHT, pady=6, ipady=3, ipadx=8)
@@ -849,20 +856,15 @@ class InputPopup:
         """Enable/disable per-context toggles based on Include context."""
         try:
             state = tk.NORMAL if self.include_context_var.get() else tk.DISABLED
-            for chk in (self.include_project_chk, self.include_archive_chk, self.include_terminal_chk):
+            for chk in (self.include_project_chk, self.include_archive_chk):
                 chk.config(state=state)
-            term_btn_state = tk.NORMAL if (self.include_context_var.get() and self.include_terminal_var.get()) else tk.DISABLED
-            self.terminal_ctx_btn.config(state=term_btn_state)
         except Exception:
             pass
 
     def _on_prefs_changed(self) -> None:
         """Placeholder for persisting UI preferences; keeps dependent controls in sync."""
-        try:
-            term_btn_state = tk.NORMAL if (self.include_context_var.get() and self.include_terminal_var.get()) else tk.DISABLED
-            self.terminal_ctx_btn.config(state=term_btn_state)
-        except Exception:
-            pass
+        # No special logic needed anymore since Terminal button is removed
+        pass
 
     def _enable_dnd(self) -> None:
         # Canvas accepts image files; text area accepts files whose contents are inserted.
@@ -1133,29 +1135,14 @@ class InputPopup:
             # Both code and other attachment types present ➔ mention both
             footer_parts.append("attachement")
 
-        # Build footer sentence
-        footer_line = ""
-        # If an image is present, use the requested phrasing instead of the previous generic line
-        if self.images:
-            footer_line = (
-                "Follow the rule always and implement the requirements properly as mentioned above."
-                "Read the rule.md file in the MagicInput folder"
-            )
-        elif footer_parts:
-            if len(footer_parts) == 1:
-                parts_str = footer_parts[0]
-            else:
-                parts_str = " and ".join(footer_parts)
-            footer_line = f"read the {parts_str} (following the directory link) mentioned above."
-
-        # Respect the Footer toggle; only append when enabled
+        # Append custom rule if Rule checkbox is enabled
         try:
-            footer_enabled = bool(self.include_footer_var.get())
+            rule_enabled = bool(self.include_rule_var.get())
         except Exception:
-            footer_enabled = True
+            rule_enabled = False
 
-        if footer_line and footer_enabled:
-            text = f"{text}\n{footer_line}" if text else footer_line
+        if rule_enabled and self.custom_rule:
+            text = f"{text}\n\n{self.custom_rule}" if text else self.custom_rule
 
         lines: list[str] = []
         lines.append("Prompt:")
@@ -1246,8 +1233,6 @@ class InputPopup:
                     enhanced_context['project'] = True
                 if getattr(self, 'include_archive_var', None) and self.include_archive_var.get():
                     enhanced_context['archive'] = True
-                if getattr(self, 'include_terminal_var', None) and self.include_terminal_var.get():
-                    enhanced_context['terminal'] = True
 
             try:
                 user_prompt = self.text_input.get("1.0", tk.END).strip()
@@ -1698,7 +1683,7 @@ class InputPopup:
         self.mode_frame.configure(bg=theme["bg_primary"])
 
         # Checkboxes
-        for chk in (self.include_context_chk, self.include_project_chk, self.include_archive_chk, self.include_terminal_chk, self.include_footer_chk):
+        for chk in (self.include_context_chk, self.include_project_chk, self.include_archive_chk, self.include_rule_chk, self.alive_command_chk):
             chk.configure(
                 bg=theme["bg_primary"],
                 fg=theme["text_primary"],
@@ -1719,7 +1704,7 @@ class InputPopup:
 
         # Bottom buttons
         self.btn_frame.configure(bg=theme["bg_primary"])
-        self.terminal_ctx_btn.configure(bg=theme["bg_secondary"], fg=theme["text_primary"])
+        self.edit_rule_btn.configure(bg=theme["bg_secondary"], fg=theme["text_primary"])
         self.visionize_btn.configure(bg=theme["accent_purple"], fg=theme["text_primary"])
         self.clear_btn.configure(bg=theme["bg_secondary"], fg=theme["text_primary"])
         self.refine_btn.configure(bg=theme["accent_orange"], fg=theme["text_primary"])
@@ -1803,8 +1788,9 @@ class InputPopup:
             self.include_context_chk.configure(bg=self.current_theme["bg_primary"], fg=self.current_theme["text_primary"], selectcolor=self.current_theme["bg_primary"])
             self.include_project_chk.configure(bg=self.current_theme["bg_primary"], fg=self.current_theme["text_primary"], selectcolor=self.current_theme["bg_primary"])
             self.include_archive_chk.configure(bg=self.current_theme["bg_primary"], fg=self.current_theme["text_primary"], selectcolor=self.current_theme["bg_primary"])
-            self.include_terminal_chk.configure(bg=self.current_theme["bg_primary"], fg=self.current_theme["text_primary"], selectcolor=self.current_theme["bg_primary"])
-            self.terminal_ctx_btn.configure(bg=self.current_theme["bg_secondary"], fg=self.current_theme["text_primary"])
+            self.include_rule_chk.configure(bg=self.current_theme["bg_primary"], fg=self.current_theme["text_primary"], selectcolor=self.current_theme["bg_primary"])
+            self.alive_command_chk.configure(bg=self.current_theme["bg_primary"], fg=self.current_theme["text_primary"], selectcolor=self.current_theme["bg_primary"])
+            self.edit_rule_btn.configure(bg=self.current_theme["bg_secondary"], fg=self.current_theme["text_primary"])
         except Exception:
             pass
 
@@ -1813,21 +1799,107 @@ class InputPopup:
         try:
             self.include_project_chk.config(state=state)
             self.include_archive_chk.config(state=state)
-            self.include_terminal_chk.config(state=state)
-            self.terminal_ctx_btn.config(state=state)
         except Exception:
             pass
 
-    def _open_terminal_context_dialog(self) -> None:
-        try:
-            txt = self._ask_terminal_context() or ""
-            self.terminal_context_buffer = txt
-            if txt:
-                self.status_var.set("✅ Terminal context loaded")
+    def _open_rule_editor_dialog(self) -> None:
+        """Open a dialog to add or edit custom rule that gets appended to prompts."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Add or Edit Rule")
+        dialog.geometry("600x400")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        # Apply theme
+        dialog.configure(bg=self.current_theme["bg_primary"])
+        
+        # Label
+        label = tk.Label(
+            dialog,
+            text="Enter your custom rule (will be appended when 'Rule' checkbox is enabled):",
+            bg=self.current_theme["bg_primary"],
+            fg=self.current_theme["text_primary"],
+            font=("Segoe UI", 10)
+        )
+        label.pack(padx=10, pady=10, anchor="w")
+        
+        # Text area for rule input
+        text_frame = tk.Frame(dialog, bg=self.current_theme["bg_primary"])
+        text_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
+        
+        text_widget = tk.Text(
+            text_frame,
+            wrap=tk.WORD,
+            font=("Segoe UI", 10),
+            bg=self.current_theme["bg_secondary"],
+            fg=self.current_theme["text_primary"],
+            insertbackground=self.current_theme["text_primary"]
+        )
+        text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        scrollbar = tk.Scrollbar(text_frame, command=text_widget.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        text_widget.config(yscrollcommand=scrollbar.set)
+        
+        # Load current rule if exists
+        if self.custom_rule:
+            text_widget.insert("1.0", self.custom_rule)
+        
+        # Checkbox to enable rule
+        enable_var = tk.BooleanVar(value=self.include_rule_var.get())
+        enable_chk = tk.Checkbutton(
+            dialog,
+            text="Enable this rule (same as 'Rule' checkbox in main window)",
+            variable=enable_var,
+            bg=self.current_theme["bg_primary"],
+            fg=self.current_theme["text_primary"],
+            selectcolor=self.current_theme["bg_primary"]
+        )
+        enable_chk.pack(padx=10, pady=5, anchor="w")
+        
+        # Buttons frame
+        btn_frame = tk.Frame(dialog, bg=self.current_theme["bg_primary"])
+        btn_frame.pack(fill=tk.X, padx=10, pady=10)
+        
+        def save_and_close():
+            self.custom_rule = text_widget.get("1.0", tk.END).strip()
+            self.include_rule_var.set(enable_var.get())
+            # Save to config file immediately
+            try:
+                self._save_config()
+            except Exception as e:
+                print(f"Warning: Could not save config: {e}")
+            if self.custom_rule:
+                self.status_var.set("✅ Rule saved and enabled" if enable_var.get() else "✅ Rule saved")
             else:
-                self.status_var.set("ℹ No terminal context provided")
-        except Exception:
-            self.status_var.set("")
+                self.status_var.set("ℹ Rule cleared")
+            dialog.destroy()
+        
+        save_btn = tk.Button(
+            btn_frame,
+            text="Save & Close",
+            command=save_and_close,
+            bg=self.current_theme["accent_blue"],
+            fg=self.current_theme["text_primary"],
+            font=("Segoe UI", 10, "bold"),
+            relief="flat",
+            padx=15,
+            pady=5
+        )
+        save_btn.pack(side=tk.RIGHT)
+        
+        cancel_btn = tk.Button(
+            btn_frame,
+            text="Cancel",
+            command=dialog.destroy,
+            bg=self.current_theme["bg_secondary"],
+            fg=self.current_theme["text_primary"],
+            font=("Segoe UI", 10),
+            relief="flat",
+            padx=15,
+            pady=5
+        )
+        cancel_btn.pack(side=tk.RIGHT, padx=(0, 10))
 
     def _on_key_release(self, event) -> None:  # noqa: N802
         """Detect '@' key to trigger file autocomplete popup."""
@@ -2351,19 +2423,11 @@ class InputPopup:
                 if not hasattr(self, 'include_archive_var') or bool(self.include_archive_var.get()):
                     enhanced_context['prompts_archive'] = self._read_prompts_archive(max_chars=10000)
 
-                # 3. Terminal context (if enabled)
-                terminal_text = ""
-                if not hasattr(self, 'include_terminal_var') or bool(self.include_terminal_var.get()):
-                    # Prefer preloaded buffer, otherwise ask
-                    terminal_text = getattr(self, 'terminal_context_buffer', "").strip()
-                    if not terminal_text:
-                        terminal_text = self._ask_terminal_context() or ""
-                        self.terminal_context_buffer = terminal_text
-                enhanced_context['terminal_context'] = terminal_text
+                # Terminal context removed - replaced with Rule feature
 
             except Exception:
                 # If enhanced context collection fails, continue with basic functionality
-                enhanced_context = {'terminal_context': ''}
+                enhanced_context = {}
 
         self.visionize_btn.config(state=tk.DISABLED)
         self.root.config(cursor="wait")
@@ -2426,20 +2490,14 @@ class InputPopup:
                 # Add prompts archive for continuity
                 if enhanced_context.get('prompts_archive'):
                     context_parts.append(f"=== PREVIOUS INTERACTIONS ===\n{enhanced_context['prompts_archive']}")
-                
-                # Add terminal context if provided
-                if enhanced_context.get('terminal_context'):
-                    context_parts.append(f"=== TERMINAL OUTPUT ===\n{enhanced_context['terminal_context']}")
             
             # Debug: log context inclusion and sizes
             proj_len = len(enhanced_context.get('project_brief') or '')
             arch_len = len(enhanced_context.get('prompts_archive') or '')
-            term_len = len(enhanced_context.get('terminal_context') or '')
             self._log_debug(
                 f"Context flags: include_context={include_context}; "
                 f"project_brief={'yes' if bool(enhanced_context.get('project_brief')) else 'no'}({proj_len} chars); "
-                f"prompts_archive={'yes' if bool(enhanced_context.get('prompts_archive')) else 'no'}({arch_len} chars); "
-                f"terminal={'yes' if bool(enhanced_context.get('terminal_context')) else 'no'}({term_len} chars)"
+                f"prompts_archive={'yes' if bool(enhanced_context.get('prompts_archive')) else 'no'}({arch_len} chars)"
             )
 
             # Add attached file context
@@ -2579,6 +2637,32 @@ Constraints:
             elapsed = getattr(self, "_countup_elapsed", 0)
             self.status_var.set(f"⏳ Waiting for prompt: {elapsed}s")
             self._countup_elapsed = elapsed + 1
+            
+            # Auto-send alive command at 3 minutes (180 seconds)
+            try:
+                if (elapsed == 180 and 
+                    hasattr(self, 'alive_command_var') and 
+                    self.alive_command_var.get()):
+                    # Increment alive command counter
+                    self.alive_command_count = getattr(self, 'alive_command_count', 0) + 1
+                    
+                    # Build prompt with "again" for subsequent sends
+                    base_prompt = "Run a terminal command to wait 30 seconds and then back to MagicInput.py (run it) to get my input"
+                    if self.alive_command_count > 1:
+                        prompt_text = f"{base_prompt} again."
+                    else:
+                        prompt_text = f"{base_prompt}."
+                    
+                    # Clear current text and set alive command prompt
+                    self.text_input.delete("1.0", tk.END)
+                    self.text_input.insert("1.0", prompt_text)
+                    # Trigger "Send and Close" button automatically
+                    self.status_var.set(f"🤖 Auto-sending alive command (#{self.alive_command_count})...")
+                    self.root.after(500, self._send_and_close)  # Use Send & Close instead of Send
+                    return  # Don't schedule next tick - send will restart countdown
+            except Exception as e:
+                print(f"Alive command error: {e}")
+            
             self._countdown_after_id = self.root.after(1000, _tick)
         self._countdown_after_id = self.root.after(0, _tick)
 
@@ -2742,144 +2826,7 @@ Constraints:
             pass
         return results
 
-    def _ask_terminal_context(self) -> str | None:
-        """Popup that lists open terminals (Windows) and lets user paste or attach logs."""
-        popup = tk.Toplevel(self.root)
-        popup.title("Add Terminal Context (optional)")
-        popup.configure(bg=self.current_theme["bg_primary"])
-        popup.geometry("720x420")
-
-        outer = tk.Frame(popup, bg=self.current_theme["bg_primary"])
-        outer.pack(fill=tk.BOTH, expand=True)
-
-        # Left: terminal list (Windows only)
-        left = tk.Frame(outer, bg=self.current_theme["bg_primary"])
-        left.pack(side=tk.LEFT, fill=tk.Y, padx=(10, 6), pady=10)
-        tk.Label(left, text="Open terminals (Windows):", bg=self.current_theme["bg_primary"], fg=self.current_theme["text_primary"]).pack(anchor="w")
-        term_list = tk.Listbox(left, height=14, width=36, activestyle="dotbox")
-        term_list.pack(fill=tk.Y, expand=False, pady=(4, 6))
-
-        actions = tk.Frame(left, bg=self.current_theme["bg_primary"])
-        actions.pack(fill=tk.X)
-        def _refresh():
-            term_list.delete(0, tk.END)
-            items = self._list_open_terminals_windows() if platform.system() == 'Windows' else []
-            for hwnd, title, cls in items:
-                term_list.insert(tk.END, f"[{cls}] {title}  (hwnd={hwnd})")
-            if not items:
-                term_list.insert(tk.END, "No terminals detected. You can still paste or add from files.")
-        def _activate():
-            sel = term_list.curselection()
-            if not sel:
-                return
-            line = term_list.get(sel[0])
-            try:
-                hwnd = int(line.rsplit("=",1)[-1].rstrip(")"))
-                ctypes.windll.user32.SetForegroundWindow(hwnd)
-            except Exception:
-                pass
-        tk.Button(actions, text="Refresh", command=_refresh, bg=self.current_theme["bg_secondary"], fg=self.current_theme["text_primary"], relief="flat").pack(side=tk.LEFT)
-        tk.Button(actions, text="Activate", command=_activate, bg=self.current_theme["bg_secondary"], fg=self.current_theme["text_primary"], relief="flat").pack(side=tk.LEFT, padx=(6,0))
-
-        help_lbl = tk.Label(left,
-            text="Tip: Activate a terminal, press Ctrl+A then Ctrl+C (or Ctrl+Shift+C),\nthen use 'Paste Clipboard' to insert here.",
-            justify="left",
-            bg=self.current_theme["bg_primary"], fg=self.current_theme["text_secondary"])
-        help_lbl.pack(anchor="w", pady=(6,0))
-
-        # Right: text editor
-        right = tk.Frame(outer, bg=self.current_theme["bg_primary"])
-        right.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(6,10), pady=10)
-        tk.Label(right, text="Terminal context:", bg=self.current_theme["bg_primary"], fg=self.current_theme["text_primary"]).pack(anchor="w")
-        # Improved readability: larger monospace font and themed caret
-        txt = scrolledtext.ScrolledText(
-            right,
-            wrap=tk.WORD,
-            height=15,
-            bg=self.current_theme["bg_tertiary"],
-            fg=self.current_theme["text_primary"],
-            insertbackground=self.current_theme["accent_blue"],
-            font=("Consolas", 11)
-        )
-        txt.pack(fill=tk.BOTH, expand=True, pady=(4, 6))
-
-        # Configure keyword-specific tags
-        txt.tag_config("kw_vector", foreground=self.current_theme["accent_purple"], font=("Consolas", 11, "bold"))
-        txt.tag_config("kw_mockup", foreground=self.current_theme["accent_orange"], font=("Consolas", 11, "bold"))
-        txt.tag_config("kw_rgb", foreground=self.current_theme["accent_blue"], font=("Consolas", 11, "bold"))
-        txt.tag_config("kw_cmyk", foreground=self.current_theme["accent_blue"], font=("Consolas", 11, "bold"))
-        txt.tag_config("kw_dpi", foreground=self.current_theme["accent_green"], font=("Consolas", 11, "bold"))
-        txt.tag_config("kw_pantone", foreground=self.current_theme["accent_red"], font=("Consolas", 11, "bold"))
-
-        def _highlight_keywords():
-            try:
-                # Clear existing keyword tags
-                for tag in ("kw_vector", "kw_mockup", "kw_rgb", "kw_cmyk", "kw_dpi", "kw_pantone"):
-                    txt.tag_remove(tag, "1.0", tk.END)
-
-                patterns = [
-                    ("vector tracing", "kw_vector"),
-                    ("mockup", "kw_mockup"),
-                    ("rgb", "kw_rgb"),
-                    ("cmyk", "kw_cmyk"),
-                    ("dpi", "kw_dpi"),
-                    ("pantone", "kw_pantone"),
-                ]
-
-                for needle, tag in patterns:
-                    start = "1.0"
-                    while True:
-                        idx = txt.search(needle, start, stopindex=tk.END, nocase=True)
-                        if not idx:
-                            break
-                        end = f"{idx}+{len(needle)}c"
-                        txt.tag_add(tag, idx, end)
-                        start = end
-            except Exception:
-                pass
-
-        # Bottom bar
-        btn_bar = tk.Frame(right, bg=self.current_theme["bg_primary"])
-        btn_bar.pack(fill=tk.X)
-        def _paste_clipboard():
-            try:
-                data = popup.clipboard_get()
-                if data:
-                    txt.insert(tk.END, ("\n" if txt.get("1.0", tk.END).strip() else "") + data)
-                    _highlight_keywords()
-            except Exception:
-                pass
-        def _add_files():
-            paths = filedialog.askopenfilenames(title="Select log/text files", filetypes=[["Text", "*.txt *.log *.md"], ["All", "*.*"]])
-            for p in paths:
-                try:
-                    with open(p, "r", encoding="utf-8", errors="ignore") as f:
-                        txt.insert(tk.END, f"\n\n# {os.path.basename(p)}\n" + f.read())
-                        _highlight_keywords()
-                except Exception:
-                    pass
-        tk.Button(btn_bar, text="Paste Clipboard", command=_paste_clipboard, bg=self.current_theme["bg_secondary"], fg=self.current_theme["text_primary"], relief="flat").pack(side=tk.LEFT)
-        tk.Button(btn_bar, text="Add From Files…", command=_add_files, bg=self.current_theme["bg_secondary"], fg=self.current_theme["text_primary"], relief="flat").pack(side=tk.LEFT, padx=(6,0))
-
-        chosen: list[str] = []
-        def _ok():
-            chosen.append(txt.get("1.0", tk.END).strip())
-            popup.destroy()
-        def _cancel():
-            popup.destroy()
-        tk.Button(btn_bar, text="Cancel", command=_cancel, bg=self.current_theme["bg_secondary"], fg=self.current_theme["text_primary"], relief="flat").pack(side=tk.RIGHT)
-        tk.Button(btn_bar, text="OK", command=_ok, bg=self.current_theme["accent_blue"], fg=self.current_theme["text_primary"], relief="flat").pack(side=tk.RIGHT, padx=(6,0))
-
-        # Highlight on edits as the user types/pastes
-        txt.bind("<KeyRelease>", lambda e: _highlight_keywords())
-
-        _refresh()
-        popup.grab_set()
-        txt.focus_set()
-        # Initial highlight (no-op if empty)
-        _highlight_keywords()
-        popup.wait_window()
-        return chosen[0] if chosen else None
+    # Terminal context method removed - replaced with Rule feature
 
     def _insert_description_into_text(self, description: str) -> None:
         current_text = self.text_input.get("1.0", tk.END).strip()
@@ -2955,7 +2902,12 @@ Constraints:
                     except Exception:
                         pass
                     try:
-                        self.include_terminal_var.set(bool(prefs.get("include_terminal", True)))
+                        self.include_rule_var.set(bool(prefs.get("include_rule", False)))
+                        self.custom_rule = prefs.get("custom_rule", "")
+                    except Exception:
+                        pass
+                    try:
+                        self.alive_command_var.set(bool(prefs.get("alive_command", False)))
                     except Exception:
                         pass
                     # Ensure preferences are persisted under ui_prefs section
@@ -2985,7 +2937,9 @@ Constraints:
                 "include_context": bool(getattr(self, "include_context_var", tk.BooleanVar(value=True)).get()),
                 "include_project": bool(getattr(self, "include_project_var", tk.BooleanVar(value=True)).get()),
                 "include_archive": bool(getattr(self, "include_archive_var", tk.BooleanVar(value=True)).get()),
-                "include_terminal": bool(getattr(self, "include_terminal_var", tk.BooleanVar(value=True)).get()),
+                "include_rule": bool(getattr(self, "include_rule_var", tk.BooleanVar(value=False)).get()),
+                "custom_rule": getattr(self, "custom_rule", ""),
+                "alive_command": bool(getattr(self, "alive_command_var", tk.BooleanVar(value=False)).get()),
             }
             data["ui_prefs"] = ui_prefs
         except Exception:

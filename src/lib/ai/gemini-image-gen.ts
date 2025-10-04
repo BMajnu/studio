@@ -33,13 +33,22 @@ export class GeminiImageGenClient {
   async generateImages(
     modelId: string,
     prompt: string,
-    maxAttempts = 5
+    maxAttempts = 5,
+    options?: {
+      numberOfImages?: number;
+      aspectRatio?: string;
+      imageSize?: string;
+      outputMimeType?: string;
+    }
   ): Promise<ImageGenResult> {
     let attempts = 0;
     let lastError: any;
 
     const allKeys = this.manager.getAllKeys();
     const maxRetries = Math.min(maxAttempts, allKeys.length);
+
+    // Detect if this is an Imagen model
+    const isImagenModel = modelId.startsWith('models/imagen');
 
     while (attempts < maxRetries) {
       const key = this.manager.getActiveKey();
@@ -48,39 +57,73 @@ export class GeminiImageGenClient {
       }
 
       try {
+        const { GoogleGenAI, PersonGeneration } = await import('@google/genai');
         const ai = new GoogleGenAI({ apiKey: key });
         
-        const config: any = {
-          responseModalities: ['IMAGE', 'TEXT'],
-        };
+        let response: any;
 
-        const contents = [
-          {
-            role: 'user' as const,
-            parts: [{ text: prompt }],
-          },
-        ];
+        if (isImagenModel) {
+          // Imagen models use generateImages API
+          response = await (ai.models as any).generateImages({
+            model: modelId,
+            prompt: prompt,
+            config: {
+              numberOfImages: options?.numberOfImages || 1,
+              outputMimeType: options?.outputMimeType || 'image/jpeg',
+              personGeneration: (PersonGeneration as any).ALLOW_ALL,
+              aspectRatio: options?.aspectRatio || '1:1',
+              ...(options?.imageSize && { imageSize: options.imageSize }),
+            },
+          });
+        } else {
+          // Gemini models use generateContent API with responseModalities
+          const config: any = {
+            responseModalities: ['IMAGE', 'TEXT'],
+          };
 
-        const response = await ai.models.generateContent({
-          model: modelId,
-          config,
-          contents,
-        });
+          const contents = [
+            {
+              role: 'user' as const,
+              parts: [{ text: prompt }],
+            },
+          ];
+
+          response = await ai.models.generateContent({
+            model: modelId,
+            config,
+            contents,
+          });
+        }
 
         // Parse response for images and text
         const images: GeneratedImageData[] = [];
         let textResponse = '';
 
-        if (response.candidates && response.candidates[0]?.content?.parts) {
-          for (const part of response.candidates[0].content.parts) {
-            if ((part as any).inlineData) {
-              const inlineData = (part as any).inlineData;
-              images.push({
-                data: inlineData.data || '',
-                mimeType: inlineData.mimeType || 'image/png',
-              });
-            } else if ((part as any).text) {
-              textResponse += (part as any).text;
+        if (isImagenModel) {
+          // Imagen response structure
+          if (response.generatedImages) {
+            for (const genImg of response.generatedImages) {
+              if (genImg.image?.imageBytes) {
+                images.push({
+                  data: genImg.image.imageBytes,
+                  mimeType: options?.outputMimeType || 'image/jpeg',
+                });
+              }
+            }
+          }
+        } else {
+          // Gemini response structure
+          if (response.candidates && response.candidates[0]?.content?.parts) {
+            for (const part of response.candidates[0].content.parts) {
+              if ((part as any).inlineData) {
+                const inlineData = (part as any).inlineData;
+                images.push({
+                  data: inlineData.data || '',
+                  mimeType: inlineData.mimeType || 'image/png',
+                });
+              } else if ((part as any).text) {
+                textResponse += (part as any).text;
+              }
             }
           }
         }

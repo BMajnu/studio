@@ -7,8 +7,15 @@ export const AVAILABLE_MODELS = [
   { id: 'gemini-flash-latest', name: '🆕 Gemini Flash (Latest) ⭐', supportsThinking: true, tag: 'New' },
   { id: 'gemini-2.5-flash', name: '🆕 Gemini 2.5 Flash', supportsThinking: true, tag: 'New' },
   { id: 'gemini-2.5-pro', name: '🆕 Gemini 2.5 Pro', supportsThinking: true, tag: 'New' },
-  { id: 'gemini-2.5-flash-image-preview', name: '🆕 Gemini 2.5 Flash (Image Gen/Edit) ⭐', supportsThinking: true, supportsImageGen: true, tag: 'New' },
   { id: 'gemini-flash-lite-latest', name: '🆕 Gemini Flash Lite (Latest) ⭐', supportsThinking: true, tag: 'New' },
+
+  // 🎨 Image Generation Models (Designer Lab only - NOT for chat)
+  { id: 'gemini-2.0-flash-preview-image-generation', name: '🎨 Gemini 2.0 Flash (Image Gen) ✓', supportsThinking: false, supportsImageGen: true, tag: 'Free', requiresPro: false },
+  { id: 'models/imagen-4.0-ultra-generate-001', name: '🎨 Imagen 4.0 Ultra ⭐', supportsThinking: false, supportsImageGen: true, tag: 'Pro', isImagen: true, requiresPro: true },
+  { id: 'models/imagen-4.0-generate-001', name: '🎨 Imagen 4.0 ⭐', supportsThinking: false, supportsImageGen: true, tag: 'Pro', isImagen: true, requiresPro: true },
+  { id: 'models/imagen-4.0-fast-generate-001', name: '🎨 Imagen 4.0 Fast', supportsThinking: false, supportsImageGen: true, tag: 'Pro', isImagen: true, requiresPro: true },
+  { id: 'models/imagen-3.0-generate-002', name: '🎨 Imagen 3.0', supportsThinking: false, supportsImageGen: true, tag: 'Pro', isImagen: true, requiresPro: true },
+  { id: 'gemini-2.5-flash-image-preview', name: '🎨 Gemini 2.5 Flash (Image Gen/Edit) ⭐', supportsThinking: false, supportsImageGen: true, tag: 'Pro', requiresPro: true },
 
   // Most Accurate (Slower)
   { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', supportsThinking: true },
@@ -30,8 +37,12 @@ export const AVAILABLE_MODELS = [
   { id: 'gemma-3n-e2b', name: 'Gemma 3n E2B', supportsThinking: false },
 ];
 
-// Image Generation Models - separate reference for image-specific features
+// Image Generation Models - separate reference for image-specific features (NOT shown in chat)
 export const IMAGE_GENERATION_MODELS = AVAILABLE_MODELS.filter(m => (m as any).supportsImageGen);
+
+// Chat Models - Only non-image-generation models for chat (excludes image gen models)
+export const CHAT_MODELS = AVAILABLE_MODELS.filter(m => !(m as any).supportsImageGen);
+
 // Default model for content generation (NOT for title generation which uses specific lite preview models)
 export const DEFAULT_MODEL_ID = 'gemini-flash-latest';
 

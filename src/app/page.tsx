@@ -18,6 +18,7 @@ import type { ChatMessage, UserProfile, ChatMessageContentPart, AttachedFile, Ch
 import { processClientMessage, type ProcessClientMessageInput, type ProcessClientMessageOutput } from '@/ai/flows/process-client-message';
 import { processCustomInstruction, type ProcessCustomInstructionInput, type ProcessCustomInstructionOutput } from '@/ai/flows/process-custom-instruction';
 import { analyzeClientRequirements, type AnalyzeClientRequirementsInput, type AnalyzeClientRequirementsOutput } from '@/ai/flows/analyze-client-requirements';
+import { generateChatResponse, type GenerateChatResponseInput, type GenerateChatResponseOutput } from '@/ai/flows/generate-chat-response-flow';
 import { generateEngagementPack, type GenerateEngagementPackInput, type GenerateEngagementPackOutput } from '@/ai/flows/generate-engagement-pack-flow';
 import { generateDesignPrompts, type GenerateDesignPromptsInput, type GenerateDesignPromptsOutput } from '@/ai/flows/generate-design-prompts-flow';
 import { checkMadeDesigns, type CheckMadeDesignsInput, type CheckMadeDesignsOutput } from '@/ai/flows/check-made-designs-flow';
@@ -26,7 +27,6 @@ import { generateEditingPrompts, type GenerateEditingPromptsInput, type Generate
 import { checkBestDesign, type CheckBestDesignInput, type CheckBestDesignOutput } from '@/ai/flows/check-best-design-flow';
 import { promptToReplicate } from '@/ai/flows/prompt-to-replicate-flow';
 import { type PromptToReplicateInput, type PromptToReplicateOutput } from '@/ai/flows/prompt-to-replicate-types';
-import { generateChatResponse, type GenerateChatResponseInput, type GenerateChatResponseOutput } from '@/ai/flows/generate-chat-response-flow';
 import { generateVideoPrompts, type GenerateVideoPromptsInput, type GenerateVideoPromptsOutput } from '@/ai/flows/generate-video-prompts-flow';
 import { generateStoryFilm, type GenerateStoryFilmInput, type GenerateStoryFilmOutput } from '@/ai/flows/generate-story-film-flow';
 import { generateAds, type GenerateAdsInput, type GenerateAdsOutput } from '@/ai/flows/generate-ads-flow';
@@ -40,7 +40,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { DEFAULT_USER_ID, DEFAULT_MODEL_ID, AVAILABLE_MODELS } from '@/lib/constants';
+import { DEFAULT_USER_ID, DEFAULT_MODEL_ID, CHAT_MODELS } from '@/lib/constants';
 import { useAuth } from '@/contexts/auth-context';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { LoginForm } from '@/components/auth/login-form';
@@ -1466,11 +1466,8 @@ ${params.language ? `Language: ${params.language}` : ''}`;
     };
     
     const currentActionType = determineActionType();
-    // For processing, treat 'chat' (and legacy 'custom') as the normal chat flow 'processMessage',
-    // but keep the original action type for message metadata and UI rendering.
-    const actionForFlow: ActionType = (currentActionType === 'chat' || currentActionType === 'custom')
-      ? 'processMessage'
-      : currentActionType;
+    // Keep action type as is - 'chat' should use its own flow, not processMessage
+    const actionForFlow: ActionType = currentActionType;
     
     // Update active button for UI highlighting (only for direct user actions)
     if (!isUserMessageEdit && !isRegenerationCall) {
@@ -1649,8 +1646,47 @@ ${params.language ? `Language: ${params.language}` : ''}`;
             }))
             .filter(msg => msg.text.trim() !== '' && (msg.role === 'user' || msg.role === 'assistant'));
 
-          // Handle processMessage action for graphic design chatbot
-          if (actionForFlow === 'processMessage') {
+          // Handle AI Chat action for general graphic design advice
+          if (actionForFlow === 'chat' || actionForFlow === 'custom') {
+            try {
+              const chatInput: GenerateChatResponseInput = {
+                userMessage: userMessageContent,
+                userName: userProfile.name,
+                attachedFiles: filesForFlow,
+                chatHistory: chatHistoryForAI,
+                modelId: modelIdToUse,
+                userApiKey: apiKeyToUseThisTurn,
+                profile: userProfile
+              };
+              const chatOutput = await generateChatResponse(chatInput);
+
+              // Add bilingual response in side-by-side format without title
+              finalAiResponseContent.push({
+                type: 'bilingual_text_split',
+                english: chatOutput.responseEnglish,
+                bengali: chatOutput.responseBengali
+              });
+
+              // Add suggested actions if available (only English to avoid duplication)
+              if (chatOutput.suggestedActions && chatOutput.suggestedActions.length > 0) {
+                finalAiResponseContent.push({
+                  type: 'suggested_replies',
+                  title: 'Suggested Actions',
+                  suggestions: {
+                    english: chatOutput.suggestedActions,
+                    bengali: [] // Empty to avoid duplicate buttons
+                  }
+                });
+              }
+
+              // Design Tips removed as per user request
+            } catch (error) {
+              console.error("Error in AI Chat flow:", error);
+              aiCallError = error;
+            }
+          }
+          // Handle processMessage action for client message analysis
+          else if (actionForFlow === 'processMessage') {
             try {
               const pmInput: ProcessClientMessageInput = {
                 ...baseInput,
@@ -2605,7 +2641,7 @@ ${params.language ? `Language: ${params.language}` : ''}`;
       if (hasText || hasAttachments) {
         handleSendMessage(
           inputMessage || '',
-          'processMessage',
+          'chat', // Use 'chat' action type directly to route to AI chatbot flow
           undefined,
           undefined, // use current attached files already tracked by state if needed by handler
           false,
@@ -2613,7 +2649,7 @@ ${params.language ? `Language: ${params.language}` : ''}`;
           undefined,
           undefined,
           isCustomMessage,
-          'chat' // actionTypeOverride to route to chat flow
+          undefined // No override needed, direct action type is 'chat'
         );
         // Clear the active highlight after a short delay
         setTimeout(() => setActiveActionButton(null), 500);
@@ -3420,11 +3456,11 @@ ${params.language ? `Language: ${params.language}` : ''}`;
       )}
 
       {/* Main chat area - always visible regardless of history panel state */}
-      <div className="flex flex-col flex-grow min-w-0 w-full h-full">
-        <ScrollArea className="flex-1 overflow-y-auto" ref={chatAreaRef}>
+      <div className="flex flex-col flex-grow min-w-0 w-full h-full overflow-x-hidden">
+        <ScrollArea className="flex-1 overflow-y-auto overflow-x-hidden" ref={chatAreaRef}>
           <div className={cn(
-            "space-y-4 w-full stagger-animation pb-48 px-2",
-            isHistoryPanelOpen ? (isHistoryPanelCollapsed ? "pl-2" : "pl-2") : ""
+            "space-y-4 w-full stagger-animation pb-48 px-3 sm:px-4 md:px-6",
+            isHistoryPanelOpen ? (isHistoryPanelCollapsed ? "pl-3 sm:pl-4 md:pl-6" : "pl-3 sm:pl-4 md:pl-6") : ""
           )}>
             {messages.map((msg) => (
               <ErrorBoundary key={msg.id}>
@@ -3646,7 +3682,7 @@ ${params.language ? `Language: ${params.language}` : ''}`;
                         
                         safeToast({
                           title: "Model Changed",
-                          description: `Switched to ${AVAILABLE_MODELS.find(m => m.id === modelId)?.name || modelId}`,
+                          description: `Switched to ${CHAT_MODELS.find(m => m.id === modelId)?.name || modelId}`,
                         });
                       }}
                     />
