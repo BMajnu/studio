@@ -1692,7 +1692,8 @@ ${params.language ? `Language: ${params.language}` : ''}`;
                 ...baseInput,
                 clientMessage: userMessageContent,
                 attachedFiles: filesForFlow,
-                chatHistory: chatHistoryForAI
+                chatHistory: chatHistoryForAI,
+                profile: userProfile,
               };
               const pmOutput = await processClientMessage(pmInput);
 
@@ -1786,6 +1787,7 @@ ${params.language ? `Language: ${params.language}` : ''}`;
                 clientMessage: userMessageContent,
                 attachedFiles: filesForFlow,
                 chatHistory: chatHistoryForAI,
+                profile: userProfile,
               };
 
               const requirementsOutput: AnalyzeClientRequirementsOutput = await analyzeClientRequirements(requirementsInput);

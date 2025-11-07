@@ -29,7 +29,7 @@ export const AVAILABLE_MODELS = [
   { id: 'gemini-2.5-flash-preview-04-17', name: 'Gemini 2.5 Flash Preview (04-17)', supportsThinking: false },
   { id: 'gemini-2.5-flash-preview-05-20', name: 'Gemini 2.5 Flash Preview (05-20)', supportsThinking: true },
   { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', supportsThinking: false },
-  { id: 'gemini-2.0-flash-preview-image-generation', name: 'Gemini 2.0 Flash (Image Gen)', supportsThinking: false },
+  
 
   // Fastest (Lowest Cost) – Flash Lite & Gemma models
   { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite', supportsThinking: false },

@@ -106,8 +106,10 @@ export async function generateJSON<T = any>(
       return JSON.parse(responseText) as T;
     } catch (err: any) {
       attempts++;
-      const msg = err?.message?.toLowerCase() || '';
+      const msg = (err?.message || '').toLowerCase();
+      const code = err?.code || err?.status || err?.error?.code || err?.error?.status;
 
+      // Quota/availability issues → cool off and try next key
       if (
         msg.includes('429') ||
         msg.includes('503') ||
@@ -120,9 +122,16 @@ export async function generateJSON<T = any>(
         continue;
       }
 
-      if (msg.includes('400') && msg.includes('api key')) {
+      // Invalid/leaked/forbidden key → permanently exclude and try next
+      if (
+        msg.includes('api key') ||
+        msg.includes('permission_denied') ||
+        msg.includes('forbidden') ||
+        msg.includes('leaked') ||
+        String(code).includes('403')
+      ) {
         manager.reportInvalidKey(key);
-        console.log(`Invalid API key, trying next key`);
+        console.log(`Permission/Key error (possibly leaked/invalid). Rotating to next key.`);
         continue;
       }
 
@@ -218,7 +227,8 @@ export async function generateText(
       return responseText;
     } catch (err: any) {
       attempts++;
-      const msg = err?.message?.toLowerCase() || '';
+      const msg = (err?.message || '').toLowerCase();
+      const code = err?.code || err?.status || err?.error?.code || err?.error?.status;
 
       if (
         msg.includes('429') ||
@@ -232,9 +242,15 @@ export async function generateText(
         continue;
       }
 
-      if (msg.includes('400') && msg.includes('api key')) {
+      if (
+        msg.includes('api key') ||
+        msg.includes('permission_denied') ||
+        msg.includes('forbidden') ||
+        msg.includes('leaked') ||
+        String(code).includes('403')
+      ) {
         manager.reportInvalidKey(key);
-        console.log(`Invalid API key, trying next key`);
+        console.log(`Permission/Key error (possibly leaked/invalid). Rotating to next key.`);
         continue;
       }
 
