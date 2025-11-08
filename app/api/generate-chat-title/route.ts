@@ -1,5 +1,6 @@
 import { generateChatTitleFlow } from '@/ai/flows/generate-chat-title-flow';
 import { NextRequest, NextResponse } from 'next/server';
+import { AppError, classifyError } from '@/lib/errors';
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,6 +16,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ title });
   } catch (error: any) {
     console.error('generate-chat-title API error:', error);
-    return NextResponse.json({ error: error.message || 'Unknown error', stack: error?.stack }, { status: 500 });
+    const appErr = error instanceof AppError ? error : classifyError(error);
+    const status = appErr.status ?? 500;
+    return NextResponse.json({ error: appErr.userMessage || appErr.message || 'Unknown error' }, { status });
   }
-} 
+}

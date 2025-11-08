@@ -1108,7 +1108,10 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
         </div>
       );
 
-    case 'microstock_results_tabs':
+    case 'microstock_results_tabs': {
+      const items = Array.isArray((part as any)?.microstockResults)
+        ? (part as any).microstockResults
+        : [];
       return (
         <div key={index} className={`${commonClasses} bg-gradient-to-br from-slate-50/90 to-slate-100/90 dark:from-slate-900/90 dark:to-slate-800/90 backdrop-blur-sm border border-primary/10 rounded-lg shadow-xl overflow-hidden`} style={{ animationDelay }}>
           <div className="bg-gradient-to-r from-teal-600 to-cyan-600 px-4 py-3 border-b flex items-center justify-between text-white">
@@ -1118,14 +1121,22 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
             </div>
             <div className="flex items-center gap-2">
               <span className="bg-white/20 text-white text-xs px-2 py-1 rounded-full">
-                {part.microstockResults?.length || 0} Prompts
+                {items.length} Prompts
               </span>
               <Button 
                 variant="ghost" 
                 size="sm" 
                 className="h-7 w-7 p-0 rounded-full bg-white/10 hover:bg-white/20 text-white"
                 onClick={() => handleCopyToClipboard(
-                  part.microstockResults?.map((r, i) => `PROMPT ${i+1}:\n${r.prompt}\n\nMETADATA:\nTitle: ${r.metadata.title}\nKeywords: ${r.metadata.keywords.join(', ')}\nCategory: ${r.metadata.mainCategory}\nSubcategory: ${r.metadata.subcategory}`).join('\n\n---\n\n') || '',
+                  items.map((r: any, i: number) => {
+                    const m = r?.metadata || {};
+                    const kws = Array.isArray(m?.keywords)
+                      ? m.keywords
+                      : (typeof m?.keywords === 'string'
+                          ? m.keywords.split(',').map((s: string) => s.trim()).filter(Boolean)
+                          : []);
+                    return `PROMPT ${i + 1}:\n${r?.prompt || ''}\n\nMETADATA:\nTitle: ${m?.title || ''}\nKeywords: ${kws.join(', ')}\nCategory: ${m?.mainCategory || ''}\nSubcategory: ${m?.subcategory || ''}`;
+                  }).join('\n\n---\n\n') || '',
                   'all-microstock-prompts'
                 )}
               >
@@ -1135,12 +1146,12 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
           </div>
           
           <div className="p-2 md:p-4 w-full">
-            {part.microstockResults && part.microstockResults.length > 0 && (
+            {items.length > 0 && (
               <Tabs defaultValue={`prompt-0`} className="w-full">
                 {/* First row of tabs: Prompts 1-10 */}
                 <div className="space-y-2">
                   <TabsList className="grid grid-cols-5 sm:grid-cols-5 md:grid-cols-10 w-full gap-1 mb-2 bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-950/30 dark:to-cyan-950/30 p-1 md:p-1.5 rounded-t-lg shadow-sm">
-                    {part.microstockResults.slice(0, 10).map((resultItem, resultIndex) => (
+                    {items.slice(0, 10).map((resultItem: any, resultIndex: number) => (
                       <TabsTrigger 
                         key={`outer-tab-${resultIndex}`}
                         value={`prompt-${resultIndex}`}
@@ -1156,9 +1167,9 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                   </TabsList>
                   
                   {/* Second row of tabs: Prompts 11-20 (if available) */}
-                  {part.microstockResults.length > 10 && (
+                  {items.length > 10 && (
                     <TabsList className="grid grid-cols-5 sm:grid-cols-5 md:grid-cols-10 w-full gap-1 mb-2 bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-950/30 dark:to-cyan-950/30 p-1 md:p-1.5 rounded-b-lg shadow-sm">
-                      {part.microstockResults.slice(10, 20).map((resultItem, resultIndex) => {
+                      {items.slice(10, 20).map((resultItem: any, resultIndex: number) => {
                         const actualIndex = resultIndex + 10;
                         return (
                           <TabsTrigger 
@@ -1182,7 +1193,7 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                 <div className="h-2"></div>
                 
                 {/* Content areas for all tabs */}
-                {part.microstockResults.map((resultItem, resultIndex) => (
+                {items.map((resultItem: any, resultIndex: number) => (
                   <TabsContent key={`outer-content-${resultIndex}`} value={`prompt-${resultIndex}`}>
                     <div className="space-y-3 animate-fade-in border border-muted/30 rounded-lg p-2 md:p-3 bg-card/50">
                       <Tabs defaultValue="prompt-text" className="w-full">
@@ -1218,13 +1229,13 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                               size="sm" 
                               variant="ghost"
                               className="flex items-center gap-1 text-xs h-7 px-2"
-                              onClick={() => handleCopyToClipboard(resultItem.prompt || '', `ms-prompt-${resultIndex}`)}
+                              onClick={() => handleCopyToClipboard(resultItem?.prompt || '', `ms-prompt-${resultIndex}`)}
                             >
                               {copyState[`ms-prompt-${resultIndex}`] ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />} Copy
                             </Button>
                           </div>
                           <div className="h-[120px] md:h-[150px] rounded-md border p-2 md:p-3 bg-background/70 overflow-auto shadow-inner">
-                            <pre className="text-xs md:text-sm whitespace-pre-wrap text-foreground/80">{resultItem.prompt}</pre>
+                            <pre className="text-xs md:text-sm whitespace-pre-wrap text-foreground/80">{resultItem?.prompt || ''}</pre>
                           </div>
                         </TabsContent>
                         <TabsContent value="metadata" className="focus-visible:outline-none focus-visible:ring-0">
@@ -1235,12 +1246,12 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                                 size="sm" 
                                 variant="ghost" 
                                 className="h-6 md:h-7 px-2 text-xs" 
-                                onClick={() => handleCopyToClipboard(resultItem.metadata.title || '', `ms-title-${resultIndex}`)}
+                                onClick={() => handleCopyToClipboard((resultItem?.metadata?.title || ''), `ms-title-${resultIndex}`)}
                               >
                                 {copyState[`ms-title-${resultIndex}`] ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />} Copy
                               </Button>
                             </div>
-                            <p className="text-xs p-1.5 md:p-2 bg-background/70 rounded border border-muted/20 text-foreground/80">{resultItem.metadata.title}</p>
+                            <p className="text-xs p-1.5 md:p-2 bg-background/70 rounded border border-muted/20 text-foreground/80">{resultItem?.metadata?.title || ''}</p>
                             
                             <div className="flex justify-between items-start pt-1">
                               <h5 className="font-medium text-xs md:text-sm text-foreground/90">Keywords:</h5>
@@ -1248,13 +1259,13 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                                 size="sm" 
                                 variant="ghost" 
                                 className="h-6 md:h-7 px-2 text-xs" 
-                                onClick={() => handleCopyToClipboard(resultItem.metadata.keywords.join(', ') || '', `ms-keywords-${resultIndex}`)}
+                                onClick={() => handleCopyToClipboard((Array.isArray(resultItem?.metadata?.keywords) ? resultItem.metadata.keywords : (typeof resultItem?.metadata?.keywords === 'string' ? resultItem.metadata.keywords.split(',').map((s: string) => s.trim()).filter(Boolean) : [])).join(', ') || '', `ms-keywords-${resultIndex}`)}
                               >
                                 {copyState[`ms-keywords-${resultIndex}`] ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />} Copy
                               </Button>
                             </div>
                             <div className="text-xs p-1.5 md:p-2 bg-background/70 rounded border border-muted/20 text-foreground/80 flex flex-wrap gap-1">
-                              {resultItem.metadata.keywords.map(kw => <span key={kw} className="bg-muted px-1.5 py-0.5 rounded">{kw}</span>)}
+                              {(Array.isArray(resultItem?.metadata?.keywords) ? resultItem.metadata.keywords : (typeof resultItem?.metadata?.keywords === 'string' ? resultItem.metadata.keywords.split(',').map((s: string) => s.trim()).filter(Boolean) : [])).map((kw: string) => <span key={kw} className="bg-muted px-1.5 py-0.5 rounded">{kw}</span>)}
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-1 pt-1">
@@ -1265,12 +1276,12 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                                     size="sm" 
                                     variant="ghost" 
                                     className="h-6 md:h-7 px-2 text-xs" 
-                                    onClick={() => handleCopyToClipboard(resultItem.metadata.mainCategory || '', `ms-cat-${resultIndex}`)}
+                                    onClick={() => handleCopyToClipboard((resultItem?.metadata?.mainCategory || ''), `ms-cat-${resultIndex}`)}
                                   >
                                     {copyState[`ms-cat-${resultIndex}`] ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />} Copy
                                   </Button>
                                 </div>
-                                <p className="text-xs p-1.5 md:p-2 bg-background/70 rounded border border-muted/20 text-foreground/80">{resultItem.metadata.mainCategory}</p>
+                                <p className="text-xs p-1.5 md:p-2 bg-background/70 rounded border border-muted/20 text-foreground/80">{resultItem?.metadata?.mainCategory || ''}</p>
                                </div>
                                <div className="mt-2 md:mt-0">
                                 <div className="flex justify-between items-start">
@@ -1279,12 +1290,12 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                                     size="sm" 
                                     variant="ghost" 
                                     className="h-6 md:h-7 px-2 text-xs" 
-                                    onClick={() => handleCopyToClipboard(resultItem.metadata.subcategory || '', `ms-subcat-${resultIndex}`)}
+                                    onClick={() => handleCopyToClipboard((resultItem?.metadata?.subcategory || ''), `ms-subcat-${resultIndex}`)}
                                   >
                                     {copyState[`ms-subcat-${resultIndex}`] ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />} Copy
                                   </Button>
                                 </div>
-                                <p className="text-xs p-1.5 md:p-2 bg-background/70 rounded border border-muted/20 text-foreground/80">{resultItem.metadata.subcategory}</p>
+                                <p className="text-xs p-1.5 md:p-2 bg-background/70 rounded border border-muted/20 text-foreground/80">{resultItem?.metadata?.subcategory || ''}</p>
                                </div>
                             </div>
                           </div>
@@ -1298,6 +1309,7 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
           </div>
         </div>
       );
+    }
 
     case 'bilingual_analysis':
       return (

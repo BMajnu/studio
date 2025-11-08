@@ -68,6 +68,14 @@ export class GeminiClient {
           return;
         }
       }
+      const code = err?.code || err?.status || err?.error?.code || err?.error?.status;
+      if (msg.includes('api key') || msg.includes('permission_denied') || msg.includes('forbidden') || msg.includes('leaked') || String(code).includes('403')) {
+        this.manager.reportInvalidKey(key);
+        if (this.autoRotate) {
+          yield* this.generateContentStream(modelId, request, thinkingMode);
+          return;
+        }
+      }
       throw classifyError(err);
     }
   }
@@ -113,7 +121,14 @@ export class GeminiClient {
           continue; // retry with next key
         }
 
-        // Detect invalid key error
+        const codeVar = err?.code || err?.status || err?.error?.code || err?.error?.status;
+        if (msg.includes('api key') || msg.includes('permission_denied') || msg.includes('forbidden') || msg.includes('leaked') || String(codeVar).includes('403')) {
+          this.manager.reportInvalidKey(key);
+          if (!this.autoRotate) throw err;
+          continue; // retry with next key
+        }
+
+        // Detect invalid key error (400 variants)
         if (msg.includes('400') && (msg.includes('api key not valid') || msg.includes('invalid api key'))) {
           this.manager.reportInvalidKey(key);
           if (!this.autoRotate) throw err;

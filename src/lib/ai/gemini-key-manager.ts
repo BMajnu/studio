@@ -15,14 +15,17 @@ export class GeminiKeyManager {
 
   constructor(profile: UserProfile | null, coolOffMinutes = 10) {
     this.coolOffMs = coolOffMinutes * 60 * 1000;
-    const list = profile?.geminiApiKeys || [];
-    this.keys = list.map((k) => ({ 
-      key: k.trim(), 
-      lastUsed: 0, 
-      coolUntil: 0, 
-      successCount: 0, 
+    const fromProfile = profile?.geminiApiKeys || [];
+    const envKeysRaw = [process.env.GOOGLE_API_KEY, process.env.GEMINI_API_KEY]
+      .filter((k) => typeof k === 'string' && k.trim().length > 0) as string[];
+    const unique = Array.from(new Set([...fromProfile, ...envKeysRaw]));
+    this.keys = unique.map((k) => ({
+      key: k.trim(),
+      lastUsed: 0,
+      coolUntil: 0,
+      successCount: 0,
       failureCount: 0,
-      isInvalid: false // Initialize as valid
+      isInvalid: false
     }));
   }
 
@@ -75,4 +78,4 @@ export class GeminiKeyManager {
       isInvalid 
     }));
   }
-} 
+}

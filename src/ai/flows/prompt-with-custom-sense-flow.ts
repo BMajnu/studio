@@ -122,7 +122,15 @@ export async function promptWithCustomSense(flowInput: PromptWithCustomSenseInpu
       return { prompts: formattedPrompts };
     } catch (err: any) {
       const errMsg = err?.message || String(err);
-      const isRetryable = errMsg.includes('503') || errMsg.includes('overloaded') || errMsg.includes('temporarily') || errMsg.includes('unavailable');
+      const status = err?.status || err?.error?.status || err?.httpStatus || err?.response?.status;
+      const code = err?.code || err?.error?.code;
+      const isRetryable =
+        errMsg.includes('503') ||
+        String(status) === '503' ||
+        code === 'AI_EXHAUSTED' ||
+        errMsg.includes('overloaded') ||
+        errMsg.includes('temporarily') ||
+        errMsg.includes('unavailable');
 
       console.warn(`WARN (${flowName}): Attempt ${attempt} failed: ${errMsg}`);
 

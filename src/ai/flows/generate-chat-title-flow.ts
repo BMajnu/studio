@@ -38,6 +38,10 @@ const FALLBACK_TITLE_MODELS = [
   'googleai/gemini-2.5-flash-lite-preview-06-17',
   'googleai/gemini-2.0-flash-lite-preview-12-18',
   'googleai/gemini-1.5-flash-lite-preview',
+  // Non-lite fallbacks for environments where lite models are restricted
+  'googleai/gemini-flash-latest',
+  'googleai/gemini-2.5-flash',
+  'googleai/gemini-1.5-flash',
 ];
 
 // -------------------------
@@ -67,8 +71,8 @@ export async function generateChatTitle(input: GenerateChatTitleInput): Promise<
   // Build prompt
   const promptText = buildPrompt(messages);
 
-  // Create a minimal profile for GoogleAIService
-  const apiKey = userApiKey || process.env.GOOGLE_API_KEY || '';
+  // Create a minimal profile for GoogleAIService (env fallback supports both keys)
+  const apiKey = userApiKey || process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || '';
   const profile = apiKey ? { 
     userId: 'temp', 
     name: 'temp',
