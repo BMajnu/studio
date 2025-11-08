@@ -9,6 +9,7 @@ import { generateJSON } from '@/lib/ai/genai-helper';
 import type { UserProfile } from '@/lib/types';
 import { GalleryAsset } from '@/lib/video/types';
 import { generateConsistencyInstruction } from '@/lib/video/gallery-prompt-helper';
+import { classifyError } from '@/lib/errors';
 
 const logDebug = (label: string, ...args: any[]) => {
   try { console.log(`[generateViralVideo] ${label}`, ...args); } catch(_){}
@@ -107,6 +108,6 @@ export async function generateViralVideo(flowInput: GenerateViralVideoInput): Pr
     return output;
   } catch (error) {
     console.error(`ERROR (${flowName}):`, error);
-    throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);
+    throw classifyError(error);
   }
 }

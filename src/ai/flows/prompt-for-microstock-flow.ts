@@ -9,6 +9,7 @@
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
 import { generateJSON } from '@/lib/ai/genai-helper';
 import type { UserProfile } from '@/lib/types';
+import { classifyError } from '@/lib/errors';
 import type {
   ContentType,
   PromptForMicrostockInput,
@@ -150,6 +151,6 @@ export async function promptForMicrostock(flowInput: PromptForMicrostockInput): 
     return { results };
   } catch (error) {
     console.error(`ERROR (${flowName}): AI call failed. Error:`, error);
-    throw new Error(`Failed to generate microstock prompts: ${error instanceof Error ? error.message : String(error)}`);
+    throw classifyError(error);
   }
 }

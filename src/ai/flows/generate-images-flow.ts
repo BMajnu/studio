@@ -9,6 +9,7 @@
 
 import type { UserProfile } from '@/lib/types';
 import { GeminiClient } from '@/lib/ai/gemini-client';
+import { classifyError } from '@/lib/errors';
 
 // Input interface
 export interface GenerateImagesInput {
@@ -154,6 +155,6 @@ export async function generateImages(flowInput: GenerateImagesInput): Promise<Ge
     return { images, prompt };
   } catch (error) {
     console.error(`ERROR (${flowName}): Image generation failed. Error:`, error);
-    throw new Error(`Image generation failed in ${flowName}. Please check server logs for details. Original error: ${(error as Error).message}`);
+    throw classifyError(error);
   }
 }

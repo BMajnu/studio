@@ -9,6 +9,7 @@
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
 import { generateJSON } from '@/lib/ai/genai-helper';
 import type { UserProfile } from '@/lib/types';
+import { classifyError } from '@/lib/errors';
 import type {
   PromptWithCustomSenseInput,
   PromptWithCustomSenseOutput,
@@ -127,7 +128,7 @@ export async function promptWithCustomSense(flowInput: PromptWithCustomSenseInpu
 
       if (!isRetryable || attempt === MAX_RETRIES) {
         console.error(`ERROR (${flowName}): All attempts failed.`);
-        throw new Error(`Failed to generate custom sense prompts: ${errMsg}`);
+        throw classifyError(err);
       }
 
       // Exponential backoff before retrying
@@ -136,5 +137,5 @@ export async function promptWithCustomSense(flowInput: PromptWithCustomSenseInpu
     }
   }
 
-  throw new Error(`Unknown failure in ${flowName}`);
+  throw classifyError(new Error(`Unknown failure in ${flowName}`));
 }

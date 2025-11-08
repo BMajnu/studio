@@ -12,6 +12,7 @@ import { ActionButtonsPanel, type ActionType } from '@/components/chat/action-bu
 import { HistoryPanel } from '@/components/chat/history-panel';
 import { useToast } from "@/hooks/use-toast";
 import { safeToast } from "@/lib/safe-toast";
+import { classifyError, toUserToast, toDisplayMessage } from '@/lib/errors';
 import { useUserProfile } from '@/lib/hooks/use-user-profile';
 import { useChatHistory } from '@/lib/hooks/use-chat-history';
 import type { ChatMessage, UserProfile, ChatMessageContentPart, AttachedFile, ChatSession, ChatSessionMetadata, EditHistoryEntry } from '@/lib/types';
@@ -1794,31 +1795,52 @@ ${params.language ? `Language: ${params.language}` : ''}`;
 
               // Editing prompts are now included directly in the analyze requirements output
 
+              // Enforce count alignment with attached images if present
+              const imageFilesForFlow = (filesForFlow || []).filter(f => f.type?.startsWith('image/') && f.dataUri);
+              const desiredCount = imageFilesForFlow.length;
+              let normalized = requirementsOutput;
+              const trimTo = <T,>(arr: T[] | undefined, n: number): T[] | undefined => {
+                if (!Array.isArray(arr)) return arr;
+                return typeof n === 'number' && n > 0 ? arr.slice(0, n) : arr;
+              };
+              if (desiredCount > 0) {
+                normalized = {
+                  ...requirementsOutput,
+                  designItemsEnglish: trimTo(requirementsOutput.designItemsEnglish, desiredCount) || [],
+                  designItemsBengali: trimTo(requirementsOutput.designItemsBengali, desiredCount) || [],
+                  generatedPrompts: trimTo(requirementsOutput.generatedPrompts, desiredCount),
+                  editingPromptsByDesign: trimTo(requirementsOutput.editingPromptsByDesign, desiredCount)?.map((p, idx) => ({
+                    ...p,
+                    imageIndex: typeof p.imageIndex === 'number' ? p.imageIndex : (idx + 1),
+                  })) || [],
+                } as AnalyzeClientRequirementsOutput;
+              }
+
               // Add the BilingualSplitView component for displaying the analysis
               finalAiResponseContent.push({
                 type: 'bilingual_analysis',
                 keyPoints: {
-                  english: requirementsOutput.keyPointsEnglish,
-                  bengali: requirementsOutput.keyPointsBengali,
+                  english: normalized.keyPointsEnglish,
+                  bengali: normalized.keyPointsBengali,
                 },
                 detailedRequirements: {
-                  english: requirementsOutput.detailedRequirementsEnglish,
-                  bengali: requirementsOutput.detailedRequirementsBengali,
+                  english: normalized.detailedRequirementsEnglish,
+                  bengali: normalized.detailedRequirementsBengali,
                 },
                 simplifiedRequirements: {
-                  english: requirementsOutput.simplifiedRequirementsEnglish,
-                  bengali: requirementsOutput.simplifiedRequirementsBengali,
+                  english: normalized.simplifiedRequirementsEnglish,
+                  bengali: normalized.simplifiedRequirementsBengali,
                 },
                 imageAnalysis: {
-                  english: requirementsOutput.imageAnalysisEnglish,
-                  bengali: requirementsOutput.imageAnalysisBengali,
+                  english: normalized.imageAnalysisEnglish,
+                  bengali: normalized.imageAnalysisBengali,
                 },
                 designItems: {
-                  english: requirementsOutput.designItemsEnglish,
-                  bengali: requirementsOutput.designItemsBengali,
+                  english: normalized.designItemsEnglish,
+                  bengali: normalized.designItemsBengali,
                 },
-                editingPromptsByDesign: requirementsOutput.editingPromptsByDesign,
-                generatedPrompts: requirementsOutput.generatedPrompts,
+                editingPromptsByDesign: normalized.editingPromptsByDesign,
+                generatedPrompts: normalized.generatedPrompts,
               });
             } catch (error) {
               console.error("Error in analyzeClientRequirements flow:", error);
@@ -2365,25 +2387,21 @@ ${params.language ? `Language: ${params.language}` : ''}`;
         } catch (error: any) {
           aiCallError = error;
           console.error(`ChatPage (handleSendMessage - deferred AI Call): Error for action '${currentActionType}'. API Key Index: ${currentApiKeyIndexRef.current}`, error);
-          let errorMessageText = `Sorry, I couldn't process that. AI Error: ${aiCallError.message || 'Unknown error'}`;
-          const errorMsgLower = String(aiCallError.message).toLowerCase();
+          const appErr = classifyError(error);
+          const toastData = toUserToast(appErr);
 
-          if (errorMsgLower.includes('500') || errorMsgLower.includes('internal server error')) {
-            errorMessageText = `An internal error occurred with the AI service. Please try regenerating the response. Error: ${aiCallError.message || 'Internal Server Error'}`;
-            if (isMounted.current) toast({title: "AI Internal Error", description: "The AI service encountered an internal error. Please try regenerating.", variant: "destructive"});
-          } else if (errorMsgLower.includes('429') || errorMsgLower.includes('quota') || errorMsgLower.includes('rate limit')) {
+          if (isMounted.current) {
+            toast({ title: toastData.title, description: toastData.description, variant: toastData.variant as any });
+          }
+
+          let errorMessageText = toDisplayMessage(appErr);
+          if (appErr.code === 'RATE_LIMIT') {
             if (availableUserApiKeys.length > 0 && currentApiKeyIndexRef.current < availableUserApiKeys.length - 1) {
               currentApiKeyIndexRef.current++;
-              errorMessageText = `The current API key (attempt ${currentApiKeyIndexRef.current}/${availableUserApiKeys.length}) may be rate-limited. Click 'Regenerate' to try the next available key (${currentApiKeyIndexRef.current + 1}/${availableUserApiKeys.length}). Original error: ${aiCallError.message}`;
-              if (isMounted.current) toast({title: "API Key Rate Limited", description: `Key ${currentApiKeyIndexRef.current} may be rate-limited. Regenerate to try key ${currentApiKeyIndexRef.current + 1}.`, variant: "default"});
-            } else {
-              errorMessageText = `All configured API keys (${availableUserApiKeys.length}) seem to have hit rate limits, or the global key is limited. Please check your quotas or try again later. Original error: ${aiCallError.message}`;
-              if (isMounted.current) toast({title: "All API Keys Limited", description: "All configured API keys might be rate-limited. Check quotas.", variant: "destructive"});
+              errorMessageText += `\nHint: 'Regenerate' চাপলে পরের key ব্যবহার করে চেষ্টা করা হবে (${currentApiKeyIndexRef.current + 1}/${availableUserApiKeys.length}).`;
             }
-          } else if (errorMsgLower.includes('api key not valid') || errorMsgLower.includes('invalid api key')) {
-             errorMessageText = `The API key used is invalid. Please check your profile settings or the GOOGLE_API_KEY environment variable. Error: ${aiCallError.message}`;
-             if (isMounted.current) toast({title: "Invalid API Key", description: "The API key used is invalid. Check profile or .env file.", variant: "destructive"});
           }
+
           if (isMounted.current) updateMessageById(assistantMessageIdToUse, [{ type: 'text', text: errorMessageText }], false, true, requestParamsForRegeneration, promptedByMsgIdForNewAssistant);
         }
 

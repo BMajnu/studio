@@ -11,6 +11,7 @@
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
 import { generateJSON } from '@/lib/ai/genai-helper';
 import type { UserProfile } from '@/lib/types';
+import { classifyError } from '@/lib/errors';
 
 // Internal type for ideas generated in the first step
 interface GeneratedIdeas {
@@ -241,6 +242,6 @@ ${generatedIdeas.typographyWithGraphicsIdeas.map(idea => `  - ${idea}`).join('\n
 
   } catch (error) {
     console.error(`ERROR (${flowName}): Flow failed:`, error);
-    throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);
+    throw classifyError(error);
   }
 } 

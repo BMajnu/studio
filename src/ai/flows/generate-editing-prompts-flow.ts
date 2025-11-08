@@ -12,6 +12,7 @@
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
 import { generateJSON } from '@/lib/ai/genai-helper';
 import type { UserProfile } from '@/lib/types';
+import { classifyError } from '@/lib/errors';
 
 // Input interface
 export interface GenerateEditingPromptsInput {
@@ -159,6 +160,6 @@ Always return exactly 5 prompts.
     return output;
   } catch (error) {
     console.error(`ERROR (${flowName}): Failed:`, error);
-    throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);
+    throw classifyError(error);
   }
 }

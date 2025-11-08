@@ -13,6 +13,7 @@ import { DEFAULT_MODEL_ID } from '@/lib/constants';
 import { GoogleAIService } from '@/lib/services/google-ai-service';
 import type { FirebaseApp } from 'firebase/app'; // Import FirebaseApp type
 import { UserProfile } from '@/lib/types';
+import { classifyError, AppError } from '@/lib/errors';
 
 // Alternative import path for newer @google/genai package
 // Used for reference to ensure compatibility
@@ -188,7 +189,7 @@ Please follow the custom instruction precisely in relation to the client message
     // Try to use the user's API key if provided, otherwise fall back to environment variable
     const apiKey = userApiKey || profile?.geminiApiKeys?.[0] || null;
     if (!apiKey) {
-      throw new Error('No user API key configured. Please add your Gemini API key to your profile settings.');
+      throw new AppError('NO_KEYS', 400, 'No user API key configured. Please add your Gemini API key to your profile settings.');
     }
     
     // Format the model ID to ensure it's in the correct format
@@ -231,31 +232,6 @@ Please follow the custom instruction precisely in relation to the client message
     };
   } catch (error) {
     console.error('Error in processCustomInstruction:', error);
-    
-    // Check for common API errors
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    let userFacingErrorMessage = 'Sorry, there was an error processing your custom instruction. Please try again or use a different instruction.';
-    
-    if (errorMessage.includes('API key') || errorMessage.includes('Unauthenticated')) {
-      userFacingErrorMessage = 'API key error: Please check your API key settings or ensure Firebase is configured correctly.';
-    } else if (errorMessage.includes('rate limit') || errorMessage.includes('quota')) {
-      userFacingErrorMessage = 'API rate limit exceeded. Please try again in a few minutes or use a different API key.';
-    } else if (errorMessage.includes('404') || errorMessage.includes('Not Found')) {
-      const modelInfo = formattedModelId ? ` (${formattedModelId})` : '';
-      if (formattedModelId && (formattedModelId.includes('preview') || formattedModelId.includes('exp'))) {
-        userFacingErrorMessage = `The selected preview model${modelInfo} is not available with your API key/Firebase setup or is still in limited access. Try a standard model.`;
-      } else {
-        userFacingErrorMessage = `The selected AI model${modelInfo} is not available. Please try a different model in your profile settings.`;
-      }
-    } else if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
-      userFacingErrorMessage = 'Access denied to the AI model. Your API key or Firebase setup may not have access to this model.';
-    } else if (errorMessage.includes('AI Service not configured')) {
-        userFacingErrorMessage = 'AI Service Error: Could not connect to any AI provider. Please check your API key and Firebase setup in your profile.';
-    }
-    
-    return {
-      title: 'Error Processing Custom Instruction',
-      response: userFacingErrorMessage
-    };
+    throw classifyError(error);
   }
 } 

@@ -1,6 +1,7 @@
 import { GeminiKeyManager } from './gemini-key-manager';
 import { UserProfile, ThinkingMode } from '@/lib/types';
 import { GoogleGenAI } from '@google/genai';
+import { AppError, classifyError } from '@/lib/errors';
 
 export type GeminiRequestFn<T> = (apiKey: string) => Promise<T>;
 
@@ -32,7 +33,7 @@ export class GeminiClient {
   ): AsyncGenerator<any> {
     const key = this.manager.getActiveKey();
     if (!key) {
-      throw new Error('No active Gemini API key available.');
+      throw new AppError('NO_KEYS', 400, 'No active Gemini API key available.');
     }
 
     const ai = new GoogleGenAI({ apiKey: key });
@@ -59,7 +60,7 @@ export class GeminiClient {
       this.manager.reportSuccess(key);
     } catch (err: any) {
       const msg = err?.message?.toLowerCase() || '';
-       if (msg.includes('429') || msg.includes('503') || msg.includes('resource_exhausted') || msg.includes('unavailable') || msg.includes('overloaded') || msg.includes('rate limit')) {
+      if (msg.includes('429') || msg.includes('503') || msg.includes('resource_exhausted') || msg.includes('unavailable') || msg.includes('overloaded') || msg.includes('rate limit') || msg.includes('quota') || msg.includes('insufficient_quota')) {
         this.manager.reportQuotaError(key);
         if (this.autoRotate) {
           // Simple retry logic: try next key once.
@@ -67,7 +68,7 @@ export class GeminiClient {
           return;
         }
       }
-      throw err;
+      throw classifyError(err);
     }
   }
 
@@ -84,7 +85,7 @@ export class GeminiClient {
     while (attempts < maxRetries) {
       const key = this.manager.getActiveKey();
       if (!key) {
-        throw new Error('No Gemini API keys available (all cooling down or invalid)');
+        throw new AppError('NO_KEYS', 400, 'No Gemini API keys available (all cooling down or invalid)');
       }
       try {
         const data = await requestFn(key);
@@ -111,7 +112,7 @@ export class GeminiClient {
           if (!this.autoRotate) throw err;
           continue; // retry with next key
         }
-        
+
         // Detect invalid key error
         if (msg.includes('400') && (msg.includes('api key not valid') || msg.includes('invalid api key'))) {
           this.manager.reportInvalidKey(key);
@@ -119,24 +120,13 @@ export class GeminiClient {
           continue; // retry with next key
         }
 
-        // other error types – rethrow immediately
-        throw err;
+        // other error types – map centrally
+        throw classifyError(err);
       }
     }
     if (lastError) {
-      // Ensure lastError is tagged if it looks like exhaustion
-      try {
-        const lm = lastError?.message?.toLowerCase?.() || '';
-        if (lm.includes('429') || lm.includes('503') || lm.includes('resource_exhausted') || lm.includes('unavailable') || lm.includes('overloaded') || lm.includes('rate limit') || lm.includes('quota') || lm.includes('insufficient_quota') || lm.includes('all gemini keys exhausted')) {
-          (lastError as any).code = (lastError as any).code || 'AI_EXHAUSTED';
-          (lastError as any).status = (lastError as any).status || 503;
-        }
-      } catch {}
-      throw lastError;
+      throw classifyError(lastError);
     }
-    const e: any = new Error('All Gemini keys exhausted');
-    e.code = 'AI_EXHAUSTED';
-    e.status = 503;
-    throw e;
+    throw new AppError('AI_EXHAUSTED', 503, 'All Gemini keys exhausted');
   }
-} 
+}

@@ -11,6 +11,7 @@
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
 import { generateJSON } from '@/lib/ai/genai-helper';
 import type { UserProfile } from '@/lib/types';
+import { classifyError } from '@/lib/errors';
 
 // Design type
 export interface Design {
@@ -183,6 +184,6 @@ Return up to 5 top designs ranked by overall score.`;
     return output;
   } catch (error) {
     console.error(`ERROR (${flowName}): Failed:`, error);
-    throw new Error(`Failed to evaluate designs: ${(error as Error).message}`);
+    throw classifyError(error);
   }
 }

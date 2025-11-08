@@ -11,6 +11,7 @@ import { GalleryAsset, AssetType, GALLERY_SUB_TABS } from '@/lib/video/types';
 import { Sparkles, Upload, Save, Check, X, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { safeToast } from '@/lib/safe-toast';
 import { cn } from '@/lib/utils';
+import { classifyError, toUserToast, toDisplayMessage } from '@/lib/errors';
 
 interface GalleryManagerProps {
   selectedAssets?: GalleryAsset[];
@@ -46,6 +47,12 @@ export function GalleryManager({
     object: [],
     background: []
   });
+  const [errorTexts, setErrorTexts] = useState<Record<AssetType, string | null>>({
+    character: null,
+    subject: null,
+    object: null,
+    background: null,
+  });
   
   const handleGenerateAssets = async (type: AssetType) => {
     if (!prompts[type].trim()) {
@@ -59,6 +66,7 @@ export function GalleryManager({
     }
     
     setIsGenerating(prev => ({ ...prev, [type]: true }));
+    setErrorTexts(prev => ({ ...prev, [type]: null }));
     
     try {
       const response = await fetch('/api/generate-gallery-asset', {
@@ -75,7 +83,21 @@ export function GalleryManager({
       });
       
       if (!response.ok) {
-        throw new Error('Failed to generate assets');
+        let errBody: any = null;
+        try {
+          errBody = await response.json();
+        } catch {
+          try {
+            const txt = await response.text();
+            errBody = { message: txt };
+          } catch {
+            errBody = {};
+          }
+        }
+        const e = new Error(errBody?.message || 'Failed to generate assets');
+        (e as any).code = errBody?.code;
+        (e as any).status = response.status;
+        throw e;
       }
       
       const data = await response.json();
@@ -104,12 +126,10 @@ export function GalleryManager({
       }
     } catch (error) {
       console.error('Error generating assets:', error);
-      safeToast({
-        title: 'Generation failed',
-        description: `Failed to generate ${type} assets`,
-        variant: 'destructive',
-        duration: 3500,
-      });
+      const appErr = classifyError(error as any);
+      const toastData = toUserToast(appErr);
+      safeToast({ title: toastData.title, description: toastData.description, variant: toastData.variant as any, duration: 4000 });
+      setErrorTexts(prev => ({ ...prev, [type]: toDisplayMessage(appErr) }));
     } finally {
       setIsGenerating(prev => ({ ...prev, [type]: false }));
     }
@@ -209,6 +229,11 @@ export function GalleryManager({
               <div className="space-y-3">
                 <div className="space-y-2">
                   <Label>Generate {tab.label}</Label>
+                  {errorTexts[tab.id] && (
+                    <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded p-2 whitespace-pre-wrap">
+                      {errorTexts[tab.id]}
+                    </div>
+                  )}
                   <Textarea
                     placeholder={`Describe the ${tab.label.toLowerCase()} you want to generate...`}
                     value={prompts[tab.id]}

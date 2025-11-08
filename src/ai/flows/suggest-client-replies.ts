@@ -10,6 +10,7 @@
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
 import { generateJSON } from '@/lib/ai/genai-helper';
 import type { UserProfile } from '@/lib/types';
+import { classifyError } from '@/lib/errors';
 
 // Input interfaces
 export interface ChatHistoryMessage {
@@ -107,6 +108,6 @@ Designer's Services: ${services.length > 0 ? services.join(', ') : 'a variety of
     return output;
   } catch (error) {
     console.error(`ERROR (${flowName}): AI call failed. Error:`, error);
-    throw new Error(`AI call failed in ${flowName}. Please check server logs for details. Original error: ${(error as Error).message}`);
+    throw classifyError(error);
   }
 }

@@ -29,6 +29,7 @@ import { GeneratedImageStorage } from '@/lib/firebase/generatedImageStorage';
 import type { GeneratedImage } from '@/lib/types';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ImagePreviewDialog } from '@/components/ui/image-preview-dialog';
+import { classifyError, toUserToast, toDisplayMessage } from '@/lib/errors';
 
 // Force dynamic rendering for this page
 export const dynamic = 'force-dynamic';
@@ -74,6 +75,7 @@ export default function LabPage() {
   const [outputFormat, setOutputFormat] = useState<string>('image/jpeg'); // Output format
   const [history, setHistory] = useState<GenerationHistory[]>([]);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null); // For image preview dialog
+  const [lastErrorText, setLastErrorText] = useState<string | null>(null);
   
   // UI state
   const [expandedSections, setExpandedSections] = useState({
@@ -192,6 +194,7 @@ export default function LabPage() {
       setIsGenerating(true);
       // DON'T clear generatedImages here - keep showing previous generation during loading
       setTextResponse('');
+      setLastErrorText(null);
 
       // Build base enhanced prompt with style and composition
       let basePrompt = prompt;
@@ -328,18 +331,18 @@ export default function LabPage() {
       }
 
       // All retries exhausted
-        toast({
-        title: "Generation Failed",
-        description: `Failed after ${MAX_RETRIES} attempts. ${lastError?.message || 'Please try again later.'}`,
-          variant: "destructive"
-        });
+      {
+        const appErr = classifyError(lastError || new Error('Generation failed'));
+        const td = toUserToast(appErr);
+        toast({ title: td.title, description: td.description, variant: td.variant as any });
+        setLastErrorText(toDisplayMessage(appErr));
+      }
     } catch (error: any) {
       console.error('Image generation error:', error);
-      toast({
-        title: "Generation Failed",
-        description: error.message || "Failed to generate image. Please try again.",
-        variant: "destructive"
-      });
+      const appErr = classifyError(error);
+      const td = toUserToast(appErr);
+      toast({ title: td.title, description: td.description, variant: td.variant as any });
+      setLastErrorText(toDisplayMessage(appErr));
     } finally {
       setIsGenerating(false);
     }
@@ -460,11 +463,10 @@ export default function LabPage() {
       }
     } catch (error: any) {
       console.error('Prompt enhancement error:', error);
-      toast({
-        title: "Enhancement Failed",
-        description: error.message || "Could not enhance the prompt. Please try again.",
-        variant: "destructive"
-      });
+      const appErr = classifyError(error);
+      const td = toUserToast(appErr);
+      toast({ title: td.title, description: td.description, variant: td.variant as any });
+      setLastErrorText(toDisplayMessage(appErr));
     }
   }, [prompt, profile, toast, setPrompt]);
 

@@ -9,6 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Video, Sparkles, Clock, Palette, Globe, List, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { classifyError, toUserToast, toDisplayMessage } from '@/lib/errors';
 
 interface VideoToolsModalProps {
   isOpen: boolean;
@@ -57,6 +59,7 @@ const CONTENT_CATEGORIES = [
 // Defaults removed: aspect ratio and output format are no longer exposed or sent
 
 export function VideoToolsModal({ isOpen, onCloseAction, onGenerateAction, isLoading = false }: VideoToolsModalProps) {
+  const { toast } = useToast();
   const [description, setDescription] = useState('');
   const [style, setStyle] = useState('cinematic');
   const [duration, setDuration] = useState([15]);
@@ -66,6 +69,7 @@ export function VideoToolsModal({ isOpen, onCloseAction, onGenerateAction, isLoa
   const [aiDescriptionEnglish, setAiDescriptionEnglish] = useState<string | undefined>(undefined);
   const [aiDescriptionBengali, setAiDescriptionBengali] = useState<string | undefined>(undefined);
   const [showAIDescription, setShowAIDescription] = useState(false);
+  const [lastErrorText, setLastErrorText] = useState<string | null>(null);
 
   const handleGenerate = () => {
     if (!description.trim()) {
@@ -87,6 +91,7 @@ export function VideoToolsModal({ isOpen, onCloseAction, onGenerateAction, isLoa
       setShowAIDescription(false);
       setAiDescriptionEnglish(undefined);
       setAiDescriptionBengali(undefined);
+      setLastErrorText(null);
 
       const res = await fetch('/api/generate-video-description', {
         method: 'POST',
@@ -99,8 +104,21 @@ export function VideoToolsModal({ isOpen, onCloseAction, onGenerateAction, isLoa
         }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({} as any));
-        throw new Error(err?.message || 'Failed to generate idea');
+        let err: any = null;
+        try {
+          err = await res.json();
+        } catch {
+          try {
+            const txt = await res.text();
+            err = { message: txt };
+          } catch {
+            err = {};
+          }
+        }
+        const e = new Error(err?.message || 'Failed to generate idea');
+        (e as any).code = err?.code;
+        (e as any).status = res.status;
+        throw e;
       }
       const data = await res.json();
 
@@ -119,6 +137,10 @@ export function VideoToolsModal({ isOpen, onCloseAction, onGenerateAction, isLoa
       setShowAIDescription(true);
     } catch (e) {
       console.error(e);
+      const appErr = classifyError(e as any);
+      const toastData = toUserToast(appErr);
+      toast({ title: toastData.title, description: toastData.description, variant: toastData.variant as any });
+      setLastErrorText(toDisplayMessage(appErr));
       // Keep manual input visible on error
       setShowAIDescription(false);
     } finally {
@@ -154,6 +176,11 @@ export function VideoToolsModal({ isOpen, onCloseAction, onGenerateAction, isLoa
               <Sparkles className="h-4 w-4" />
               Video Description
             </Label>
+            {lastErrorText && (
+              <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded p-2 whitespace-pre-wrap mb-2">
+                {lastErrorText}
+              </div>
+            )}
             {showAIDescription ? (
               <div className="space-y-2">
                 {aiDescriptionEnglish && (

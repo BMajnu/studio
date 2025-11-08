@@ -7,6 +7,7 @@
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
 import { generateJSON } from '@/lib/ai/genai-helper';
 import type { UserProfile } from '@/lib/types';
+import { classifyError } from '@/lib/errors';
 
 const logDebug = (label: string, ...args: any[]) => {
   try { console.log(`[generateVideoDescription] ${label}`, ...args); } catch (_) {}
@@ -220,6 +221,6 @@ export async function generateVideoDescription(flowInput: GenerateVideoDescripti
     return output;
   } catch (error) {
     console.error(`ERROR (${flowName}): Failed after rotating keys:`, error);
-    throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);
+    throw classifyError(error);
   }
 }

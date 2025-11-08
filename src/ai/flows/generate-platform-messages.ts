@@ -10,6 +10,7 @@
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
 import { generateJSON } from '@/lib/ai/genai-helper';
 import type { UserProfile } from '@/lib/types';
+import { classifyError } from '@/lib/errors';
 
 // Input interface
 export interface GeneratePlatformMessagesInput {
@@ -101,7 +102,7 @@ Ensure each "message" field contains the full text for that template.
     return output;
   } catch (error) {
     console.error(`ERROR (${flowName}): Failed:`, error);
-    throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);
+    throw classifyError(error);
   }
 }
 

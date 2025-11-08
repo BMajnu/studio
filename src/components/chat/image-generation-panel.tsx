@@ -15,6 +15,7 @@ import { ImagePreviewDialog } from '@/components/ui/image-preview-dialog';
 import { useAuth } from '@/contexts/auth-context';
 import { ensureAppFolderCached, uploadImagesBatchVerbose, type BatchUploadItem } from '@/lib/integrations/google-drive';
 import { GeneratedImageStorage } from '@/lib/firebase/generatedImageStorage';
+import { classifyError, toUserToast, toDisplayMessage } from '@/lib/errors';
 
 import {
   Tooltip,
@@ -38,10 +39,11 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
   const [temperature, setTemperature] = useState<number>(1);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
-  
+  const [lastErrorText, setLastErrorText] = useState<string | null>(null);
+
   // Preview modal state
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-  
+
   // Build the download file name in the format:
   //   DesAInR - [prompt text] - <n>.png
   // Special characters are stripped and spaces turned into hyphens so the
@@ -50,9 +52,10 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
     const safePrompt = prompt.replace(/[^a-z0-9]/gi, '_').slice(0, 30);
     return `DesAInR_${safePrompt}_${index + 1}.png`;
   };
-  
+
   // Handle generate button click
   const handleGenerate = async () => {
+
     if (!profile) {
       toast({
         title: "Profile Required",
@@ -61,9 +64,10 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
       });
       return;
     }
-    
+
     setIsGenerating(true);
-    
+    setLastErrorText(null);
+
     try {
       // Call the API to generate images
       const response = await fetch('/api/generate-images', {
@@ -82,12 +86,25 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
           modelId: profile.selectedGenkitModelId
         }),
       });
-      
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to generate images');
+        let errorData: any = null;
+        try {
+          errorData = await response.json();
+        } catch {
+          try {
+            const txt = await response.text();
+            errorData = { message: txt };
+          } catch {
+            errorData = {};
+          }
+        }
+        const err = new Error(errorData?.message || 'Failed to generate images');
+        (err as any).code = errorData?.code;
+        (err as any).status = response.status;
+        throw err;
       }
-      
+
       const data = await response.json();
 
       // Attach unique IDs to each generated image (needed for proper deduping)
@@ -191,23 +208,22 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
           variant: 'destructive',
         });
       }
-      
+
       toast({
         title: "Images Generated",
         description: `Successfully generated ${data.images.length} images.`,
       });
     } catch (error) {
       console.error('Error generating images:', error);
-      toast({
-        title: "Generation Failed",
-        description: error instanceof Error ? error.message : "Failed to generate images. Please try again.",
-        variant: "destructive"
-      });
+      const appErr = classifyError(error as any);
+      const toastData = toUserToast(appErr);
+      toast({ title: toastData.title, description: toastData.description, variant: toastData.variant as any });
+      setLastErrorText(toDisplayMessage(appErr));
     } finally {
       setIsGenerating(false);
     }
   };
-  
+
   // Handle image download
   const handleDownload = (dataUri: string, index: number) => {
     const link = document.createElement('a');
@@ -220,17 +236,17 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
 
   const handleCopyPrompt = (prompt: string | undefined) => {
     if (!prompt) {
-        toast({
-            title: 'No prompt available',
-            description: "The prompt used for this image wasn't saved.",
-            variant: 'destructive',
-        });
-        return;
+      toast({
+        title: 'No prompt available',
+        description: "The prompt used for this image wasn't saved.",
+        variant: 'destructive',
+      });
+      return;
     }
     navigator.clipboard.writeText(prompt);
     toast({
-        title: 'Prompt Copied!',
-        description: 'The image prompt has been copied to your clipboard.',
+      title: 'Prompt Copied!',
+      description: 'The image prompt has been copied to your clipboard.',
     });
   };
 
@@ -271,7 +287,7 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
       setPreviewIndex(prevIndex);
     }
   };
-  
+
   return (
     <div className="w-full space-y-4 bg-background/95 backdrop-blur-sm rounded-lg p-4 border shadow-xl">
       <div className="flex items-center justify-between border-b pb-3">
@@ -283,7 +299,7 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
           <X className="h-4 w-4" />
         </Button>
       </div>
-      
+
       {/* Controls in a compact card */}
       <div className="bg-muted/40 rounded-lg p-4">
         <div className="flex flex-col space-y-4">
@@ -305,7 +321,7 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
                 className="w-full"
               />
             </div>
-            
+
             {/* Aspect ratio removed for simplicity (default 1:1) */}
 
             {/* Temperature */}
@@ -320,7 +336,7 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
                 max={2}
                 step={0.1}
                 value={[temperature]}
-                onValueChange={(val) => setTemperature(parseFloat(val[0].toFixed(1))) }
+                onValueChange={(val) => setTemperature(parseFloat(val[0].toFixed(1)))}
                 className="w-full"
               />
             </div>
@@ -352,7 +368,7 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
           </div>
         </div>
       </div>
-      
+
       {/* Loading skeleton */}
       {isGenerating && (
         <div className="mt-6">
@@ -367,7 +383,13 @@ export function ImageGenerationPanel({ prompt, onClose }: ImageGenerationPanelPr
           </div>
         </div>
       )}
-      
+
+      {lastErrorText && (
+        <div className="mt-4 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded p-3 whitespace-pre-wrap">
+          {lastErrorText}
+        </div>
+      )}
+
       {/* Generated images grid */}
       {generatedImages.length > 0 && (
         <div className="mt-6">

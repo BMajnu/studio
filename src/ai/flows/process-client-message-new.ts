@@ -3,6 +3,7 @@
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
 import { generateJSON } from '@/lib/ai/genai-helper';
 import type { UserProfile } from '@/lib/types';
+import { classifyError } from '@/lib/errors';
 
 // Input/Output Types (keep same interface for compatibility)
 export interface AttachedFile {
@@ -137,7 +138,7 @@ Remember: Format as valid JSON matching the exact structure specified above.`;
     return output;
   } catch (error) {
     console.error(`ERROR (${flowName}):`, error);
-    throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);
+    throw classifyError(error);
   }
 }
 

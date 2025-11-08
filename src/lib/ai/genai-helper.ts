@@ -7,6 +7,7 @@ import { GoogleGenAI } from '@google/genai';
 import { UserProfile } from '@/lib/types';
 import { AVAILABLE_MODELS } from '@/lib/constants';
 import { GeminiKeyManager } from './gemini-key-manager';
+import { AppError, classifyError } from '@/lib/errors';
 
 export interface GenAIConfig {
   modelId: string;
@@ -52,7 +53,7 @@ export async function generateJSON<T = any>(
   while (attempts < maxRetries) {
     const key = manager.getActiveKey();
     if (!key) {
-      throw new Error('No Gemini API keys available');
+      throw new AppError('NO_KEYS', 400, 'No Gemini API keys available');
     }
 
     try {
@@ -135,12 +136,12 @@ export async function generateJSON<T = any>(
         continue;
       }
 
-      // Other errors - rethrow
-      throw err;
+      // Other errors - map centrally
+      throw classifyError(err);
     }
   }
 
-  throw new Error('All API keys exhausted');
+  throw new AppError('AI_EXHAUSTED', 503, 'All API keys exhausted');
 }
 
 /**
@@ -162,7 +163,7 @@ export async function generateText(
   while (attempts < maxRetries) {
     const key = manager.getActiveKey();
     if (!key) {
-      throw new Error('No Gemini API keys available');
+      throw new AppError('NO_KEYS', 400, 'No Gemini API keys available');
     }
 
     try {
@@ -254,10 +255,10 @@ export async function generateText(
         continue;
       }
 
-      throw err;
+      throw classifyError(err);
     }
   }
 
-  throw new Error('All API keys exhausted');
+  throw new AppError('AI_EXHAUSTED', 503, 'All API keys exhausted');
 }
 

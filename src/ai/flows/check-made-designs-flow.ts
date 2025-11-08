@@ -11,6 +11,7 @@
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
 import { generateJSON } from '@/lib/ai/genai-helper';
 import type { UserProfile } from '@/lib/types';
+import { classifyError } from '@/lib/errors';
 
 // Input interface
 export interface CheckMadeDesignsInput {
@@ -129,6 +130,6 @@ Output Format (ensure your entire response is a single JSON object matching this
     return output;
   } catch (error) {
     console.error(`ERROR (${flowName}): Failed after rotating keys:`, error);
-    throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);
+    throw classifyError(error);
   }
 }

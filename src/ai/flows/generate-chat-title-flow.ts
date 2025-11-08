@@ -1,4 +1,3 @@
-'use server';
 /**
  * @fileOverview Generates a concise chat session title using Gemini.
  * Always defaults to the gemini-2.5-flash-lite-preview-06-17 model unless the caller specifies otherwise.
@@ -6,6 +5,7 @@
 
 import { GoogleAIService } from '@/lib/services/google-ai-service';
 import { z } from 'zod';
+import { classifyError, AppError } from '@/lib/errors';
 
 // -------------------------
 // Schemas
@@ -77,7 +77,7 @@ export async function generateChatTitle(input: GenerateChatTitleInput): Promise<
   } as any : null;
   
   if (!profile) {
-    throw new Error('No API key available for generating chat title');
+    throw new AppError('NO_KEYS', 400, 'No API key available for generating chat title');
   }
 
   // Try models with fallback
@@ -111,12 +111,12 @@ export async function generateChatTitle(input: GenerateChatTitleInput): Promise<
     }
   }
 
-  // If all models failed, throw the last error
-  throw lastError || new Error('All chat title generation models failed');
+  // If all models failed, classify and rethrow the last error
+  throw classifyError(lastError || new Error('All chat title generation models failed'));
 }
 
 // Optional: convenience wrapper matching older API (returns object)
 export async function generateChatTitleFlow(input: GenerateChatTitleInput): Promise<GenerateChatTitleOutput> {
   const title = await generateChatTitle(input);
   return { title };
-} 
+}

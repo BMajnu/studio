@@ -10,6 +10,7 @@
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
 import { generateJSON } from '@/lib/ai/genai-helper';
 import type { UserProfile } from '@/lib/types';
+import { classifyError } from '@/lib/errors';
 
 // DEBUG helper
 const logDebug = (label: string, ...args: any[]) => {
@@ -142,6 +143,6 @@ Execute the instruction now.`;
     return output;
   } catch (error) {
     console.error(`ERROR (${flowName}):`, error);
-    throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);
+    throw classifyError(error);
   }
 }

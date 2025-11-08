@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
 import { generateJSON } from '@/lib/ai/genai-helper';
 import type { UserProfile } from '@/lib/types';
+import { classifyError } from '@/lib/errors';
 
 // DEBUG logging helper
 const logDebug = (label: string, ...args: any[]) => {
@@ -116,7 +117,7 @@ This output will directly populate UI tabs in the app, so map your content accor
 - Tab "Details" <= detailedRequirementsEnglish/Bengali (short paragraphs, can include simple lists)
 - Tab "Image" <= imageAnalysisEnglish/Bengali (only if images are attached)
 - Tab "Designs" <= designItemsEnglish/Bengali (structured list of designs)
- - Tab "Editing Prompt" <= editingPrompts (5 prompts for editing models; works with image or prompt-only)
+ - Tab "Editing Prompt" <= editingPromptsByDesign (exactly one prompt per design item; when images are attached, one per image in order)
 
 When writing the English and Bengali outputs, you MAY (optionally) use basic Markdown (e.g. \`#\`/\`##\`, **bold**, *italic*, inline \`code\`) to improve clarity. Do NOT embed HTML or images—only plain Markdown so the JSON stays valid.`;
 
@@ -147,6 +148,20 @@ When writing the English and Bengali outputs, you MAY (optionally) use basic Mar
     });
     userPrompt += '\n';
   }
+
+  // Attach strict count rules so AI aligns output with attachments or explicit client request
+  const imageFilesOnly = attachedFiles.filter(f => (f as any)?.type?.startsWith?.('image/'));
+  const imagesCount = imageFilesOnly.length;
+  const attachedImageNames = imageFilesOnly.map((f, idx) => `#${idx + 1}: ${f.name}`).join('\n');
+  if (imagesCount > 0) {
+    userPrompt += `Attached Image Files (${imagesCount}):\n${attachedImageNames}\n\n`;
+  }
+
+  userPrompt += `Design Count Rules:\n` +
+    `- If the client's message explicitly mentions an exact number of designs (M), you MUST generate exactly M designs.\n` +
+    `- Otherwise, if image attachments exist, set FinalDesignCount = number of attached images (${imagesCount}).\n` +
+    `- All of the following arrays MUST contain exactly FinalDesignCount items: designItemsEnglish, designItemsBengali, editingPromptsByDesign, generatedPrompts.\n` +
+    `- When images are attached, each item must correspond 1:1 in order with the attached images (1-based). Set imageIndex = the attached image order. Include the related image's file name inside the prompt text when relevant.\n\n`;
 
   userPrompt += `
 
@@ -266,6 +281,6 @@ Remember: Return ONLY valid JSON matching the exact structure specified above.`;
     return output;
   } catch (error) {
     console.error(`ERROR (${flowName}): Failed after rotating keys:`, error);
-    throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);
+    throw classifyError(error);
   }
 }

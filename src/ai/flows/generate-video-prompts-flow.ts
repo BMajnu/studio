@@ -12,6 +12,7 @@ import { generateJSON } from '@/lib/ai/genai-helper';
 import type { UserProfile } from '@/lib/types';
 import * as fs from 'fs';
 import * as path from 'path';
+import { classifyError } from '@/lib/errors';
 
 // DEBUG logging helper
 const logDebug = (label: string, ...args: any[]) => {
@@ -300,6 +301,6 @@ export async function generateVideoPrompts(flowInput: GenerateVideoPromptsInput)
     return output;
   } catch (error) {
     console.error(`ERROR (${flowName}): Failed after rotating keys:`, error);
-    throw new Error(`AI call failed in ${flowName}. ${(error as Error).message}`);
+    throw classifyError(error);
   }
 }

@@ -2,6 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 import { GeminiKeyManager } from './gemini-key-manager';
 import { UserProfile } from '@/lib/types';
 import mime from 'mime';
+import { AppError, classifyError } from '@/lib/errors';
 
 export interface GeneratedImageData {
   data: string; // base64
@@ -53,7 +54,7 @@ export class GeminiImageGenClient {
     while (attempts < maxRetries) {
       const key = this.manager.getActiveKey();
       if (!key) {
-        throw new Error('No Gemini API keys available (all cooling down or invalid)');
+        throw new AppError('NO_KEYS', 400, 'No Gemini API keys available (all cooling down or invalid)');
       }
 
       try {
@@ -165,19 +166,14 @@ export class GeminiImageGenClient {
           continue; // retry with next key
         }
 
-        // other error types – rethrow immediately
-        throw err;
+        // other error types – map centrally
+        throw classifyError(err);
       }
     }
-
     if (lastError) {
-      throw lastError;
+      throw classifyError(lastError);
     }
-
-    const e: any = new Error('All Gemini keys exhausted for image generation');
-    e.code = 'AI_EXHAUSTED';
-    e.status = 503;
-    throw e;
+    throw new AppError('AI_EXHAUSTED', 503, 'All Gemini keys exhausted for image generation');
   }
 
   /**
@@ -189,7 +185,7 @@ export class GeminiImageGenClient {
   ): AsyncGenerator<{ images?: GeneratedImageData[]; text?: string }> {
     const key = this.manager.getActiveKey();
     if (!key) {
-      throw new Error('No active Gemini API key available.');
+      throw new AppError('NO_KEYS', 400, 'No active Gemini API key available.');
     }
 
     const ai = new GoogleGenAI({ apiKey: key });
@@ -254,7 +250,7 @@ export class GeminiImageGenClient {
         yield* this.generateImagesStream(modelId, prompt);
         return;
       }
-      throw err;
+      throw classifyError(err);
     }
   }
 

@@ -9,6 +9,7 @@
 import { DEFAULT_MODEL_ID } from '@/lib/constants';
 import { generateJSON } from '@/lib/ai/genai-helper';
 import type { UserProfile } from '@/lib/types';
+import { classifyError, AppError } from '@/lib/errors';
 import type {
   PromptToReplicateInput,
   PromptToReplicateOutput,
@@ -45,6 +46,7 @@ export async function promptToReplicate(flowInput: PromptToReplicateInput): Prom
 
   // Process each image and get prompts
   const imagePrompts: ImagePromptResult[] = [];
+  let lastErr: any = null;
   
   for (const imageDataUri of imageDataUris) {
     try {
@@ -105,11 +107,12 @@ export async function promptToReplicate(flowInput: PromptToReplicateInput): Prom
       });
     } catch (error) {
       console.error(`ERROR (${flowName}): AI call failed for an image. Error:`, error);
+      lastErr = error;
     }
   }
 
   if (imagePrompts.length === 0) {
-    throw new Error(`Failed to generate prompts for any images in ${flowName}.`);
+    throw classifyError(lastErr || new AppError('INTERNAL', 500, `Failed to generate prompts for any images in ${flowName}.`));
   }
 
   return { imagePrompts };
