@@ -44,6 +44,18 @@ export async function generateJSON<T = any>(
   console.log(`💬 [CONTENT GENERATION] Original model ID: ${modelId}`);
   console.log(`💬 [CONTENT GENERATION] Normalized model ID: ${normalizedModelId}`);
 
+  // Candidate models to try in case of permission/403 restrictions for a specific model
+  const candidatesBase = [
+    normalizedModelId,
+    'gemini-2.5-flash',
+    'gemini-flash-latest',
+    'gemini-1.5-flash',
+    'gemini-2.5-flash-lite-preview-06-17',
+    'gemini-2.0-flash-lite-preview-12-18',
+    'gemini-1.5-flash-lite-preview',
+  ];
+  const modelCandidates = Array.from(new Set(candidatesBase)).filter(Boolean);
+
   const manager = new GeminiKeyManager(profile || null);
   const allKeys = manager.getAllKeys();
   
@@ -74,37 +86,64 @@ export async function generateJSON<T = any>(
       }
 
       const fullPrompt = systemPrompt + '\n\n' + userPrompt;
-
-      // Prefer streaming API per latest SDK guidance
-      let responseText = '';
-      console.log(`📡 [CONTENT API CALL] Calling AI with model: ${normalizedModelId}`);
-      try {
-        const stream = await ai.models.generateContentStream({
-          model: normalizedModelId,
-          config: modelConfig,
-          contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
-        });
-
-        for await (const chunk of stream as any) {
-          // chunk.text is progressively built by the SDK
-          if (typeof chunk?.text === 'string') {
-            responseText += chunk.text;
+      // Try primary + fallback models with the SAME key if permission/403 restrictions occur
+      let lastPermissionErr: any = null;
+      for (const candidate of modelCandidates) {
+        try {
+          // Prefer streaming API per latest SDK guidance
+          let responseText = '';
+          console.log(`📡 [CONTENT API CALL] Calling AI with model: ${candidate}`);
+          try {
+            const stream = await ai.models.generateContentStream({
+              model: candidate,
+              config: modelConfig,
+              contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+            });
+            for await (const chunk of stream as any) {
+              if (typeof chunk?.text === 'string') {
+                responseText += chunk.text;
+              }
+            }
+          } catch (_streamErr) {
+            console.log(`📡 [CONTENT API FALLBACK] Streaming failed, using non-streaming with model: ${candidate}`);
+            const result = await ai.models.generateContent({
+              model: candidate,
+              config: modelConfig,
+              contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+            });
+            responseText = result.candidates?.[0]?.content?.parts?.[0]?.text || result.text || JSON.stringify(result);
           }
+
+          manager.reportSuccess(key);
+          console.log(`✅ [CONTENT GENERATION] Success with model: ${candidate}`);
+          return JSON.parse(responseText) as T;
+        } catch (innerErr: any) {
+          const msg = (innerErr?.message || '').toLowerCase();
+          const code = innerErr?.code || innerErr?.status || innerErr?.error?.code || innerErr?.error?.status;
+          const isPermission = (
+            msg.includes('permission_denied') ||
+            msg.includes('forbidden') ||
+            msg.includes('leaked') ||
+            msg.includes('api key') ||
+            String(code).includes('403')
+          );
+
+          if (isPermission) {
+            lastPermissionErr = innerErr;
+            console.log(`🔐 [CONTENT MODEL FALLBACK] Permission/Key error on model: ${candidate}. Trying next model with same key.`);
+            continue; // try next candidate model with SAME key
+          }
+
+          // Non-permission errors should be handled by outer catch (quota, 429/503, etc.)
+          throw innerErr;
         }
-      } catch (_streamErr) {
-        // Fallback to non-streaming call for models that don't support streaming
-        console.log(`📡 [CONTENT API FALLBACK] Streaming failed, using non-streaming with model: ${normalizedModelId}`);
-        const result = await ai.models.generateContent({
-          model: normalizedModelId,
-          config: modelConfig,
-          contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
-        });
-        responseText = result.candidates?.[0]?.content?.parts?.[0]?.text || result.text || JSON.stringify(result);
       }
 
-      manager.reportSuccess(key);
-      console.log(`✅ [CONTENT GENERATION] Success with model: ${normalizedModelId}`);
-      return JSON.parse(responseText) as T;
+      // If we exhausted all candidate models due to permission errors, invalidate this key and move on
+      attempts++;
+      manager.reportInvalidKey(key);
+      console.log(`Permission/Key error across all models for current key. Rotating to next key.`);
+      continue;
     } catch (err: any) {
       attempts++;
       const msg = (err?.message || '').toLowerCase();
