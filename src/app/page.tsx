@@ -1695,6 +1695,7 @@ ${params.language ? `Language: ${params.language}` : ''}`;
                 attachedFiles: filesForFlow,
                 chatHistory: chatHistoryForAI,
                 profile: userProfile,
+                modelId: currentModelId,
               };
               const pmOutput = await processClientMessage(pmInput);
 

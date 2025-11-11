@@ -177,6 +177,13 @@ const processMarkdown = (text: string) => {
 // NEW: Helper to collapse multiple blank lines into a single line
 const removeExtraBlankLines = (text: string) => text.replace(/\n{2,}/g, '\n');
 
+const toMDText = (v: any, fallback: string) => {
+  if (v == null) return fallback;
+  if (typeof v === 'string') return v;
+  if (Array.isArray(v)) return v.map((x) => (typeof x === 'string' ? x : String(x))).join('\n');
+  try { return String(v); } catch { return fallback; }
+};
+
 function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick }: { part: ChatMessageContentPart; index: number, searchHighlightTerm?: string, onSuggestionClick?: (suggestion: string, lang: 'en' | 'bn') => void }) {
   const animationDelay = `${index * 80}ms`;
   const commonClasses = "animate-slideUpAndFade rounded-lg w-full mb-3";
@@ -539,7 +546,7 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                       <div className="prose prose-sm dark:prose-invert max-w-none text-foreground leading-snug font-medium prose-li:my-0 prose-ul:my-0 prose-ol:my-0">
                         {part.english?.keyPoints && part.english.keyPoints.length > 0 ? (
                           <ul className="list-disc pl-5 space-y-[3px]">
-                            {part.english.keyPoints.map((point, i) => <li key={i}>{point}</li>)}
+                            {part.english.keyPoints.map((point, i) => <li key={i}>{String(point)}</li>)}
                           </ul>
                         ) : "No key points available"}
               </div>
@@ -550,7 +557,7 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                       <div className="prose prose-sm dark:prose-invert max-w-none text-foreground leading-snug font-medium prose-li:my-0 prose-ul:my-0 prose-ol:my-0">
                         {part.bengali?.keyPoints && part.bengali.keyPoints.length > 0 ? (
                           <ul className="list-disc pl-5 space-y-[3px]">
-                            {part.bengali.keyPoints.map((point, i) => <li key={i}>{point}</li>)}
+                            {part.bengali.keyPoints.map((point, i) => <li key={i}>{String(point)}</li>)}
                           </ul>
                         ) : "কোন মূল বিষয় উপলব্ধ নেই"}
               </div>
@@ -570,7 +577,7 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                         }}
                         className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug font-medium prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0"
                       >
-                        {part.english?.analysis || "No analysis available"}
+                        {toMDText(part.english?.analysis, "No analysis available")}
                       </ReactMarkdown>
                     </ScrollArea>
                     
@@ -586,7 +593,7 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                         }}
                         className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug font-medium prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0"
                       >
-                        {part.bengali?.analysis || "কোন বিশ্লেষণ উপলব্ধ নেই"}
+                        {toMDText(part.bengali?.analysis, "কোন বিশ্লেষণ উপলব্ধ নেই")}
                       </ReactMarkdown>
                     </ScrollArea>
                   </div>
@@ -604,7 +611,7 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                         }}
                         className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug font-medium prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0"
                       >
-                        {part.english?.simplifiedRequest || "No simplified request available"}
+                        {toMDText(part.english?.simplifiedRequest, "No simplified request available")}
                       </ReactMarkdown>
                     </ScrollArea>
                     
@@ -620,7 +627,7 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                         }}
                         className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug font-medium prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0"
                       >
-                        {part.bengali?.simplifiedRequest || "কোন সরলীকৃত অনুরোধ উপলব্ধ নেই"}
+                        {toMDText(part.bengali?.simplifiedRequest, "কোন সরলীকৃত অনুরোধ উপলব্ধ নেই")}
                       </ReactMarkdown>
                     </ScrollArea>
                   </div>
@@ -638,7 +645,7 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                         }}
                         className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug font-medium prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0"
                       >
-                        {part.english?.stepByStepApproach || "No step-by-step approach available"}
+                        {toMDText(part.english?.stepByStepApproach, "No step-by-step approach available")}
                       </ReactMarkdown>
                     </ScrollArea>
                     
@@ -654,7 +661,7 @@ function RenderContentPart({ part, index, searchHighlightTerm, onSuggestionClick
                         }}
                         className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-[3px] leading-snug font-medium prose-p:my-0 prose-li:my-0 prose-ul:my-0 prose-ol:my-0"
                       >
-                        {part.bengali?.stepByStepApproach || "কোন ধাপে ধাপে পদ্ধতি উপলব্ধ নেই"}
+                        {toMDText(part.bengali?.stepByStepApproach, "কোন ধাপে ধাপে পদ্ধতি উপলব্ধ নেই")}
                       </ReactMarkdown>
                     </ScrollArea>
                   </div>

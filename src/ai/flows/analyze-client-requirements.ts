@@ -273,7 +273,8 @@ Remember: Return ONLY valid JSON matching the exact structure specified above.`;
       temperature: 0.7,
       maxOutputTokens: 16000,
       thinkingMode: profile?.thinkingMode || 'default',
-      profile: profileForKey
+      profile: profileForKey,
+      useModelFallback: false
     }, systemPrompt, userPrompt);
 
     console.log(`[${flowName}] Success, output size: ${JSON.stringify(output).length} bytes`);
